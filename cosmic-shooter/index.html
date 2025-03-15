@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kosmiczny Strzelec</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        body {
+            overflow: hidden;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+        }
+        #gameCanvas {
+            display: block;
+            touch-action: none;
+        }
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            pointer-events: none;
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        p {
+            margin: 10px 0;
+            text-align: center;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="gameUI">
+        <div>Punkty: <span id="score">0</span></div>
+        <div>Życia: <span id="lives">3</span></div>
+    </div>
+
+    <div id="startScreen">
+        <h1>Kosmiczny Strzelec</h1>
+        <p>Steruj statkiem, unikaj meteorów i zestrzel jak najwięcej wrogów!</p>
+        <button id="startButton" class="button">Rozpocznij grę</button>
+    </div>
+
+    <div id="gameOverScreen">
+        <h1>Koniec Gry!</h1>
+        <p>Twój wynik: <span id="finalScore">0</span></p>
+        <button id="restartButton" class="button">Zagraj ponownie</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Audio elements encoded as base64
+        const audioData = {
+            laser: "data:audio/wav;base64,UklGRiQDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQADAACAmbmZmZm5mZmZubm5mZmZubm5mZm5ubmZmZm5ubmZmZm5ubmZmZm5ub+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vwaJ95mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZu72/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v0MNy/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyWv5veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyKQ5/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyKw2veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm7vb+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyaL5veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm7vb+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v0LUu/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm5u7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v49+p/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu5u7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7KXlPeZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm5ub2/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vw==",
+            explosion: "data:audio/wav;base64,UklGRigEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQEAAB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fv4LBP8zAD82Jf/X0K3/9u4NU/xZGbH6LTT9PGpg/5GJeP9XVP9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bVwgAwP//qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==",
+            powerup: "data:audio/wav;base64,UklGRtQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YbACAABQUFBQUFBQUFBQUFBQUFBQUFBQUFBQVFhbXmFjZWdpamxtbnBxc3R1d3h5e3x9f4BBQUFCQkJCQ0NDREREQUBAPz4+PTw8Ozs6OTkzMTAtLCspKCYlIiEfHRwaGRcVFBIREA4NCwsJBwcFBAMCAQEAAAAAAAAAAAAAAAAAAAABAQECAgIEBAQFBgYHCAgJCgsLDA0ODxAQERITFBUVFhcYGBkaGxscHR0eHx8gISEiIiMjJCQkJSUlJSYmJiYmJiYmJiYmJiYmJiYmJSUlJCQkIyMjIiIiISAgHx8eHh0dHBwbGxoaGRkYGBcXFhYVFRQUExMSEhEREBAQDw8ODg4NDQ0MDAsLCwsKCgoJCQkJCAgIBwcHBwcGBgYGBgUFBQUFBQQEBAQEBAQEAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBAQEBAQEBAQEBAQEBAQEBAQEBAQFBQUFBQUFBQUFBQUFBQUFBQYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcIBwUEAwIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        };
+
+        // Audio elements
+        const laserSound = new Audio(audioData.laser);
+        const explosionSound = new Audio(audioData.explosion);
+        const powerupSound = new Audio(audioData.powerup);
+
+        let player, projectiles, enemies, meteors, particles;
+        let score = 0;
+        let lives = 3;
+        let gameActive = false;
+
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 40;
+                this.color = '#4AF';
+                this.shootCooldown = 0;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+            }
+
+            update() {
+                if (this.shootCooldown > 0) this.shootCooldown--;
+            }
+
+            shoot() {
+                if (this.shootCooldown <= 0) {
+                    laserSound.currentTime = 0;
+                    laserSound.play();
+                    projectiles.push(new Projectile(this.x, this.y - this.height / 2));
+                    this.shootCooldown = 15;
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 4;
+                this.speedY = -10;
+                this.color = '#FF0';
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                this.y += this.speedY;
+            }
+        }
+
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 30;
+                this.height = 30;
+                this.speedY = 2;
+                this.color = '#F44';
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+            }
+
+            update() {
+                this.y += this.speedY;
+            }
+        }
+
+        class Meteor {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = Math.random() * 20 + 10;
+                this.speedY = Math.random() * 3 + 2;
+                this.color = '#AAA';
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                this.y += this.speedY;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = Math.random() * 3 + 1;
+                this.color = color;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.life = 30;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life / 30;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life--;
+            }
+        }
+
+        function init() {
+            player = new Player(canvas.width / 2, canvas.height - 100);
+            projectiles = [];
+            enemies = [];
+            meteors = [];
+            particles = [];
+            score = 0;
+            lives = 3;
+            gameActive = true;
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+
+            spawnEnemies();
+            spawnMeteors();
+            animate();
+        }
+
+        function spawnEnemies() {
+            setInterval(() => {
+                const x = Math.random() * (canvas.width - 60) + 30;
+                enemies.push(new Enemy(x, -30));
+            }, 2000);
+        }
+
+        function spawnMeteors() {
+            setInterval(() => {
+                const x = Math.random() * canvas.width;
+                meteors.push(new Meteor(x, -30));
+            }, 3000);
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+            explosionSound.currentTime = 0;
+            explosionSound.play();
+        }
+
+        function checkCollisions() {
+            // Projectile vs Enemy
+            projectiles.forEach((p, pi) => {
+                enemies.forEach((e, ei) => {
+                    if (Math.hypot(p.x - e.x, p.y - e.y) < e.width / 2 + p.radius) {
+                        createExplosion(e.x, e.y, '#F44');
+                        enemies.splice(ei, 1);
+                        projectiles.splice(pi, 1);
+                        score += 10;
+                        document.getElementById('score').textContent = score;
+                    }
+                });
+            });
+
+            // Projectile vs Meteor
+            projectiles.forEach((p, pi) => {
+                meteors.forEach((m, mi) => {
+                    if (Math.hypot(p.x - m.x, p.y - m.y) < m.radius + p.radius) {
+                        createExplosion(m.x, m.y, '#AAA');
+                        meteors.splice(mi, 1);
+                        projectiles.splice(pi, 1);
+                        score += 5;
+                        document.getElementById('score').textContent = score;
+                    }
+                });
+            });
+
+            // Player vs Enemy
+            enemies.forEach((e, ei) => {
+                if (Math.hypot(player.x - e.x, player.y - e.y) < e.width / 2 + player.width / 2) {
+                    createExplosion(e.x, e.y, '#F44');
+                    enemies.splice(ei, 1);
+                    playerHit();
+                }
+            });
+
+            // Player vs Meteor
+            meteors.forEach((m, mi) => {
+                if (Math.hypot(player.x - m.x, player.y - m.y) < m.radius + player.width / 2) {
+                    createExplosion(m.x, m.y, '#AAA');
+                    meteors.splice(mi, 1);
+                    playerHit();
+                }
+            });
+        }
+
+        function playerHit() {
+            lives--;
+            document.getElementById('lives').textContent = lives;
+            if (lives <= 0) gameOver();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+
+        function animate() {
+            if (!gameActive) return;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            player.update();
+            player.draw();
+
+            projectiles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if (p.y < -p.radius) projectiles.splice(i, 1);
+            });
+
+            enemies.forEach((e, i) => {
+                e.update();
+                e.draw();
+                if (e.y > canvas.height + e.height) enemies.splice(i, 1);
+            });
+
+            meteors.forEach((m, i) => {
+                m.update();
+                m.draw();
+                if (m.y > canvas.height + m.radius) meteors.splice(i, 1);
+            });
+
+            particles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+
+            checkCollisions();
+            requestAnimationFrame(animate);
+        }
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('startScreen').style.display = 'none';
+            init();
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            document.getElementById('gameOverScreen').style.display = 'none';
+            init();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            player.x = touch.clientX;
+            player.y = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            player.shoot();
+        }, { passive: false });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
