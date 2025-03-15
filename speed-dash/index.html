@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Gra Wyścigowa - Ulepszona</title>
+    <title>Speed Dash</title>
     <style>
         * {
             margin: 0;
@@ -44,25 +44,23 @@
             margin-bottom: 80px;
         }
 
-#car {
-    position: absolute;
-    width: 50px;
-    height: 100px;
-    background-color: red;
-    bottom: 50px;
-    border-radius: 10px;
-    z-index: 10;
-    /* Usunięto transition dla natychmiastowej reakcji */
-}
+        #car {
+            position: absolute;
+            width: 50px;
+            height: 100px;
+            background-color: red;
+            bottom: 50px;
+            border-radius: 10px;
+            z-index: 10;
+        }
 
-/* Styl dla przeszkód - również usunięto transition */
-.obstacle {
-    position: absolute;
-    width: 50px;
-    height: 80px;
-    background-color: blue;
-    border-radius: 8px;
-}
+        .obstacle {
+            position: absolute;
+            width: 50px;
+            height: 80px;
+            background-color: blue;
+            border-radius: 8px;
+        }
 
         #controls {
             position: absolute;
@@ -124,22 +122,89 @@
             border-radius: 5px;
             cursor: pointer;
         }
+
+        /* Styl dla przycisku cofnięcia w tył */
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 115, 230, 0.8);
+            color: #fff;
+            border: none;
+            padding: 0;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+            height: 40px;
+            width: 40px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .back-button a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .back-button:hover {
+            background-color: rgba(0, 91, 181, 0.8);
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            filter: invert(1);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse-once {
+            animation: pulse 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
-    <div id="road"></div>
-    <div id="car"></div>
-    <div id="score">0</div>
-    <div id="controls">
-        <div id="left-control"></div>
-        <div id="right-control"></div>
+        <div id="road"></div>
+        <div id="car"></div>
+        <div id="score">0</div>
+        <div id="controls">
+            <div id="left-control"></div>
+            <div id="right-control"></div>
+        </div>
+        <div id="game-over">
+            <p>GAME OVER</p>
+            <p id="final-score"></p>
+            <button id="restart">PLAY AGAIN</button>
+        </div>
     </div>
-    <div id="game-over">
-        <p>KONIEC GRY</p>
-        <p id="final-score"></p>
-        <button id="restart">ZAGRAJ PONOWNIE</button>
-    </div>
+
+    <!-- Przycisk cofnięcia w tył -->
+    <div class="back-button">
+        <a href="https://guziczak.github.io/lukasz"><img src="../resources/icons/return.svg" alt="Return" class="icon"></a>
     </div>
 
     <script>
@@ -164,38 +229,37 @@
         let animationId;
 
         // Inicjalizacja gry
-// Inicjalizacja gry
-function initGame() {
-    gameActive = true;
-    score = 0;
-    speed = 5;
-    carPosition = 50; // Pozycja na środku (w procentach)
-    roadLines = [];
-    obstacles = [];
-    scoreElement.textContent = '0';
-    gameOverElement.style.display = 'none';
-    road.innerHTML = '';
-    
-    // Czyścimy poprzednie przeszkody
-    obstacles.forEach(obstacle => {
-        if (obstacle.parentNode) {
-            obstacle.parentNode.removeChild(obstacle);
+        function initGame() {
+            gameActive = true;
+            score = 0;
+            speed = 5;
+            carPosition = 50; // Pozycja na środku (w procentach)
+            roadLines = [];
+            obstacles = [];
+            scoreElement.textContent = '0';
+            gameOverElement.style.display = 'none';
+            road.innerHTML = '';
+            
+            // Czyścimy poprzednie przeszkody
+            obstacles.forEach(obstacle => {
+                if (obstacle.parentNode) {
+                    obstacle.parentNode.removeChild(obstacle);
+                }
+            });
+            obstacles = [];
+            
+            // Tworzymy nowe linie drogi
+            for (let i = 0; i < 10; i++) {
+                createRoadLine(i * 160);
+            }
+            
+            // Natychmiast aktualizujemy pozycję samochodu
+            updateCarPosition();
+            
+            // Restartujemy pętlę gry
+            cancelAnimationFrame(animationId);
+            gameLoop();
         }
-    });
-    obstacles = [];
-    
-    // Tworzymy nowe linie drogi
-    for (let i = 0; i < 10; i++) {
-        createRoadLine(i * 160);
-    }
-    
-    // Natychmiast aktualizujemy pozycję samochodu
-    updateCarPosition();
-    
-    // Restartujemy pętlę gry
-    cancelAnimationFrame(animationId);
-    gameLoop();
-}
 
         // Tworzenie linii drogi
         function createRoadLine(y) {
@@ -206,133 +270,124 @@ function initGame() {
             roadLines.push(line);
         }
 
-// Tworzenie przeszkody
-function createObstacle() {
-    const obstacle = document.createElement('div');
-    obstacle.className = 'obstacle';
+        // Tworzenie przeszkody
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
 
-    const roadWidth = road.offsetWidth;
-    const minX = 20;
-    const maxX = roadWidth - 70;
-    const x = Math.random() * (maxX - minX) + minX;
+            const roadWidth = road.offsetWidth;
+            const minX = 20;
+            const maxX = roadWidth - 70;
+            const x = Math.random() * (maxX - minX) + minX;
 
-    obstacle.style.left = x + 'px';
-    obstacle.style.top = '-80px';
-    road.appendChild(obstacle);
-    obstacles.push(obstacle);
-}
-
-// Aktualizacja pozycji samochodu - pozwala na wyjazd poza drogę
-function updateCarPosition() {
-    const gameWidth = gameContainer.offsetWidth;
-    const roadWidth = road.offsetWidth;
-    const carWidth = car.offsetWidth;
-    const roadLeft = road.offsetLeft;
-    
-    // Teraz samochód może poruszać się w szerszym zakresie
-    // Jeśli carPosition = 0, samochód jest przy lewej krawędzi kontenera gry
-    // Jeśli carPosition = 100, samochód jest przy prawej krawędzi kontenera gry
-    let actualLeft;
-    
-    if (carPosition <= 0) {
-        actualLeft = 0; // Skrajna lewa pozycja (poza drogą)
-    } else if (carPosition >= 100) {
-        actualLeft = gameWidth - carWidth; // Skrajna prawa pozycja (poza drogą)
-    } else {
-        // Pozycja liniowa w całym kontenerze gry
-        actualLeft = (carPosition / 100) * (gameWidth - carWidth);
-    }
-    
-    // Ustawiamy samochód względem całego kontenera gry, nie tylko drogi
-    car.style.left = actualLeft + 'px';
-}
-
-// Sprawdzanie kolizji
-function checkCollision() {
-    const carRect = car.getBoundingClientRect();
-    const roadRect = road.getBoundingClientRect();
-    
-    // Sprawdzamy, czy samochód jest na drodze
-    const carOnRoad = !(carRect.right < roadRect.left || 
-                        carRect.left > roadRect.right);
-    
-    // Jeśli samochód nie jest na drodze, nie ma możliwości kolizji z przeszkodami
-    if (!carOnRoad) return false;
-    
-    for (let obstacle of obstacles) {
-        const obstacleRect = obstacle.getBoundingClientRect();
-
-        if (
-            carRect.left < obstacleRect.right &&
-            carRect.right > obstacleRect.left &&
-            carRect.top < obstacleRect.bottom &&
-            carRect.bottom > obstacleRect.top
-        ) {
-            return true;
+            obstacle.style.left = x + 'px';
+            obstacle.style.top = '-80px';
+            road.appendChild(obstacle);
+            obstacles.push(obstacle);
         }
-    }
 
-    return false;
-}
-
-// Główna pętla gry
-function gameLoop() {
-    if (!gameActive) return;
-
-    // Sprawdzamy, czy samochód jest na drodze
-    const carRect = car.getBoundingClientRect();
-    const roadRect = road.getBoundingClientRect();
-    const carOnRoad = !(carRect.right < roadRect.left || 
-                        carRect.left > roadRect.right);
-
-    // Tylko jeśli samochód jest na drodze, zwiększamy wynik
-    if (carOnRoad) {
-        score++;
-        scoreElement.textContent = score;
-    }
-
-    if (score % 500 === 0) {
-        speed += 0.5;
-    }
-
-    if (score % 100 === 0) {
-        createObstacle();
-    }
-
-    for (let i = roadLines.length - 1; i >= 0; i--) {
-        const line = roadLines[i];
-        let y = parseFloat(line.style.top);
-        y += speed;
-
-        if (y > road.offsetHeight) {
-            road.removeChild(line);
-            roadLines.splice(i, 1);
-            createRoadLine(0);
-        } else {
-            line.style.top = y + 'px';
+        // Aktualizacja pozycji samochodu
+        function updateCarPosition() {
+            const gameWidth = gameContainer.offsetWidth;
+            const roadWidth = road.offsetWidth;
+            const carWidth = car.offsetWidth;
+            const roadLeft = road.offsetLeft;
+            
+            let actualLeft;
+            
+            if (carPosition <= 0) {
+                actualLeft = 0;
+            } else if (carPosition >= 100) {
+                actualLeft = gameWidth - carWidth;
+            } else {
+                actualLeft = (carPosition / 100) * (gameWidth - carWidth);
+            }
+            
+            car.style.left = actualLeft + 'px';
         }
-    }
 
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obstacle = obstacles[i];
-        let y = parseFloat(obstacle.style.top);
-        y += speed;
+        // Sprawdzanie kolizji
+        function checkCollision() {
+            const carRect = car.getBoundingClientRect();
+            const roadRect = road.getBoundingClientRect();
+            
+            const carOnRoad = !(carRect.right < roadRect.left || 
+                                carRect.left > roadRect.right);
+            
+            if (!carOnRoad) return false;
+            
+            for (let obstacle of obstacles) {
+                const obstacleRect = obstacle.getBoundingClientRect();
 
-        if (y > road.offsetHeight) {
-            road.removeChild(obstacle);
-            obstacles.splice(i, 1);
-        } else {
-            obstacle.style.top = y + 'px';
+                if (
+                    carRect.left < obstacleRect.right &&
+                    carRect.right > obstacleRect.left &&
+                    carRect.top < obstacleRect.bottom &&
+                    carRect.bottom > obstacleRect.top
+                ) {
+                    return true;
+                }
+            }
+
+            return false;
         }
-    }
 
-    if (checkCollision()) {
-        gameOver();
-        return;
-    }
+        // Główna pętla gry
+        function gameLoop() {
+            if (!gameActive) return;
 
-    animationId = requestAnimationFrame(gameLoop);
-}
+            const carRect = car.getBoundingClientRect();
+            const roadRect = road.getBoundingClientRect();
+            const carOnRoad = !(carRect.right < roadRect.left || 
+                                carRect.left > roadRect.right);
+
+            if (carOnRoad) {
+                score++;
+                scoreElement.textContent = score;
+            }
+
+            if (score % 500 === 0) {
+                speed += 0.5;
+            }
+
+            if (score % 100 === 0) {
+                createObstacle();
+            }
+
+            for (let i = roadLines.length - 1; i >= 0; i--) {
+                const line = roadLines[i];
+                let y = parseFloat(line.style.top);
+                y += speed;
+
+                if (y > road.offsetHeight) {
+                    road.removeChild(line);
+                    roadLines.splice(i, 1);
+                    createRoadLine(0);
+                } else {
+                    line.style.top = y + 'px';
+                }
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                let y = parseFloat(obstacle.style.top);
+                y += speed;
+
+                if (y > road.offsetHeight) {
+                    road.removeChild(obstacle);
+                    obstacles.splice(i, 1);
+                } else {
+                    obstacle.style.top = y + 'px';
+                }
+            }
+
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
 
         // Zakończenie gry
         function gameOver() {
@@ -371,36 +426,44 @@ function gameLoop() {
             rightControl.classList.remove('active');
         });
 
-// Funkcje sterowania - zwiększona czułość
-function steerLeft() {
-    if (!gameActive || !isTouchingLeft) return;
+        // Funkcje sterowania
+        function steerLeft() {
+            if (!gameActive || !isTouchingLeft) return;
 
-    carPosition -= 4; // Zwiększona prędkość skrętu dla lepszej responsywności
-    if (carPosition < 0) carPosition = 0;
-    updateCarPosition();
+            carPosition -= 4;
+            if (carPosition < 0) carPosition = 0;
+            updateCarPosition();
 
-    if (isTouchingLeft) {
-        requestAnimationFrame(steerLeft);
-    }
-}
+            if (isTouchingLeft) {
+                requestAnimationFrame(steerLeft);
+            }
+        }
 
-function steerRight() {
-    if (!gameActive || !isTouchingRight) return;
+        function steerRight() {
+            if (!gameActive || !isTouchingRight) return;
 
-    carPosition += 4; // Zwiększona prędkość skrętu dla lepszej responsywności
-    if (carPosition > 100) carPosition = 100;
-    updateCarPosition();
+            carPosition += 4;
+            if (carPosition > 100) carPosition = 100;
+            updateCarPosition();
 
-    if (isTouchingRight) {
-        requestAnimationFrame(steerRight);
-    }
-}
+            if (isTouchingRight) {
+                requestAnimationFrame(steerRight);
+            }
+        }
 
         // Przycisk restartu
         restartButton.addEventListener('click', initGame);
 
         // Inicjalizacja gry po załadowaniu
         window.addEventListener('load', initGame);
+
+        // Animacja pulsowania przycisku cofnięcia
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const backButton = document.querySelector('.back-button a');
+                backButton.classList.add('pulse-once');
+            }, 1000);
+        });
     </script>
 </body>
 </html>
