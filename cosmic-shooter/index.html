@@ -25,7 +25,7 @@
         }
         #gameUI {
             position: absolute;
-            top: 10px;
+            top: 80px; /* Przesunięte w dół, aby nie nakładało się na przycisk cofnij */
             left: 10px;
             color: white;
             font-size: 18px;
@@ -82,10 +82,77 @@
             text-align: center;
             padding: 0 20px;
         }
+
+        /* Styl dla przycisku cofnięcia w tył */
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 115, 230, 0.8);
+            color: #fff;
+            border: none;
+            padding: 0;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+            height: 40px;
+            width: 40px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .back-button a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .back-button:hover {
+            background-color: rgba(0, 91, 181, 0.8);
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            filter: invert(1);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse-once {
+            animation: pulse 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+
+    <!-- Przycisk cofnięcia w tył -->
+    <div class="back-button">
+        <a href="https://guziczak.github.io/lukasz"><img src="../resources/icons/return.svg" alt="Return" class="icon"></a>
+    </div>
 
     <div id="gameUI">
         <div>Punkty: <span id="score">0</span></div>
@@ -113,7 +180,7 @@
         // Audio elements encoded as base64
         const audioData = {
             laser: "data:audio/wav;base64,UklGRiQDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQADAACAmbmZmZm5mZmZubm5mZmZubm5mZm5ubmZmZm5ubmZmZm5ubmZmZm5ub+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vwaJ95mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZu72/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v0MNy/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyWv5veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyKQ5/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu9v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyKw2veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm7vb+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vyaL5veZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm7vb+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v0LUu/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm5u7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v49+p/eZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbu5u7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7KXlPeZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbm5ub2/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/vw==",
-            explosion: "data:audio/wav;base64,UklGRigEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQEAAB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fv4LBP8zAD82Jf/X0K3/9u4NU/xZGbH6LTT9PGpg/5GJeP9XVP9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bVwgAwP//qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==",
+            explosion: "data:audio/wav;base64,UklGRigEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQEAAB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fv4LBP8zAD82Jf/X0K3/9u4NU/xZGbH6LTT9PGpg/5GJeP9XVP9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bV/9bVwgAwP//qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==",
             powerup: "data:audio/wav;base64,UklGRtQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YbACAABQUFBQUFBQUFBQUFBQUFBQUFBQUFBQVFhbXmFjZWdpamxtbnBxc3R1d3h5e3x9f4BBQUFCQkJCQ0NDREREQUBAPz4+PTw8Ozs6OTkzMTAtLCspKCYlIiEfHRwaGRcVFBIREA4NCwsJBwcFBAMCAQEAAAAAAAAAAAAAAAAAAAABAQECAgIEBAQFBgYHCAgJCgsLDA0ODxAQERITFBUVFhcYGBkaGxscHR0eHx8gISEiIiMjJCQkJSUlJSYmJiYmJiYmJiYmJiYmJiYmJSUlJCQkIyMjIiIiISAgHx8eHh0dHBwbGxoaGRkYGBcXFhYVFRQUExMSEhEREBAQDw8ODg4NDQ0MDAsLCwsKCgoJCQkJCAgIBwcHBwcGBgYGBgUFBQUFBQQEBAQEBAQEAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBAQEBAQEBAQEBAQEBAQEBAQEBAQFBQUFBQUFBQUFBQUFBQUFBQYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcIBwUEAwIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         };
 
@@ -405,6 +472,14 @@
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+        });
+
+        // Animacja pulsowania przycisku cofnięcia
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const backButton = document.querySelector('.back-button a');
+                backButton.classList.add('pulse-once');
+            }, 1000);
         });
     </script>
 </body>
