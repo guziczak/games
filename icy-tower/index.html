@@ -140,16 +140,24 @@
             z-index: 10;
         }
         .control-button {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 50px;
             background-color: rgba(255,255,255,0.3);
-            border-radius: 50%;
+            border-radius: 10px;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 24px;
             color: white;
             user-select: none;
+        }
+        #leftButton, #rightButton {
+            width: 30%;
+            max-width: 120px;
+        }
+        #jumpButton {
+            width: 40%;
+            max-width: 160px;
         }
         .control-button:active {
             background-color: rgba(255,255,255,0.5);
@@ -234,11 +242,13 @@
             let difficulty = 1;
             let platformMin = 100;
             let platformMax = 200;
+            let minPlatformDistance = 80; // Minimalna odległość między platformami
+            let maxPlatformDistance = 120; // Maksymalna odległość między platformami
             
             // Dźwięki
             const jumpSound = new Audio("data:audio/wav;base64,UklGRigCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQCAABcZqU9LX8XSnKJV3RwbmVlYF5cWlhYV1ZVVVRUVFNUVFVUVVZXWFhZW1xdXmBjZWdpaGZlYmFeXVxbW1paWlpaW1tcXV5fYGBhYmNjZGRkY2NjY2JiYWBfXl5dXFxcXFtbW1tcXFxcXV1eX15fYGFiYmNkZWZnZ2hpaWpramlpZ2ZlY2JhYF5eXVxbW1paWlpaWVlaWlpbW11dXl5fYGFiY2RkZWZmZmZmZmVlZGRjYmJhYGBfX15eXV1cXFtbW1tbW1tbW1tcXFxdXV5eX19gYGFhYmJiYmJiYmFhYWBgX19eXl1dXFxcW1tbW1tbW1tbW1tcXFxcXV1dXl5eXl9fX19fX19fX19fXl5eXl1dXV1cXFxcW1tbW1tbW1tbW1tbW1tbXFxcXFxcXFxcXFxcXFxcXFxcXFxcW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbXFxbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXA==");
             const comboSound = new Audio("data:audio/wav;base64,UklGRoACAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YWACAABfZGRjYmFgX15dXFtaWllXVlVUU1FQT05MS0pIR0VEQkFAPz49Ozk4NzU0MzEwLy4sKyopKCcmJCMiISAfHh0cGxoZGBcWFRUUExIREA8ODQwLCgoJCAgHBgUFBAMDAgEBAQAAAAAAAAAAAAAAAAEBAQECAgMDAwQEBQUGBgcHCAgJCQoLCwwNDQ4PDxAQERISExMUFRUWFhcYGBkaGhscHB0dHh8fICAhISIiIyQkJSUmJicoKCkpKissLC0tLi4vMDAxMTIyMzQ0NTU2Nzc4ODk6Ojs7PD09Pj4/QEBAQUJCQ0RERUZGRkdISElJSkpLS0xMTU1OTk9PUFBRUVJSUlNTVFRVVVZWV1dXWFhZWVpaW1tcXFxdXV5eXl9fYGBhYWFiYmNjZGRkZWVmZmZnZ2hoaGlpaWpqa2trbGxtbW5ubm9vb3BwcXFxcnJycnNzc3R0dHR1dXV1dnZ2dnd3d3d4eHh4eHl5eXl5enp6enp6e3t7e3t7fHx8fHx8fX19fX19fX5+fn5+fn5+fn9/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/");
-            const fallSound = new Audio("data:audio/wav;base64,UklGRswDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YagDAACAf39/foCAgIGCgoKCgoKCgoGBgIB/fn18e3p5eHd2dnV0c3JxcG9ubWxsamppaWhoZ2dmZmVlZGRjY2JiYmFhYWBgYF9fX19eXl5eXl5dXV1dXV1dXV1dXV5eXl5eXl5fX19fX19fYGBgYGBgYWFhYWFhYmJiYmJiY2NjY2NjZGRkZGRkZWVlZWVlZmZmZmZmZ2dnZ2hnZmd9gH+AgX57d21lYmRrdoSLjY+OiYB2a19UUlVcanJ8g4aIiIaDfndwZ19YUk1KS09YYWtzeX6Cg4SCfnhxamNeWVVRTkxLTE5TW2Ntc3l+goSEgoB8dW5nYFpVUU5MS0pLTVFWXGJpb3V7f4KEhIOBfnlybGZgW1ZST0xLSktNUVVbYWdtc3l+goWGhYOAfXdwamRfWVVRT01LSkxPU1hfZWtxd3yBhYaGhIJ/enRuaGJdWFRRT01MS01QVFldY2lvcniBhIWFhIJ/e3ZwamVgW1dUUE1MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYA==");
+            const fallSound = new Audio("data:audio/wav;base64,UklGRswDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YagDAACAf39/foCAgIGCgoKCgoKCgoGBgIB/fn18e3p5eHd2dnV0c3JxcG9ubWxsamppaWhoZ2dmZmVlZGRjY2JiYmFhYWBgYF9fX19eXl5eXl5dXV1dXV1dXV1dXV5eXl5eXl5fX19fX19fYGBgYGBgYWFhYWFhYmJiYmJiY2NjY2NjZGRkZGRkZWVlZWVlZmZmZmZmZ2dnZ2hnZmd9gH+AgX57d21lYmRrdoSLjY+OiYB2a19UUlVcanJ8g4aIiIaDfndwZ19YUk1KS09YYWtzeX6Cg4SCfnhxamNeWVVRTkxLTE5TW2Ntc3l+goSEgoB8dW5nYFpVUU5MS0pLTVFWXGJpb3V7f4KEhIOBfnlybGZgW1ZST0xLSktNUVVbYWdtc3l+goWGhYOAfXdwamRfWVVRT01LSkxPU1hfZWtxd3yBhYaGhIJ/enRuaGJdWFRRT01MS01QVFldY2lvcniBhIWFhIJ/e3ZwamVgW1dUUE1MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZA==");
             
             // Inicjalizacja gry
             function init() {
@@ -413,12 +423,12 @@
                         }
                     }
                     
-                    // Dodawanie nowych platform
-                    while (platforms.length < 10) {
+                    // ZMIANA: Dodawanie nowych platform gdy potrzeba
+                    while (highestPlatform > -500) { // Generowanie platform przed ekranem
                         let platformWidth = Math.random() * (platformMax - platformMin) + platformMin;
                         let platformX = Math.random() * (gameCanvas.width - platformWidth);
-                        let platformY = highestPlatform - 100 - Math.random() * 50;
-                        createPlatform(platformX, platformY, platformWidth);
+                        let nextPlatformY = highestPlatform - (minPlatformDistance + Math.random() * (maxPlatformDistance - minPlatformDistance));
+                        createPlatform(platformX, nextPlatformY, platformWidth);
                     }
                     
                     // Przesuwanie płatków śniegu
