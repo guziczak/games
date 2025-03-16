@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Birds</title>
+    <title>Sky Dodge</title>
     <style>
         * {
             margin: 0;
@@ -15,19 +15,17 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            width: 100vw;
             background-color: #333;
             overflow: hidden;
             touch-action: none;
         }
         #gameContainer {
             position: relative;
-            width: 320px;
-            height: 480px;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             background-color: #87CEEB;
-            border: 2px solid #000;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         #gameArea {
             width: 100%;
@@ -35,40 +33,40 @@
             position: relative;
         }
         #bird {
-            width: 40px;
-            height: 30px;
+            width: 50px;
+            height: 40px;
             position: absolute;
             background-color: #FFFF00;
             border-radius: 50% 50% 30% 30%;
             top: 50%;
-            left: 60px;
+            left: 15%;
             z-index: 2;
         }
         #bird:before {
             content: '';
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background-color: #000;
             border-radius: 50%;
-            top: 5px;
-            right: 5px;
+            top: 7px;
+            right: 7px;
         }
         #bird:after {
             content: '';
             position: absolute;
-            width: 15px;
-            height: 10px;
+            width: 18px;
+            height: 12px;
             background-color: #FF6600;
             border-radius: 50% 50% 30% 30%;
-            top: 10px;
-            right: -5px;
+            top: 12px;
+            right: -6px;
         }
         .pipe {
             position: absolute;
-            width: 50px;
+            width: 80px;
             background-color: #3CB371;
-            border: 2px solid #000;
+            border: 3px solid #000;
         }
         .pipeUp {
             bottom: 0;
@@ -95,12 +93,12 @@
         }
         button {
             margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 18px;
+            padding: 15px 30px;
+            font-size: 24px;
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
         }
         button:hover {
@@ -108,9 +106,9 @@
         }
         #score {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 24px;
+            top: 20px;
+            left: 20px;
+            font-size: 36px;
             font-weight: bold;
             color: white;
             z-index: 3;
@@ -120,7 +118,7 @@
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 70px;
+            height: 10%;
             background-color: #8B4513;
             z-index: 1;
         }
@@ -132,6 +130,14 @@
             background-color: #7CFC00;
             top: -20px;
         }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -142,7 +148,7 @@
             <div id="score">0</div>
         </div>
         <div id="startScreen">
-            <h1>Flappy Birds</h1>
+            <h1>Sky Dodge</h1>
             <p>Dotknij ekranu, aby rozpocząć</p>
             <button id="startButton">Start</button>
         </div>
@@ -168,23 +174,22 @@
             let gameRunning = false;
             let pipes = [];
             let score = 0;
-            let gravity = 0.5;
+            let gravity = 0.4;
             let velocity = 0;
-            let jump = -10;
-            let birdPosition = 240;
-            let pipeWidth = 50;
-            let pipeGap = 150;
+            let jump = -8;
+            let birdPosition;
+            let pipeWidth = 80;
+            let pipeGap = 220;  // Zwiększona szczelina w pionie
             let pipeSpeed = 2;
-            let pipeInterval = 1500;
+            let pipeInterval = 2500;  // Zwiększony odstęp czasowy między rurami
             let lastPipeTime = 0;
             let animationId;
-            let touchStartY = 0;
             
             function setupGame() {
                 score = 0;
                 scoreElement.textContent = score;
                 velocity = 0;
-                birdPosition = 240;
+                birdPosition = gameArea.clientHeight / 2;
                 bird.style.top = birdPosition + 'px';
                 
                 // Remove existing pipes
@@ -239,7 +244,7 @@
                     pipe.downPipe.style.left = pipe.x + 'px';
                     
                     // Check for passed pipes
-                    if (!pipe.passed && pipe.x + pipeWidth < 60) {
+                    if (!pipe.passed && pipe.x + pipeWidth < gameArea.clientWidth * 0.15) {
                         pipe.passed = true;
                         score++;
                         scoreElement.textContent = score;
@@ -265,12 +270,13 @@
             function createPipe() {
                 const gameAreaHeight = gameArea.clientHeight;
                 const groundHeight = ground.clientHeight;
-                const maxPipeHeight = gameAreaHeight - groundHeight - pipeGap - 50;
-                const randomHeight = Math.floor(Math.random() * maxPipeHeight) + 50;
+                const maxPipeHeight = gameAreaHeight - groundHeight - pipeGap - 80;
+                const minHeight = 50;  // Minimum height for the pipes
+                const randomHeight = Math.floor(Math.random() * (maxPipeHeight - minHeight)) + minHeight;
                 
                 const upPipe = document.createElement('div');
                 upPipe.className = 'pipe pipeUp';
-                upPipe.style.height = gameAreaHeight - randomHeight - groundHeight + 'px';
+                upPipe.style.height = gameAreaHeight - randomHeight - groundHeight - pipeGap + 'px';
                 upPipe.style.left = gameArea.clientWidth + 'px';
                 
                 const downPipe = document.createElement('div');
@@ -342,10 +348,17 @@
                 }
             });
             
-            // Keyboard events for testing
+            // Keyboard events
             document.addEventListener('keydown', function(event) {
-                if (event.code === 'Space' && gameRunning) {
+                if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
                     event.preventDefault();
+                    makeJump();
+                }
+            });
+            
+            // Mouse events
+            gameArea.addEventListener('click', function(event) {
+                if (gameRunning) {
                     makeJump();
                 }
             });
@@ -354,6 +367,13 @@
             document.addEventListener('touchmove', function(event) {
                 event.preventDefault();
             }, { passive: false });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (gameRunning) {
+                    bird.style.left = gameArea.clientWidth * 0.15 + 'px';
+                }
+            });
         });
     </script>
 </body>
