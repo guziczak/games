@@ -179,11 +179,13 @@
             let jump = -8;
             let birdPosition;
             let pipeWidth = 80;
-            let pipeGap = 220;  // Zwiększona szczelina w pionie
-            let pipeSpeed = 2;
-            let pipeInterval = 2500;  // Zwiększony odstęp czasowy między rurami
+            let pipeGap = 220;
+            let basePipeSpeed = 2;  // Bazowa prędkość rur
+            let pipeSpeed = basePipeSpeed;  // Aktualna prędkość rur
+            let pipeInterval = 2500;
             let lastPipeTime = 0;
             let animationId;
+            let lastSpeedIncreaseScore = 0;  // Do śledzenia ostatniego zwiększenia prędkości
             
             function setupGame() {
                 score = 0;
@@ -191,6 +193,10 @@
                 velocity = 0;
                 birdPosition = gameArea.clientHeight / 2;
                 bird.style.top = birdPosition + 'px';
+                
+                // Reset prędkości do wartości bazowej
+                pipeSpeed = basePipeSpeed;
+                lastSpeedIncreaseScore = 0;
                 
                 // Remove existing pipes
                 pipes.forEach(pipe => {
@@ -248,6 +254,12 @@
                         pipe.passed = true;
                         score++;
                         scoreElement.textContent = score;
+                        
+                        // Sprawdź, czy należy zwiększyć prędkość (co 10 punktów)
+                        if (Math.floor(score / 10) > Math.floor(lastSpeedIncreaseScore / 10)) {
+                            pipeSpeed = basePipeSpeed + (score % 10) * 0.1;
+                            lastSpeedIncreaseScore = score;
+                        }
                     }
                     
                     // Remove pipes that are off screen
