@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wężyk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        
+        body {
+            background-color: #003300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            color: #00ff00;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(135deg, #003300, #006600, #009900);
+            border-radius: 20px;
+            border: 3px solid #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+            overflow: hidden;
+        }
+        
+        #game-board {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 90%;
+            background: rgba(0, 0, 0, 0.2);
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            gap: 1px;
+        }
+        
+        .snake-head {
+            background-color: #00cc00;
+            border-radius: 4px;
+            border: 1px solid #004400;
+            box-shadow: 0 0 5px #00ff00;
+            position: relative;
+        }
+        
+        .snake-head::before, .snake-head::after {
+            content: '';
+            position: absolute;
+            width: 25%;
+            height: 25%;
+            background-color: black;
+            border-radius: 50%;
+            top: 20%;
+        }
+        
+        .snake-head::before {
+            left: 20%;
+        }
+        
+        .snake-head::after {
+            right: 20%;
+        }
+        
+        .snake-body {
+            background-color: #00ff00;
+            border-radius: 3px;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        
+        .food {
+            background-color: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        
+        #score-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 15px;
+            background-color: rgba(0, 51, 0, 0.7);
+            border-radius: 10px;
+            border: 1px solid #00ff00;
+            font-weight: bold;
+        }
+        
+        #title {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: linear-gradient(to bottom, #009900, #006600);
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 0 10px #00ff00;
+            cursor: pointer;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #00ff00;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        #restart-btn {
+            margin-top: 20px;
+            background: linear-gradient(to bottom, #009900, #006600);
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 0 10px #00ff00;
+            cursor: pointer;
+        }
+        
+        #mobile-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .mobile-row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        .mobile-btn {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(to bottom, #009900, #006600);
+            border: none;
+            border-radius: 50%;
+            margin: 5px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 0 10px #00ff00;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score-container">WYNIK: <span id="score">0</span></div>
+        <div id="title">WĘŻYK</div>
+        <div id="game-board"></div>
+        <div id="game-over">
+            <div>KONIEC GRY!</div>
+            <div>WYNIK: <span id="final-score">0</span></div>
+            <button id="restart-btn">ZAGRAJ PONOWNIE</button>
+        </div>
+    </div>
+    
+    <div id="mobile-controls">
+        <div class="mobile-row">
+            <button class="mobile-btn" id="up">↑</button>
+        </div>
+        <div class="mobile-row">
+            <button class="mobile-btn" id="left">←</button>
+            <button class="mobile-btn" id="right">→</button>
+        </div>
+        <div class="mobile-row">
+            <button class="mobile-btn" id="down">↓</button>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button class="control-btn" id="start-btn">GRAJ!</button>
+        <button class="control-btn" id="pause-btn">PAUZA</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elementy DOM
+            const gameBoard = document.getElementById('game-board');
+            const scoreElement = document.getElementById('score');
+            const finalScoreElement = document.getElementById('final-score');
+            const gameOverElement = document.getElementById('game-over');
+            const startButton = document.getElementById('start-btn');
+            const pauseButton = document.getElementById('pause-btn');
+            const restartButton = document.getElementById('restart-btn');
+            
+            // Przyciski sterowania mobilnego
+            const upButton = document.getElementById('up');
+            const downButton = document.getElementById('down');
+            const leftButton = document.getElementById('left');
+            const rightButton = document.getElementById('right');
+            
+            // Ustawienia gry
+            const boardSize = 20; // Rozmiar planszy 20x20
+            let snake = [{ x: 10, y: 10 }]; // Początkowa pozycja węża
+            let food = { x: 5, y: 5 }; // Początkowa pozycja jedzenia
+            let direction = 'right';
+            let nextDirection = 'right';
+            let gameInterval;
+            let score = 0;
+            let gameSpeed = 150; // Szybkość gry w ms
+            let isPaused = false;
+            let gameStarted = false;
+            
+            // Inicjalizacja planszy
+            function initBoard() {
+                gameBoard.innerHTML = '';
+                // Ustawienie wymiarów planszy
+                gameBoard.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+                gameBoard.style.gridTemplateRows = `repeat(${boardSize}, 1fr)`;
+                
+                // Tworzenie elementów planszy
+                for (let row = 0; row < boardSize; row++) {
+                    for (let col = 0; col < boardSize; col++) {
+                        const cell = document.createElement('div');
+                        cell.id = `cell-${row}-${col}`;
+                        gameBoard.appendChild(cell);
+                    }
+                }
+            }
+            
+            // Resetowanie gry
+            function resetGame() {
+                snake = [{ x: 10, y: 10 }];
+                food = generateFood();
+                direction = 'right';
+                nextDirection = 'right';
+                score = 0;
+                scoreElement.textContent = '0';
+                gameOverElement.style.display = 'none';
+                clearInterval(gameInterval);
+                updateGameBoard();
+            }
+            
+            // Generowanie jedzenia
+            function generateFood() {
+                let newFood;
+                do {
+                    newFood = {
+                        x: Math.floor(Math.random() * boardSize),
+                        y: Math.floor(Math.random() * boardSize)
+                    };
+                    // Sprawdzanie, czy jedzenie nie znajduje się na wężu
+                } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+                
+                return newFood;
+            }
+            
+            // Aktualizacja planszy
+            function updateGameBoard() {
+                // Czyszczenie wszystkich komórek
+                for (let row = 0; row < boardSize; row++) {
+                    for (let col = 0; col < boardSize; col++) {
+                        const cell = document.getElementById(`cell-${row}-${col}`);
+                        cell.className = '';
+                    }
+                }
+                
+                // Rysowanie węża
+                snake.forEach((segment, index) => {
+                    if (segment.x >= 0 && segment.x < boardSize && segment.y >= 0 && segment.y < boardSize) {
+                        const cell = document.getElementById(`cell-${segment.y}-${segment.x}`);
+                        if (index === 0) {
+                            cell.className = 'snake-head';
+                        } else {
+                            cell.className = 'snake-body';
+                        }
+                    }
+                });
+                
+                // Rysowanie jedzenia
+                const foodCell = document.getElementById(`cell-${food.y}-${food.x}`);
+                if (foodCell) {
+                    foodCell.className = 'food';
+                }
+            }
+            
+            // Główna pętla gry
+            function gameLoop() {
+                if (isPaused) return;
+                
+                // Aktualizacja kierunku
+                direction = nextDirection;
+                
+                // Poprzednia pozycja głowy
+                const head = {...snake[0]};
+                
+                // Przesunięcie głowy w odpowiednim kierunku
+                switch (direction) {
+                    case 'up':
+                        head.y--;
+                        break;
+                    case 'down':
+                        head.y++;
+                        break;
+                    case 'left':
+                        head.x--;
+                        break;
+                    case 'right':
+                        head.x++;
+                        break;
+                }
+                
+                // Sprawdzenie kolizji z ścianą
+                if (head.x < 0 || head.x >= boardSize || head.y < 0 || head.y >= boardSize) {
+                    gameOver();
+                    return;
+                }
+                
+                // Sprawdzenie kolizji z własnym ciałem
+                if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                    gameOver();
+                    return;
+                }
+                
+                // Dodanie nowej głowy
+                snake.unshift(head);
+                
+                // Sprawdzenie zjedzenia jedzenia
+                if (head.x === food.x && head.y === food.y) {
+                    // Zwiększenie wyniku
+                    score += 10;
+                    scoreElement.textContent = score;
+                    
+                    // Generowanie nowego jedzenia
+                    food = generateFood();
+                    
+                    // Przyspieszenie gry co 50 punktów
+                    if (score % 50 === 0 && gameSpeed > 70) {
+                        gameSpeed -= 10;
+                        clearInterval(gameInterval);
+                        gameInterval = setInterval(gameLoop, gameSpeed);
+                    }
+                } else {
+                    // Usunięcie ostatniego segmentu jeśli wąż się nie wydłuża
+                    snake.pop();
+                }
+                
+                // Aktualizacja planszy
+                updateGameBoard();
+            }
+            
+            // Obsługa końca gry
+            function gameOver() {
+                clearInterval(gameInterval);
+                gameStarted = false;
+                finalScoreElement.textContent = score;
+                gameOverElement.style.display = 'flex';
+            }
+            
+            // Obsługa klawiatury
+            document.addEventListener('keydown', (event) => {
+                if (!gameStarted) return;
+                
+                switch (event.key) {
+                    case 'ArrowUp':
+                        if (direction !== 'down') nextDirection = 'up';
+                        break;
+                    case 'ArrowDown':
+                        if (direction !== 'up') nextDirection = 'down';
+                        break;
+                    case 'ArrowLeft':
+                        if (direction !== 'right') nextDirection = 'left';
+                        break;
+                    case 'ArrowRight':
+                        if (direction !== 'left') nextDirection = 'right';
+                        break;
+                    case ' ':
+                        togglePause();
+                        break;
+                }
+            });
+            
+            // Obsługa przycisków mobilnych
+            upButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameStarted && direction !== 'down') nextDirection = 'up';
+            });
+            
+            downButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameStarted && direction !== 'up') nextDirection = 'down';
+            });
+            
+            leftButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameStarted && direction !== 'right') nextDirection = 'left';
+            });
+            
+rightButton.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (gameStarted && direction !== 'left') nextDirection = 'right';
+});
+
+// Obsługa kliknięć dla przycisków mobilnych (dla testowania na komputerze)
+upButton.addEventListener('click', () => {
+    if (gameStarted && direction !== 'down') nextDirection = 'up';
+});
+
+downButton.addEventListener('click', () => {
+    if (gameStarted && direction !== 'up') nextDirection = 'down';
+});
+
+leftButton.addEventListener('click', () => {
+    if (gameStarted && direction !== 'right') nextDirection = 'left';
+});
+
+rightButton.addEventListener('click', () => {
+    if (gameStarted && direction !== 'left') nextDirection = 'right';
+});
+
+// Przełączanie pauzy
+function togglePause() {
+    isPaused = !isPaused;
+    pauseButton.textContent = isPaused ? 'WZNÓW' : 'PAUZA';
+}
+
+// Obsługa przycisku start
+startButton.addEventListener('click', () => {
+    if (!gameStarted) {
+        resetGame();
+        gameStarted = true;
+        gameInterval = setInterval(gameLoop, gameSpeed);
+        startButton.textContent = 'RESTART';
+    } else {
+        resetGame();
+        gameInterval = setInterval(gameLoop, gameSpeed);
+    }
+    isPaused = false;
+    pauseButton.textContent = 'PAUZA';
+});
+
+// Obsługa przycisku pauzy
+pauseButton.addEventListener('click', togglePause);
+
+// Obsługa przycisku restartu po końcu gry
+restartButton.addEventListener('click', () => {
+    resetGame();
+    gameStarted = true;
+    gameInterval = setInterval(gameLoop, gameSpeed);
+    isPaused = false;
+    pauseButton.textContent = 'PAUZA';
+});
+
+// Inicjalizacja gry
+initBoard();
+updateGameBoard();
+});
+</script>
+</body>
+</html>
