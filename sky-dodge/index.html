@@ -174,16 +174,19 @@
             let gameRunning = false;
             let pipes = [];
             let score = 0;
-            let gravity = 0.4;
+            let gravity = 0.25;  // Zmniejszona grawitacja
+            let velocityLimit = 7;  // Limit prędkości spadania
             let velocity = 0;
-            let jump = -8;
+            let jump = -7;  // Nieco mniejsza siła skoku
             let birdPosition;
             let pipeWidth = 80;
-            let pipeGap = 220;  // Zwiększona szczelina w pionie
+            let pipeGap = 220;
             let pipeSpeed = 2;
-            let pipeInterval = 2500;  // Zwiększony odstęp czasowy między rurami
+            let pipeInterval = 2500;
             let lastPipeTime = 0;
             let animationId;
+            let lastTime = 0;
+            let deltaTime = 0;
             
             function setupGame() {
                 score = 0;
@@ -200,6 +203,7 @@
                 pipes = [];
                 
                 lastPipeTime = 0;
+                lastTime = 0;
             }
             
             function startGame() {
@@ -207,6 +211,7 @@
                 startScreen.style.display = 'none';
                 gameOverScreen.style.display = 'none';
                 gameRunning = true;
+                lastTime = performance.now();
                 animationId = requestAnimationFrame(update);
             }
             
@@ -220,9 +225,21 @@
             function update(timestamp) {
                 if (!gameRunning) return;
                 
-                // Bird movement
-                velocity += gravity;
-                birdPosition += velocity;
+                // Obliczanie delta time dla płynnej animacji niezależnej od FPS
+                if (!lastTime) lastTime = timestamp;
+                deltaTime = (timestamp - lastTime) / 16.67;  // Normalizacja do ~60 FPS
+                lastTime = timestamp;
+                
+                // Ograniczamy deltaTime aby zapobiec zbyt dużym skokom
+                if (deltaTime > 5) deltaTime = 5;
+                
+                // Bird movement with delta time
+                velocity += gravity * deltaTime;
+                
+                // Limit velocity
+                if (velocity > velocityLimit) velocity = velocityLimit;
+                
+                birdPosition += velocity * deltaTime;
                 bird.style.top = birdPosition + 'px';
                 
                 // Rotate bird based on velocity
@@ -239,7 +256,7 @@
                 
                 // Move pipes
                 pipes.forEach((pipe, index) => {
-                    pipe.x -= pipeSpeed;
+                    pipe.x -= pipeSpeed * deltaTime;
                     pipe.upPipe.style.left = pipe.x + 'px';
                     pipe.downPipe.style.left = pipe.x + 'px';
                     
@@ -374,6 +391,22 @@
                     bird.style.left = gameArea.clientWidth * 0.15 + 'px';
                 }
             });
+            
+            // Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
+            startScreen.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                startGame();
+            });
+            
+            // Dodanie krótkiego opóźnienia przed rozpoczęciem gry
+            function delayedStart() {
+                setTimeout(function() {
+                    startGame();
+                }, 100);
+            }
+            
+            startButton.addEventListener('click', delayedStart);
+            restartButton.addEventListener('click', delayedStart);
         });
     </script>
 </body>
