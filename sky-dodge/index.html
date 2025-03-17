@@ -74,6 +74,25 @@
         .pipeDown {
             top: 0;
         }
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            z-index: 1;
+            box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
+        }
+        .coin:before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #F0E68C;
+            border-radius: 50%;
+            top: 5px;
+            left: 5px;
+        }
         #startScreen, #gameOverScreen {
             position: absolute;
             top: 0;
@@ -114,6 +133,16 @@
             z-index: 3;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
+        #bonusScore {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: gold;
+            z-index: 3;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
         #ground {
             position: absolute;
             bottom: 0;
@@ -138,6 +167,26 @@
             font-size: 24px;
             margin-bottom: 20px;
         }
+        .coinPop {
+            position: absolute;
+            font-size: 24px;
+            font-weight: bold;
+            color: gold;
+            text-shadow: 1px 1px 2px black;
+            animation: coinPopAnimation 1s ease-out forwards;
+            z-index: 5;
+        }
+        @keyframes coinPopAnimation {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+        .coinCollected {
+            animation: coinCollectAnimation 0.3s ease-out forwards;
+        }
+        @keyframes coinCollectAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -146,6 +195,7 @@
             <div id="bird"></div>
             <div id="ground"></div>
             <div id="score">0</div>
+            <div id="bonusScore">Monety: 0</div>
         </div>
         <div id="startScreen">
             <h1>Sky Dodge</h1>
@@ -155,6 +205,8 @@
         <div id="gameOverScreen">
             <h1>Koniec gry!</h1>
             <p>Twój wynik: <span id="finalScore">0</span></p>
+            <p>Zebrane monety: <span id="finalCoins">0</span></p>
+            <p>Całkowity wynik: <span id="finalTotalScore">0</span></p>
             <button id="restartButton">Zagraj ponownie</button>
         </div>
     </div>
@@ -168,29 +220,39 @@
             const startButton = document.getElementById('startButton');
             const restartButton = document.getElementById('restartButton');
             const scoreElement = document.getElementById('score');
+            const bonusScoreElement = document.getElementById('bonusScore');
             const finalScoreElement = document.getElementById('finalScore');
+            const finalCoinsElement = document.getElementById('finalCoins');
+            const finalTotalScoreElement = document.getElementById('finalTotalScore');
             const ground = document.getElementById('ground');
             
             let gameRunning = false;
             let pipes = [];
+            let coins = [];
             let score = 0;
-            let gravity = 0.25;  // Zmniejszona grawitacja
-            let velocityLimit = 7;  // Limit prędkości spadania
+            let coinScore = 0;
+            let gravity = 0.25;
+            let velocityLimit = 7;
             let velocity = 0;
-            let jump = -7;  // Nieco mniejsza siła skoku
+            let jump = -7;
             let birdPosition;
             let pipeWidth = 80;
             let pipeGap = 220;
             let pipeSpeed = 2;
             let pipeInterval = 2500;
+            let coinInterval = 1500;
             let lastPipeTime = 0;
+            let lastCoinTime = 0;
             let animationId;
             let lastTime = 0;
             let deltaTime = 0;
+            let coinValue = 10;
             
             function setupGame() {
                 score = 0;
+                coinScore = 0;
                 scoreElement.textContent = score;
+                bonusScoreElement.textContent = "Monety: 0";
                 velocity = 0;
                 birdPosition = gameArea.clientHeight / 2;
                 bird.style.top = birdPosition + 'px';
@@ -202,7 +264,14 @@
                 });
                 pipes = [];
                 
+                // Remove existing coins
+                coins.forEach(coin => {
+                    gameArea.removeChild(coin.element);
+                });
+                coins = [];
+                
                 lastPipeTime = 0;
+                lastCoinTime = 0;
                 lastTime = 0;
             }
             
@@ -219,18 +288,20 @@
                 gameRunning = false;
                 cancelAnimationFrame(animationId);
                 finalScoreElement.textContent = score;
+                finalCoinsElement.textContent = coinScore / coinValue;
+                finalTotalScoreElement.textContent = score + coinScore;
                 gameOverScreen.style.display = 'flex';
             }
             
             function update(timestamp) {
                 if (!gameRunning) return;
                 
-                // Obliczanie delta time dla płynnej animacji niezależnej od FPS
+                // Calculate delta time for smooth animation regardless of frame rate
                 if (!lastTime) lastTime = timestamp;
-                deltaTime = (timestamp - lastTime) / 16.67;  // Normalizacja do ~60 FPS
+                deltaTime = (timestamp - lastTime) / 16.67;  // Normalize to ~60 FPS
                 lastTime = timestamp;
                 
-                // Ograniczamy deltaTime aby zapobiec zbyt dużym skokom
+                // Limit deltaTime to prevent big jumps
                 if (deltaTime > 5) deltaTime = 5;
                 
                 // Bird movement with delta time
@@ -254,6 +325,12 @@
                     lastPipeTime = timestamp;
                 }
                 
+                // Create new coins
+                if (timestamp - lastCoinTime > coinInterval) {
+                    createCoin();
+                    lastCoinTime = timestamp;
+                }
+                
                 // Move pipes
                 pipes.forEach((pipe, index) => {
                     pipe.x -= pipeSpeed * deltaTime;
@@ -274,6 +351,26 @@
                         pipes.splice(index, 1);
                     }
                 });
+                
+                // Move and check coins
+                for (let i = coins.length - 1; i >= 0; i--) {
+                    let coin = coins[i];
+                    coin.x -= pipeSpeed * deltaTime;
+                    coin.element.style.left = coin.x + 'px';
+                    
+                    // Check for collected coins
+                    if (!coin.collected && checkCoinCollision(coin)) {
+                        collectCoin(coin);
+                    }
+                    
+                    // Remove coins that are off screen
+                    if (coin.x + 30 < 0 || coin.collected) {
+                        if (coin.removeTime && timestamp > coin.removeTime) {
+                            gameArea.removeChild(coin.element);
+                            coins.splice(i, 1);
+                        }
+                    }
+                }
                 
                 // Check for collisions
                 if (checkCollision()) {
@@ -312,102 +409,161 @@
                 });
             }
             
-            function checkCollision() {
-                const birdRect = bird.getBoundingClientRect();
-                const gameAreaRect = gameArea.getBoundingClientRect();
-                const groundRect = ground.getBoundingClientRect();
+            function createCoin() {
+                const gameAreaHeight = gameArea.clientHeight;
+                const groundHeight = ground.clientHeight;
+                const safeArea = gameAreaHeight - groundHeight - 60;
+                const minHeight = 80;  // Minimum height from top
+                const maxHeight = safeArea - 80;  // Maximum height from top
+                const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
                 
-                // Check if bird hits ground or ceiling
-                if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
-                    return true;
-                }
+                const coin = document.createElement('div');
+                coin.className = 'coin';
+                coin.style.left = gameArea.clientWidth + 'px';
+                coin.style.top = randomY + 'px';
                 
-                // Check if bird hits pipes
-                for (let pipe of pipes) {
-                    const upPipeRect = pipe.upPipe.getBoundingClientRect();
-                    const downPipeRect = pipe.downPipe.getBoundingClientRect();
-                    
-                    if (
-                        birdRect.right >= upPipeRect.left && 
-                        birdRect.left <= upPipeRect.right && 
-                        birdRect.bottom >= upPipeRect.top
-                    ) {
-                        return true;
-                    }
-                    
-                    if (
-                        birdRect.right >= downPipeRect.left && 
-                        birdRect.left <= downPipeRect.right && 
-                        birdRect.top <= downPipeRect.bottom
-                    ) {
-                        return true;
-                    }
-                }
+                gameArea.appendChild(coin);
                 
-                return false;
+                coins.push({
+                    x: gameArea.clientWidth,
+                    y: randomY,
+                    element: coin,
+                    collected: false,
+                    removeTime: null
+                });
             }
             
-            function makeJump() {
-                if (gameRunning) {
-                    velocity = jump;
-                }
-            }
-            
-            // Event listeners
-            startButton.addEventListener('click', startGame);
-            restartButton.addEventListener('click', startGame);
-            
-            // Touch events for mobile
-            gameArea.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                if (gameRunning) {
-                    makeJump();
-                }
-            });
-            
-            // Keyboard events
-            document.addEventListener('keydown', function(event) {
-                if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
-                    event.preventDefault();
-                    makeJump();
-                }
-            });
-            
-            // Mouse events
-            gameArea.addEventListener('click', function(event) {
-                if (gameRunning) {
-                    makeJump();
-                }
-            });
-            
-            // Prevent default touch behavior to avoid scrolling
-            document.addEventListener('touchmove', function(event) {
-                event.preventDefault();
-            }, { passive: false });
-            
-            // Handle window resize
-            window.addEventListener('resize', function() {
-                if (gameRunning) {
-                    bird.style.left = gameArea.clientWidth * 0.15 + 'px';
-                }
-            });
-            
-            // Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
-            startScreen.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                startGame();
-            });
-            
-            // Dodanie krótkiego opóźnienia przed rozpoczęciem gry
-            function delayedStart() {
-                setTimeout(function() {
-                    startGame();
-                }, 100);
-            }
-            
-            startButton.addEventListener('click', delayedStart);
-            restartButton.addEventListener('click', delayedStart);
-        });
-    </script>
+function checkCollision() {
+    const birdRect = bird.getBoundingClientRect();
+    const gameAreaRect = gameArea.getBoundingClientRect();
+    const groundRect = ground.getBoundingClientRect();
+    
+    // Check if bird hits ground or ceiling
+    if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+        return true;
+    }
+    
+    // Check if bird hits pipes
+    for (let pipe of pipes) {
+        const upPipeRect = pipe.upPipe.getBoundingClientRect();
+        const downPipeRect = pipe.downPipe.getBoundingClientRect();
+        
+        if (
+            birdRect.right >= upPipeRect.left && 
+            birdRect.left <= upPipeRect.right && 
+            birdRect.bottom >= upPipeRect.top
+        ) {
+            return true;
+        }
+        
+        if (
+            birdRect.right >= downPipeRect.left && 
+            birdRect.left <= downPipeRect.right && 
+            birdRect.top <= downPipeRect.bottom
+        ) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+function checkCoinCollision(coin) {
+    const birdRect = bird.getBoundingClientRect();
+    const coinRect = coin.element.getBoundingClientRect();
+    
+    return (
+        birdRect.right >= coinRect.left &&
+        birdRect.left <= coinRect.right &&
+        birdRect.bottom >= coinRect.top &&
+        birdRect.top <= coinRect.bottom
+    );
+}
+
+function collectCoin(coin) {
+    coin.collected = true;
+    coin.element.classList.add('coinCollected');
+    coin.removeTime = performance.now() + 300;  // Remove after animation
+    
+    // Add score
+    coinScore += coinValue;
+    bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+    
+    // Create a visual effect
+    const coinPop = document.createElement('div');
+    coinPop.className = 'coinPop';
+    coinPop.textContent = `+${coinValue}`;
+    coinPop.style.left = coin.x + 'px';
+    coinPop.style.top = coin.y + 'px';
+    gameArea.appendChild(coinPop);
+    
+    // Remove the visual effect after animation
+    setTimeout(() => {
+        gameArea.removeChild(coinPop);
+    }, 1000);
+}
+
+function makeJump() {
+    if (gameRunning) {
+        velocity = jump;
+    }
+}
+
+// Event listeners
+startButton.addEventListener('click', startGame);
+restartButton.addEventListener('click', startGame);
+
+// Touch events for mobile
+gameArea.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    if (gameRunning) {
+        makeJump();
+    }
+});
+
+// Keyboard events
+document.addEventListener('keydown', function(event) {
+    if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
+        event.preventDefault();
+        makeJump();
+    }
+});
+
+// Mouse events
+gameArea.addEventListener('click', function(event) {
+    if (gameRunning) {
+        makeJump();
+    }
+});
+
+// Prevent default touch behavior to avoid scrolling
+document.addEventListener('touchmove', function(event) {
+    event.preventDefault();
+}, { passive: false });
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    if (gameRunning) {
+        bird.style.left = gameArea.clientWidth * 0.15 + 'px';
+    }
+});
+
+// Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
+startScreen.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    startGame();
+});
+
+// Dodanie krótkiego opóźnienia przed rozpoczęciem gry
+function delayedStart() {
+    setTimeout(function() {
+        startGame();
+    }, 100);
+}
+
+        startButton.addEventListener('click', delayedStart);
+        restartButton.addEventListener('click', delayedStart);
+    });
+</script>
 </body>
 </html>
