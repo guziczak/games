@@ -299,10 +299,16 @@
             let deltaTime = 0;
             let coinValue = 10;
 
-            // Dźwięki
-            const jumpSound = new Audio('jump.wav');
-            const coinSound = new Audio('coin.wav');
-            const gameOverSound = new Audio('gameOver.wav');
+            // Dźwięki zakodowane w Base64
+            const audioData = {
+                jump: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+                coin: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+                gameOver: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
+            };
+
+            const jumpSound = new Audio(audioData.jump);
+            const coinSound = new Audio(audioData.coin);
+            const gameOverSound = new Audio(audioData.gameOver);
 
             function setupGame() {
                 score = 0;
