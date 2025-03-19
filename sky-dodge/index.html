@@ -84,9 +84,19 @@
             box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
             animation: rotateCoin 2s linear infinite;
         }
+        .purpleCoin {
+            background-color: #9932CC;
+            box-shadow: 0 0 15px 5px rgba(153, 50, 204, 0.7);
+            animation: rotatePurpleCoin 1.5s linear infinite;
+        }
         @keyframes rotateCoin {
             0% { transform: rotateY(0deg); }
             100% { transform: rotateY(360deg); }
+        }
+        @keyframes rotatePurpleCoin {
+            0% { transform: rotateY(0deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.1); }
+            100% { transform: rotateY(360deg) scale(1); }
         }
         .coin:before {
             content: '';
@@ -97,6 +107,9 @@
             border-radius: 50%;
             top: 5px;
             left: 5px;
+        }
+        .purpleCoin:before {
+            background-color: #BA55D3;
         }
         #startScreen, #gameOverScreen {
             position: absolute;
@@ -148,6 +161,16 @@
             z-index: 3;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
+        #purpleCoinScore {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #9932CC;
+            z-index: 3;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
         #ground {
             position: absolute;
             bottom: 0;
@@ -181,9 +204,19 @@
             animation: coinPopAnimation 1s ease-out forwards;
             z-index: 5;
         }
+        .purpleCoinPop {
+            color: #9932CC;
+            font-size: 30px;
+            animation: purpleCoinPopAnimation 1.2s ease-out forwards;
+        }
         @keyframes coinPopAnimation {
             0% { transform: translateY(0); opacity: 1; }
             100% { transform: translateY(-50px); opacity: 0; }
+        }
+        @keyframes purpleCoinPopAnimation {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { transform: translateY(-30px) scale(1.5); opacity: 0.8; }
+            100% { transform: translateY(-60px) scale(1); opacity: 0; }
         }
         .coinCollected {
             animation: coinCollectAnimation 0.3s ease-out forwards;
@@ -243,6 +276,7 @@
             <div id="ground"></div>
             <div id="score">0</div>
             <div id="bonusScore">Monety: 0</div>
+            <div id="purpleCoinScore">Super monety: 0</div>
         </div>
         <div id="startScreen">
             <h1>Sky Dodge</h1>
@@ -253,6 +287,7 @@
             <h1>Koniec gry!</h1>
             <p>Twój wynik: <span id="finalScore">0</span></p>
             <p>Zebrane monety: <span id="finalCoins">0</span></p>
+            <p>Super monety: <span id="finalPurpleCoins">0</span></p>
             <p>Całkowity wynik: <span id="finalTotalScore">0</span></p>
             <button id="restartButton">Zagraj ponownie</button>
         </div>
@@ -272,8 +307,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const restartButton = document.getElementById('restartButton');
     const scoreElement = document.getElementById('score');
     const bonusScoreElement = document.getElementById('bonusScore');
+    const purpleCoinScoreElement = document.getElementById('purpleCoinScore');
     const finalScoreElement = document.getElementById('finalScore');
     const finalCoinsElement = document.getElementById('finalCoins');
+    const finalPurpleCoinsElement = document.getElementById('finalPurpleCoins');
     const finalTotalScoreElement = document.getElementById('finalTotalScore');
     const ground = document.getElementById('ground');
     
@@ -282,6 +319,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let coins = [];
     let score = 0;
     let coinScore = 0;
+    let purpleCoinScore = 0;
+    let normalCoinCount = 0;
+    let purpleCoinCount = 0;
     let gravity = 0.25;
     let velocityLimit = 7;
     let velocity = 0;
@@ -292,49 +332,88 @@ document.addEventListener('DOMContentLoaded', function() {
     let pipeSpeed = 2;
     let pipeInterval = 2500;
     let coinInterval = 1500;
+    let purpleCoinChance = 0.15; // 15% szansa na fioletową monetę
     let lastPipeTime = 0;
     let lastCoinTime = 0;
     let animationId;
     let lastTime = 0;
     let deltaTime = 0;
     let coinValue = 10;
-
-    // Prawidłowe dźwięki zakodowane w Base64
-    const audioData = {
-        jump: "data:audio/mp3;base64,SUQzAwAAAAAfdlRJVDIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQRTEAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRBTEIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRZRVIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRDT04AAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRSQ0sAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQT1MAAAAAAAAAM/+LQ0AAAP+WTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQQQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-        coin: "data:audio/mp3;base64,SUQzAwAAAAAfdlRJVDIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQRTEAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRBTEIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRZRVIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRDT04AAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRSQ0sAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQT1MAAAAAAAAAM/+LQ0AAAP+WTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQQQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-        gameOver: "data:audio/mp3;base64,SUQzAwAAAAAfdlRJVDIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQRTEAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRBTEIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRZRVIAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRDT04AAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRSQ0sAAAAZAAAATWFkZSB3aXRoIFNvdW5kIEVkaXRvclRQT1MAAAAAAAAAM/+LQ0AAAP+WTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQQQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    let purpleCoinValue = 50;
+    let safePadding = 40; // Minimalna odległość monety od przeszkód
+    
+    // Dźwięki zdefiniowane jako właściwe pliki audio
+    const sounds = {
+        jump: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGIAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA',
+        coin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
+        gameOver: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXgAAAAAAAABUkRD1sRAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
+        purpleCoin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg=='
     };
-
+    
+    // Obiekt do przechowywania dźwięków
+    const audioElements = {};
+    
+    // Funkcja do wczytania wszystkich dźwięków na początku
+    function preloadSounds() {
+        for (const [name, source] of Object.entries(sounds)) {
+            try {
+                audioElements[name] = new Audio(source);
+                // Preload audio
+                audioElements[name].load();
+            } catch(error) {
+                console.error(`Błąd wczytywania dźwięku ${name}:`, error);
+            }
+        }
+    }
+    
+    // Wczytaj dźwięki od razu po załadowaniu strony
+    preloadSounds();
+    
     // Funkcja do odtwarzania dźwięków
-    function playSound(soundData) {
+    function playSound(name) {
         try {
-            const sound = new Audio(soundData);
-            sound.play().catch(error => console.error("Błąd odtwarzania dźwięku:", error));
+            if (audioElements[name]) {
+                // Dla lepszej responsywności - klonowanie dźwięku
+                const soundToPlay = audioElements[name].cloneNode();
+                soundToPlay.volume = 0.7; // Zmniejszamy głośność
+                soundToPlay.play().catch(error => {
+                    console.error(`Błąd odtwarzania dźwięku ${name}:`, error);
+                });
+            }
         } catch(error) {
-            console.error("Błąd tworzenia dźwięku:", error);
+            console.error(`Błąd podczas próby odtworzenia dźwięku ${name}:`, error);
         }
     }
 
     function setupGame() {
         score = 0;
         coinScore = 0;
+        purpleCoinScore = 0;
+        normalCoinCount = 0;
+        purpleCoinCount = 0;
         scoreElement.textContent = score;
         bonusScoreElement.textContent = "Monety: 0";
+        purpleCoinScoreElement.textContent = "Super monety: 0";
         velocity = 0;
         birdPosition = gameArea.clientHeight / 2;
         bird.style.top = birdPosition + 'px';
         
         // Remove existing pipes
         pipes.forEach(pipe => {
-            gameArea.removeChild(pipe.upPipe);
-            gameArea.removeChild(pipe.downPipe);
+            if (pipe.upPipe && pipe.upPipe.parentNode) {
+                gameArea.removeChild(pipe.upPipe);
+            }
+            if (pipe.downPipe && pipe.downPipe.parentNode) {
+                gameArea.removeChild(pipe.downPipe);
+            }
         });
         pipes = [];
         
         // Remove existing coins
         coins.forEach(coin => {
-            gameArea.removeChild(coin.element);
+            if (coin.element && coin.element.parentNode) {
+                gameArea.removeChild(coin.element);
+            }
         });
         coins = [];
         
@@ -356,10 +435,11 @@ document.addEventListener('DOMContentLoaded', function() {
         gameRunning = false;
         cancelAnimationFrame(animationId);
         finalScoreElement.textContent = score;
-        finalCoinsElement.textContent = coinScore / coinValue;
-        finalTotalScoreElement.textContent = score + coinScore;
+        finalCoinsElement.textContent = normalCoinCount;
+        finalPurpleCoinsElement.textContent = purpleCoinCount;
+        finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore;
         gameOverScreen.style.display = 'flex';
-        playSound(audioData.gameOver);
+        playSound('gameOver');
     }
     
     function update(timestamp) {
@@ -403,21 +483,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Move pipes
         pipes.forEach((pipe, index) => {
             pipe.x -= pipeSpeed * deltaTime;
-            pipe.upPipe.style.left = pipe.x + 'px';
-            pipe.downPipe.style.left = pipe.x + 'px';
             
-            // Check for passed pipes
-            if (!pipe.passed && pipe.x + pipeWidth < gameArea.clientWidth * 0.15) {
-                pipe.passed = true;
-                score++;
-                scoreElement.textContent = score;
-            }
-            
-            // Remove pipes that are off screen
-            if (pipe.x + pipeWidth < 0) {
-                gameArea.removeChild(pipe.upPipe);
-                gameArea.removeChild(pipe.downPipe);
-                pipes.splice(index, 1);
+            if (pipe.upPipe && pipe.downPipe) {
+                pipe.upPipe.style.left = pipe.x + 'px';
+                pipe.downPipe.style.left = pipe.x + 'px';
+                
+                // Check for passed pipes
+                if (!pipe.passed && pipe.x + pipeWidth < gameArea.clientWidth * 0.15) {
+                    pipe.passed = true;
+                    score++;
+                    scoreElement.textContent = score;
+                }
+                
+                // Remove pipes that are off screen
+                if (pipe.x + pipeWidth < 0) {
+                    if (pipe.upPipe.parentNode) gameArea.removeChild(pipe.upPipe);
+                    if (pipe.downPipe.parentNode) gameArea.removeChild(pipe.downPipe);
+                    pipes.splice(index, 1);
+                }
             }
         });
         
@@ -425,18 +508,20 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = coins.length - 1; i >= 0; i--) {
             let coin = coins[i];
             coin.x -= pipeSpeed * deltaTime;
-            coin.element.style.left = coin.x + 'px';
-            
-            // Check for collected coins
-            if (!coin.collected && checkCoinCollision(coin)) {
-                collectCoin(coin);
-            }
-            
-            // Remove coins that are off screen
-            if (coin.x + 30 < 0 || coin.collected) {
-                if (coin.removeTime && timestamp > coin.removeTime) {
-                    gameArea.removeChild(coin.element);
-                    coins.splice(i, 1);
+            if (coin.element) {
+                coin.element.style.left = coin.x + 'px';
+                
+                // Check for collected coins
+                if (!coin.collected && checkCoinCollision(coin)) {
+                    collectCoin(coin);
+                }
+                
+                // Remove coins that are off screen
+                if (coin.x + 30 < 0 || coin.collected) {
+                    if (coin.removeTime && timestamp > coin.removeTime) {
+                        if (coin.element.parentNode) gameArea.removeChild(coin.element);
+                        coins.splice(i, 1);
+                    }
                 }
             }
         }
@@ -458,183 +543,203 @@ document.addEventListener('DOMContentLoaded', function() {
         const randomHeight = Math.floor(Math.random() * (maxPipeHeight - minHeight)) + minHeight;
         
         const upPipe = document.createElement('div');
-        upPipe.className = 'pipe pipeUp';
-        upPipe.style.height = gameAreaHeight - randomHeight - groundHeight - pipeGap + 'px';
-        upPipe.style.left = gameArea.clientWidth + 'px';
-        
-        const downPipe = document.createElement('div');
-        downPipe.className = 'pipe pipeDown';
-        downPipe.style.height = randomHeight + 'px';
-        downPipe.style.left = gameArea.clientWidth + 'px';
-        
-        gameArea.appendChild(upPipe);
-        gameArea.appendChild(downPipe);
-        
-        pipes.push({
-            x: gameArea.clientWidth,
-            upPipe: upPipe,
-            downPipe: downPipe,
-            passed: false
-        });
-    }
+upPipe.className = 'pipe pipeUp';
+upPipe.style.height = gameAreaHeight - randomHeight - groundHeight - pipeGap + 'px';
+upPipe.style.left = gameArea.clientWidth + 'px';
+
+const downPipe = document.createElement('div');
+downPipe.className = 'pipe pipeDown';
+downPipe.style.height = randomHeight + 'px';
+downPipe.style.left = gameArea.clientWidth + 'px';
+
+gameArea.appendChild(upPipe);
+gameArea.appendChild(downPipe);
+
+pipes.push({
+    x: gameArea.clientWidth,
+    upPipe: upPipe,
+    downPipe: downPipe,
+    passed: false
+});
+}
+
+function createCoin() {
+    const gameAreaHeight = gameArea.clientHeight;
+    const groundHeight = ground.clientHeight;
+    const safeArea = gameAreaHeight - groundHeight - 60;
+    const minHeight = 80;  // Minimum height from top
+    const maxHeight = safeArea - 80;  // Maximum height from top
+    const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+    let randomX = Math.floor(Math.random() * (gameArea.clientWidth - 100)) + gameArea.clientWidth; // Poza ekranem
     
-    function createCoin() {
-        const gameAreaHeight = gameArea.clientHeight;
-        const groundHeight = ground.clientHeight;
-        const safeArea = gameAreaHeight - groundHeight - 60;
-        const minHeight = 80;  // Minimum height from top
-        const maxHeight = safeArea - 80;  // Maximum height from top
-        const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
-        const randomX = Math.floor(Math.random() * (gameArea.clientWidth - 100)) + 50; // Avoid edges
-        
-        const coin = document.createElement('div');
+    const coin = document.createElement('div');
+    
+    // Losowe określenie czy moneta jest fioletowa (super)
+    const isPurple = Math.random() < purpleCoinChance;
+    
+    if (isPurple) {
+        coin.className = 'coin purpleCoin';
+    } else {
         coin.className = 'coin';
-        coin.style.left = randomX + 'px';
-        coin.style.top = randomY + 'px';
-        
-        gameArea.appendChild(coin);
-        
-        coins.push({
-            x: randomX,
-            y: randomY,
-            element: coin,
-            collected: false,
-            removeTime: null
-        });
     }
     
-    function checkCollision() {
-        const birdRect = bird.getBoundingClientRect();
-        const gameAreaRect = gameArea.getBoundingClientRect();
-        const groundRect = ground.getBoundingClientRect();
+    coin.style.left = randomX + 'px';
+    coin.style.top = randomY + 'px';
+    
+    gameArea.appendChild(coin);
+    
+    coins.push({
+        x: randomX,
+        y: randomY,
+        element: coin,
+        collected: false,
+        removeTime: null,
+        isPurple: isPurple
+    });
+}
+
+function checkCollision() {
+    const birdRect = bird.getBoundingClientRect();
+    const gameAreaRect = gameArea.getBoundingClientRect();
+    const groundRect = ground.getBoundingClientRect();
+    
+    // Check if bird hits ground or ceiling
+    if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+        return true;
+    }
+    
+    // Check if bird hits pipes
+    for (let pipe of pipes) {
+        const upPipeRect = pipe.upPipe.getBoundingClientRect();
+        const downPipeRect = pipe.downPipe.getBoundingClientRect();
         
-        // Check if bird hits ground or ceiling
-        if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+        if (
+            birdRect.right >= upPipeRect.left && 
+            birdRect.left <= upPipeRect.right && 
+            birdRect.bottom >= upPipeRect.top
+        ) {
             return true;
         }
         
-        // Check if bird hits pipes
-        for (let pipe of pipes) {
-            const upPipeRect = pipe.upPipe.getBoundingClientRect();
-            const downPipeRect = pipe.downPipe.getBoundingClientRect();
-            
-            if (
-                birdRect.right >= upPipeRect.left && 
-                birdRect.left <= upPipeRect.right && 
-                birdRect.bottom >= upPipeRect.top
-            ) {
-                return true;
-            }
-            
-            if (
-                birdRect.right >= downPipeRect.left && 
-                birdRect.left <= downPipeRect.right && 
-                birdRect.top <= downPipeRect.bottom
-            ) {
-                return true;
-            }
+        if (
+            birdRect.right >= downPipeRect.left && 
+            birdRect.left <= downPipeRect.right && 
+            birdRect.top <= downPipeRect.bottom
+        ) {
+            return true;
         }
-        
-        return false;
     }
     
-    function checkCoinCollision(coin) {
-        const birdRect = bird.getBoundingClientRect();
-        const coinRect = coin.element.getBoundingClientRect();
-        
-        return (
-            birdRect.right >= coinRect.left &&
-            birdRect.left <= coinRect.right &&
-            birdRect.bottom >= coinRect.top &&
-            birdRect.top <= coinRect.bottom
-        );
-    }
+    return false;
+}
+
+function checkCoinCollision(coin) {
+    const birdRect = bird.getBoundingClientRect();
+    const coinRect = coin.element.getBoundingClientRect();
     
-    function collectCoin(coin) {
-        coin.collected = true;
-        coin.element.classList.add('coinCollected');
-        coin.removeTime = performance.now() + 300;  // Remove after animation
-        
-        // Add score
+    return (
+        birdRect.right >= coinRect.left &&
+        birdRect.left <= coinRect.right &&
+        birdRect.bottom >= coinRect.top &&
+        birdRect.top <= coinRect.bottom
+    );
+}
+
+function collectCoin(coin) {
+    coin.collected = true;
+    coin.element.classList.add('coinCollected');
+    coin.removeTime = performance.now() + 300;  // Remove after animation
+    
+    // Add score based on coin type
+    if (coin.isPurple) {
+        purpleCoinScore += purpleCoinValue;
+        purpleCoinCount++;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinCount}`;
+        playSound('purpleCoin');
+    } else {
         coinScore += coinValue;
-        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
-        playSound(audioData.coin);
-        
-        // Create a visual effect
-        const coinPop = document.createElement('div');
-        coinPop.className = 'coinPop';
-        coinPop.textContent = `+${coinValue}`;
-        coinPop.style.left = coin.x + 'px';
-        coinPop.style.top = coin.y + 'px';
-        gameArea.appendChild(coinPop);
-        
-        // Remove the visual effect after animation
-        setTimeout(() => {
+        normalCoinCount++;
+        bonusScoreElement.textContent = `Monety: ${normalCoinCount}`;
+        playSound('coin');
+    }
+    
+    // Create a visual effect
+    const coinPop = document.createElement('div');
+    coinPop.className = coin.isPurple ? 'coinPop purpleCoinPop' : 'coinPop';
+    coinPop.textContent = `+${coin.isPurple ? purpleCoinValue : coinValue}`;
+    coinPop.style.left = coin.x + 'px';
+    coinPop.style.top = coin.y + 'px';
+    gameArea.appendChild(coinPop);
+    
+    // Remove the visual effect after animation
+    setTimeout(() => {
+        if (coinPop.parentNode) {
             gameArea.removeChild(coinPop);
-        }, 1000);
+        }
+    }, 1000);
+}
+
+function makeJump() {
+    if (gameRunning) {
+        velocity = jump;
+        playSound('jump');
     }
-    
-    function makeJump() {
-        if (gameRunning) {
-            velocity = jump;
-            playSound(audioData.jump);
-        }
+}
+
+// Event listeners
+startButton.addEventListener('click', startGame);
+restartButton.addEventListener('click', startGame);
+
+// Touch events for mobile
+gameArea.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    if (gameRunning) {
+        makeJump();
     }
-    
-    // Event listeners
-    startButton.addEventListener('click', startGame);
-    restartButton.addEventListener('click', startGame);
-    
-    // Touch events for mobile
-    gameArea.addEventListener('touchstart', function(event) {
+});
+
+// Keyboard events
+document.addEventListener('keydown', function(event) {
+    if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
         event.preventDefault();
-        if (gameRunning) {
-            makeJump();
-        }
-    });
-    
-    // Keyboard events
-    document.addEventListener('keydown', function(event) {
-        if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
-            event.preventDefault();
-            makeJump();
-        }
-    });
-    
-    // Mouse events
-    gameArea.addEventListener('click', function(event) {
-        if (gameRunning) {
-            makeJump();
-        }
-    });
-    
-    // Prevent default touch behavior to avoid scrolling
-    document.addEventListener('touchmove', function(event) {
-        event.preventDefault();
-    }, { passive: false });
-    
-    // Handle window resize
-    window.addEventListener('resize', function() {
-        if (gameRunning) {
-            bird.style.left = gameArea.clientWidth * 0.15 + 'px';
-        }
-    });
-    
-    // Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
-    startScreen.addEventListener('touchstart', function(event) {
-        event.preventDefault();
+        makeJump();
+    }
+});
+
+// Mouse events
+gameArea.addEventListener('click', function(event) {
+    if (gameRunning) {
+        makeJump();
+    }
+});
+
+// Prevent default touch behavior to avoid scrolling
+document.addEventListener('touchmove', function(event) {
+    event.preventDefault();
+}, { passive: false });
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    if (gameRunning) {
+        bird.style.left = gameArea.clientWidth * 0.15 + 'px';
+    }
+});
+
+// Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
+startScreen.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    startGame();
+});
+
+// Dodanie krótkiego opóźnienia przed rozpoczęciem gry
+function delayedStart() {
+    setTimeout(function() {
         startGame();
-    });
-    
-    // Dodanie krótkiego opóźnienia przed rozpoczęciem gry
-            function delayedStart() {
-                setTimeout(function() {
-                    startGame();
-                }, 100);
-            }
-            
-            startButton.addEventListener('click', delayedStart);
-            restartButton.addEventListener('click', delayedStart);
+    }, 100);
+}
+
+startButton.addEventListener('click', delayedStart);
+restartButton.addEventListener('click', delayedStart);
         });
     </script>
 </body>
