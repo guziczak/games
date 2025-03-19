@@ -41,6 +41,7 @@
             top: 50%;
             left: 15%;
             z-index: 2;
+            transition: left 0.3s ease; /* Płynne przesuwanie w poziomie */
         }
         #bird:before {
             content: '';
@@ -173,7 +174,7 @@
         }
         #frogModeButton {
             position: absolute;
-            bottom: 20px;
+            bottom: 80px;
             right: 20px;
             padding: 15px 20px;
             font-size: 20px;
@@ -200,7 +201,7 @@
         }
         #frogModeTimer {
             position: absolute;
-            bottom: 60px;
+            bottom: 120px;
             right: 20px;
             font-size: 18px;
             font-weight: bold;
@@ -209,6 +210,47 @@
             display: none;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         }
+        
+        /* Styl dla nowego trybu ducha */
+        #ghostModeButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            font-size: 20px;
+            background-color: #7B68EE; /* Kolor fioletowy */
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+            box-shadow: 0px 0px 15px rgba(123, 104, 238, 0.7);
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #ghostModeButton:hover {
+            background-color: #6A5ACD;
+            transform: scale(1.05);
+        }
+        #ghostModeButton:disabled {
+            background-color: #808080;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #ghostModeTimer {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #7B68EE;
+            z-index: 5;
+            display: none;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        
         .frog-mode-active #bird {
             background-color: #3CB371;
             box-shadow: 0 0 15px #3CB371;
@@ -221,6 +263,30 @@
             0% { box-shadow: 0 0 10px 2px #3CB371; }
             100% { box-shadow: 0 0 20px 5px #3CB371; }
         }
+        
+        /* Styl dla trybu ducha */
+        .ghost-mode-active #bird {
+            background-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 15px rgba(123, 104, 238, 0.7);
+            animation: ghostPulse 1.5s infinite alternate;
+        }
+        .ghost-mode-active #bird:after {
+            background-color: rgba(255, 102, 0, 0.6);
+        }
+        .ghost-mode-active #bird:before {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        @keyframes ghostPulse {
+            0% { 
+                opacity: 0.6;
+                box-shadow: 0 0 10px 2px rgba(123, 104, 238, 0.5);
+            }
+            100% { 
+                opacity: 0.9;
+                box-shadow: 0 0 20px 5px rgba(123, 104, 238, 0.8);
+            }
+        }
+        
         #ground {
             position: absolute;
             bottom: 0;
@@ -328,6 +394,8 @@
             <div id="purpleCoinScore">Super monety: 0</div>
             <button id="frogModeButton">TRYB FROGA (3🟡 1🟣)</button>
             <div id="frogModeTimer">TRYB FROGA: 0s</div>
+            <button id="ghostModeButton">TRYB DUCHA (2🟡 2🟣)</button>
+            <div id="ghostModeTimer">TRYB DUCHA: 0s</div>
         </div>
         <div id="startScreen">
             <h1>Sky Dodge</h1>
@@ -365,6 +433,8 @@
             const ground = document.getElementById('ground');
             const frogModeButton = document.getElementById('frogModeButton');
             const frogModeTimer = document.getElementById('frogModeTimer');
+            const ghostModeButton = document.getElementById('ghostModeButton');
+            const ghostModeTimer = document.getElementById('ghostModeTimer');
             
             let gameRunning = false;
             let pipes = [];
@@ -379,9 +449,11 @@
             let velocity = 0;
             let jump = -7;
             let birdPosition;
+            let birdHorizontalPosition = 15; // Pozycja pozioma ptaka jako % szerokości ekranu
             let pipeWidth = 80;
             let pipeGap = 220;
             let pipeSpeed = 2;
+            let currentPipeSpeed = 2; // Do zmiany prędkości rur w trybach specjalnych
             let pipeInterval = 2500;
             let coinInterval = 1500;
             let purpleCoinChance = 0.15; // 15% szansa na fioletową monetę
@@ -406,107 +478,46 @@
             let frogJump = -11; // Mocniejszy skok w trybie żaby
             let normalGravity = 0.25;
             let frogGravity = 0.20; // Mniejsza grawitacja w trybie żaby
-            let invincible = false; // Flaga nieśmiertelności
+            let frogSpeedMultiplier = 2; // Mnożnik prędkości dla trybu żaby
+            let invincible = false; // Flaga nieśmiertelności dla trybu żaby
             
-            // Zmienne dla obsługi dźwięków
-            const sounds = {
-                jump: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGMYAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA',
-                coin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
-                gameOver: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXgAAAAAAAABUkRD1sRAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
-                purpleCoin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
-                frogMode: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAEAAAIhgCFhYWFhYWFhYWFhYWFhYWFhYWFhYWFuLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi41dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAFcAAAAAAAAAgiGPsDcAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////AABQTEFNRTMuMTAwBLQAAAAAAAAAFCAkAkwBNAEuE0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+xBkIM/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-            };
+            // TRYB DUCHA - zmienne
+            let ghostModeActive = false;
+            let ghostModeTime = 0;
+            let ghostModeDuration = 5; // w sekundach
+            let ghostModeCooldown = 0;
+            let ghostModeCooldownTime = 7; // w sekundach
+            let normalGhostModeCost = 2; // koszt normalnych monet
+            let purpleGhostModeCost = 2; // koszt fioletowych monet
+            let ghostMode = false; // Flaga trybu ducha
             
-            let audioElements = {};
-            let audioInitialized = false;
-            let userInteracted = false;
+            // Uproszczone dźwięki z bezpośrednim tworzeniem obiektów Audio
+            const jumpSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGMYAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA");
             
-            // Funkcja inicjalizująca dźwięki - zostanie wywołana po interakcji użytkownika
-            function initAudio() {
-                if (audioInitialized) return;
-                
-                for (const [name, source] of Object.entries(sounds)) {
-                    try {
-                        audioElements[name] = new Audio(source);
-                        audioElements[name].load();
-                        // Dodatkowa obsługa dla debugowania
-                        audioElements[name].addEventListener('error', (e) => {
-                            console.error(`Błąd ładowania dźwięku ${name}:`, e);
-                        });
-                    } catch(error) {
-                        console.error(`Błąd tworzenia elementu audio ${name}:`, error);
-                    }
-                }
-                
-                // Próba wstępnego odtworzenia dźwięków (może pomóc w niektórych przeglądarkach)
+            const coinSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
+            
+            const gameOverSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXgAAAAAAAABUkRD1sRAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
+            
+            const purpleCoinSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
+            
+            const frogModeSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAEAAAIhgCFhYWFhYWFhYWFhYWFhYWFhYWFhYWFuLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi41dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAFcAAAAAAAAAgiGPsDcAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////AABQTEFNRTMuMTAwBLQAAAAAAAAAFCAkAkwBNAEuE0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+xBkIM/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            
+            // Nowy dźwięk dla trybu ducha
+            const ghostModeSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAADAAAHYwCVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZXX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT/////////////////////////////////AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJARiAAAAAAAAB2MO7MYIAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/////////////////////////////////////////////////////////////////8=");
+            
+            // Funkcja do odtwarzania dźwięków
+            function playSound(sound) {
                 try {
-                    for (const name in audioElements) {
-                        const audio = audioElements[name];
-                        audio.volume = 0.001; // Prawie bezgłośnie
-                        const playPromise = audio.play();
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {
-                                audio.pause();
-                                audio.currentTime = 0;
-                                audio.volume = 0.7;
-                            }).catch(e => {
-                                console.log(`Standardowe odrzucenie odtwarzania ${name}:`, e);
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.log("Błąd wstępnego odtwarzania dźwięków:", e);
-                }
-                
-                audioInitialized = true;
-            }
-            
-            // Funkcja odtwarzająca dźwięk
-            function playSound(name) {
-                if (!audioInitialized || !userInteracted) return;
-                
-                try {
-                    if (audioElements[name]) {
-                        // Tworzenie nowej instancji audio dla lepszego wsparcia wielokrotnego odtwarzania
-                        const soundToPlay = audioElements[name].cloneNode();
-                        soundToPlay.volume = 0.7;
-                        
-                        // Odtwórz dźwięk z obsługą błędów
-                        const playPromise = soundToPlay.play();
-                        
-                        if (playPromise !== undefined) {
-                            playPromise.catch(error => {
-                                console.error(`Błąd odtwarzania dźwięku ${name}:`, error);
-                            });
-                        }
-                    }
+                    // Klonowanie dźwięku dla lepszego wsparcia wielokrotnego odtwarzania
+                    const soundClone = sound.cloneNode();
+                    soundClone.volume = 0.7;
+                    soundClone.play().catch(error => {
+                        console.error("Błąd odtwarzania dźwięku:", error);
+                    });
                 } catch(error) {
-                    console.error(`Błąd podczas próby odtworzenia dźwięku ${name}:`, error);
+                    console.error("Błąd podczas próby odtworzenia dźwięku:", error);
                 }
             }
-            
-            // Zainicjuj dźwięki po pierwszej interakcji użytkownika
-            function handleFirstInteraction() {
-                userInteracted = true;
-                initAudio();
-                
-                // Odtwórz cichy dźwięk, aby odblokować audio API
-                const silentSound = new Audio('data:audio/mp3;base64,SUQzAwAAAAAAD1RJVDIAAAAZAAAAaHR0cDovL3d3dy5mcmVlc2Z4Lm');
-                silentSound.volume = 0.01;
-                silentSound.play().catch(e => console.log("Nie można odtworzyć cichego dźwięku:", e));
-                
-                // Usuń nasłuchiwacze zdarzeń, ponieważ już nie są potrzebne
-                document.removeEventListener('click', handleFirstInteraction);
-                document.removeEventListener('touchstart', handleFirstInteraction);
-                startButton.removeEventListener('click', handleFirstInteraction);
-                frogModeButton.removeEventListener('click', handleFirstInteraction);
-            }
-            
-            // Dodaj nasłuchiwacze zdarzeń dla pierwszej interakcji
-            document.addEventListener('click', handleFirstInteraction);
-            document.addEventListener('touchstart', handleFirstInteraction);
-            startButton.addEventListener('click', handleFirstInteraction);
-            frogModeButton.addEventListener('click', handleFirstInteraction);
 
             function setupGame() {
                 score = 0;
@@ -519,7 +530,10 @@
                 purpleCoinScoreElement.textContent = "Super monety: 0";
                 velocity = 0;
                 birdPosition = gameArea.clientHeight / 2;
+                birdHorizontalPosition = 15;
                 bird.style.top = birdPosition + 'px';
+                bird.style.left = birdHorizontalPosition + '%';
+                currentPipeSpeed = pipeSpeed;
                 
                 // Reset TRYB FROGA
                 frogModeActive = false;
@@ -527,9 +541,19 @@
                 frogModeCooldown = 0;
                 jump = normalJump;
                 gravity = normalGravity;
+                invincible = false;
                 frogModeButton.style.display = 'none';
                 frogModeTimer.style.display = 'none';
                 gameArea.classList.remove('frog-mode-active');
+                
+                // Reset TRYB DUCHA
+                ghostModeActive = false;
+                ghostModeTime = 0;
+                ghostModeCooldown = 0;
+                ghostMode = false;
+                ghostModeButton.style.display = 'none';
+                ghostModeTimer.style.display = 'none';
+                gameArea.classList.remove('ghost-mode-active');
                 
                 pipes.forEach(pipe => {
                     if (pipe.upPipe && pipe.upPipe.parentNode) {
@@ -554,11 +578,6 @@
             }
             
             function startGame() {
-                // Inicjacja audio przy pierwszym kliknięciu
-                if (!userInteracted) {
-                    handleFirstInteraction();
-                }
-                
                 setupGame();
                 startScreen.style.display = 'none';
                 gameOverScreen.style.display = 'none';
@@ -566,9 +585,11 @@
                 lastTime = performance.now();
                 animationId = requestAnimationFrame(update);
                 
-                // Pokaż przycisk TRYB FROGA gdy gra się rozpocznie
+                // Pokaż przyciski trybu specjalnego gdy gra się rozpocznie
                 frogModeButton.style.display = 'block';
+                ghostModeButton.style.display = 'block';
                 updateFrogModeButton();
+                updateGhostModeButton();
             }
             
             function endGame() {
@@ -579,7 +600,7 @@
                 finalPurpleCoinsElement.textContent = purpleCoinCount;
                 finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore;
                 gameOverScreen.style.display = 'flex';
-                playSound('gameOver');
+                playSound(gameOverSound);
             }
             
             function update(timestamp) {
@@ -611,6 +632,26 @@
                     }
                 }
                 
+                // Zarządzanie TRYBEM DUCHA
+                if (ghostModeActive) {
+                    ghostModeTime -= deltaTime / 60; // Odliczanie w sekundach
+                    ghostModeTimer.textContent = `TRYB DUCHA: ${Math.ceil(ghostModeTime)}s`;
+                    
+                    if (ghostModeTime <= 0) {
+                        deactivateGhostMode();
+                    }
+                }
+                
+                // Obsługa cooldownu trybu DUCHA
+                if (ghostModeCooldown > 0) {
+                    ghostModeCooldown -= deltaTime / 60;
+                    
+                    if (ghostModeCooldown <= 0) {
+                        ghostModeCooldown = 0;
+                        updateGhostModeButton();
+                    }
+                }
+                
                 velocity += gravity * deltaTime;
                 
                 if (velocity > velocityLimit) velocity = velocityLimit;
@@ -634,13 +675,13 @@
                 }
                 
                 pipes.forEach((pipe, index) => {
-                    pipe.x -= pipeSpeed * deltaTime;
+                    pipe.x -= currentPipeSpeed * deltaTime;
                     
                     if (pipe.upPipe && pipe.downPipe) {
                         pipe.upPipe.style.left = pipe.x + 'px';
                         pipe.downPipe.style.left = pipe.x + 'px';
                         
-                        if (!pipe.passed && pipe.x + pipeWidth < gameArea.clientWidth * 0.15) {
+                        if (!pipe.passed && pipe.x + pipeWidth < gameArea.clientWidth * (birdHorizontalPosition / 100)) {
                             pipe.passed = true;
                             score++;
                             scoreElement.textContent = score;
@@ -656,13 +697,14 @@
                 
                 for (let i = coins.length - 1; i >= 0; i--) {
                     let coin = coins[i];
-                    coin.x -= pipeSpeed * deltaTime;
+                    coin.x -= currentPipeSpeed * deltaTime;
                     if (coin.element) {
                         coin.element.style.left = coin.x + 'px';
                         
                         if (!coin.collected && checkCoinCollision(coin)) {
                             collectCoin(coin);
                             updateFrogModeButton();
+                            updateGhostModeButton();
                         }
                         
                         if (coin.x + 30 < 0 || coin.collected) {
@@ -834,6 +876,9 @@
                             return true;
                         }
                     }
+                } else if (ghostModeActive) {
+                    // W trybie ducha nie ma kolizji z rurami
+                    return false;
                 } else {
                     // Normalne sprawdzanie kolizji
                     for (let pipe of pipes) {
@@ -888,11 +933,7 @@
                     purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
                     purpleCoinCount++;
                     
-                    // Upewnij się, że inicjalizacja audio nastąpiła
-                    if (!userInteracted) {
-                        handleFirstInteraction();
-                    }
-                    playSound('purpleCoin');
+                    playSound(purpleCoinSound);
                     
                     const coinPop = document.createElement('div');
                     if (!coinPop) {
@@ -915,11 +956,7 @@
                     bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
                     normalCoinCount++;
                     
-                    // Upewnij się, że inicjalizacja audio nastąpiła
-                    if (!userInteracted) {
-                        handleFirstInteraction();
-                    }
-                    playSound('coin');
+                    playSound(coinSound);
                     
                     const coinPop = document.createElement('div');
                     if (!coinPop) {
@@ -943,7 +980,7 @@
             function makeJump() {
                 if (gameRunning) {
                     velocity = jump;
-                    playSound('jump');
+                    playSound(jumpSound);
                 }
             }
             
@@ -952,11 +989,6 @@
                 if (event) {
                     event.preventDefault(); // Zapobiega propagacji zdarzeń dotyku
                     event.stopPropagation();
-                }
-                
-                // Inicjacja audio przy pierwszym kliknięciu
-                if (!userInteracted) {
-                    handleFirstInteraction();
                 }
                 
                 if (!gameRunning || frogModeActive || frogModeCooldown > 0) return;
@@ -986,9 +1018,10 @@
                     jump = frogJump;
                     gravity = frogGravity;
                     invincible = true; // Włącz nieśmiertelność
+                    currentPipeSpeed = pipeSpeed * frogSpeedMultiplier; // Podwójna prędkość w trybie żaby
                     
                     // Efekt dźwiękowy
-                    playSound('frogMode');
+                    playSound(frogModeSound);
                     
                     // Pokaż efekt aktywacji
                     const frogActivation = document.createElement('div');
@@ -1021,6 +1054,7 @@
                 jump = normalJump;
                 gravity = normalGravity;
                 invincible = false; // Wyłącz nieśmiertelność
+                currentPipeSpeed = pipeSpeed; // Normalna prędkość
                 
                 // Usuń rurki wokół kurczaka, aby dać graczowi czas na reakcję
                 // po zakończeniu nieśmiertelności
@@ -1128,12 +1162,128 @@
                 }
             }
             
+            // Funkcje TRYB DUCHA
+            function activateGhostMode(event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                if (!gameRunning || ghostModeActive || ghostModeCooldown > 0) return;
+                
+                // Sprawdź czy gracz ma wystarczającą ilość monet
+                const normalCoins = coinScore / coinValue;
+                const purpleCoins = purpleCoinScore / purpleCoinValue;
+                
+                if (normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost) {
+                    // Odejmij koszt
+                    coinScore -= normalGhostModeCost * coinValue;
+                    purpleCoinScore -= purpleGhostModeCost * purpleCoinValue;
+                    
+                    // Aktualizuj wyświetlanie monet
+                    bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+                    purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+                    
+                    // Aktywuj TRYB DUCHA
+                    ghostModeActive = true;
+                    ghostModeTime = ghostModeDuration;
+                    gameArea.classList.add('ghost-mode-active');
+                    ghostModeTimer.style.display = 'block';
+                    ghostModeTimer.textContent = `TRYB DUCHA: ${ghostModeDuration}s`;
+                    ghostModeButton.disabled = true;
+                    
+                    // Włącz tryb ducha
+                    ghostMode = true;
+                    
+                    // Efekt dźwiękowy
+                    playSound(ghostModeSound);
+                    
+                    // Pokaż efekt aktywacji
+                    const ghostActivation = document.createElement('div');
+                    ghostActivation.className = 'coinPop purpleCoinPop';
+                    ghostActivation.style.color = '#7B68EE';
+                    ghostActivation.textContent = 'TRYB DUCHA!\nPRZENIKANIE PRZEZ RURY!';
+                    ghostActivation.style.left = '50%';
+                    ghostActivation.style.top = '50%';
+                    ghostActivation.style.transform = 'translate(-50%, -50%) scale(2)';
+                    ghostActivation.style.whiteSpace = 'pre';
+                    ghostActivation.style.textAlign = 'center';
+                    gameArea.appendChild(ghostActivation);
+                    
+                    setTimeout(() => {
+                        if (ghostActivation && ghostActivation.parentNode) {
+                            gameArea.removeChild(ghostActivation);
+                        }
+                    }, 1500);
+                }
+            }
+            
+            function deactivateGhostMode() {
+                if (!ghostModeActive) return;
+                
+                ghostModeActive = false;
+                ghostModeTime = 0;
+                gameArea.classList.remove('ghost-mode-active');
+                ghostModeTimer.style.display = 'none';
+                ghostMode = false;
+                
+                // Pokaż komunikat o końcu trybu ducha
+                const endModeMsg = document.createElement('div');
+                endModeMsg.className = 'coinPop';
+                endModeMsg.textContent = 'Koniec trybu ducha!';
+                endModeMsg.style.left = '50%';
+                endModeMsg.style.top = '50%';
+                endModeMsg.style.transform = 'translate(-50%, -50%)';
+                endModeMsg.style.color = '#7B68EE';
+                endModeMsg.style.fontSize = '24px';
+                gameArea.appendChild(endModeMsg);
+                
+                setTimeout(() => {
+                    if (endModeMsg.parentNode) {
+                        gameArea.removeChild(endModeMsg);
+                    }
+                }, 1500);
+                
+                // Ustaw cooldown
+                ghostModeCooldown = ghostModeCooldownTime;
+                ghostModeButton.disabled = true;
+                
+                setTimeout(() => {
+                    updateGhostModeButton();
+                }, 500);
+            }
+            
+            function updateGhostModeButton() {
+                if (!gameRunning) return;
+                
+                const normalCoins = coinScore / coinValue;
+                const purpleCoins = purpleCoinScore / purpleCoinValue;
+                const hasEnoughCoins = normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost;
+                
+                if (ghostModeActive) {
+                    ghostModeButton.disabled = true;
+                    ghostModeButton.textContent = `TRYB DUCHA AKTYWNY!`;
+                } else if (ghostModeCooldown > 0) {
+                    ghostModeButton.disabled = true;
+                    ghostModeButton.textContent = `TRYB DUCHA (${Math.ceil(ghostModeCooldown)}s)`;
+                } else if (hasEnoughCoins) {
+                    ghostModeButton.disabled = false;
+                    ghostModeButton.textContent = `TRYB DUCHA (${normalGhostModeCost}🟡 ${purpleGhostModeCost}🟣)`;
+                } else {
+                    ghostModeButton.disabled = true;
+                    ghostModeButton.textContent = `TRYB DUCHA (${normalGhostModeCost}🟡 ${purpleGhostModeCost}🟣)`;
+                }
+            }
+            
             startButton.addEventListener('click', startGame);
             restartButton.addEventListener('click', startGame);
             
-            // Dodajemy obsługę dotykowego ekranu dla przycisku FROG MODE
+            // Dodajemy obsługę dotykowego ekranu dla przycisków trybów specjalnych
             frogModeButton.addEventListener('click', activateFrogMode);
             frogModeButton.addEventListener('touchstart', activateFrogMode, { passive: false });
+            
+            ghostModeButton.addEventListener('click', activateGhostMode);
+            ghostModeButton.addEventListener('touchstart', activateGhostMode, { passive: false });
             
             gameArea.addEventListener('touchstart', function(event) {
                 event.preventDefault();
@@ -1161,7 +1311,7 @@
             
             window.addEventListener('resize', function() {
                 if (gameRunning) {
-                    bird.style.left = gameArea.clientWidth * 0.15 + 'px';
+                    bird.style.left = birdHorizontalPosition + '%';
                 }
             });
             
