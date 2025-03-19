@@ -82,6 +82,11 @@
             border-radius: 50%;
             z-index: 1;
             box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
+            animation: rotateCoin 2s linear infinite;
+        }
+        @keyframes rotateCoin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
         }
         .coin:before {
             content: '';
@@ -187,6 +192,48 @@
             0% { transform: scale(1); opacity: 1; }
             100% { transform: scale(2); opacity: 0; }
         }
+        /* Styl dla przycisku cofnięcia w tył */
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 115, 230, 0.8);
+            color: #fff;
+            border: none;
+            padding: 0;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+            height: 40px;
+            width: 40px;
+            min-width: 40px;
+            text-align: center;
+        }
+        .back-button a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .back-button:hover {
+            background-color: rgba(0, 91, 181, 0.8);
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            filter: invert(1);
+        }
     </style>
 </head>
 <body>
@@ -208,6 +255,10 @@
             <p>Zebrane monety: <span id="finalCoins">0</span></p>
             <p>Całkowity wynik: <span id="finalTotalScore">0</span></p>
             <button id="restartButton">Zagraj ponownie</button>
+        </div>
+        <!-- Przycisk cofnięcia w tył -->
+        <div class="back-button">
+            <a href="https://guziczak.github.io/lukasz"><img src="../resources/icons/return.svg" alt="Return" class="icon"></a>
         </div>
     </div>
 
@@ -247,7 +298,12 @@
             let lastTime = 0;
             let deltaTime = 0;
             let coinValue = 10;
-            
+
+            // Dźwięki
+            const jumpSound = new Audio('jump.wav');
+            const coinSound = new Audio('coin.wav');
+            const gameOverSound = new Audio('gameOver.wav');
+
             function setupGame() {
                 score = 0;
                 coinScore = 0;
@@ -291,6 +347,7 @@
                 finalCoinsElement.textContent = coinScore / coinValue;
                 finalTotalScoreElement.textContent = score + coinScore;
                 gameOverScreen.style.display = 'flex';
+                gameOverSound.play();
             }
             
             function update(timestamp) {
@@ -416,16 +473,17 @@
                 const minHeight = 80;  // Minimum height from top
                 const maxHeight = safeArea - 80;  // Maximum height from top
                 const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+                const randomX = Math.floor(Math.random() * (gameArea.clientWidth - 100)) + 50; // Avoid edges
                 
                 const coin = document.createElement('div');
                 coin.className = 'coin';
-                coin.style.left = gameArea.clientWidth + 'px';
+                coin.style.left = randomX + 'px';
                 coin.style.top = randomY + 'px';
                 
                 gameArea.appendChild(coin);
                 
                 coins.push({
-                    x: gameArea.clientWidth,
+                    x: randomX,
                     y: randomY,
                     element: coin,
                     collected: false,
@@ -433,137 +491,139 @@
                 });
             }
             
-function checkCollision() {
-    const birdRect = bird.getBoundingClientRect();
-    const gameAreaRect = gameArea.getBoundingClientRect();
-    const groundRect = ground.getBoundingClientRect();
-    
-    // Check if bird hits ground or ceiling
-    if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
-        return true;
-    }
-    
-    // Check if bird hits pipes
-    for (let pipe of pipes) {
-        const upPipeRect = pipe.upPipe.getBoundingClientRect();
-        const downPipeRect = pipe.downPipe.getBoundingClientRect();
-        
-        if (
-            birdRect.right >= upPipeRect.left && 
-            birdRect.left <= upPipeRect.right && 
-            birdRect.bottom >= upPipeRect.top
-        ) {
-            return true;
-        }
-        
-        if (
-            birdRect.right >= downPipeRect.left && 
-            birdRect.left <= downPipeRect.right && 
-            birdRect.top <= downPipeRect.bottom
-        ) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-function checkCoinCollision(coin) {
-    const birdRect = bird.getBoundingClientRect();
-    const coinRect = coin.element.getBoundingClientRect();
-    
-    return (
-        birdRect.right >= coinRect.left &&
-        birdRect.left <= coinRect.right &&
-        birdRect.bottom >= coinRect.top &&
-        birdRect.top <= coinRect.bottom
-    );
-}
-
-function collectCoin(coin) {
-    coin.collected = true;
-    coin.element.classList.add('coinCollected');
-    coin.removeTime = performance.now() + 300;  // Remove after animation
-    
-    // Add score
-    coinScore += coinValue;
-    bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
-    
-    // Create a visual effect
-    const coinPop = document.createElement('div');
-    coinPop.className = 'coinPop';
-    coinPop.textContent = `+${coinValue}`;
-    coinPop.style.left = coin.x + 'px';
-    coinPop.style.top = coin.y + 'px';
-    gameArea.appendChild(coinPop);
-    
-    // Remove the visual effect after animation
-    setTimeout(() => {
-        gameArea.removeChild(coinPop);
-    }, 1000);
-}
-
-function makeJump() {
-    if (gameRunning) {
-        velocity = jump;
-    }
-}
-
-// Event listeners
-startButton.addEventListener('click', startGame);
-restartButton.addEventListener('click', startGame);
-
-// Touch events for mobile
-gameArea.addEventListener('touchstart', function(event) {
-    event.preventDefault();
-    if (gameRunning) {
-        makeJump();
-    }
-});
-
-// Keyboard events
-document.addEventListener('keydown', function(event) {
-    if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
-        event.preventDefault();
-        makeJump();
-    }
-});
-
-// Mouse events
-gameArea.addEventListener('click', function(event) {
-    if (gameRunning) {
-        makeJump();
-    }
-});
-
-// Prevent default touch behavior to avoid scrolling
-document.addEventListener('touchmove', function(event) {
-    event.preventDefault();
-}, { passive: false });
-
-// Handle window resize
-window.addEventListener('resize', function() {
-    if (gameRunning) {
-        bird.style.left = gameArea.clientWidth * 0.15 + 'px';
-    }
-});
-
-// Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
-startScreen.addEventListener('touchstart', function(event) {
-    event.preventDefault();
-    startGame();
-});
-
-// Dodanie krótkiego opóźnienia przed rozpoczęciem gry
-function delayedStart() {
-    setTimeout(function() {
-        startGame();
-    }, 100);
-}
-
-        startButton.addEventListener('click', delayedStart);
-        restartButton.addEventListener('click', delayedStart);
-    });
-</script>
+            function checkCollision() {
+                const birdRect = bird.getBoundingClientRect();
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                const groundRect = ground.getBoundingClientRect();
+                
+                // Check if bird hits ground or ceiling
+                if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+                    return true;
+                }
+                
+                // Check if bird hits pipes
+                for (let pipe of pipes) {
+                    const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                    const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                    
+                    if (
+                        birdRect.right >= upPipeRect.left && 
+                        birdRect.left <= upPipeRect.right && 
+                        birdRect.bottom >= upPipeRect.top
+                    ) {
+                        return true;
+                    }
+                    
+                    if (
+                        birdRect.right >= downPipeRect.left && 
+                        birdRect.left <= downPipeRect.right && 
+                        birdRect.top <= downPipeRect.bottom
+                    ) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            function checkCoinCollision(coin) {
+                const birdRect = bird.getBoundingClientRect();
+                const coinRect = coin.element.getBoundingClientRect();
+                
+                return (
+                    birdRect.right >= coinRect.left &&
+                    birdRect.left <= coinRect.right &&
+                    birdRect.bottom >= coinRect.top &&
+                    birdRect.top <= coinRect.bottom
+                );
+            }
+            
+            function collectCoin(coin) {
+                coin.collected = true;
+                coin.element.classList.add('coinCollected');
+                coin.removeTime = performance.now() + 300;  // Remove after animation
+                
+                // Add score
+                coinScore += coinValue;
+                bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+                coinSound.play();
+                
+                // Create a visual effect
+                const coinPop = document.createElement('div');
+                coinPop.className = 'coinPop';
+                coinPop.textContent = `+${coinValue}`;
+                coinPop.style.left = coin.x + 'px';
+                coinPop.style.top = coin.y + 'px';
+                gameArea.appendChild(coinPop);
+                
+                // Remove the visual effect after animation
+                setTimeout(() => {
+                    gameArea.removeChild(coinPop);
+                }, 1000);
+            }
+            
+            function makeJump() {
+                if (gameRunning) {
+                    velocity = jump;
+                    jumpSound.play();
+                }
+            }
+            
+            // Event listeners
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+            
+            // Touch events for mobile
+            gameArea.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                if (gameRunning) {
+                    makeJump();
+                }
+            });
+            
+            // Keyboard events
+            document.addEventListener('keydown', function(event) {
+                if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
+                    event.preventDefault();
+                    makeJump();
+                }
+            });
+            
+            // Mouse events
+            gameArea.addEventListener('click', function(event) {
+                if (gameRunning) {
+                    makeJump();
+                }
+            });
+            
+            // Prevent default touch behavior to avoid scrolling
+            document.addEventListener('touchmove', function(event) {
+                event.preventDefault();
+            }, { passive: false });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (gameRunning) {
+                    bird.style.left = gameArea.clientWidth * 0.15 + 'px';
+                }
+            });
+            
+            // Dodanie obsługi startu przez dotknięcie ekranu na ekranie startowym
+            startScreen.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                startGame();
+            });
+            
+            // Dodanie krótkiego opóźnienia przed rozpoczęciem gry
+            function delayedStart() {
+                setTimeout(function() {
+                    startGame();
+                }, 100);
+            }
+            
+            startButton.addEventListener('click', delayedStart);
+            restartButton.addEventListener('click', delayedStart);
+        });
+    </script>
 </body>
 </html>
