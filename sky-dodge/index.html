@@ -171,6 +171,56 @@
             z-index: 3;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
+        #frogModeButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            font-size: 20px;
+            background-color: #3CB371;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+            box-shadow: 0px 0px 15px rgba(0,0,0,0.7);
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #frogModeButton:hover {
+            background-color: #2E8B57;
+            transform: scale(1.05);
+        }
+        #frogModeButton:disabled {
+            background-color: #808080;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #frogModeTimer {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #3CB371;
+            z-index: 5;
+            display: none;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        .frog-mode-active #bird {
+            background-color: #3CB371;
+            box-shadow: 0 0 15px #3CB371;
+            animation: frogPulse 1s infinite alternate;
+        }
+        .frog-mode-active #bird:after {
+            background-color: #FF0000;
+        }
+        @keyframes frogPulse {
+            0% { box-shadow: 0 0 10px 2px #3CB371; }
+            100% { box-shadow: 0 0 20px 5px #3CB371; }
+        }
         #ground {
             position: absolute;
             bottom: 0;
@@ -276,6 +326,8 @@
             <div id="score">0</div>
             <div id="bonusScore">Monety: 0</div>
             <div id="purpleCoinScore">Super monety: 0</div>
+            <button id="frogModeButton">TRYB FROGA (3🟡 1🟣)</button>
+            <div id="frogModeTimer">TRYB FROGA: 0s</div>
         </div>
         <div id="startScreen">
             <h1>Sky Dodge</h1>
@@ -311,6 +363,8 @@
             const finalPurpleCoinsElement = document.getElementById('finalPurpleCoins');
             const finalTotalScoreElement = document.getElementById('finalTotalScore');
             const ground = document.getElementById('ground');
+            const frogModeButton = document.getElementById('frogModeButton');
+            const frogModeTimer = document.getElementById('frogModeTimer');
             
             let gameRunning = false;
             let pipes = [];
@@ -340,11 +394,26 @@
             let purpleCoinValue = 50;
             let safePadding = 40; // Minimalna odległość monety od przeszkód
             
+            // TRYB FROGA - zmienne
+            let frogModeActive = false;
+            let frogModeTime = 0;
+            let frogModeDuration = 8; // w sekundach
+            let frogModeCooldown = 0;
+            let frogModeCooldownTime = 5; // w sekundach
+            let normalFrogModeCost = 3; // koszt normalnych monet
+            let purpleFrogModeCost = 1; // koszt fioletowych monet
+            let normalJump = -7;
+            let frogJump = -11; // Mocniejszy skok w trybie żaby
+            let normalGravity = 0.25;
+            let frogGravity = 0.20; // Mniejsza grawitacja w trybie żaby
+            let invincible = false; // Flaga nieśmiertelności
+            
             const sounds = {
                 jump: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGMYAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA',
                 coin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
                 gameOver: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXgAAAAAAAABUkRD1sRAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
-                purpleCoin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg=='
+                purpleCoin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
+                frogMode: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAEAAAIhgCFhYWFhYWFhYWFhYWFhYWFhYWFhYWFuLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi41dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAFcAAAAAAAAAgiGPsDcAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////AABQTEFNRTMuMTAwBLQAAAAAAAAAFCAkAkwBNAEuE0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+xBkIM/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
             };
             
             const audioElements = {};
@@ -367,9 +436,15 @@
                     if (audioElements[name]) {
                         const soundToPlay = audioElements[name].cloneNode();
                         soundToPlay.volume = 0.7;
-                        soundToPlay.play().catch(error => {
-                            console.error(`Błąd odtwarzania dźwięku ${name}:`, error);
-                        });
+                        
+                        // Try to play the sound and handle any errors
+                        const playPromise = soundToPlay.play();
+                        
+                        if (playPromise !== undefined) {
+                            playPromise.catch(error => {
+                                console.error(`Błąd odtwarzania dźwięku ${name}:`, error);
+                            });
+                        }
                     }
                 } catch(error) {
                     console.error(`Błąd podczas próby odtworzenia dźwięku ${name}:`, error);
@@ -388,6 +463,16 @@
                 velocity = 0;
                 birdPosition = gameArea.clientHeight / 2;
                 bird.style.top = birdPosition + 'px';
+                
+                // Reset TRYB FROGA
+                frogModeActive = false;
+                frogModeTime = 0;
+                frogModeCooldown = 0;
+                jump = normalJump;
+                gravity = normalGravity;
+                frogModeButton.style.display = 'none';
+                frogModeTimer.style.display = 'none';
+                gameArea.classList.remove('frog-mode-active');
                 
                 pipes.forEach(pipe => {
                     if (pipe.upPipe && pipe.upPipe.parentNode) {
@@ -418,6 +503,10 @@
                 gameRunning = true;
                 lastTime = performance.now();
                 animationId = requestAnimationFrame(update);
+                
+                // Pokaż przycisk TRYB FROGA gdy gra się rozpocznie
+                frogModeButton.style.display = 'block';
+                updateFrogModeButton();
             }
             
             function endGame() {
@@ -439,6 +528,26 @@
                 lastTime = timestamp;
                 
                 if (deltaTime > 5) deltaTime = 5;
+                
+                // Zarządzanie TRYBEM FROGA
+                if (frogModeActive) {
+                    frogModeTime -= deltaTime / 60; // Odliczanie w sekundach
+                    frogModeTimer.textContent = `TRYB FROGA: ${Math.ceil(frogModeTime)}s`;
+                    
+                    if (frogModeTime <= 0) {
+                        deactivateFrogMode();
+                    }
+                }
+                
+                // Obsługa cooldownu trybu FROGA
+                if (frogModeCooldown > 0) {
+                    frogModeCooldown -= deltaTime / 60;
+                    
+                    if (frogModeCooldown <= 0) {
+                        frogModeCooldown = 0;
+                        updateFrogModeButton();
+                    }
+                }
                 
                 velocity += gravity * deltaTime;
                 
@@ -491,6 +600,7 @@
                         
                         if (!coin.collected && checkCoinCollision(coin)) {
                             collectCoin(coin);
+                            updateFrogModeButton();
                         }
                         
                         if (coin.x + 30 < 0 || coin.collected) {
@@ -565,14 +675,23 @@
                 }
 
                 const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
-                const randomX = Math.floor(Math.random() * (gameArea.clientWidth - 100)) + 50;
+                const randomX = gameArea.clientWidth + Math.floor(Math.random() * 100); // Zawsze poza ekranem
                 
                 const coin = document.createElement('div');
                 if (!coin) {
                     console.error("Nie udało się utworzyć monety.");
                     return;
                 }
-                coin.className = 'coin';
+                
+                // Losowo tworzymy fioletową monetę
+                const isPurpleCoin = Math.random() < purpleCoinChance;
+                
+                if (isPurpleCoin) {
+                    coin.className = 'coin purpleCoin';
+                } else {
+                    coin.className = 'coin';
+                }
+                
                 coin.style.left = randomX + 'px';
                 coin.style.top = randomY + 'px';
                 
@@ -592,30 +711,88 @@
                 const gameAreaRect = gameArea.getBoundingClientRect();
                 const groundRect = ground.getBoundingClientRect();
                 
+                // Jeśli jest nieśmiertelny dzięki trybowi froga, pozwól na przenikanie przez wszystko
+                if (invincible) {
+                    // Tylko nie pozwól wylecieć poza ekran gry
+                    if (birdRect.bottom >= groundRect.top) {
+                        birdPosition = groundRect.top - birdRect.height / 2;
+                        bird.style.top = birdPosition + 'px';
+                        velocity = 0;
+                    } else if (birdRect.top <= gameAreaRect.top) {
+                        birdPosition = gameAreaRect.top + birdRect.height / 2;
+                        bird.style.top = birdPosition + 'px';
+                        velocity = 0;
+                    }
+                    return false; // Brak kolizji w trybie nieśmiertelności
+                }
+                
+                // Standardowe sprawdzanie kolizji z górą i dołem ekranu
                 if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
                     return true;
                 }
                 
-                for (let pipe of pipes) {
-                    if (!pipe.upPipe || !pipe.downPipe) continue;
+                // W trybie żaby, jeśli dotyka góry rury, przyklej się
+                if (frogModeActive) {
+                    for (let pipe of pipes) {
+                        if (!pipe.upPipe || !pipe.downPipe) continue;
 
-                    const upPipeRect = pipe.upPipe.getBoundingClientRect();
-                    const downPipeRect = pipe.downPipe.getBoundingClientRect();
-                    
-                    if (
-                        birdRect.right >= upPipeRect.left && 
-                        birdRect.left <= upPipeRect.right && 
-                        birdRect.bottom >= upPipeRect.top
-                    ) {
-                        return true;
+                        const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                        const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                        
+                        // Krokodyl może przyczepić się do górnej części rury
+                        if (
+                            birdRect.right >= upPipeRect.left && 
+                            birdRect.left <= upPipeRect.right && 
+                            birdRect.bottom >= upPipeRect.top && 
+                            birdRect.bottom <= upPipeRect.top + 20 // tylko górna część rury
+                        ) {
+                            // Ustaw pozycję na górze rury
+                            birdPosition = upPipeRect.top - birdRect.height / 2;
+                            bird.style.top = birdPosition + 'px';
+                            velocity = 0; // Zatrzymaj spadanie
+                            return false; // Nie ma kolizji
+                        }
+                        
+                        // Zwykłe kolizje
+                        if (
+                            birdRect.right >= upPipeRect.left && 
+                            birdRect.left <= upPipeRect.right && 
+                            birdRect.bottom >= upPipeRect.top + 20
+                        ) {
+                            return true;
+                        }
+                        
+                        if (
+                            birdRect.right >= downPipeRect.left && 
+                            birdRect.left <= downPipeRect.right && 
+                            birdRect.top <= downPipeRect.bottom
+                        ) {
+                            return true;
+                        }
                     }
-                    
-                    if (
-                        birdRect.right >= downPipeRect.left && 
-                        birdRect.left <= downPipeRect.right && 
-                        birdRect.top <= downPipeRect.bottom
-                    ) {
-                        return true;
+                } else {
+                    // Normalne sprawdzanie kolizji
+                    for (let pipe of pipes) {
+                        if (!pipe.upPipe || !pipe.downPipe) continue;
+
+                        const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                        const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                        
+                        if (
+                            birdRect.right >= upPipeRect.left && 
+                            birdRect.left <= upPipeRect.right && 
+                            birdRect.bottom >= upPipeRect.top
+                        ) {
+                            return true;
+                        }
+                        
+                        if (
+                            birdRect.right >= downPipeRect.left && 
+                            birdRect.left <= downPipeRect.right && 
+                            birdRect.top <= downPipeRect.bottom
+                        ) {
+                            return true;
+                        }
                     }
                 }
                 
@@ -639,37 +816,169 @@
                 coin.element.classList.add('coinCollected');
                 coin.removeTime = performance.now() + 300;
                 
-                coinScore += coinValue;
-                bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
-                playSound(sounds.coin);
+                // Sprawdź czy to fioletowa moneta
+                const isPurpleCoin = coin.element.classList.contains('purpleCoin');
                 
-                const coinPop = document.createElement('div');
-                if (!coinPop) {
-                    console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
-                    return;
-                }
-                coinPop.className = 'coinPop';
-                coinPop.textContent = `+${coinValue}`;
-                coinPop.style.left = coin.x + 'px';
-                coinPop.style.top = coin.y + 'px';
-                gameArea.appendChild(coinPop);
-                
-                setTimeout(() => {
-                    if (coinPop && coinPop.parentNode) {
-                        gameArea.removeChild(coinPop);
+                if (isPurpleCoin) {
+                    purpleCoinScore += purpleCoinValue;
+                    purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+                    purpleCoinCount++;
+                    playSound('purpleCoin');
+                    
+                    const coinPop = document.createElement('div');
+                    if (!coinPop) {
+                        console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+                        return;
                     }
-                }, 1000);
+                    coinPop.className = 'coinPop purpleCoinPop';
+                    coinPop.textContent = `+${purpleCoinValue}`;
+                    coinPop.style.left = coin.x + 'px';
+                    coinPop.style.top = coin.y + 'px';
+                    gameArea.appendChild(coinPop);
+                    
+                    setTimeout(() => {
+                        if (coinPop && coinPop.parentNode) {
+                            gameArea.removeChild(coinPop);
+                        }
+                    }, 1200);
+                } else {
+                    coinScore += coinValue;
+                    bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+                    normalCoinCount++;
+                    playSound('coin');
+                    
+                    const coinPop = document.createElement('div');
+                    if (!coinPop) {
+                        console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+                        return;
+                    }
+                    coinPop.className = 'coinPop';
+                    coinPop.textContent = `+${coinValue}`;
+                    coinPop.style.left = coin.x + 'px';
+                    coinPop.style.top = coin.y + 'px';
+                    gameArea.appendChild(coinPop);
+                    
+                    setTimeout(() => {
+                        if (coinPop && coinPop.parentNode) {
+                            gameArea.removeChild(coinPop);
+                        }
+                    }, 1000);
+                }
             }
             
             function makeJump() {
                 if (gameRunning) {
                     velocity = jump;
-                    playSound(sounds.jump);
+                    playSound('jump');
+                }
+            }
+            
+            // Funkcje TRYB FROGA
+            function activateFrogMode(event) {
+                if (event) {
+                    event.preventDefault(); // Zapobiega propagacji zdarzeń dotyku
+                    event.stopPropagation();
+                }
+                if (!gameRunning || frogModeActive || frogModeCooldown > 0) return;
+                
+                // Sprawdź czy gracz ma wystarczającą ilość monet
+                const normalCoins = coinScore / coinValue;
+                const purpleCoins = purpleCoinScore / purpleCoinValue;
+                
+                if (normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost) {
+                    // Odejmij koszt
+                    coinScore -= normalFrogModeCost * coinValue;
+                    purpleCoinScore -= purpleFrogModeCost * purpleCoinValue;
+                    
+                    // Aktualizuj wyświetlanie monet
+                    bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+                    purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+                    
+                    // Aktywuj TRYB FROGA
+                    frogModeActive = true;
+                    frogModeTime = frogModeDuration;
+                    gameArea.classList.add('frog-mode-active');
+                    frogModeTimer.style.display = 'block';
+                    frogModeTimer.textContent = `TRYB FROGA: ${frogModeDuration}s`;
+                    frogModeButton.disabled = true;
+                    
+                    // Zmień parametry gry i dodaj nieśmiertelność
+                    jump = frogJump;
+                    gravity = frogGravity;
+                    invincible = true; // Włącz nieśmiertelność
+                    
+                    // Efekt dźwiękowy
+                    playSound('frogMode');
+                    
+                    // Pokaż efekt aktywacji
+                    const frogActivation = document.createElement('div');
+                    frogActivation.className = 'coinPop purpleCoinPop';
+                    frogActivation.textContent = 'TRYB FROGA!\nNIEŚMIERTELNOŚĆ!';
+                    frogActivation.style.left = '50%';
+                    frogActivation.style.top = '50%';
+                    frogActivation.style.transform = 'translate(-50%, -50%) scale(2)';
+                    frogActivation.style.whiteSpace = 'pre';
+                    frogActivation.style.textAlign = 'center';
+                    gameArea.appendChild(frogActivation);
+                    
+                    setTimeout(() => {
+                        if (frogActivation && frogActivation.parentNode) {
+                            gameArea.removeChild(frogActivation);
+                        }
+                    }, 1500);
+                }
+            }
+            
+            function deactivateFrogMode() {
+                if (!frogModeActive) return;
+                
+                frogModeActive = false;
+                frogModeTime = 0;
+                gameArea.classList.remove('frog-mode-active');
+                frogModeTimer.style.display = 'none';
+                
+                // Przywróć normalne parametry
+                jump = normalJump;
+                gravity = normalGravity;
+                invincible = false; // Wyłącz nieśmiertelność
+                
+                // Ustaw cooldown
+                frogModeCooldown = frogModeCooldownTime;
+                frogModeButton.disabled = true;
+                
+                setTimeout(() => {
+                    updateFrogModeButton();
+                }, 500);
+            }
+            
+            function updateFrogModeButton() {
+                if (!gameRunning) return;
+                
+                const normalCoins = coinScore / coinValue;
+                const purpleCoins = purpleCoinScore / purpleCoinValue;
+                const hasEnoughCoins = normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost;
+                
+                if (frogModeActive) {
+                    frogModeButton.disabled = true;
+                    frogModeButton.textContent = `TRYB FROGA AKTYWNY!`;
+                } else if (frogModeCooldown > 0) {
+                    frogModeButton.disabled = true;
+                    frogModeButton.textContent = `TRYB FROGA (${Math.ceil(frogModeCooldown)}s)`;
+                } else if (hasEnoughCoins) {
+                    frogModeButton.disabled = false;
+                    frogModeButton.textContent = `TRYB FROGA (${normalFrogModeCost}🟡 ${purpleFrogModeCost}🟣)`;
+                } else {
+                    frogModeButton.disabled = true;
+                    frogModeButton.textContent = `TRYB FROGA (${normalFrogModeCost}🟡 ${purpleFrogModeCost}🟣)`;
                 }
             }
             
             startButton.addEventListener('click', startGame);
             restartButton.addEventListener('click', startGame);
+            
+            // Dodajemy obsługę dotykowego ekranu dla przycisku FROG MODE
+            frogModeButton.addEventListener('click', activateFrogMode);
+            frogModeButton.addEventListener('touchstart', activateFrogMode, { passive: false });
             
             gameArea.addEventListener('touchstart', function(event) {
                 event.preventDefault();
