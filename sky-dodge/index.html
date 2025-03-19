@@ -408,6 +408,7 @@
             let frogGravity = 0.20; // Mniejsza grawitacja w trybie żaby
             let invincible = false; // Flaga nieśmiertelności
             
+            // Zmienne dla obsługi dźwięków
             const sounds = {
                 jump: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGMYAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA',
                 coin: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==',
@@ -416,28 +417,61 @@
                 frogMode: 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAEAAAIhgCFhYWFhYWFhYWFhYWFhYWFhYWFhYWFuLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi41dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAFcAAAAAAAAAgiGPsDcAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////AABQTEFNRTMuMTAwBLQAAAAAAAAAFCAkAkwBNAEuE0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+xBkIM/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
             };
             
-            const audioElements = {};
+            let audioElements = {};
+            let audioInitialized = false;
+            let userInteracted = false;
             
-            function preloadSounds() {
+            // Funkcja inicjalizująca dźwięki - zostanie wywołana po interakcji użytkownika
+            function initAudio() {
+                if (audioInitialized) return;
+                
                 for (const [name, source] of Object.entries(sounds)) {
                     try {
                         audioElements[name] = new Audio(source);
                         audioElements[name].load();
+                        // Dodatkowa obsługa dla debugowania
+                        audioElements[name].addEventListener('error', (e) => {
+                            console.error(`Błąd ładowania dźwięku ${name}:`, e);
+                        });
                     } catch(error) {
-                        console.error(`Błąd wczytywania dźwięku ${name}:`, error);
+                        console.error(`Błąd tworzenia elementu audio ${name}:`, error);
                     }
                 }
+                
+                // Próba wstępnego odtworzenia dźwięków (może pomóc w niektórych przeglądarkach)
+                try {
+                    for (const name in audioElements) {
+                        const audio = audioElements[name];
+                        audio.volume = 0.001; // Prawie bezgłośnie
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                                audio.volume = 0.7;
+                            }).catch(e => {
+                                console.log(`Standardowe odrzucenie odtwarzania ${name}:`, e);
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.log("Błąd wstępnego odtwarzania dźwięków:", e);
+                }
+                
+                audioInitialized = true;
             }
             
-            preloadSounds();
-            
+            // Funkcja odtwarzająca dźwięk
             function playSound(name) {
+                if (!audioInitialized || !userInteracted) return;
+                
                 try {
                     if (audioElements[name]) {
+                        // Tworzenie nowej instancji audio dla lepszego wsparcia wielokrotnego odtwarzania
                         const soundToPlay = audioElements[name].cloneNode();
                         soundToPlay.volume = 0.7;
                         
-                        // Try to play the sound and handle any errors
+                        // Odtwórz dźwięk z obsługą błędów
                         const playPromise = soundToPlay.play();
                         
                         if (playPromise !== undefined) {
@@ -450,6 +484,29 @@
                     console.error(`Błąd podczas próby odtworzenia dźwięku ${name}:`, error);
                 }
             }
+            
+            // Zainicjuj dźwięki po pierwszej interakcji użytkownika
+            function handleFirstInteraction() {
+                userInteracted = true;
+                initAudio();
+                
+                // Odtwórz cichy dźwięk, aby odblokować audio API
+                const silentSound = new Audio('data:audio/mp3;base64,SUQzAwAAAAAAD1RJVDIAAAAZAAAAaHR0cDovL3d3dy5mcmVlc2Z4Lm');
+                silentSound.volume = 0.01;
+                silentSound.play().catch(e => console.log("Nie można odtworzyć cichego dźwięku:", e));
+                
+                // Usuń nasłuchiwacze zdarzeń, ponieważ już nie są potrzebne
+                document.removeEventListener('click', handleFirstInteraction);
+                document.removeEventListener('touchstart', handleFirstInteraction);
+                startButton.removeEventListener('click', handleFirstInteraction);
+                frogModeButton.removeEventListener('click', handleFirstInteraction);
+            }
+            
+            // Dodaj nasłuchiwacze zdarzeń dla pierwszej interakcji
+            document.addEventListener('click', handleFirstInteraction);
+            document.addEventListener('touchstart', handleFirstInteraction);
+            startButton.addEventListener('click', handleFirstInteraction);
+            frogModeButton.addEventListener('click', handleFirstInteraction);
 
             function setupGame() {
                 score = 0;
@@ -497,6 +554,11 @@
             }
             
             function startGame() {
+                // Inicjacja audio przy pierwszym kliknięciu
+                if (!userInteracted) {
+                    handleFirstInteraction();
+                }
+                
                 setupGame();
                 startScreen.style.display = 'none';
                 gameOverScreen.style.display = 'none';
@@ -715,13 +777,15 @@
                 if (invincible) {
                     // Tylko nie pozwól wylecieć poza ekran gry
                     if (birdRect.bottom >= groundRect.top) {
-                        birdPosition = groundRect.top - birdRect.height / 2;
+                        // Ustaw pozycję tuż nad ziemią ale nie resetuj velocity do 0
+                        // dzięki czemu kurczak będzie mógł nadal skakać
+                        birdPosition = groundRect.top - birdRect.height;
                         bird.style.top = birdPosition + 'px';
-                        velocity = 0;
+                        // Nie ustawiamy velocity = 0, pozwalając na dalsze skoki
                     } else if (birdRect.top <= gameAreaRect.top) {
-                        birdPosition = gameAreaRect.top + birdRect.height / 2;
+                        birdPosition = gameAreaRect.top + 5; // Trochę luzu od górnej krawędzi
                         bird.style.top = birdPosition + 'px';
-                        velocity = 0;
+                        velocity = 1; // Delikatny spadek w dół
                     }
                     return false; // Brak kolizji w trybie nieśmiertelności
                 }
@@ -823,6 +887,11 @@
                     purpleCoinScore += purpleCoinValue;
                     purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
                     purpleCoinCount++;
+                    
+                    // Upewnij się, że inicjalizacja audio nastąpiła
+                    if (!userInteracted) {
+                        handleFirstInteraction();
+                    }
                     playSound('purpleCoin');
                     
                     const coinPop = document.createElement('div');
@@ -845,6 +914,11 @@
                     coinScore += coinValue;
                     bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
                     normalCoinCount++;
+                    
+                    // Upewnij się, że inicjalizacja audio nastąpiła
+                    if (!userInteracted) {
+                        handleFirstInteraction();
+                    }
                     playSound('coin');
                     
                     const coinPop = document.createElement('div');
@@ -879,6 +953,12 @@
                     event.preventDefault(); // Zapobiega propagacji zdarzeń dotyku
                     event.stopPropagation();
                 }
+                
+                // Inicjacja audio przy pierwszym kliknięciu
+                if (!userInteracted) {
+                    handleFirstInteraction();
+                }
+                
                 if (!gameRunning || frogModeActive || frogModeCooldown > 0) return;
                 
                 // Sprawdź czy gracz ma wystarczającą ilość monet
@@ -941,6 +1021,81 @@
                 jump = normalJump;
                 gravity = normalGravity;
                 invincible = false; // Wyłącz nieśmiertelność
+                
+                // Usuń rurki wokół kurczaka, aby dać graczowi czas na reakcję
+                // po zakończeniu nieśmiertelności
+                const birdRect = bird.getBoundingClientRect();
+                let pipesToRemoveIndices = [];
+                let pipesBeforeCount = 0;
+                let pipesAfterCount = 0;
+                
+                // Znajdź indeksy 2 rurek przed i 1 za kurczakiem
+                for (let i = 0; i < pipes.length; i++) {
+                    if (!pipes[i].upPipe) continue;
+                    
+                    const pipeRect = pipes[i].upPipe.getBoundingClientRect();
+                    
+                    if (pipeRect.left > birdRect.right) {
+                        // Rury przed kurczakiem (na prawo od niego)
+                        if (pipesBeforeCount < 2) {
+                            pipesToRemoveIndices.push(i);
+                            pipesBeforeCount++;
+                        }
+                    } else if (pipeRect.right < birdRect.left) {
+                        // Rury za kurczakiem (na lewo od niego)
+                        if (pipesAfterCount < 1 && pipeRect.right > birdRect.left - 300) {
+                            // Tylko jeśli rura jest blisko (w odległości 300px)
+                            pipesToRemoveIndices.push(i);
+                            pipesAfterCount++;
+                        }
+                    }
+                }
+                
+                // Usuń rury w kolejności malejącej, aby indeksy się nie zmieniały podczas usuwania
+                pipesToRemoveIndices.sort((a, b) => b - a);
+                
+                // Pokaż efekt usuwania rurek
+                for (let index of pipesToRemoveIndices) {
+                    if (index >= 0 && index < pipes.length) {
+                        const pipe = pipes[index];
+                        if (pipe.upPipe) {
+                            // Animacja usuwania rury
+                            pipe.upPipe.style.transition = 'opacity 0.5s';
+                            pipe.upPipe.style.opacity = '0';
+                            pipe.downPipe.style.transition = 'opacity 0.5s';
+                            pipe.downPipe.style.opacity = '0';
+                            
+                            // Usuń po zakończeniu animacji
+                            setTimeout(() => {
+                                if (pipe.upPipe && pipe.upPipe.parentNode) {
+                                    gameArea.removeChild(pipe.upPipe);
+                                }
+                                if (pipe.downPipe && pipe.downPipe.parentNode) {
+                                    gameArea.removeChild(pipe.downPipe);
+                                }
+                            }, 500);
+                        }
+                        // Usuń z tablicy pipes
+                        pipes.splice(index, 1);
+                    }
+                }
+                
+                // Pokaż komunikat o końcu trybu żaby
+                const endModeMsg = document.createElement('div');
+                endModeMsg.className = 'coinPop';
+                endModeMsg.textContent = 'Koniec trybu froga!';
+                endModeMsg.style.left = '50%';
+                endModeMsg.style.top = '50%';
+                endModeMsg.style.transform = 'translate(-50%, -50%)';
+                endModeMsg.style.color = 'red';
+                endModeMsg.style.fontSize = '24px';
+                gameArea.appendChild(endModeMsg);
+                
+                setTimeout(() => {
+                    if (endModeMsg.parentNode) {
+                        gameArea.removeChild(endModeMsg);
+                    }
+                }, 1500);
                 
                 // Ustaw cooldown
                 frogModeCooldown = frogModeCooldownTime;
