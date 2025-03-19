@@ -40,6 +40,7 @@
             background-color: #FF6347;
             border-radius: 5px;
             z-index: 5;
+            transition: transform 0.1s;
         }
         .platform {
             position: absolute;
@@ -133,7 +134,7 @@
         }
         #controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             width: 100%;
             display: flex;
             justify-content: space-around;
@@ -141,26 +142,48 @@
         }
         .control-button {
             width: 80px;
-            height: 50px;
-            background-color: rgba(255,255,255,0.3);
-            border-radius: 10px;
+            height: 80px; /* Zwiększona wysokość przycisków */
+            background-color: rgba(255,255,255,0.5); /* Zwiększona nieprzezroczystość */
+            border-radius: 50%; /* Okrągłe przyciski */
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 30px; /* Zwiększona czcionka */
             color: white;
             user-select: none;
+            border: 3px solid rgba(255, 255, 255, 0.8); /* Dodane obramowanie */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* Dodany cień */
         }
         #leftButton, #rightButton {
-            width: 30%;
-            max-width: 120px;
+            width: 80px; /* Stała szerokość dla wszystkich przycisków */
+            height: 80px;
+            margin: 0 10px;
         }
         #jumpButton {
-            width: 40%;
-            max-width: 160px;
+            width: 100px; /* Nieco większy przycisk skoku */
+            height: 100px;
+            font-size: 36px;
+            background-color: rgba(76, 175, 80, 0.7); /* Inny kolor dla przycisku skoku */
         }
         .control-button:active {
-            background-color: rgba(255,255,255,0.5);
+            background-color: rgba(255,255,255,0.7);
+            transform: scale(0.95); /* Efekt wciśnięcia przycisku */
+        }
+        /* Dodana responsywność dla ekranów mobilnych */
+        @media (max-height: 600px) {
+            .control-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            #jumpButton {
+                width: 80px;
+                height: 80px;
+                font-size: 30px;
+            }
+            #controls {
+                bottom: 20px;
+            }
         }
     </style>
 </head>
@@ -228,7 +251,8 @@
             let playerVelocityY = 0;
             let gravity = 0.25;
             let jumpForce = -10;
-            let moveSpeed = 5;
+            let moveSpeed = 6; // Zwiększona prędkość poruszania się
+            let maxSpeed = 12; // Maksymalna prędkość pozioma
             let platformSpeed = 2;
             let score = 0;
             let heightScore = 0;
@@ -242,8 +266,11 @@
             let difficulty = 1;
             let platformMin = 100;
             let platformMax = 200;
-            let minPlatformDistance = 80; // Minimalna odległość między platformami
+            let minPlatformDistance = 70; // Zmniejszona minimalna odległość między platformami
             let maxPlatformDistance = 120; // Maksymalna odległość między platformami
+            let platformGenerationBuffer = 2000; // Bufor generowania platform (większa wartość)
+            let playerDirection = 1; // 1 prawo, -1 lewo - do animacji gracza
+            let lastJumpY = 0; // Zapamiętywanie ostatniej pozycji skoku
             
             // Dźwięki
             const jumpSound = new Audio("data:audio/wav;base64,UklGRigCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQCAABcZqU9LX8XSnKJV3RwbmVlYF5cWlhYV1ZVVVRUVFNUVFVUVVZXWFhZW1xdXmBjZWdpaGZlYmFeXVxbW1paWlpaW1tcXV5fYGBhYmNjZGRkY2NjY2JiYWBfXl5dXFxcXFtbW1tcXFxcXV1eX15fYGFiYmNkZWZnZ2hpaWpramlpZ2ZlY2JhYF5eXVxbW1paWlpaWVlaWlpbW11dXl5fYGFiY2RkZWZmZmZmZmVlZGRjYmJhYGBfX15eXV1cXFtbW1tbW1tbW1tcXFxdXV5eX19gYGFhYmJiYmJiYmFhYWBgX19eXl1dXFxcW1tbW1tbW1tbW1tcXFxcXV1dXl5eXl9fX19fX19fX19fXl5eXl1dXV1cXFxcW1tbW1tbW1tbW1tbW1tbXFxcXFxcXFxcXFxcXFxcXFxcXFxcW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbXFxbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXA==");
@@ -268,11 +295,16 @@
                 difficulty = 1;
                 platformMin = 100;
                 platformMax = 200;
+                lastJumpY = 0;
                 
                 // Aktualizacja elementów UI
                 scoreElement.textContent = "Wynik: 0";
                 heightElement.textContent = "Wysokość: 0m";
                 comboElement.style.opacity = "0";
+                
+                // Dodanie efektu wizualnego do gracza
+                player.style.backgroundColor = "#FF6347";
+                player.style.boxShadow = "0 0 10px rgba(255, 99, 71, 0.8)";
                 
                 // Tworzenie platformy startowej
                 createPlatform(gameCanvas.width / 2 - 75, gameCanvas.height - 60, 150);
@@ -300,6 +332,16 @@
                 platform.style.width = width + 'px';
                 platform.style.left = x + 'px';
                 platform.style.top = y + 'px';
+                
+                // Dodanie efektu wizualnego do platform w zależności od wysokości
+                if (y < -5000) {
+                    platform.style.backgroundColor = "#FFD700"; // złote platformy na dużej wysokości
+                    platform.style.borderColor = "#FFA500";
+                } else if (y < -2000) {
+                    platform.style.backgroundColor = "#E0FFFF"; // jaśniejsze na średniej wysokości
+                    platform.style.borderColor = "#00CED1";
+                }
+                
                 gameContainer.appendChild(platform);
                 platforms.push({ element: platform, x: x, y: y, width: width, passed: false });
                 
@@ -324,13 +366,17 @@
             function update() {
                 if (!gameRunning) return;
                 
-                // Aktualizacja kontroli
+                // Aktualizacja kontroli z płynniejszym przyspieszeniem
                 if (leftPressed) {
-                    playerVelocityX = -moveSpeed;
+                    playerVelocityX = Math.max(playerVelocityX - 0.8, -maxSpeed); // Płynniejsze przyspieszenie
+                    playerDirection = -1;
                 } else if (rightPressed) {
-                    playerVelocityX = moveSpeed;
+                    playerVelocityX = Math.min(playerVelocityX + 0.8, maxSpeed); // Płynniejsze przyspieszenie
+                    playerDirection = 1;
                 } else {
-                    playerVelocityX *= 0.9; // Tarcie
+                    // Lepsze tarcie - stopniowe wyhamowywanie
+                    playerVelocityX *= 0.92;
+                    if (Math.abs(playerVelocityX) < 0.1) playerVelocityX = 0;
                 }
                 
                 // Aktualizacja pozycji gracza
@@ -338,7 +384,14 @@
                 playerY += playerVelocityY;
                 playerVelocityY += gravity;
                 
-                // Granice ekranu (efekt zapętlenia)
+                // Wizualne obrócenie gracza w zależności od kierunku ruchu
+                if (playerDirection === -1) {
+                    player.style.transform = "scaleX(-1)";
+                } else {
+                    player.style.transform = "scaleX(1)";
+                }
+                
+                // Granice ekranu (efekt zapętlenia) z płynniejszym przejściem
                 if (playerX < -30) {
                     playerX = gameCanvas.width;
                 } else if (playerX > gameCanvas.width) {
@@ -362,22 +415,36 @@
                         // Zwiększanie combo przy skakaniu na nowe platformy
                         if (!platform.passed) {
                             platform.passed = true;
-                            combo++;
+                            
+                            // Mierzenie wysokości skoku dla dodatkowych punktów
+                            const jumpHeight = lastJumpY - platform.y;
+                            if (jumpHeight > 150) { // bonus za wysokie skoki
+                                combo += 2;
+                                platform.element.style.backgroundColor = "#FFFF00"; // Podświetlenie platformy
+                                platform.element.style.boxShadow = "0 0 10px rgba(255, 255, 0, 0.8)";
+                            } else {
+                                combo++;
+                            }
+                            
                             comboTimer = 60; // 1 sekunda przy 60 FPS
                             
                             // Pokazanie komunikatu combo
                             comboElement.textContent = "Combo! x" + combo;
                             comboElement.style.opacity = "1";
                             
-                            // Dodanie punktów
+                            // Dodanie punktów z uwzględnieniem wysokości
                             const comboPoints = Math.pow(2, Math.min(combo - 1, 10));
                             score += 10 * comboPoints;
                             scoreElement.textContent = "Wynik: " + score;
                             
+                            // Efekt dźwiękowy z różną wysokością w zależności od combo
                             if (combo > 1) {
                                 comboSound.currentTime = 0;
                                 comboSound.play();
                             }
+                            
+                            // Zapamiętanie platformy jako ostatniej
+                            lastJumpY = platform.y;
                         }
                     }
                 });
@@ -390,6 +457,21 @@
                         comboElement.style.opacity = "0";
                     }
                 }
+                
+                // Dynamiczne dostosowanie trudności w zależności od wysokości
+                // Zmiana kolorów tła w zależności od wysokości
+                let bgColorTop = "#87CEFA";
+                let bgColorBottom = "#1E90FF";
+                
+                if (heightScore > 1000) {
+                    bgColorTop = "#9370DB"; // Fioletowy na dużej wysokości
+                    bgColorBottom = "#4B0082";
+                } else if (heightScore > 500) {
+                    bgColorTop = "#FF69B4"; // Różowy na średniej wysokości
+                    bgColorBottom = "#8A2BE2";
+                }
+                
+                gameContainer.style.background = `linear-gradient(to bottom, ${bgColorTop}, ${bgColorBottom})`;
                 
                 // Przesuwanie kamery gdy gracz wchodzi powyżej połowy ekranu
                 if (playerY < gameCanvas.height / 2) {
@@ -404,10 +486,14 @@
                         heightElement.textContent = "Wysokość: " + heightScore + "m";
                     }
                     
-                    // Zwiększanie trudności wraz z wysokością
-                    difficulty = 1 + Math.floor(heightScore / 100) * 0.2;
-                    platformMin = Math.max(50, 100 - heightScore / 50);
-                    platformMax = Math.max(100, 200 - heightScore / 25);
+                    // Zwiększanie trudności wraz z wysokością w bardziej zrównoważony sposób
+                    difficulty = 1 + Math.floor(heightScore / 200) * 0.2; // Wolniejszy przyrost trudności
+                    platformMin = Math.max(50, 100 - heightScore / 100); // Wolniejsze zmniejszanie platform
+                    platformMax = Math.max(100, 200 - heightScore / 50);
+                    
+                    // Zmniejszanie odstępów między platformami na wyższych poziomach
+                    minPlatformDistance = Math.max(50, 70 - heightScore / 300);
+                    maxPlatformDistance = Math.max(80, 120 - heightScore / 200);
                     
                     // Przesuwanie platform
                     platforms.forEach(platform => {
@@ -417,17 +503,41 @@
                     
                     // Usuwanie platform poza ekranem
                     for (let i = platforms.length - 1; i >= 0; i--) {
-                        if (platforms[i].y > gameCanvas.height + 20) {
+                        if (platforms[i].y > gameCanvas.height + 100) { // Zwiększony margines usuwania
                             gameContainer.removeChild(platforms[i].element);
                             platforms.splice(i, 1);
                         }
                     }
                     
-                    // ZMIANA: Dodawanie nowych platform gdy potrzeba
-                    while (highestPlatform > -500) { // Generowanie platform przed ekranem
+                    // Dodawanie nowych platform gdy potrzeba - NAPRAWIONY SYSTEM GENEROWANIA PLATFORM
+                    // Teraz generujemy platformy z wyprzedzeniem, aby zawsze były dostępne
+                    while (highestPlatform > -platformGenerationBuffer + cameraY) {
                         let platformWidth = Math.random() * (platformMax - platformMin) + platformMin;
                         let platformX = Math.random() * (gameCanvas.width - platformWidth);
-                        let nextPlatformY = highestPlatform - (minPlatformDistance + Math.random() * (maxPlatformDistance - minPlatformDistance));
+                        
+                        // Dynamiczne dostosowanie rozmieszczenia platform w zależności od wysokości
+                        let platformDistance;
+                        if (heightScore > 500) {
+                            // Na dużych wysokościach, platformy są trudniejsze do osiągnięcia
+                            platformDistance = minPlatformDistance + Math.random() * (maxPlatformDistance - minPlatformDistance);
+                            
+                            // Co jakiś czas dodaj większą przerwę dla wyzwania
+                            if (Math.random() < 0.2) {
+                                platformDistance *= 1.5;
+                            }
+                        } else {
+                            platformDistance = minPlatformDistance + Math.random() * (maxPlatformDistance - minPlatformDistance);
+                        }
+                        
+                        let nextPlatformY = highestPlatform - platformDistance;
+                        
+                        // Zapewnienie, że platformy są równomiernie rozłożone na szerokości ekranu
+                        let sectionWidth = gameCanvas.width / 3;
+                        let section = Math.floor(Math.random() * 3); // 0, 1 lub 2
+                        let minX = section * sectionWidth;
+                        let maxX = minX + sectionWidth - platformWidth;
+                        platformX = minX + Math.random() * (maxX - minX);
+                        
                         createPlatform(platformX, nextPlatformY, platformWidth);
                     }
                     
@@ -438,9 +548,15 @@
                     });
                 }
                 
-                // Aktualizacja płatków śniegu
+                // Aktualizacja płatków śniegu z lepszym efektem opadania
                 snowflakes.forEach(snow => {
                     let snowTop = parseFloat(snow.style.top);
+                    let snowLeft = parseFloat(snow.style.left);
+                    
+                    // Dodanie delikatnego ruchu w lewo/prawo
+                    snowLeft += Math.sin(Date.now() * 0.001 + parseFloat(snow.style.width)) * 0.5;
+                    snow.style.left = snowLeft + 'px';
+                    
                     snowTop += snow.speedY;
                     
                     if (snowTop > gameCanvas.height) {
@@ -468,9 +584,38 @@
             function jump() {
                 // Wykonaj skok tylko jeśli gracz stoi na platformie
                 if (playerVelocityY === 0) {
+                    // Moc skoku zależy od długości naciśnięcia przycisku
                     playerVelocityY = jumpForce;
                     jumpSound.currentTime = 0;
                     jumpSound.play();
+                    
+                    // Dodanie efektu wizualnego przy skoku
+                    player.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.8)";
+                    setTimeout(() => {
+                        player.style.boxShadow = "0 0 10px rgba(255, 99, 71, 0.8)";
+                    }, 200);
+                }
+            }
+            
+            // Funkcja dla płynnego skoku w zależności od prędkości
+            function jumpWithMomentum() {
+                if (playerVelocityY === 0) {
+                    // Bazowa siła skoku
+                    let force = jumpForce;
+                    
+                    // Dodatkowa siła w zależności od prędkości poziomej
+                    const momentumBonus = Math.min(Math.abs(playerVelocityX) * 0.2, 2);
+                    force += -momentumBonus;
+                    
+                    playerVelocityY = force;
+                    jumpSound.currentTime = 0;
+                    jumpSound.play();
+                    
+                    // Efekt wizualny
+                    player.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.8)";
+                    setTimeout(() => {
+                        player.style.boxShadow = "0 0 10px rgba(255, 99, 71, 0.8)";
+                    }, 200);
                 }
             }
             
@@ -498,44 +643,115 @@
                 init();
             });
             
-            // Obsługa dotyku
-            leftButton.addEventListener('touchstart', function() {
+            // Obsługa dotyku z lepszą responsywnością
+            leftButton.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // Zapobiegaj domyślnemu zachowaniu dotyku
                 leftPressed = true;
+                leftButton.style.backgroundColor = "rgba(255,255,255,0.7)";
             });
             
-            leftButton.addEventListener('touchend', function() {
+            leftButton.addEventListener('touchend', function(e) {
+                e.preventDefault();
                 leftPressed = false;
+                leftButton.style.backgroundColor = "rgba(255,255,255,0.5)";
             });
             
-            rightButton.addEventListener('touchstart', function() {
+            rightButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
                 rightPressed = true;
+                rightButton.style.backgroundColor = "rgba(255,255,255,0.7)";
             });
             
-            rightButton.addEventListener('touchend', function() {
+            rightButton.addEventListener('touchend', function(e) {
+                e.preventDefault();
                 rightPressed = false;
+                rightButton.style.backgroundColor = "rgba(255,255,255,0.5)";
             });
             
-            jumpButton.addEventListener('touchstart', function() {
-                jump();
+            // Obsługa przycisku skoku z lepszą informacją zwrotną
+            jumpButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                jumpWithMomentum(); // Używamy skoku z pędem
+                jumpButton.style.backgroundColor = "rgba(76, 175, 80, 0.9)";
+                jumpButton.style.transform = "scale(0.95)";
             });
             
-            // Obsługa klawiszy
+            jumpButton.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                jumpButton.style.backgroundColor = "rgba(76, 175, 80, 0.7)";
+                jumpButton.style.transform = "scale(1)";
+            });
+            
+            // Obsługa klawiszy z lepszą responsywnością
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'ArrowLeft') {
                     leftPressed = true;
+                    leftButton.style.backgroundColor = "rgba(255,255,255,0.7)";
                 } else if (e.key === 'ArrowRight') {
                     rightPressed = true;
-                } else if (e.key === 'ArrowUp' || e.key === ' ') {
-                    if (gameRunning) jump();
+                    rightButton.style.backgroundColor = "rgba(255,255,255,0.7)";
+                } else if ((e.key === 'ArrowUp' || e.key === ' ') && gameRunning) {
+                    jumpWithMomentum();
+                    jumpButton.style.backgroundColor = "rgba(76, 175, 80, 0.9)";
+                    jumpButton.style.transform = "scale(0.95)";
                 }
             });
             
             document.addEventListener('keyup', function(e) {
                 if (e.key === 'ArrowLeft') {
                     leftPressed = false;
+                    leftButton.style.backgroundColor = "rgba(255,255,255,0.5)";
                 } else if (e.key === 'ArrowRight') {
                     rightPressed = false;
+                    rightButton.style.backgroundColor = "rgba(255,255,255,0.5)";
+                } else if (e.key === 'ArrowUp' || e.key === ' ') {
+                    jumpButton.style.backgroundColor = "rgba(76, 175, 80, 0.7)";
+                    jumpButton.style.transform = "scale(1)";
                 }
+            });
+            
+            // Obsługa ruchu myszą/dotykiem (alternatywne sterowanie)
+            let touchActive = false;
+            let touchStartX = 0;
+            
+            gameContainer.addEventListener('touchstart', function(e) {
+                // Sprawdź czy dotyk nie jest na przycisku kontrolnym
+                const touch = e.touches[0];
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (element && (element === leftButton || element === rightButton || element === jumpButton)) {
+                    return;
+                }
+                
+                // Obsługa dotyku ekranu
+                touchActive = true;
+                touchStartX = touch.clientX;
+                
+                // Jeśli dotyk jest w górnej połowie ekranu, wykonaj skok
+                if (touch.clientY < window.innerHeight / 2) {
+                    jumpWithMomentum();
+                }
+            });
+            
+            gameContainer.addEventListener('touchmove', function(e) {
+                if (!touchActive) return;
+                
+                const touch = e.touches[0];
+                const diffX = touch.clientX - touchStartX;
+                
+                // Sterowanie w lewo/prawo przy przeciągnięciu
+                if (diffX < -30) {
+                    leftPressed = true;
+                    rightPressed = false;
+                } else if (diffX > 30) {
+                    rightPressed = true;
+                    leftPressed = false;
+                }
+            });
+            
+            gameContainer.addEventListener('touchend', function(e) {
+                touchActive = false;
+                leftPressed = false;
+                rightPressed = false;
             });
             
             // Dostosowanie rozmiaru ekranu
@@ -553,7 +769,7 @@
             
             // Zapobieganie przewijaniu strony
             document.addEventListener('touchmove', function(e) {
-                e.preventDefault();
+                if (gameRunning) e.preventDefault();
             }, { passive: false });
         });
     </script>
