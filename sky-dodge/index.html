@@ -211,7 +211,7 @@
             text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         }
         
-        /* Styl dla nowego trybu ducha */
+        /* Styl dla trybu ducha */
         #ghostModeButton {
             position: absolute;
             bottom: 20px;
@@ -394,7 +394,7 @@
             <div id="purpleCoinScore">Super monety: 0</div>
             <button id="frogModeButton">TRYB FROGA (3🟡 1🟣)</button>
             <div id="frogModeTimer">TRYB FROGA: 0s</div>
-            <button id="ghostModeButton">TRYB DUCHA (2🟡 2🟣)</button>
+            <button id="ghostModeButton">TRYB DUCHA (0🟡 1🟣)</button>
             <div id="ghostModeTimer">TRYB DUCHA: 0s</div>
         </div>
         <div id="startScreen">
@@ -487,35 +487,43 @@
             let ghostModeDuration = 5; // w sekundach
             let ghostModeCooldown = 0;
             let ghostModeCooldownTime = 7; // w sekundach
-            let normalGhostModeCost = 2; // koszt normalnych monet
-            let purpleGhostModeCost = 2; // koszt fioletowych monet
+            let normalGhostModeCost = 0; // koszt normalnych monet - zero
+            let purpleGhostModeCost = 1; // koszt fioletowych monet - jedna
             let ghostMode = false; // Flaga trybu ducha
             
-            // Uproszczone dźwięki z bezpośrednim tworzeniem obiektów Audio
-            const jumpSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAVNAAAAAAAABSIijG2OAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/8QafAAAADBMMAMJAQK0GC2AESwcDyc5AZLoObEAIhKe+SQbw/k5n9iHs5IfxkDiR9LKG8jESPZEkHgHgPQbSTYUYxjGMYAAAAAAAAA/4y1kYxjAAAAAAAAAAAAA/8Q647gSB3fTBYZEE64+5Rj+Gc8R3LMc3GOH0YxjGMYxjGMQAAAAAAAAAAAABgyJJC49GAMMMMYAAAAAMYxjAAAAAAAAAAAAA");
-            
-            const coinSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAW4AAAAAAAABI11S+3QAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
-            
-            const gameOverSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXgAAAAAAAABUkRD1sRAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
-            
-            const purpleCoinSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFIgDMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAXAAAAAAAAACKGJ+EEPAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDADqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==");
-            
-            const frogModeSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAEAAAIhgCFhYWFhYWFhYWFhYWFhYWFhYWFhYWFuLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi41dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAFcAAAAAAAAAgiGPsDcAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////AABQTEFNRTMuMTAwBLQAAAAAAAAAFCAkAkwBNAEuE0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+xBkIM/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-            
-            // Nowy dźwięk dla trybu ducha
-            const ghostModeSound = new Audio("data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAADAAAHYwCVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZXX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT/////////////////////////////////AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJARiAAAAAAAAB2MO7MYIAAAAAAD/+xBkAA/wAABpAAAACAAADSAAAAEAAAGkAAAAIAAANIAAAARMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/////////////////////////////////////////////////////////////////8=");
-            
-            // Funkcja do odtwarzania dźwięków
-            function playSound(sound) {
-                try {
-                    // Klonowanie dźwięku dla lepszego wsparcia wielokrotnego odtwarzania
-                    const soundClone = sound.cloneNode();
-                    soundClone.volume = 0.7;
-                    soundClone.play().catch(error => {
-                        console.error("Błąd odtwarzania dźwięku:", error);
+            // Funkcja odtwarzania dźwięków - radykalnie uproszczona
+            function playSound(soundName) {
+                // Tworzymy nowy element audio na żądanie
+                const sound = new Audio();
+                
+                // Ustawiamy źródło dźwięku
+                switch(soundName) {
+                    case 'jump':
+                        sound.src = "data:audio/wav;base64,UklGRigCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQCAABcZqU9LX8XSnKJV3RwbmVlYF5cWlhYV1ZVVVRUVFNUVFVUVVZXWFhZW1xdXmBjZWdpaGZlYmFeXVxbW1paWlpaW1tcXV5fYGBhYmNjZGRkY2NjY2JiYWBfXl5dXFxcXFtbW1tcXFxcXV1eX15fYGFiYmNkZWZnZ2hpaWpramlpZ2ZlY2JhYF5eXVxbW1paWlpaWVlaWlpbW11dXl5fYGFiY2RkZWZmZmZmZmVlZGRjYmJhYGBfX15eXV1cXFtbW1tbW1tbW1tcXFxdXV5eX19gYGFhYmJiYmJiYmFhYWBgX19eXl1dXFxcW1tbW1tbW1tbW1tcXFxcXV1dXl5eXl9fX19fX19fX19fXl5eXl1dXV1cXFxcW1tbW1tbW1tbW1tbW1tbXFxcXFxcXFxcXFxcXFxcXFxcXFxcW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbXFxbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXFtcW1xbXA==";
+                        break;
+                    case 'coin':
+                        sound.src = "data:audio/wav;base64,UklGRoACAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YWACAABfZGRjYmFgX15dXFtaWllXVlVUU1FQT05MS0pIR0VEQkFAPz49Ozk4NzU0MzEwLy4sKyopKCcmJCMiISAfHh0cGxoZGBcWFRUUExIREA8ODQwLCgoJCAgHBgUFBAMDAgEBAQAAAAAAAAAAAAAAAAEBAQECAgMDAwQEBQUGBgcHCAgJCQoLCwwNDQ4PDxAQERISExMUFRUWFhcYGBkaGhscHB0dHh8fICAhISIiIyQkJSUmJicoKCkpKissLC0tLi4vMDAxMTIyMzQ0NTU2Nzc4ODk6Ojs7PD09Pj4/QEBAQUJCQ0RERUZGRkdISElJSkpLS0xMTU1OTk9PUFBRUVJSUlNTVFRVVVZWV1dXWFhZWVpaW1tcXFxdXV5eXl9fYGBhYWFiYmNjZGRkZWVmZmZnZ2hoaGlpaWpqa2trbGxtbW5ubm9vb3BwcXFxcnJycnNzc3R0dHR1dXV1dnZ2dnd3d3d4eHh4eHl5eXl5enp6enp6e3t7e3t7fHx8fHx8fX19fX19fX5+fn5+fn5+fn9/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/";
+                        break;
+                    case 'purpleCoin':
+                        sound.src = "data:audio/wav;base64,UklGRoACAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YWACAABfZGRjYmFgX15dXFtaWllXVlVUU1FQT05MS0pIR0VEQkFAPz49Ozk4NzU0MzEwLy4sKyopKCcmJCMiISAfHh0cGxoZGBcWFRUUExIREA8ODQwLCgoJCAgHBgUFBAMDAgEBAQAAAAAAAAAAAAAAAAEBAQECAgMDAwQEBQUGBgcHCAgJCQoLCwwNDQ4PDxAQERISExMUFRUWFhcYGBkaGhscHB0dHh8fICAhISIiIyQkJSUmJicoKCkpKissLC0tLi4vMDAxMTIyMzQ0NTU2Nzc4ODk6Ojs7PD09Pj4/QEBAQUJCQ0RERUZGRkdISElJSkpLS0xMTU1OTk9PUFBRUVJSUlNTVFRVVVZWV1dXWFhZWVpaW1tcXFxdXV5eXl9fYGBhYWFiYmNjZGRkZWVmZmZnZ2hoaGlpaWpqa2trbGxtbW5ubm9vb3BwcXFxcnJycnNzc3R0dHR1dXV1dnZ2dnd3d3d4eHh4eHl5eXl5enp6enp6e3t7e3t7fHx8fHx8fX19fX19fX5+fn5+fn5+fn9/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/";
+                        break;
+                    case 'gameOver':
+                        sound.src = "data:audio/wav;base64,UklGRswDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YagDAACAf39/foCAgIGCgoKCgoKCgoGBgIB/fn18e3p5eHd2dnV0c3JxcG9ubWxsamppaWhoZ2dmZmVlZGRjY2JiYmFhYWBgYF9fX19eXl5eXl5dXV1dXV1dXV1dXV5eXl5eXl5fX19fX19fYGBgYGBgYWFhYWFhYmJiYmJiY2NjY2NjZGRkZGRkZWVlZWVlZmZmZmZmZ2dnZ2hnZmd9gH+AgX57d21lYmRrdoSLjY+OiYB2a19UUlVcanJ8g4aIiIaDfndwZ19YUk1KS09YYWtzeX6Cg4SCfnhxamNeWVVRTkxLTE5TW2Ntc3l+goSEgoB8dW5nYFpVUU5MS0pLTVFWXGJpb3V7f4KEhIOBfnlybGZgW1ZST0xLSktNUVVbYWdtc3l+goWGhYOAfXdwamRfWVVRT01LSkxPU1hfZWtxd3yBhYaGhIJ/enRuaGJdWFRRT01MS01QVFldY2lvcniBhIWFhIJ/e3ZwamVgW1dUUE1MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZmtwdnuAhIWFhIOAfXZwamRfW1dTUE5MS0xOUVVaYGZrcHZ7gISFhYSDgH12cGpkX1tXU1BOTEtMTlFVWmBma3B2e4CEhYWEg4B9dnBqZF9bV1NQTkxLTE5RVVpgZA==";
+                        break;
+                    case 'frogMode':
+                        sound.src = "data:audio/wav;base64,UklGRoACAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YWACAABfZGRjYmFgX15dXFtaWllXVlVUU1FQT05MS0pIR0VEQkFAPz49Ozk4NzU0MzEwLy4sKyopKCcmJCMiISAfHh0cGxoZGBcWFRUUExIREA8ODQwLCgoJCAgHBgUFBAMDAgEBAQAAAAAAAAAAAAAAAAEBAQECAgMDAwQEBQUGBgcHCAgJCQoLCwwNDQ4PDxAQERISExMUFRUWFhcYGBkaGhscHB0dHh8fICAhISIiIyQkJSUmJicoKCkpKissLC0tLi4vMDAxMTIyMzQ0NTU2Nzc4ODk6Ojs7PD09Pj4/QEBAQUJCQ0RERUZGRkdISElJSkpLS0xMTU1OTk9PUFBRUVJSUlNTVFRVVVZWV1dXWFhZWVpaW1tcXFxdXV5eXl9fYGBhYWFiYmNjZGRkZWVmZmZnZ2hoaGlpaWpqa2trbGxtbW5ubm9vb3BwcXFxcnJycnNzc3R0dHR1dXV1dnZ2dnd3d3d4eHh4eHl5eXl5enp6enp6e3t7e3t7fHx8fHx8fX19fX19fX5+fn5+fn5+fn9/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/";
+                        break;
+                    case 'ghostMode':
+                        sound.src = "data:audio/wav;base64,UklGRigCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQCAABTepfboeTm7fH178zp3dzr6+Hj4uLi4t/h4+Dc19DKx8LAvbuzrauopqSioaCfnZ2enqCho6WoqausrK2urq6urq6urq+wsLCxsrKzs7O0s7S0tLOysrKxsK+uraysq6qop6WjpKOiop+enJuamZiXlZWUk5KRkI+PkJCQkZGRkpKTlJWVlpeXmJmampucnZ6en6CgoaKjo6SlpaanqKmqq6usra2ur7CxsrKzs7S1tba2t7i4ubm5urq7vLy8vb6+v7+/wMDAwcHBwsLCw8PDxMTExcXFxcbGxsfHx8jIyMnJycrKysvLy8zMzM3Nzc7Ozs/Pz9DQ0NHR0dLS0tPT09TU1NXV1dbW1tfX19jY2NnZ2dra2tvb29zc3N3d3d7e3t/f3+Dg4OHh4eLi4uPj4+Tk5OXl5ebm5ufn5+jo6Onp6erq6uvr6+zs7O3t7e7u7u/v7/Dw8PHx8fLy8vPz8/T09PX19fb29vf39/j4+Pn5+fr6+vv7+/z8/P39/f7+/v///////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+                        break;
+                }
+                
+                // Ustawiamy głośność i odtwarzamy
+                if (sound.src) {
+                    sound.volume = 0.7;
+                    sound.play().catch(err => {
+                        console.error("Błąd odtwarzania dźwięku:", err);
                     });
-                } catch(error) {
-                    console.error("Błąd podczas próby odtworzenia dźwięku:", error);
                 }
             }
 
@@ -600,7 +608,7 @@
                 finalPurpleCoinsElement.textContent = purpleCoinCount;
                 finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore;
                 gameOverScreen.style.display = 'flex';
-                playSound(gameOverSound);
+                playSound('gameOver');
             }
             
             function update(timestamp) {
@@ -933,7 +941,7 @@
                     purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
                     purpleCoinCount++;
                     
-                    playSound(purpleCoinSound);
+                    playSound('purpleCoin');
                     
                     const coinPop = document.createElement('div');
                     if (!coinPop) {
@@ -956,7 +964,7 @@
                     bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
                     normalCoinCount++;
                     
-                    playSound(coinSound);
+                    playSound('coin');
                     
                     const coinPop = document.createElement('div');
                     if (!coinPop) {
@@ -980,7 +988,7 @@
             function makeJump() {
                 if (gameRunning) {
                     velocity = jump;
-                    playSound(jumpSound);
+                    playSound('jump');
                 }
             }
             
@@ -1021,7 +1029,7 @@
                     currentPipeSpeed = pipeSpeed * frogSpeedMultiplier; // Podwójna prędkość w trybie żaby
                     
                     // Efekt dźwiękowy
-                    playSound(frogModeSound);
+                    playSound('frogMode');
                     
                     // Pokaż efekt aktywacji
                     const frogActivation = document.createElement('div');
@@ -1196,7 +1204,7 @@
                     ghostMode = true;
                     
                     // Efekt dźwiękowy
-                    playSound(ghostModeSound);
+                    playSound('ghostMode');
                     
                     // Pokaż efekt aktywacji
                     const ghostActivation = document.createElement('div');
