@@ -134,55 +134,85 @@
         }
         #controls {
             position: absolute;
-            bottom: 30px;
+            bottom: 40px;
             width: 100%;
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
+            padding: 0 20px;
             z-index: 10;
         }
         .control-button {
-            width: 80px;
-            height: 80px; /* Zwiększona wysokość przycisków */
-            background-color: rgba(255,255,255,0.5); /* Zwiększona nieprzezroczystość */
+            width: 90px;
+            height: 90px; /* Większe przyciski dla łatwiejszego trafienia */
+            background-color: rgba(255,255,255,0.6); /* Zwiększona nieprzezroczystość */
             border-radius: 50%; /* Okrągłe przyciski */
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 30px; /* Zwiększona czcionka */
+            font-size: 34px; /* Większa czcionka */
             color: white;
             user-select: none;
-            border: 3px solid rgba(255, 255, 255, 0.8); /* Dodane obramowanie */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* Dodany cień */
+            border: 4px solid rgba(255, 255, 255, 0.9); /* Wyraźniejsze obramowanie */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4); /* Mocniejszy cień */
+            transition: all 0.2s ease;
         }
-        #leftButton, #rightButton {
-            width: 80px; /* Stała szerokość dla wszystkich przycisków */
-            height: 80px;
-            margin: 0 10px;
+        #leftButton {
+            position: absolute;
+            left: 30px;
+            bottom: 20px;
+            width: 90px;
+            height: 90px;
+        }
+        #rightButton {
+            position: absolute;
+            right: 30px;
+            bottom: 20px;
+            width: 90px;
+            height: 90px;
         }
         #jumpButton {
-            width: 100px; /* Nieco większy przycisk skoku */
-            height: 100px;
-            font-size: 36px;
-            background-color: rgba(76, 175, 80, 0.7); /* Inny kolor dla przycisku skoku */
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            width: 110px; /* Większy przycisk skoku */
+            height: 110px;
+            font-size: 40px;
+            background-color: rgba(76, 175, 80, 0.8); /* Bardziej widoczny kolor */
         }
         .control-button:active {
-            background-color: rgba(255,255,255,0.7);
-            transform: scale(0.95); /* Efekt wciśnięcia przycisku */
+            background-color: rgba(255,255,255,0.8);
+            transform: scale(0.92); /* Wyraźniejszy efekt wciśnięcia */
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
         }
-        /* Dodana responsywność dla ekranów mobilnych */
+        /* Pozycja przycisku skoku przy aktywacji */
+        #jumpButton:active {
+            transform: translateX(-50%) scale(0.92);
+        }
+        /* Dostosowanie dla różnych rozmiarów ekranu */
         @media (max-height: 600px) {
             .control-button {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
             }
             #jumpButton {
-                width: 80px;
-                height: 80px;
-                font-size: 30px;
-            }
-            #controls {
+                width: 90px;
+                height: 90px;
+                font-size: 34px;
                 bottom: 20px;
+            }
+            #leftButton, #rightButton {
+                bottom: 10px;
+            }
+        }
+        /* Dodatkowa responsywność dla małych ekranów */
+        @media (max-width: 400px) {
+            #leftButton {
+                left: 15px;
+            }
+            #rightButton {
+                right: 15px;
             }
         }
     </style>
@@ -251,8 +281,8 @@
             let playerVelocityY = 0;
             let gravity = 0.25;
             let jumpForce = -10;
-            let moveSpeed = 6; // Zwiększona prędkość poruszania się
-            let maxSpeed = 12; // Maksymalna prędkość pozioma
+            let moveSpeed = 3; // Zmniejszona prędkość dla lepszej kontroli
+            let maxSpeed = 6; // Zmniejszona maksymalna prędkość pozioma
             let platformSpeed = 2;
             let score = 0;
             let heightScore = 0;
@@ -366,16 +396,16 @@
             function update() {
                 if (!gameRunning) return;
                 
-                // Aktualizacja kontroli z płynniejszym przyspieszeniem
+                // Aktualizacja kontroli z łagodniejszym przyspieszeniem
                 if (leftPressed) {
-                    playerVelocityX = Math.max(playerVelocityX - 0.8, -maxSpeed); // Płynniejsze przyspieszenie
+                    playerVelocityX = Math.max(playerVelocityX - 0.4, -maxSpeed); // Zmniejszone przyspieszenie
                     playerDirection = -1;
                 } else if (rightPressed) {
-                    playerVelocityX = Math.min(playerVelocityX + 0.8, maxSpeed); // Płynniejsze przyspieszenie
+                    playerVelocityX = Math.min(playerVelocityX + 0.4, maxSpeed); // Zmniejszone przyspieszenie
                     playerDirection = 1;
                 } else {
-                    // Lepsze tarcie - stopniowe wyhamowywanie
-                    playerVelocityX *= 0.92;
+                    // Lepsze tarcie - płynniejsze wyhamowywanie
+                    playerVelocityX *= 0.94; // Wolniejsze wyhamowanie
                     if (Math.abs(playerVelocityX) < 0.1) playerVelocityX = 0;
                 }
                 
@@ -597,25 +627,29 @@
                 }
             }
             
-            // Funkcja dla płynnego skoku w zależności od prędkości
+            // Funkcja dla płynnego skoku z mniejszym wpływem pędu
             function jumpWithMomentum() {
                 if (playerVelocityY === 0) {
                     // Bazowa siła skoku
                     let force = jumpForce;
                     
-                    // Dodatkowa siła w zależności od prędkości poziomej
-                    const momentumBonus = Math.min(Math.abs(playerVelocityX) * 0.2, 2);
+                    // Dodatkowa siła w zależności od prędkości poziomej (mniejszy wpływ)
+                    const momentumBonus = Math.min(Math.abs(playerVelocityX) * 0.15, 1.5);
                     force += -momentumBonus;
                     
                     playerVelocityY = force;
                     jumpSound.currentTime = 0;
                     jumpSound.play();
                     
-                    // Efekt wizualny
+                    // Ulepszone efekty wizualne
                     player.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.8)";
+                    player.style.backgroundColor = "#FF8C69"; // Jaśniejszy kolor podczas skoku
+                    
+                    // Przywrócenie oryginalnego wyglądu po skoku
                     setTimeout(() => {
                         player.style.boxShadow = "0 0 10px rgba(255, 99, 71, 0.8)";
-                    }, 200);
+                        player.style.backgroundColor = "#FF6347";
+                    }, 300);
                 }
             }
             
@@ -710,9 +744,10 @@
                 }
             });
             
-            // Obsługa ruchu myszą/dotykiem (alternatywne sterowanie)
+            // Ulepszona obsługa ruchu myszą/dotykiem (alternatywne sterowanie)
             let touchActive = false;
             let touchStartX = 0;
+            let touchStartTime = 0;
             
             gameContainer.addEventListener('touchstart', function(e) {
                 // Sprawdź czy dotyk nie jest na przycisku kontrolnym
@@ -725,9 +760,20 @@
                 // Obsługa dotyku ekranu
                 touchActive = true;
                 touchStartX = touch.clientX;
+                touchStartTime = Date.now();
                 
-                // Jeśli dotyk jest w górnej połowie ekranu, wykonaj skok
-                if (touch.clientY < window.innerHeight / 2) {
+                // Dotyk po lewej/prawej stronie ekranu - sterowanie kierunkiem
+                const screenWidth = window.innerWidth;
+                if (touch.clientX < screenWidth * 0.4) {
+                    leftPressed = true;
+                    rightPressed = false;
+                } else if (touch.clientX > screenWidth * 0.6) {
+                    rightPressed = true;
+                    leftPressed = false;
+                }
+                
+                // Jeśli dotyk jest w górnej 2/3 ekranu, wykonaj skok
+                if (touch.clientY < window.innerHeight * 0.66) {
                     jumpWithMomentum();
                 }
             });
@@ -738,11 +784,11 @@
                 const touch = e.touches[0];
                 const diffX = touch.clientX - touchStartX;
                 
-                // Sterowanie w lewo/prawo przy przeciągnięciu
-                if (diffX < -30) {
+                // Sterowanie w lewo/prawo przy przeciągnięciu z mniejszym progiem
+                if (diffX < -20) { // Mniejszy próg dla łatwiejszego sterowania
                     leftPressed = true;
                     rightPressed = false;
-                } else if (diffX > 30) {
+                } else if (diffX > 20) {
                     rightPressed = true;
                     leftPressed = false;
                 }
@@ -752,6 +798,12 @@
                 touchActive = false;
                 leftPressed = false;
                 rightPressed = false;
+                
+                // Krótkie stuknięcie może być skokiem
+                const touchDuration = Date.now() - touchStartTime;
+                if (touchDuration < 200) { // Krótkie stuknięcie (< 200ms) interpretowane jako skok
+                    jumpWithMomentum();
+                }
             });
             
             // Dostosowanie rozmiaru ekranu
