@@ -172,7 +172,18 @@ button:hover {
     z-index: 3;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
-#frogModeButton, #ghostModeButton {
+#frogCoinScore {
+    position: absolute;
+    top: 200px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2E8B57;
+    z-index: 3;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+#frogModeButton, #ghostModeButton, #storkModeButton {
     position: absolute;
     width: 60px;
     height: 60px;
@@ -205,6 +216,12 @@ button:hover {
     color: white;
 }
 
+#storkModeButton {
+    bottom: 210px;
+    background-color: #FF4500;
+    color: white;
+}
+
 .mode-button-icon {
     width: 30px;
     height: 30px;
@@ -227,7 +244,12 @@ button:hover {
     transform: scale(1.05);
 }
 
-#frogModeButton:disabled, #ghostModeButton:disabled {
+#storkModeButton:hover {
+    background-color: #E03D00;
+    transform: scale(1.05);
+}
+
+#frogModeButton:disabled, #ghostModeButton:disabled, #storkModeButton:disabled {
     background-color: #808080;
     cursor: not-allowed;
     opacity: 0.7;
@@ -252,6 +274,18 @@ button:hover {
     font-size: 18px;
     font-weight: bold;
     color: #7B68EE;
+    z-index: 5;
+    display: none;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+#storkModeTimer {
+    position: absolute;
+    bottom: 270px;
+    right: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF4500;
     z-index: 5;
     display: none;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
@@ -290,6 +324,130 @@ button:hover {
         opacity: 0.9;
         box-shadow: 0 0 20px 5px rgba(123, 104, 238, 0.8);
     }
+}
+
+.stork-mode-active #bird {
+    background-color: #FF8C00;
+    box-shadow: 0 0 15px #FF4500;
+    animation: storkPulse 1s infinite alternate;
+}
+.stork-mode-active #bird:after {
+    background-color: #FF0000;
+}
+@keyframes storkPulse {
+    0% { box-shadow: 0 0 10px 2px #FF4500; }
+    100% { box-shadow: 0 0 20px 5px #FF4500; }
+}
+
+/* Style dla wroga - bociana */
+.stork {
+    position: absolute;
+    width: 70px;
+    height: 80px;
+    background-color: white;
+    border-radius: 40% 40% 20% 20%;
+    z-index: 1;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Styl dla bociana-bossa */
+.boss-stork {
+    width: 90px;
+    height: 100px;
+    background-color: #FFE4C4; /* Jaśniejszy kolor */
+    box-shadow: 0 0 15px #FF4500;
+    animation: bossStorkPulse 1s infinite alternate;
+    z-index: 3; /* Wyższy z-index, żeby był na wierzchu */
+}
+
+@keyframes bossStorkPulse {
+    0% { box-shadow: 0 0 10px 2px #FF4500; transform: scale(1); }
+    100% { box-shadow: 0 0 20px 5px #FF4500; transform: scale(1.05); }
+}
+
+.stork:before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 40px;
+    background-color: #FF4500;
+    border-radius: 50% 50% 20% 20%;
+    top: 5px;
+    left: 25px;
+}
+
+.boss-stork:before {
+    width: 25px;
+    height: 50px;
+    background-color: #FF0000; /* Jaskrawoczerwony dziób dla bossa */
+    top: 5px;
+    left: 30px;
+}
+
+.stork:after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 10px;
+    background-color: #FF4500;
+    border-radius: 10px;
+    bottom: 15px;
+    left: 5px;
+}
+
+.boss-stork:after {
+    width: 75px;
+    height: 12px;
+    background-color: #FF0000;
+    bottom: 18px;
+    left: 7px;
+}
+
+.storkDefeated {
+    animation: storkDefeatAnimation 1s ease-out forwards;
+}
+@keyframes storkDefeatAnimation {
+    0% { transform: scale(1) rotate(0); opacity: 1; }
+    100% { transform: scale(0) rotate(180deg); opacity: 0; }
+}
+
+/* Style dla monety żabiej */
+.frogCoin {
+    background-color: #2E8B57;
+    box-shadow: 0 0 15px 5px rgba(46, 139, 87, 0.7);
+    animation: rotateFrogCoin 1.5s linear infinite;
+}
+.frogCoin:before {
+    background-color: #3CB371;
+}
+@keyframes rotateFrogCoin {
+    0% { transform: rotateY(0deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(1.2); }
+    100% { transform: rotateY(360deg) scale(1); }
+}
+.frogCoinPop {
+    color: #2E8B57;
+    font-size: 28px;
+    animation: frogCoinPopAnimation 1.2s ease-out forwards;
+}
+@keyframes frogCoinPopAnimation {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    50% { transform: translateY(-30px) scale(1.6); opacity: 0.8; }
+    100% { transform: translateY(-60px) scale(1); opacity: 0; }
+}
+
+/* Style dla monet w wietrze */
+.windCoin {
+    animation: windCoinAnimation 1.5s linear infinite, moveWindCoin 3s linear forwards;
+}
+@keyframes windCoinAnimation {
+    0% { transform: rotateY(0deg) scale(0.8); }
+    50% { transform: rotateY(180deg) scale(1.1); }
+    100% { transform: rotateY(360deg) scale(0.8); }
+}
+@keyframes moveWindCoin {
+    0% { transform: translateX(0) translateY(0); }
+    100% { transform: translateX(-400px) translateY(20px); }
 }
 
 #ground {
@@ -397,6 +555,7 @@ p {
         <div id="score">0</div>
         <div id="bonusScore">Monety: 0</div>
         <div id="purpleCoinScore">Super monety: 0</div>
+        <div id="frogCoinScore">Monety żabie: 0</div>
         <button id="frogModeButton">
             <img src="jumping-frog.svg" alt="Tryb froga" class="mode-button-icon" style="filter: invert(52%) sepia(78%) saturate(385%) hue-rotate(101deg) brightness(93%) contrast(91%);">
             <span class="mode-button-cost">3🟡 1🟣</span>
@@ -407,6 +566,11 @@ p {
             <span class="mode-button-cost">2🟡 0🟣</span>
         </button>
         <div id="ghostModeTimer">TRYB DUCHA: 0s</div>
+        <button id="storkModeButton">
+            <img src="stork.svg" alt="Tryb bociana" class="mode-button-icon" style="filter: brightness(0) invert(1);">
+            <span class="mode-button-cost">1🟡 1🟣 1🐸</span>
+        </button>
+        <div id="storkModeTimer">TRYB BOCIANA: 0s</div>
     </div>
     <div id="startScreen">
         <h1>Sky Dodge</h1>

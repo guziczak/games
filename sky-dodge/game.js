@@ -17,15 +17,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const frogModeTimer = document.getElementById('frogModeTimer');
     const ghostModeButton = document.getElementById('ghostModeButton');
     const ghostModeTimer = document.getElementById('ghostModeTimer');
+    const storkModeButton = document.getElementById('storkModeButton');
+    const storkModeTimer = document.getElementById('storkModeTimer');
     
     let gameRunning = false;
     let pipes = [];
     let coins = [];
+    let storks = []; // Tablica bocianów
     let score = 0;
     let coinScore = 0;
     let purpleCoinScore = 0;
+    let frogCoinScore = 0; // Nowa zmienna dla monet żabich
     let normalCoinCount = 0;
     let purpleCoinCount = 0;
+    let frogCoinCount = 0; // Licznik monet żabich
     let gravity = 0.25;
     let velocityLimit = 7;
     let velocity = 0;
@@ -41,11 +46,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let purpleCoinChance = 0.15; // 15% szansa na fioletową monetę
     let lastPipeTime = 0;
     let lastCoinTime = 0;
+    let lastStorkTime = 0; // Czas ostatniego bociana
+    let storkInterval = 3000; // Interwał spawnu bocianów
+    let storkChance = 0.25; // 25% szansa na pojawienie się bociana w trybie froga
     let animationId;
     let lastTime = 0;
     let deltaTime = 0;
     let coinValue = 10;
     let purpleCoinValue = 50;
+    let frogCoinValue = 100; // Wartość monety żabiej
     let safePadding = 40; // Minimalna odległość monety od przeszkód
     
     // TRYB FROGA - zmienne
@@ -72,16 +81,35 @@ document.addEventListener('DOMContentLoaded', function() {
     let normalGhostModeCost = 2; // koszt normalnych monet - dwie
     let purpleGhostModeCost = 0; // koszt fioletowych monet - zero
     let ghostMode = false; // Flaga trybu ducha
+    
+    // TRYB BOCIANA - zmienne
+    let storkModeActive = false;
+    let storkModeTime = 0;
+    let storkModeDuration = 6; // w sekundach
+    let storkModeCooldown = 0;
+    let storkModeCooldownTime = 10; // w sekundach
+    let normalStorkModeCost = 1; // koszt normalnych monet
+    let purpleStorkModeCost = 1; // koszt fioletowych monet
+    let frogStorkModeCost = 1; // koszt żabich monet
+    let storkCoinWindInterval = 400; // Interwał wiatru monet
+    let lastStorkCoinWindTime = 0; // Ostatni czas wiatru monet
+    let storkCoinChance = 0.7; // 70% szansa na monetę w wietrze
 
     function setupGame() {
         score = 0;
         coinScore = 0;
         purpleCoinScore = 0;
+        frogCoinScore = 0; // Reset frog coin score
         normalCoinCount = 0;
         purpleCoinCount = 0;
+        frogCoinCount = 0; // Reset frog coin count
         scoreElement.textContent = score;
         bonusScoreElement.textContent = "Monety: 0";
         purpleCoinScoreElement.textContent = "Super monety: 0";
+        const frogCoinScoreElement = document.getElementById('frogCoinScore');
+        if (frogCoinScoreElement) {
+            frogCoinScoreElement.textContent = "Monety żabie: 0";
+        }
         velocity = 0;
         birdPosition = gameArea.clientHeight / 2;
         birdHorizontalPosition = 15;
@@ -109,6 +137,14 @@ document.addEventListener('DOMContentLoaded', function() {
         ghostModeTimer.style.display = 'none';
         gameArea.classList.remove('ghost-mode-active');
         
+        // Reset TRYB BOCIANA
+        storkModeActive = false;
+        storkModeTime = 0;
+        storkModeCooldown = 0;
+        storkModeButton.style.display = 'none'; // Początkowo ukryte
+        storkModeTimer.style.display = 'none';
+        gameArea.classList.remove('stork-mode-active');
+        
         pipes.forEach(pipe => {
             if (pipe.upPipe && pipe.upPipe.parentNode) {
                 gameArea.removeChild(pipe.upPipe);
@@ -126,8 +162,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         coins = [];
         
+        // Usuń bocianów
+        storks.forEach(stork => {
+            if (stork.element && stork.element.parentNode) {
+                gameArea.removeChild(stork.element);
+            }
+        });
+        storks = [];
+        
         lastPipeTime = 0;
         lastCoinTime = 0;
+        lastStorkTime = 0;
+        lastStorkCoinWindTime = 0;
         lastTime = 0;
     }
     
@@ -142,6 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Pokaż przyciski trybu specjalnego gdy gra się rozpocznie
         frogModeButton.style.display = 'flex';
         ghostModeButton.style.display = 'flex';
+        storkModeButton.style.display = 'none'; // Tryb bociana początkowo ukryty
         updateFrogModeButton();
         updateGhostModeButton();
     }
@@ -152,7 +199,8 @@ document.addEventListener('DOMContentLoaded', function() {
         finalScoreElement.textContent = score;
         finalCoinsElement.textContent = normalCoinCount;
         finalPurpleCoinsElement.textContent = purpleCoinCount;
-        finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore;
+        // Add frog coins to total score
+        finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore + frogCoinScore;
         gameOverScreen.style.display = 'flex';
         playSound('gameOver');
     }
@@ -170,6 +218,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (frogModeActive) {
             frogModeTime -= deltaTime / 60; // Odliczanie w sekundach
             frogModeTimer.textContent = `TRYB FROGA: ${Math.ceil(frogModeTime)}s`;
+            
+            // Sprawdź, czy pokazać przycisk trybu bociana
+            if (frogCoinScore >= frogStorkModeCost * frogCoinValue && 
+                coinScore >= normalStorkModeCost * coinValue && 
+                purpleCoinScore >= purpleStorkModeCost * purpleCoinValue) {
+                storkModeButton.style.display = 'flex';
+                updateStorkModeButton();
+            }
+            
+            // Losowo twórz bociana w trybie froga
+            if (timestamp - lastStorkTime > storkInterval && Math.random() < storkChance) {
+                createStork();
+                lastStorkTime = timestamp;
+            }
             
             if (frogModeTime <= 0) {
                 deactivateFrogMode();
@@ -206,6 +268,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Zarządzanie TRYBEM BOCIANA
+        if (storkModeActive) {
+            storkModeTime -= deltaTime / 60; // Odliczanie w sekundach
+            storkModeTimer.textContent = `TRYB BOCIANA: ${Math.ceil(storkModeTime)}s`;
+            
+            // Generowanie monet w wietrze
+            if (timestamp - lastStorkCoinWindTime > storkCoinWindInterval) {
+                if (Math.random() < storkCoinChance) {
+                    createWindCoin();
+                }
+                lastStorkCoinWindTime = timestamp;
+            }
+            
+            if (storkModeTime <= 0) {
+                deactivateStorkMode();
+            }
+        }
+        
+        // Obsługa cooldownu trybu BOCIANA
+        if (storkModeCooldown > 0) {
+            storkModeCooldown -= deltaTime / 60;
+            
+            if (storkModeCooldown <= 0 && frogModeActive) {
+                storkModeCooldown = 0;
+                updateStorkModeButton();
+            }
+        }
+        
         velocity += gravity * deltaTime;
         
         if (velocity > velocityLimit) velocity = velocityLimit;
@@ -218,15 +308,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (rotation < -30) rotation = -30;
         bird.style.transform = `rotate(${rotation}deg)`;
         
-        if (timestamp - lastPipeTime > pipeInterval) {
+        // W trybie froga zachowujemy ten sam odstęp między rurami, ale z podwojoną prędkością
+        const effectivePipeInterval = frogModeActive ? pipeInterval / frogSpeedMultiplier : pipeInterval;
+        
+        if (timestamp - lastPipeTime > effectivePipeInterval) {
             createPipe();
             lastPipeTime = timestamp;
         }
         
-if (timestamp - lastCoinTime > coinInterval) {
-    createCoin();
-    lastCoinTime = timestamp;
-}
+        if (timestamp - lastCoinTime > coinInterval) {
+            createCoin();
+            lastCoinTime = timestamp;
+        }
 
 pipes.forEach((pipe, index) => {
     pipe.x -= currentPipeSpeed * deltaTime;
@@ -249,6 +342,37 @@ pipes.forEach((pipe, index) => {
     }
 });
 
+// Obsługa bocianów
+for (let i = storks.length - 1; i >= 0; i--) {
+    let stork = storks[i];
+    stork.x -= currentPipeSpeed * deltaTime;
+    
+    if (stork.element) {
+        stork.element.style.left = stork.x + 'px';
+        
+        // Sprawdź kolizję z bocianem
+        if (!stork.defeated && checkStorkCollision(stork)) {
+            // Sprawdź, czy skok był z góry (zabicie bociana)
+            if (velocity > 0 && birdPosition < stork.y) {
+                defeatStork(stork);
+                velocity = jump * 0.7; // Odbicie w górę po pokonaniu bociana
+            } else if (!invincible) {
+                // Przegrana, gdy dotknięcie z boku lub dołu i nie jest nieśmiertelny
+                endGame();
+                return;
+            }
+        }
+        
+        // Usuń bociana, gdy wyleci poza ekran
+        if (stork.x + stork.width < 0 || stork.defeated) {
+            if (stork.removeTime && timestamp > stork.removeTime) {
+                if (stork.element.parentNode) gameArea.removeChild(stork.element);
+                storks.splice(i, 1);
+            }
+        }
+    }
+}
+
 for (let i = coins.length - 1; i >= 0; i--) {
     let coin = coins[i];
     coin.x -= currentPipeSpeed * deltaTime;
@@ -259,6 +383,9 @@ for (let i = coins.length - 1; i >= 0; i--) {
             collectCoin(coin);
             updateFrogModeButton();
             updateGhostModeButton();
+            if (frogModeActive) {
+                updateStorkModeButton();
+            }
         }
         
         if (coin.x + 30 < 0 || coin.collected) {
@@ -364,6 +491,262 @@ function createCoin() {
     });
 }
 
+function checkCoinCollision(coin) {
+    const birdRect = bird.getBoundingClientRect();
+    const coinRect = coin.element.getBoundingClientRect();
+    
+    return (
+        birdRect.right >= coinRect.left &&
+        birdRect.left <= coinRect.right &&
+        birdRect.bottom >= coinRect.top &&
+        birdRect.top <= coinRect.bottom
+    );
+}
+
+function checkStorkCollision(stork) {
+    if (stork.defeated) return false;
+    
+    const birdRect = bird.getBoundingClientRect();
+    const storkRect = stork.element.getBoundingClientRect();
+    
+    return (
+        birdRect.right >= storkRect.left &&
+        birdRect.left <= storkRect.right &&
+        birdRect.bottom >= storkRect.top &&
+        birdRect.top <= storkRect.bottom
+    );
+}
+
+function createStork() {
+    const gameAreaHeight = gameArea.clientHeight;
+    const groundHeight = ground.clientHeight;
+    const safeArea = gameAreaHeight - groundHeight - 60;
+    const minHeight = 80;
+    const maxHeight = safeArea - 80;
+
+    if (maxHeight < minHeight) {
+        console.error("Nie można utworzyć bociana: niewystarczająca wysokość.");
+        return;
+    }
+
+    const storkWidth = 70;
+    const storkHeight = 80;
+    const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+    const randomX = gameArea.clientWidth + Math.floor(Math.random() * 100); // Zawsze poza ekranem
+    
+    const stork = document.createElement('div');
+    if (!stork) {
+        console.error("Nie udało się utworzyć bociana.");
+        return;
+    }
+    
+    stork.className = 'stork';
+    stork.style.left = randomX + 'px';
+    stork.style.top = randomY + 'px';
+    
+    gameArea.appendChild(stork);
+    
+    storks.push({
+        x: randomX,
+        y: randomY,
+        width: storkWidth,
+        height: storkHeight,
+        element: stork,
+        defeated: false,
+        removeTime: null
+    });
+}
+
+function defeatStork(stork) {
+    if (stork.defeated) return;
+    
+    stork.defeated = true;
+    stork.element.classList.add('storkDefeated');
+    stork.removeTime = performance.now() + 1000;
+    
+    // Efekt dźwiękowy
+    playSound('storkDefeat');
+    
+    // Dodaj efekt pokonania
+    const defeatEffect = document.createElement('div');
+    defeatEffect.className = 'coinPop';
+    defeatEffect.textContent = 'Pokonany!';
+    defeatEffect.style.left = stork.x + 'px';
+    defeatEffect.style.top = (stork.y - 20) + 'px';
+    defeatEffect.style.color = '#FF4500';
+    gameArea.appendChild(defeatEffect);
+    
+    setTimeout(() => {
+        if (defeatEffect.parentNode) {
+            gameArea.removeChild(defeatEffect);
+        }
+    }, 1000);
+    
+    // Stwórz monetę żabią po pokonaniu bociana
+    createFrogCoin(stork.x, stork.y);
+}
+
+function createFrogCoin(x, y) {
+    const coin = document.createElement('div');
+    if (!coin) {
+        console.error("Nie udało się utworzyć monety żabiej.");
+        return;
+    }
+    
+    coin.className = 'coin frogCoin';
+    coin.style.left = x + 'px';
+    coin.style.top = y + 'px';
+    
+    gameArea.appendChild(coin);
+    
+    coins.push({
+        x: x,
+        y: y,
+        element: coin,
+        collected: false,
+        removeTime: null
+    });
+}
+
+function createWindCoin() {
+    // Tworzenie monety wiatrem w trybie bociana
+    const gameAreaHeight = gameArea.clientHeight;
+    const groundHeight = ground.clientHeight;
+    const safeArea = gameAreaHeight - groundHeight - 60;
+    const minHeight = 80;
+    const maxHeight = safeArea - 80;
+
+    if (maxHeight < minHeight) {
+        console.error("Nie można utworzyć monety wiatrem: niewystarczająca wysokość.");
+        return;
+    }
+
+    const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+    const startX = gameArea.clientWidth + 20; // Poza prawą krawędzią
+    
+    const coin = document.createElement('div');
+    if (!coin) {
+        console.error("Nie udało się utworzyć monety wiatrem.");
+        return;
+    }
+    
+    // 20% szansa na fioletową monetę w wietrze
+    const isPurpleCoin = Math.random() < 0.2;
+    
+    if (isPurpleCoin) {
+        coin.className = 'coin purpleCoin windCoin';
+    } else {
+        coin.className = 'coin windCoin';
+    }
+    
+    coin.style.left = startX + 'px';
+    coin.style.top = randomY + 'px';
+    
+    gameArea.appendChild(coin);
+    
+    coins.push({
+        x: startX,
+        y: randomY,
+        element: coin,
+        collected: false,
+        removeTime: null,
+        isWindCoin: true
+    });
+}
+
+function collectCoin(coin) {
+    coin.collected = true;
+    coin.element.classList.add('coinCollected');
+    coin.removeTime = performance.now() + 300;
+    
+    // Sprawdź typ monety
+    const isPurpleCoin = coin.element.classList.contains('purpleCoin');
+    const isFrogCoin = coin.element.classList.contains('frogCoin');
+    
+    if (isPurpleCoin) {
+        purpleCoinScore += purpleCoinValue;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        purpleCoinCount++;
+        
+        playSound('purpleCoin');
+        
+        const coinPop = document.createElement('div');
+        if (!coinPop) {
+            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+            return;
+        }
+        coinPop.className = 'coinPop purpleCoinPop';
+        coinPop.textContent = `+${purpleCoinValue}`;
+        coinPop.style.left = coin.x + 'px';
+        coinPop.style.top = coin.y + 'px';
+        gameArea.appendChild(coinPop);
+        
+        setTimeout(() => {
+            if (coinPop && coinPop.parentNode) {
+                gameArea.removeChild(coinPop);
+            }
+        }, 1200);
+    } else if (isFrogCoin) {
+        frogCoinScore += frogCoinValue;
+        const frogCoinElement = document.getElementById('frogCoinScore');
+        if (frogCoinElement) {
+            frogCoinElement.textContent = `Monety żabie: ${frogCoinScore / frogCoinValue}`;
+        }
+        frogCoinCount++;
+        
+        playSound('frogCoin');
+        
+        const coinPop = document.createElement('div');
+        if (!coinPop) {
+            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+            return;
+        }
+        coinPop.className = 'coinPop frogCoinPop';
+        coinPop.textContent = `+${frogCoinValue}`;
+        coinPop.style.left = coin.x + 'px';
+        coinPop.style.top = coin.y + 'px';
+        gameArea.appendChild(coinPop);
+        
+        setTimeout(() => {
+            if (coinPop && coinPop.parentNode) {
+                gameArea.removeChild(coinPop);
+            }
+        }, 1200);
+        
+        // Sprawdź, czy pokazać przycisk trybu bociana
+        if (frogModeActive && 
+            frogCoinScore >= frogStorkModeCost * frogCoinValue && 
+            coinScore >= normalStorkModeCost * coinValue && 
+            purpleCoinScore >= purpleStorkModeCost * purpleCoinValue) {
+            storkModeButton.style.display = 'flex';
+            updateStorkModeButton();
+        }
+    } else {
+        coinScore += coinValue;
+        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+        normalCoinCount++;
+        
+        playSound('coin');
+        
+        const coinPop = document.createElement('div');
+        if (!coinPop) {
+            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+            return;
+        }
+        coinPop.className = 'coinPop';
+        coinPop.textContent = `+${coinValue}`;
+        coinPop.style.left = coin.x + 'px';
+        coinPop.style.top = coin.y + 'px';
+        gameArea.appendChild(coinPop);
+        
+        setTimeout(() => {
+            if (coinPop && coinPop.parentNode) {
+                gameArea.removeChild(coinPop);
+            }
+        }, 1000);
+    }
+}
+
 function checkCollision() {
     const birdRect = bird.getBoundingClientRect();
     const gameAreaRect = gameArea.getBoundingClientRect();
@@ -430,8 +813,8 @@ function checkCollision() {
                 return true;
             }
         }
-    } else if (ghostModeActive) {
-        // W trybie ducha nie ma kolizji z rurami
+    } else if (ghostModeActive || storkModeActive) {
+        // W trybie ducha lub bociana nie ma kolizji z rurami
         return false;
     } else {
         // Normalne sprawdzanie kolizji
@@ -460,75 +843,6 @@ function checkCollision() {
     }
     
     return false;
-}
-
-function checkCoinCollision(coin) {
-    const birdRect = bird.getBoundingClientRect();
-    const coinRect = coin.element.getBoundingClientRect();
-    
-    return (
-        birdRect.right >= coinRect.left &&
-        birdRect.left <= coinRect.right &&
-        birdRect.bottom >= coinRect.top &&
-        birdRect.top <= coinRect.bottom
-    );
-}
-
-function collectCoin(coin) {
-    coin.collected = true;
-    coin.element.classList.add('coinCollected');
-    coin.removeTime = performance.now() + 300;
-    
-    // Sprawdź czy to fioletowa moneta
-    const isPurpleCoin = coin.element.classList.contains('purpleCoin');
-    
-    if (isPurpleCoin) {
-        purpleCoinScore += purpleCoinValue;
-        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
-        purpleCoinCount++;
-        
-        playSound('purpleCoin');
-        
-        const coinPop = document.createElement('div');
-        if (!coinPop) {
-            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
-            return;
-        }
-        coinPop.className = 'coinPop purpleCoinPop';
-        coinPop.textContent = `+${purpleCoinValue}`;
-        coinPop.style.left = coin.x + 'px';
-        coinPop.style.top = coin.y + 'px';
-        gameArea.appendChild(coinPop);
-        
-        setTimeout(() => {
-            if (coinPop && coinPop.parentNode) {
-                gameArea.removeChild(coinPop);
-            }
-        }, 1200);
-    } else {
-        coinScore += coinValue;
-        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
-        normalCoinCount++;
-        
-        playSound('coin');
-        
-        const coinPop = document.createElement('div');
-        if (!coinPop) {
-            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
-            return;
-        }
-        coinPop.className = 'coinPop';
-        coinPop.textContent = `+${coinValue}`;
-        coinPop.style.left = coin.x + 'px';
-        coinPop.style.top = coin.y + 'px';
-        gameArea.appendChild(coinPop);
-        
-        setTimeout(() => {
-            if (coinPop && coinPop.parentNode) {
-                gameArea.removeChild(coinPop);
-            }
-        }, 1000);
-    }
 }
 
 function makeJump() {
@@ -567,6 +881,14 @@ function activateFrogMode(event) {
         frogModeTimer.style.display = 'block';
         frogModeTimer.textContent = `TRYB FROGA: ${frogModeDuration}s`;
         frogModeButton.disabled = true;
+        
+        // Sprawdź, czy pokazać przycisk trybu bociana
+        if (frogCoinScore >= frogStorkModeCost * frogCoinValue && 
+            coinScore >= normalStorkModeCost * coinValue && 
+            purpleCoinScore >= purpleStorkModeCost * purpleCoinValue) {
+            storkModeButton.style.display = 'flex';
+            updateStorkModeButton();
+        }
         
         // Zmień parametry gry i dodaj nieśmiertelność
         jump = frogJump;
@@ -692,6 +1014,12 @@ function deactivateFrogMode() {
     setTimeout(() => {
         updateFrogModeButton();
     }, 500);
+    
+    // Automatycznie aktywuj tryb ducha za darmo
+    if (!ghostModeActive) {
+        // Wywołaj aktywację trybu ducha z pominięciem sprawdzania monet
+        activateGhostMode(null, true);
+    }
 }
 
 function updateFrogModeButton() {
@@ -716,27 +1044,55 @@ function updateFrogModeButton() {
     }
 }
 
+function updateStorkModeButton() {
+    if (!gameRunning || !frogModeActive) return;
+    
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    const frogCoins = frogCoinScore / frogCoinValue;
+    const hasEnoughCoins = normalCoins >= normalStorkModeCost && 
+                          purpleCoins >= purpleStorkModeCost && 
+                          frogCoins >= frogStorkModeCost;
+    
+    if (storkModeActive) {
+        storkModeButton.disabled = true;
+        storkModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
+    } else if (storkModeCooldown > 0) {
+        storkModeButton.disabled = true;
+        storkModeButton.querySelector('.mode-button-cost').textContent = `${Math.ceil(storkModeCooldown)}s`;
+    } else if (hasEnoughCoins) {
+        storkModeButton.disabled = false;
+        storkModeButton.querySelector('.mode-button-cost').textContent = `${normalStorkModeCost}🟡 ${purpleStorkModeCost}🟣 ${frogStorkModeCost}🐸`;
+    } else {
+        storkModeButton.disabled = true;
+        storkModeButton.querySelector('.mode-button-cost').textContent = `${normalStorkModeCost}🟡 ${purpleStorkModeCost}🟣 ${frogStorkModeCost}🐸`;
+    }
+}
+
 // Funkcje TRYB DUCHA
-function activateGhostMode(event) {
+function activateGhostMode(event, freeActivation = false) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
     
-    if (!gameRunning || ghostModeActive || ghostModeCooldown > 0) return;
+    // Jeśli aktywacja jest darmowa, pomijamy sprawdzenie cooldown
+    if (!gameRunning || ghostModeActive || (ghostModeCooldown > 0 && !freeActivation)) return;
     
-    // Sprawdź czy gracz ma wystarczającą ilość monet
+    // Sprawdź czy gracz ma wystarczającą ilość monet lub czy to darmowa aktywacja
     const normalCoins = coinScore / coinValue;
     const purpleCoins = purpleCoinScore / purpleCoinValue;
     
-    if (normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost) {
-        // Odejmij koszt
-        coinScore -= normalGhostModeCost * coinValue;
-        purpleCoinScore -= purpleGhostModeCost * purpleCoinValue;
-        
-        // Aktualizuj wyświetlanie monet
-        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
-        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+    if (freeActivation || (normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost)) {
+        // Odejmij koszt tylko jeśli to nie jest darmowa aktywacja
+        if (!freeActivation) {
+            coinScore -= normalGhostModeCost * coinValue;
+            purpleCoinScore -= purpleGhostModeCost * purpleCoinValue;
+            
+            // Aktualizuj wyświetlanie monet
+            bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+            purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        }
         
         // Aktywuj TRYB DUCHA
         ghostModeActive = true;
@@ -756,7 +1112,9 @@ function activateGhostMode(event) {
         const ghostActivation = document.createElement('div');
         ghostActivation.className = 'coinPop purpleCoinPop';
         ghostActivation.style.color = '#7B68EE';
-        ghostActivation.textContent = 'TRYB DUCHA!\nPRZENIKANIE PRZEZ RURY!';
+        ghostActivation.textContent = freeActivation ? 
+            'DARMOWY TRYB DUCHA!\nPRZENIKANIE PRZEZ RURY!' : 
+            'TRYB DUCHA!\nPRZENIKANIE PRZEZ RURY!';
         ghostActivation.style.left = '50%';
         ghostActivation.style.top = '50%';
         ghostActivation.style.transform = 'translate(-50%, -50%) scale(2)';
@@ -807,6 +1165,108 @@ function deactivateGhostMode() {
     }, 500);
 }
 
+// Funkcje TRYB BOCIANA
+function activateStorkMode(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    // Można aktywować tylko podczas trybu żaby i gdy nie jest aktywny
+    if (!gameRunning || !frogModeActive || storkModeActive || storkModeCooldown > 0) return;
+    
+    // Sprawdź czy gracz ma wystarczającą ilość monet
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    const frogCoins = frogCoinScore / frogCoinValue;
+    
+    if (normalCoins >= normalStorkModeCost && 
+        purpleCoins >= purpleStorkModeCost && 
+        frogCoins >= frogStorkModeCost) {
+        
+        // Odejmij koszt
+        coinScore -= normalStorkModeCost * coinValue;
+        purpleCoinScore -= purpleStorkModeCost * purpleCoinValue;
+        frogCoinScore -= frogStorkModeCost * frogCoinValue;
+        
+        // Aktualizuj wyświetlanie monet
+        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        const frogCoinElement = document.getElementById('frogCoinScore');
+        if (frogCoinElement) {
+            frogCoinElement.textContent = `Monety żabie: ${frogCoinScore / frogCoinValue}`;
+        }
+        
+        // Aktywuj TRYB BOCIANA
+        storkModeActive = true;
+        storkModeTime = storkModeDuration;
+        gameArea.classList.add('stork-mode-active');
+        storkModeTimer.style.display = 'block';
+        storkModeTimer.textContent = `TRYB BOCIANA: ${storkModeDuration}s`;
+        storkModeButton.disabled = true;
+        
+        // Efekt dźwiękowy
+        playSound('storkMode');
+        
+        // Pokaż efekt aktywacji
+        const storkActivation = document.createElement('div');
+        storkActivation.className = 'coinPop purpleCoinPop';
+        storkActivation.style.color = '#FF4500';
+        storkActivation.textContent = 'TRYB BOCIANA!\nWIATR MONET!';
+        storkActivation.style.left = '50%';
+        storkActivation.style.top = '50%';
+        storkActivation.style.transform = 'translate(-50%, -50%) scale(2)';
+        storkActivation.style.whiteSpace = 'pre';
+        storkActivation.style.textAlign = 'center';
+        gameArea.appendChild(storkActivation);
+        
+        setTimeout(() => {
+            if (storkActivation && storkActivation.parentNode) {
+                gameArea.removeChild(storkActivation);
+            }
+        }, 1500);
+    }
+}
+
+function deactivateStorkMode() {
+    if (!storkModeActive) return;
+    
+    storkModeActive = false;
+    storkModeTime = 0;
+    gameArea.classList.remove('stork-mode-active');
+    storkModeTimer.style.display = 'none';
+    
+    // Pokaż komunikat o końcu trybu bociana
+    const endModeMsg = document.createElement('div');
+    endModeMsg.className = 'coinPop';
+    endModeMsg.textContent = 'Koniec trybu bociana!';
+    endModeMsg.style.left = '50%';
+    endModeMsg.style.top = '50%';
+    endModeMsg.style.transform = 'translate(-50%, -50%)';
+    endModeMsg.style.color = '#FF4500';
+    endModeMsg.style.fontSize = '24px';
+    gameArea.appendChild(endModeMsg);
+    
+    setTimeout(() => {
+        if (endModeMsg.parentNode) {
+            gameArea.removeChild(endModeMsg);
+        }
+    }, 1500);
+    
+    // Ustaw cooldown
+    storkModeCooldown = storkModeCooldownTime;
+    storkModeButton.disabled = true;
+    
+    setTimeout(() => {
+        updateStorkModeButton();
+    }, 500);
+    
+    // Automatycznie aktywuj tryb ducha za darmo
+    if (!ghostModeActive) {
+        activateGhostMode(null, true);
+    }
+}
+
 function updateGhostModeButton() {
     if (!gameRunning) return;
     
@@ -838,6 +1298,9 @@ frogModeButton.addEventListener('touchstart', activateFrogMode, { passive: false
 
 ghostModeButton.addEventListener('click', activateGhostMode);
 ghostModeButton.addEventListener('touchstart', activateGhostMode, { passive: false });
+
+storkModeButton.addEventListener('click', activateStorkMode);
+storkModeButton.addEventListener('touchstart', activateStorkMode, { passive: false });
 
 gameArea.addEventListener('touchstart', function(event) {
     event.preventDefault();
