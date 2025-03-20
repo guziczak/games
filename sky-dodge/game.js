@@ -47,8 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastPipeTime = 0;
     let lastCoinTime = 0;
     let lastStorkTime = 0; // Czas ostatniego bociana
-    let storkInterval = 3000; // Interwał spawnu bocianów
-    let storkChance = 0.25; // 25% szansa na pojawienie się bociana w trybie froga
+    let storkInterval = 2000; // Interwał spawnu bocianów (skrócony z 3000)
+    let storkChance = 0.80; // 80% szansa na pojawienie się bociana w trybie froga (zwiększona z 25%)
     let animationId;
     let lastTime = 0;
     let deltaTime = 0;
@@ -529,10 +529,13 @@ function createStork() {
         return;
     }
 
-    const storkWidth = 70;
-    const storkHeight = 80;
+    // Zwiększone wymiary bociana - teraz jest większy (bardziej jak boss)
+    const storkWidth = 90; // Było 70
+    const storkHeight = 100; // Było 80
+    
     const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
-    const randomX = gameArea.clientWidth + Math.floor(Math.random() * 100); // Zawsze poza ekranem
+    // Ustaw dokładnie na prawej krawędzi ekranu
+    const storkX = gameArea.clientWidth;
     
     const stork = document.createElement('div');
     if (!stork) {
@@ -541,13 +544,15 @@ function createStork() {
     }
     
     stork.className = 'stork';
-    stork.style.left = randomX + 'px';
+    stork.style.left = storkX + 'px';
     stork.style.top = randomY + 'px';
+    // Dodajemy klasę boss dla efektu
+    stork.classList.add('boss-stork');
     
     gameArea.appendChild(stork);
     
     storks.push({
-        x: randomX,
+        x: storkX,
         y: randomY,
         width: storkWidth,
         height: storkHeight,
@@ -555,6 +560,26 @@ function createStork() {
         defeated: false,
         removeTime: null
     });
+    
+    // Efekt pojawienia się bociana
+    const bossAlert = document.createElement('div');
+    bossAlert.className = 'coinPop purpleCoinPop';
+    bossAlert.style.color = '#FF4500';
+    bossAlert.textContent = 'UWAGA! BOCIAN BOSS!';
+    bossAlert.style.left = '50%';
+    bossAlert.style.top = '50%';
+    bossAlert.style.transform = 'translate(-50%, -50%) scale(2)';
+    bossAlert.style.fontSize = '30px';
+    gameArea.appendChild(bossAlert);
+    
+    setTimeout(() => {
+        if (bossAlert.parentNode) {
+            gameArea.removeChild(bossAlert);
+        }
+    }, 1500);
+    
+    // Efekt dźwiękowy pojawienia się bossa
+    playSound('storkMode');
 }
 
 function defeatStork(stork) {
