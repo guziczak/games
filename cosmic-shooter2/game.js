@@ -6,7 +6,6 @@ let health = 100;
 let shield = 0;
 let gameActive = false;
 let isPaused = false;
-let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Powerup types and durations
 const POWERUP_TYPES = {
@@ -158,39 +157,37 @@ class Player {
         }
     }
     
-    move(keys) {
-        // Movement speed (boosted if speed powerup is active)
-        const moveSpeed = activePowerups.speed > 0 ? this.speed * 1.5 : this.speed;
-        
-        // For keyboard controls
-        if (!isMobile) {
-            // Reset thrust
-            this.thrust = 0;
-            
-            if (keys.ArrowUp || keys.w) {
-                this.thrust = 1;
-                // Move forward in the direction of rotation
-                this.x += Math.sin(this.rotation) * moveSpeed;
-                this.y -= Math.cos(this.rotation) * moveSpeed;
-            }
-            if (keys.ArrowDown || keys.s) {
-                this.thrust = 0.5;
-                // Move backward
-                this.x -= Math.sin(this.rotation) * moveSpeed * 0.5;
-                this.y += Math.cos(this.rotation) * moveSpeed * 0.5;
-            }
-            if (keys.ArrowLeft || keys.a) {
-                this.rotation -= 0.05;
-            }
-            if (keys.ArrowRight || keys.d) {
-                this.rotation += 0.05;
-            }
-        }
-        
-        // Keep player on screen
-        this.x = Math.max(this.width/2, Math.min(this.x, canvas.width - this.width/2));
-        this.y = Math.max(this.height/2, Math.min(this.y, canvas.height - this.height/2));
+move(keys) {
+    // Movement speed (boosted if speed powerup is active)
+    const moveSpeed = activePowerups.speed > 0 ? this.speed * 1.5 : this.speed;
+    
+    // Reset thrust
+    this.thrust = 0;
+    
+    // Keyboard controls always active on all devices
+    if (keys.ArrowUp || keys.w) {
+        this.thrust = 1;
+        // Move forward in the direction of rotation
+        this.x += Math.sin(this.rotation) * moveSpeed;
+        this.y -= Math.cos(this.rotation) * moveSpeed;
     }
+    if (keys.ArrowDown || keys.s) {
+        this.thrust = 0.5;
+        // Move backward
+        this.x -= Math.sin(this.rotation) * moveSpeed * 0.5;
+        this.y += Math.cos(this.rotation) * moveSpeed * 0.5;
+    }
+    if (keys.ArrowLeft || keys.a) {
+        this.rotation -= 0.05;
+    }
+    if (keys.ArrowRight || keys.d) {
+        this.rotation += 0.05;
+    }
+    
+    // Keep player on screen
+    this.x = Math.max(this.width/2, Math.min(this.x, canvas.width - this.width/2));
+    this.y = Math.max(this.height/2, Math.min(this.y, canvas.height - this.height/2));
+}
 }
 
 // Enhanced projectile with particle trail
@@ -1049,10 +1046,8 @@ function init() {
         }
     }, 30000);
     
-    // Set up mobile controls if needed
-    if (isMobile) {
-        setupMobileControls();
-    }
+    // Set up touch controls for all devices
+    setupTouchControls();
     
     // Show game UI elements
     document.getElementById('pauseButton').style.display = 'block';
@@ -1103,66 +1098,154 @@ function checkLevelAdvance() {
     }
 }
 
-// Mobile controls setup
-function setupMobileControls() {
+// Advanced touch controls for canvas
+function setupTouchControls() {
+    const canvas = document.getElementById('gameCanvas');
     const joystick = document.getElementById('joystick');
     const joystickKnob = document.getElementById('joystickKnob');
     const fireButton = document.getElementById('fireButton');
     
-    // Show mobile controls
-    joystick.style.display = 'block';
-    fireButton.style.display = 'block';
+    // Hide fixed controls by default
+    joystick.style.display = 'none';
+    fireButton.style.display = 'none';
     
-    // Joystick variables
+    // Touch variables
+    let activeTouches = [];
     let joystickActive = false;
     let joystickOrigin = { x: 0, y: 0 };
-    const maxDistance = 50;
+    let joystickID = null;
+    const maxDistance = 70;
+    let lastShootTime = 0;
     
-    // Joystick touch handlers
-    joystick.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const rect = joystick.getBoundingClientRect();
-        joystickOrigin.x = rect.left + rect.width / 2;
-        joystickOrigin.y = rect.top + rect.height / 2;
-        joystickActive = true;
+    // Touch event handlers for canvas
+    canvas.addEventListener('touchstart', handleTouchStart, false);
+    canvas.addEventListener('touchmove', handleTouchMove, false);
+    canvas.addEventListener('touchend', handleTouchEnd, false);
+    canvas.addEventListener('touchcancel', handleTouchEnd, false);
+    
+    // Handle keyboard as normal
+    window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
         
-        // Position knob at touch position (within constraints)
-        updateJoystickKnob(touch.clientX, touch.clientY);
-    });
-    
-    joystick.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if (joystickActive) {
-            const touch = e.touches[0];
-            updateJoystickKnob(touch.clientX, touch.clientY);
-        }
-    });
-    
-    joystick.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        joystickActive = false;
-        
-        // Reset knob position
-        joystickKnob.style.transform = 'translate(-50%, -50%)';
-        
-        // Reset player thrust
-        if (player) {
-            player.thrust = 0;
-        }
-    });
-    
-    // Fire button touch handler
-    fireButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (player && gameActive && !isPaused) {
+        // Shoot on space or Enter
+        if ((e.key === ' ' || e.key === 'Enter') && player && gameActive && !isPaused) {
             player.shoot();
         }
+        
+        // Pause on Escape or P
+        if ((e.key === 'Escape' || e.key === 'p') && gameActive) {
+            togglePause();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
     });
     
-    // Update joystick knob position and player movement
-    function updateJoystickKnob(touchX, touchY) {
-        // Calculate distance from center
+    function handleTouchStart(e) {
+        if (!gameActive || isPaused) return;
+        e.preventDefault();
+        
+        const newTouches = Array.from(e.changedTouches);
+        
+        newTouches.forEach(touch => {
+            const touchIndex = activeTouches.findIndex(t => t.identifier === touch.identifier);
+            
+            // If it's a new touch
+            if (touchIndex === -1) {
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                // If this is the first touch or no joystick exists yet, create the joystick
+                if (!joystickActive) {
+                    joystickActive = true;
+                    joystickID = touch.identifier;
+                    joystickOrigin = { x: touchX, y: touchY };
+                    
+                    // Show and position the joystick at touch position
+                    joystick.style.display = 'block';
+                    joystick.style.left = (touch.clientX - 75) + 'px';
+                    joystick.style.top = (touch.clientY - 75) + 'px';
+                    joystickKnob.style.transform = 'translate(-50%, -50%)';
+                    
+                    activeTouches.push({
+                        identifier: touch.identifier,
+                        type: 'joystick',
+                        startX: touchX,
+                        startY: touchY,
+                        currentX: touchX,
+                        currentY: touchY
+                    });
+                } else {
+                    // If joystick already exists, this is a fire touch
+                    if (Date.now() - lastShootTime > 200) { // Prevent too rapid fire
+                        player.shoot();
+                        lastShootTime = Date.now();
+                    }
+                    
+                    activeTouches.push({
+                        identifier: touch.identifier,
+                        type: 'fire',
+                        startX: touchX,
+                        startY: touchY,
+                        currentX: touchX,
+                        currentY: touchY
+                    });
+                }
+            }
+        });
+    }
+    
+    function handleTouchMove(e) {
+        if (!gameActive || isPaused) return;
+        e.preventDefault();
+        
+        Array.from(e.changedTouches).forEach(touch => {
+            const touchIndex = activeTouches.findIndex(t => t.identifier === touch.identifier);
+            
+            if (touchIndex !== -1) {
+                const activeTouch = activeTouches[touchIndex];
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                activeTouch.currentX = touchX;
+                activeTouch.currentY = touchY;
+                
+                if (activeTouch.type === 'joystick' && touch.identifier === joystickID) {
+                    updateJoystickPosition(touchX, touchY);
+                }
+            }
+        });
+    }
+    
+    function handleTouchEnd(e) {
+        e.preventDefault();
+        
+        Array.from(e.changedTouches).forEach(touch => {
+            const touchIndex = activeTouches.findIndex(t => t.identifier === touch.identifier);
+            
+            if (touchIndex !== -1) {
+                const removedTouch = activeTouches.splice(touchIndex, 1)[0];
+                
+                if (removedTouch.type === 'joystick' && touch.identifier === joystickID) {
+                    // Hide joystick
+                    joystick.style.display = 'none';
+                    joystickActive = false;
+                    joystickID = null;
+                    
+                    // Reset player thrust
+                    if (player) {
+                        player.thrust = 0;
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateJoystickPosition(touchX, touchY) {
+        // Calculate distance from joystick origin
         let dx = touchX - joystickOrigin.x;
         let dy = touchY - joystickOrigin.y;
         
@@ -1179,13 +1262,13 @@ function setupMobileControls() {
             distance = maxDistance;
         }
         
-        // Update knob position
+        // Update knob position within joystick
         joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         
         // Update player movement
         if (player && gameActive && !isPaused) {
             // Update player rotation (angle)
-            player.rotation = angle + Math.PI / 2;
+            player.rotation = angle + Math.PI/2;
             
             // Set thrust based on distance from center
             player.thrust = distance / maxDistance;
@@ -1406,11 +1489,8 @@ function gameOver() {
     // Hide pause button
     document.getElementById('pauseButton').style.display = 'none';
     
-    // Hide mobile controls
-    if (isMobile) {
-        document.getElementById('joystick').style.display = 'none';
-        document.getElementById('fireButton').style.display = 'none';
-    }
+    // Hide touch controls
+    document.getElementById('joystick').style.display = 'none';
     
     // Clear intervals
     clearInterval(enemySpawnInterval);
@@ -1633,11 +1713,8 @@ document.getElementById('quitButton').addEventListener('click', () => {
     document.getElementById('pauseButton').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
     
-    // Hide mobile controls
-    if (isMobile) {
-        document.getElementById('joystick').style.display = 'none';
-        document.getElementById('fireButton').style.display = 'none';
-    }
+    // Hide touch controls
+    document.getElementById('joystick').style.display = 'none';
     
     // Clear intervals
     clearInterval(enemySpawnInterval);
@@ -1645,6 +1722,7 @@ document.getElementById('quitButton').addEventListener('click', () => {
     clearInterval(levelCheckInterval);
 });
 
+// Usuń przycisk toggle kontrolek i nie umieszczaj go w kodzie
 // Start button click handler
 document.getElementById('startButton').addEventListener('click', () => {
     document.getElementById('startScreen').style.display = 'none';
