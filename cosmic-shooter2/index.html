@@ -421,35 +421,49 @@
             }
         }
         
-        // Play a sound with effects
+        // Play a sound with effects - improved error handling
         function playSound(name, options = {}) {
             if (!audioCtx || !sounds[name]) return;
             
             try {
+                // Create buffer source
                 const source = audioCtx.createBufferSource();
                 source.buffer = sounds[name];
                 
                 // Create gain node for volume control
                 const gainNode = audioCtx.createGain();
-                gainNode.gain.value = options.volume || 0.5;
+                gainNode.gain.value = options.volume || 0.3; // Lower default volume
                 
                 // Create stereo panner for spatial audio
-                const panNode = audioCtx.createStereoPanner();
-                panNode.pan.value = options.pan || 0;
-                
-                // Connect nodes: source -> gain -> pan -> destination
-                source.connect(gainNode);
-                gainNode.connect(panNode);
-                panNode.connect(audioCtx.destination);
+                let panNode;
+                try {
+                    panNode = audioCtx.createStereoPanner();
+                    panNode.pan.value = options.pan || 0;
+                    
+                    // Connect nodes: source -> gain -> pan -> destination
+                    source.connect(gainNode);
+                    gainNode.connect(panNode);
+                    panNode.connect(audioCtx.destination);
+                } catch (panError) {
+                    // Fallback if stereo panner is not supported
+                    console.warn('Stereo panner not supported:', panError);
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                }
                 
                 // Pitch shifting (playback rate)
                 if (options.rate) {
                     source.playbackRate.value = options.rate;
                 }
                 
+                // Start playing with small delay to prevent audio glitches
                 source.start(0);
+                
+                // Return the source for potential stopping/cleanup
+                return source;
             } catch (e) {
                 console.error('Error playing sound:', e);
+                return null;
             }
         }
         
@@ -1317,9 +1331,10 @@
         
         // Create explosion effect
         function createExplosion(x, y, color) {
-            // Add many particles for explosion
-            for (let i = 0; i < 40; i++) {
-                const speed = 1 + Math.random() * 5;
+            // Add fewer particles for explosion to prevent performance issues
+            const particleCount = Math.min(20, 10 + level); // Fewer particles, scales with level
+            for (let i = 0; i < particleCount; i++) {
+                const speed = 1 + Math.random() * 3; // Reduced speed
                 const angle = Math.random() * Math.PI * 2;
                 
                 particles.push(new Particle(
@@ -1327,19 +1342,19 @@
                     y, 
                     Math.cos(angle) * speed, 
                     Math.sin(angle) * speed, 
-                    Math.random() * 5 + 2, 
+                    Math.random() * 4 + 1, // Smaller particles
                     color, 
-                    30 + Math.random() * 20
+                    20 + Math.random() * 10 // Shorter lifetime
                 ));
             }
             
-            // Add a shockwave particle
-            const shockwave = new Particle(x, y, 0, 0, 5, 'rgba(255, 255, 255, 0.8)', 20);
+            // Add a smaller shockwave particle
+            const shockwave = new Particle(x, y, 0, 0, 3, 'rgba(255, 255, 255, 0.7)', 15);
             shockwave.draw = function() {
-                ctx.strokeStyle = `rgba(255, 255, 255, ${this.life / this.maxLife * 0.8})`;
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.life / this.maxLife * 0.7})`;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, (1 - this.life / this.maxLife) * 50, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, (1 - this.life / this.maxLife) * 40, 0, Math.PI * 2);
                 ctx.stroke();
             };
             shockwave.update = function() {
@@ -1347,17 +1362,21 @@
             };
             particles.push(shockwave);
             
-            // Play explosion sound with volume relative to size and stereo panning
-            const volume = Math.min(0.8, 0.3 + (color === '#AAA' ? 0.1 : 0.2));
-            const pan = (x / canvas.width) * 2 - 1; // -1 to 1 based on x position
-            playSound('explosion', { volume, rate: 0.8 + Math.random() * 0.4, pan });
+            // Play explosion sound with error handling
+            try {
+                const volume = Math.min(0.6, 0.2 + (color === '#AAA' ? 0.1 : 0.2)); // Lower volume
+                const pan = (x / canvas.width) * 2 - 1;
+                playSound('explosion', { volume, rate: 0.8 + Math.random() * 0.4, pan });
+            } catch(e) {
+                console.error('Error playing explosion sound:', e);
+            }
             
-            // Screen shake effect for larger explosions
-            if (Math.random() < 0.3) {
+            // Screen shake effect for larger explosions (less frequent)
+            if (Math.random() < 0.2) {
                 document.body.classList.add('shake');
                 setTimeout(() => {
                     document.body.classList.remove('shake');
-                }, 500);
+                }, 300); // Shorter shake duration
             }
         }
         
@@ -1426,70 +1445,89 @@
             }
         }
         
-        // Initialize game
+        // Initialize game - with better error handling and memory management
         function init() {
-            // Reset game state
-            player = new Player(canvas.width / 2, canvas.height - 100);
-            projectiles = [];
-            enemies = [];
-            meteors = [];
-            particles = [];
-            powerups = [];
-            
-            score = 0;
-            level = 1;
-            health = 100;
-            shield = 0;
-            
-            activePowerups = {
-                shield: 0,
-                tripleShot: 0,
-                speed: 0
-            };
-            
-            // Create UI elements
-            createStarfield();
-            updateUI();
-            updatePowerupUI();
-            
-            // Start game
-            gameActive = true;
-            isPaused = false;
-            
-            // Setup enemy and meteor spawn rates
-            clearInterval(enemySpawnInterval);
-            clearInterval(meteorSpawnInterval);
-            
-            enemySpawnInterval = setInterval(() => {
-                if (gameActive && !isPaused) {
-                    spawnEnemy();
+            try {
+                // Cancel any existing intervals to prevent memory leaks
+                if (enemySpawnInterval) clearInterval(enemySpawnInterval);
+                if (meteorSpawnInterval) clearInterval(meteorSpawnInterval);
+                if (levelCheckInterval) clearInterval(levelCheckInterval);
+                
+                // Reset game state
+                player = new Player(canvas.width / 2, canvas.height - 100);
+                projectiles = [];
+                enemies = [];
+                meteors = [];
+                particles = [];
+                powerups = [];
+                
+                score = 0;
+                level = 1;
+                health = 100;
+                shield = 0;
+                
+                activePowerups = {
+                    shield: 0,
+                    tripleShot: 0,
+                    speed: 0
+                };
+                
+                // Create UI elements
+                createStarfield();
+                updateUI();
+                updatePowerupUI();
+                
+                // Start game
+                gameActive = true;
+                isPaused = false;
+                
+                // Lower starting spawn rates to improve performance
+                const baseEnemySpawnRate = Math.max(2000, 2500 - level * 100);
+                const baseMeteorSpawnRate = Math.max(3000, 3500 - level * 150);
+                
+                // Setup enemy and meteor spawn rates
+                enemySpawnInterval = setInterval(() => {
+                    if (gameActive && !isPaused) {
+                        spawnEnemy();
+                    }
+                }, baseEnemySpawnRate);
+                
+                meteorSpawnInterval = setInterval(() => {
+                    if (gameActive && !isPaused) {
+                        spawnMeteor();
+                    }
+                }, baseMeteorSpawnRate);
+                
+                // Setup level advancement
+                levelCheckInterval = setInterval(() => {
+                    if (gameActive && !isPaused) {
+                        checkLevelAdvance();
+                    }
+                }, 30000);
+                
+                // Set up mobile controls
+                if (isMobile) {
+                    setupMobileControls();
                 }
-            }, 2000 - level * 100);
-            
-            meteorSpawnInterval = setInterval(() => {
-                if (gameActive && !isPaused) {
-                    spawnMeteor();
+                
+                // Show game UI elements
+                document.getElementById('pauseButton').style.display = 'block';
+                
+                // Start the game loop with requestAnimationFrame for better performance
+                if (!animationFrameId) {
+                    animationFrameId = requestAnimationFrame(animate);
                 }
-            }, 3000 - level * 150);
-            
-            // Setup level advancement
-            levelCheckInterval = setInterval(() => {
-                if (gameActive && !isPaused) {
-                    checkLevelAdvance();
-                }
-            }, 30000);
-            
-            // Set up mobile controls if needed
-            if (isMobile) {
-                setupMobileControls();
+                
+            } catch (error) {
+                console.error('Error initializing game:', error);
+                // Try to recover from error
+                gameActive = false;
+                document.getElementById('startScreen').style.display = 'flex';
             }
-            
-            // Show game UI elements
-            document.getElementById('pauseButton').style.display = 'block';
-            
-            // Start the game loop
-            animate();
         }
+        
+        // Variable to store animation frame ID for proper cancellation
+        let animationFrameId = null;
         
         // Check if player should advance to next level
         function checkLevelAdvance() {
@@ -1533,60 +1571,106 @@
             }
         }
         
-        // Mobile controls setup
+        // Mobile controls setup - completely redesigned for flexible joystick positioning
         function setupMobileControls() {
             const joystick = document.getElementById('joystick');
             const joystickKnob = document.getElementById('joystickKnob');
             const fireButton = document.getElementById('fireButton');
             
-            // Show mobile controls
-            joystick.style.display = 'block';
-            fireButton.style.display = 'block';
+            // Hide the fixed fire button since we'll use a second touch for firing
+            fireButton.style.display = 'none';
             
             // Joystick variables
             let joystickActive = false;
+            let joystickTouchId = null;
             let joystickOrigin = { x: 0, y: 0 };
             const maxDistance = 50;
             
-            // Joystick touch handlers
-            joystick.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystick.getBoundingClientRect();
-                joystickOrigin.x = rect.left + rect.width / 2;
-                joystickOrigin.y = rect.top + rect.height / 2;
-                joystickActive = true;
+            // Touch handlers for the whole document
+            document.addEventListener('touchstart', (e) => {
+                if (!gameActive || isPaused) return;
                 
-                // Position knob at touch position (within constraints)
-                updateJoystickKnob(touch.clientX, touch.clientY);
-            });
-            
-            joystick.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (joystickActive) {
+                // If joystick is not active, use first touch to create joystick
+                if (!joystickActive && e.touches.length > 0) {
+                    e.preventDefault();
                     const touch = e.touches[0];
-                    updateJoystickKnob(touch.clientX, touch.clientY);
+                    joystickTouchId = touch.identifier;
+                    joystickActive = true;
+                    
+                    // Position joystick at touch location
+                    joystick.style.left = `${touch.clientX - 75}px`; // 75px is half the joystick width
+                    joystick.style.top = `${touch.clientY - 75}px`;
+                    joystick.style.display = 'block';
+                    
+                    // Reset knob position
+                    joystickKnob.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Set origin for joystick calculations
+                    joystickOrigin.x = touch.clientX;
+                    joystickOrigin.y = touch.clientY;
+                }
+                // If joystick is active and we have a second touch, fire weapon
+                else if (joystickActive && e.touches.length > 1) {
+                    // Find a touch that isn't the joystick touch
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].identifier !== joystickTouchId) {
+                            // This is a non-joystick touch, use it to fire
+                            if (player && gameActive && !isPaused) {
+                                player.shoot();
+                            }
+                            break;
+                        }
+                    }
                 }
             });
             
-            joystick.addEventListener('touchend', (e) => {
-                e.preventDefault();
+            document.addEventListener('touchmove', (e) => {
+                if (!gameActive || isPaused) return;
+                
+                // If joystick is active, find the joystick touch and update
+                if (joystickActive) {
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+                        if (touch.identifier === joystickTouchId) {
+                            e.preventDefault();
+                            updateJoystickKnob(touch.clientX, touch.clientY);
+                            break;
+                        }
+                    }
+                }
+            });
+            
+            document.addEventListener('touchend', (e) => {
+                if (!gameActive) return;
+                
+                // Check if the joystick touch ended
+                let joystickTouchEnded = true;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === joystickTouchId) {
+                        joystickTouchEnded = false;
+                        break;
+                    }
+                }
+                
+                // If joystick touch ended, hide joystick and reset player
+                if (joystickActive && joystickTouchEnded) {
+                    joystickActive = false;
+                    joystick.style.display = 'none';
+                    
+                    // Reset player thrust
+                    if (player) {
+                        player.thrust = 0;
+                    }
+                }
+            });
+            
+            document.addEventListener('touchcancel', (e) => {
+                // Reset on touch cancel (e.g., when touch goes outside the window)
                 joystickActive = false;
+                joystick.style.display = 'none';
                 
-                // Reset knob position
-                joystickKnob.style.transform = 'translate(-50%, -50%)';
-                
-                // Reset player thrust
                 if (player) {
                     player.thrust = 0;
-                }
-            });
-            
-            // Fire button touch handler
-            fireButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (player && gameActive && !isPaused) {
-                    player.shoot();
                 }
             });
             
@@ -1614,7 +1698,7 @@
                 
                 // Update player movement
                 if (player && gameActive && !isPaused) {
-                    // Update player rotation (angle)
+                    // Update player rotation
                     player.rotation = angle + Math.PI / 2;
                     
                     // Set thrust based on distance from center
@@ -1668,14 +1752,25 @@
             meteors.push(new Meteor());
         }
         
-        // Check for collisions
+        // Check for collisions - improved to avoid splice issues during iteration
         function checkCollisions() {
+            // Use temporary arrays to track objects to remove
+            const projectilesToRemove = [];
+            const enemiesToRemove = [];
+            const meteorsToRemove = [];
+            const powerupsToRemove = [];
+            
             // Player projectiles vs Enemies
-            projectiles.forEach((p, pi) => {
-                // Skip enemy projectiles
-                if (p.isEnemyProjectile) return;
+            for (let pi = 0; pi < projectiles.length; pi++) {
+                const p = projectiles[pi];
+                // Skip enemy projectiles and already marked projectiles
+                if (p.isEnemyProjectile || projectilesToRemove.includes(pi)) continue;
                 
-                enemies.forEach((e, ei) => {
+                for (let ei = 0; ei < enemies.length; ei++) {
+                    const e = enemies[ei];
+                    // Skip already marked enemies
+                    if (enemiesToRemove.includes(ei)) continue;
+                    
                     const distance = Math.hypot(p.x - e.x, p.y - e.y);
                     if (distance < e.width / 2 + p.radius) {
                         // Get score from hit
@@ -1683,27 +1778,32 @@
                         
                         // If enemy is destroyed
                         if (hitScore > 0) {
-                            // Add score and remove the enemy
+                            // Add score
                             score += hitScore;
-                            enemies.splice(ei, 1);
+                            enemiesToRemove.push(ei);
                         }
                         
-                        // Remove the projectile
-                        projectiles.splice(pi, 1);
+                        // Mark projectile for removal
+                        projectilesToRemove.push(pi);
                         
                         // Update UI
                         updateUI();
-                        return;
+                        break; // Break inner loop after collision
                     }
-                });
-            });
+                }
+            }
             
             // Player projectiles vs Meteors
-            projectiles.forEach((p, pi) => {
-                // Skip enemy projectiles
-                if (p.isEnemyProjectile) return;
+            for (let pi = 0; pi < projectiles.length; pi++) {
+                const p = projectiles[pi];
+                // Skip enemy projectiles and already marked projectiles
+                if (p.isEnemyProjectile || projectilesToRemove.includes(pi)) continue;
                 
-                meteors.forEach((m, mi) => {
+                for (let mi = 0; mi < meteors.length; mi++) {
+                    const m = meteors[mi];
+                    // Skip already marked meteors
+                    if (meteorsToRemove.includes(mi)) continue;
+                    
                     const distance = Math.hypot(p.x - m.x, p.y - m.y);
                     if (distance < m.radius + p.radius) {
                         // Get score from hit
@@ -1711,86 +1811,121 @@
                         
                         // If meteor is destroyed
                         if (hitScore > 0) {
-                            // Add score and remove the meteor
+                            // Add score
                             score += hitScore;
-                            meteors.splice(mi, 1);
+                            meteorsToRemove.push(mi);
                         }
                         
-                        // Remove the projectile
-                        projectiles.splice(pi, 1);
+                        // Mark projectile for removal
+                        projectilesToRemove.push(pi);
                         
                         // Update UI
                         updateUI();
-                        return;
+                        break; // Break inner loop after collision
                     }
-                });
-            });
+                }
+            }
             
             // Player vs Enemy
             if (player) {
-                enemies.forEach((e, ei) => {
+                for (let ei = 0; ei < enemies.length; ei++) {
+                    // Skip already marked enemies
+                    if (enemiesToRemove.includes(ei)) continue;
+                    
+                    const e = enemies[ei];
                     const distance = Math.hypot(player.x - e.x, player.y - e.y);
                     if (distance < e.width / 2 + player.width / 2) {
                         // Create explosion
                         createExplosion(e.x, e.y, e.color);
                         
-                        // Remove the enemy
-                        enemies.splice(ei, 1);
+                        // Mark enemy for removal
+                        enemiesToRemove.push(ei);
                         
                         // Damage player
                         playerHit(25);
                     }
-                });
+                }
             }
             
             // Player vs Meteor
             if (player) {
-                meteors.forEach((m, mi) => {
+                for (let mi = 0; mi < meteors.length; mi++) {
+                    // Skip already marked meteors
+                    if (meteorsToRemove.includes(mi)) continue;
+                    
+                    const m = meteors[mi];
                     const distance = Math.hypot(player.x - m.x, player.y - m.y);
                     if (distance < m.radius + player.width / 2) {
                         // Create explosion
                         createExplosion(m.x, m.y, m.color);
                         
-                        // Remove the meteor
-                        meteors.splice(mi, 1);
+                        // Mark meteor for removal
+                        meteorsToRemove.push(mi);
                         
                         // Damage player (larger meteors do more damage)
                         playerHit(Math.ceil(m.radius / 2));
                     }
-                });
+                }
             }
             
             // Player vs Enemy Projectiles
             if (player) {
-                projectiles.forEach((p, pi) => {
+                for (let pi = 0; pi < projectiles.length; pi++) {
+                    // Skip already marked projectiles
+                    if (projectilesToRemove.includes(pi)) continue;
+                    
+                    const p = projectiles[pi];
                     if (p.isEnemyProjectile) {
                         const distance = Math.hypot(player.x - p.x, player.y - p.y);
                         if (distance < player.width / 2 + p.radius) {
                             // Create hit effect
                             createHitEffect(p.x, p.y, p.color);
                             
-                            // Remove the projectile
-                            projectiles.splice(pi, 1);
+                            // Mark projectile for removal
+                            projectilesToRemove.push(pi);
                             
                             // Damage player
                             playerHit(10);
                         }
                     }
-                });
+                }
             }
             
             // Player vs Powerup
             if (player) {
-                powerups.forEach((powerup, i) => {
+                for (let i = 0; i < powerups.length; i++) {
+                    const powerup = powerups[i];
                     const distance = Math.hypot(player.x - powerup.x, player.y - powerup.y);
                     if (distance < player.width / 2 + powerup.radius) {
                         // Apply powerup effect
                         powerup.collect();
                         
-                        // Remove the powerup
-                        powerups.splice(i, 1);
+                        // Mark powerup for removal
+                        powerupsToRemove.push(i);
                     }
-                });
+                }
+            }
+            
+            // Remove all marked objects in reverse order to maintain correct indices
+            projectilesToRemove.sort((a, b) => b - a);
+            enemiesToRemove.sort((a, b) => b - a);
+            meteorsToRemove.sort((a, b) => b - a);
+            powerupsToRemove.sort((a, b) => b - a);
+            
+            for (const index of projectilesToRemove) {
+                projectiles.splice(index, 1);
+            }
+            
+            for (const index of enemiesToRemove) {
+                enemies.splice(index, 1);
+            }
+            
+            for (const index of meteorsToRemove) {
+                meteors.splice(index, 1);
+            }
+            
+            for (const index of powerupsToRemove) {
+                powerups.splice(index, 1);
             }
         }
         
@@ -1918,116 +2053,176 @@
             }
         }
         
-        // Main animation loop
+        // Main animation loop - optimized to prevent freezing
         function animate() {
-            if (!gameActive) return;
-            if (isPaused) {
-                requestAnimationFrame(animate);
+            if (!gameActive) {
+                // If game is not active, cancel animation frame to save resources
+                animationFrameId = null;
                 return;
             }
             
-            // Clear canvas with slight transparency for trail effect
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw stars
-            stars.forEach(star => {
-                star.update();
-                star.draw();
-            });
-            
-            // Update player
-            if (player) {
-                player.update();
-                player.move(keys);
-                player.draw();
+            if (isPaused) {
+                // If paused, just keep requesting frames without updating
+                animationFrameId = requestAnimationFrame(animate);
+                return;
             }
             
-            // Update projectiles
-            projectiles.forEach((p, i) => {
-                p.update();
-                p.draw();
+            try {
+                // Start of frame - track performance
+                const frameStart = performance.now();
                 
-                // Remove if off screen
-                if (p.isOffScreen()) {
-                    projectiles.splice(i, 1);
-                }
-            });
-            
-            // Update enemies
-            enemies.forEach((e, i) => {
-                e.update();
-                e.draw();
+                // Clear canvas with slight transparency for trail effect
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Remove if off screen
-                if (e.isOffScreen()) {
-                    enemies.splice(i, 1);
+                // Draw stars
+                for (const star of stars) {
+                    star.update();
+                    star.draw();
                 }
-            });
-            
-            // Update meteors
-            meteors.forEach((m, i) => {
-                m.update();
-                m.draw();
                 
-                // Remove if off screen
-                if (m.isOffScreen()) {
-                    meteors.splice(i, 1);
+                // Update player
+                if (player) {
+                    player.update();
+                    player.move(keys);
+                    player.draw();
                 }
-            });
-            
-            // Update particles
-            particles.forEach((p, i) => {
-                p.update();
-                p.draw();
                 
-                // Remove dead particles
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
+                // Update projectiles - use for loop with reverse iteration to safely remove items
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const p = projectiles[i];
+                    p.update();
+                    p.draw();
+                    
+                    // Remove if off screen
+                    if (p.isOffScreen()) {
+                        projectiles.splice(i, 1);
+                    }
                 }
-            });
-            
-            // Update powerups
-            powerups.forEach((p, i) => {
-                p.update();
-                p.draw();
                 
-                // Remove if off screen
-                if (p.isOffScreen()) {
-                    powerups.splice(i, 1);
+                // Update enemies - use for loop with reverse iteration
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const e = enemies[i];
+                    e.update();
+                    e.draw();
+                    
+                    // Remove if off screen
+                    if (e.isOffScreen()) {
+                        enemies.splice(i, 1);
+                    }
                 }
-            });
-            
-            // Update powerup timers
-            updatePowerups();
-            
-            // Check collisions
-            checkCollisions();
-            
-            // Request next frame
-            requestAnimationFrame(animate);
+                
+                // Update meteors - use for loop with reverse iteration
+                for (let i = meteors.length - 1; i >= 0; i--) {
+                    const m = meteors[i];
+                    m.update();
+                    m.draw();
+                    
+                    // Remove if off screen
+                    if (m.isOffScreen()) {
+                        meteors.splice(i, 1);
+                    }
+                }
+                
+                // Update particles - use for loop with reverse iteration
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update();
+                    p.draw();
+                    
+                    // Remove dead particles
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+                
+                // Limit particles to prevent performance issues
+                if (particles.length > 300) {
+                    particles.splice(0, particles.length - 300);
+                }
+                
+                // Update powerups - use for loop with reverse iteration
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    const p = powerups[i];
+                    p.update();
+                    p.draw();
+                    
+                    // Remove if off screen
+                    if (p.isOffScreen()) {
+                        powerups.splice(i, 1);
+                    }
+                }
+                
+                // Update powerup timers
+                updatePowerups();
+                
+                // Check collisions
+                checkCollisions();
+                
+                // End of frame - check for performance issues
+                const frameTime = performance.now() - frameStart;
+                if (frameTime > 30) {
+                    // If frame took too long, reduce particles more aggressively
+                    if (particles.length > 100) {
+                        particles.splice(0, particles.length - 100);
+                    }
+                }
+                
+                // Request next frame
+                animationFrameId = requestAnimationFrame(animate);
+                
+            } catch (error) {
+                console.error('Error in animation loop:', error);
+                // Try to recover - request next frame anyway
+                animationFrameId = requestAnimationFrame(animate);
+            }
         }
         
-        // Handle keyboard input
+        // Handle keyboard input - improved with prevention of keyboard event stacking
         const keys = {};
+        let keyboardHandlersAttached = false;
         
-        window.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
+        function setupKeyboardHandlers() {
+            if (keyboardHandlersAttached) return;
             
-            // Shoot on space or Enter
-            if ((e.key === ' ' || e.key === 'Enter') && player && gameActive && !isPaused) {
-                player.shoot();
-            }
+            window.addEventListener('keydown', (e) => {
+                // Prevent event stacking for auto-repeat
+                if (e.repeat) return;
+                
+                keys[e.key] = true;
+                
+                // Shoot on space or Enter
+                if ((e.key === ' ' || e.key === 'Enter') && player && gameActive && !isPaused) {
+                    player.shoot();
+                }
+                
+                // Pause on Escape or P
+                if ((e.key === 'Escape' || e.key === 'p') && gameActive) {
+                    togglePause();
+                }
+            });
             
-            // Pause on Escape or P
-            if ((e.key === 'Escape' || e.key === 'p') && gameActive) {
-                togglePause();
-            }
-        });
+            window.addEventListener('keyup', (e) => {
+                keys[e.key] = false;
+            });
+            
+            window.addEventListener('blur', () => {
+                // Clear all keys when window loses focus
+                for (const key in keys) {
+                    keys[key] = false;
+                }
+                
+                // Auto-pause when tab loses focus
+                if (gameActive && !isPaused) {
+                    togglePause();
+                }
+            });
+            
+            keyboardHandlersAttached = true;
+        }
         
-        window.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-        });
+        // Initialize keyboard handlers
+        setupKeyboardHandlers();
         
         // Handle pause functionality
         function togglePause() {
