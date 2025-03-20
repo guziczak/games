@@ -223,11 +223,11 @@ document.addEventListener('DOMContentLoaded', function() {
             lastPipeTime = timestamp;
         }
         
-        if (timestamp - lastCoinTime > coinInterval) {
-            createCoin();
-            lastCoinTime = timestamp;
-        }
-        
+if (timestamp - lastCoinTime > coinInterval) {
+    createCoin();
+    lastCoinTime = timestamp;
+}
+
 pipes.forEach((pipe, index) => {
     pipe.x -= currentPipeSpeed * deltaTime;
     
@@ -249,3 +249,637 @@ pipes.forEach((pipe, index) => {
     }
 });
 
+for (let i = coins.length - 1; i >= 0; i--) {
+    let coin = coins[i];
+    coin.x -= currentPipeSpeed * deltaTime;
+    if (coin.element) {
+        coin.element.style.left = coin.x + 'px';
+        
+        if (!coin.collected && checkCoinCollision(coin)) {
+            collectCoin(coin);
+            updateFrogModeButton();
+            updateGhostModeButton();
+        }
+        
+        if (coin.x + 30 < 0 || coin.collected) {
+            if (coin.removeTime && timestamp > coin.removeTime) {
+                if (coin.element.parentNode) gameArea.removeChild(coin.element);
+                coins.splice(i, 1);
+            }
+        }
+    }
+}
+
+if (checkCollision()) {
+    endGame();
+    return;
+}
+
+animationId = requestAnimationFrame(update);
+}
+
+function createPipe() {
+    const gameAreaHeight = gameArea.clientHeight;
+    const groundHeight = ground.clientHeight;
+    const maxPipeHeight = gameAreaHeight - groundHeight - pipeGap - 80;
+    const minHeight = 50;
+
+    if (maxPipeHeight < minHeight) {
+        console.error("Nie można utworzyć rur: niewystarczająca wysokość.");
+        return;
+    }
+
+    const randomHeight = Math.floor(Math.random() * (maxPipeHeight - minHeight)) + minHeight;
+    
+    const upPipe = document.createElement('div');
+    if (!upPipe) {
+        console.error("Nie udało się utworzyć górnej rury.");
+        return;
+    }
+    upPipe.className = 'pipe pipeUp';
+    upPipe.style.height = gameAreaHeight - randomHeight - groundHeight - pipeGap + 'px';
+    upPipe.style.left = gameArea.clientWidth + 'px';
+    
+    const downPipe = document.createElement('div');
+    if (!downPipe) {
+        console.error("Nie udało się utworzyć dolnej rury.");
+        return;
+    }
+    downPipe.className = 'pipe pipeDown';
+    downPipe.style.height = randomHeight + 'px';
+    downPipe.style.left = gameArea.clientWidth + 'px';
+    
+    gameArea.appendChild(upPipe);
+    gameArea.appendChild(downPipe);
+    
+    pipes.push({
+        x: gameArea.clientWidth,
+        upPipe: upPipe,
+        downPipe: downPipe,
+        passed: false
+    });
+}
+
+function createCoin() {
+    const gameAreaHeight = gameArea.clientHeight;
+    const groundHeight = ground.clientHeight;
+    const safeArea = gameAreaHeight - groundHeight - 60;
+    const minHeight = 80;
+    const maxHeight = safeArea - 80;
+
+    if (maxHeight < minHeight) {
+        console.error("Nie można utworzyć monety: niewystarczająca wysokość.");
+        return;
+    }
+
+    const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+    const randomX = gameArea.clientWidth + Math.floor(Math.random() * 100); // Zawsze poza ekranem
+    
+    const coin = document.createElement('div');
+    if (!coin) {
+        console.error("Nie udało się utworzyć monety.");
+        return;
+    }
+    
+    // Losowo tworzymy fioletową monetę
+    const isPurpleCoin = Math.random() < purpleCoinChance;
+    
+    if (isPurpleCoin) {
+        coin.className = 'coin purpleCoin';
+    } else {
+        coin.className = 'coin';
+    }
+    
+    coin.style.left = randomX + 'px';
+    coin.style.top = randomY + 'px';
+    
+    gameArea.appendChild(coin);
+    
+    coins.push({
+        x: randomX,
+        y: randomY,
+        element: coin,
+        collected: false,
+        removeTime: null
+    });
+}
+
+function checkCollision() {
+    const birdRect = bird.getBoundingClientRect();
+    const gameAreaRect = gameArea.getBoundingClientRect();
+    const groundRect = ground.getBoundingClientRect();
+    
+    // Jeśli jest nieśmiertelny dzięki trybowi froga, pozwól na przenikanie przez wszystko
+    if (invincible) {
+        // Tylko nie pozwól wylecieć poza ekran gry
+        if (birdRect.bottom >= groundRect.top) {
+            // Ustaw pozycję tuż nad ziemią ale nie resetuj velocity do 0
+            // dzięki czemu kurczak będzie mógł nadal skakać
+            birdPosition = groundRect.top - birdRect.height;
+            bird.style.top = birdPosition + 'px';
+            // Nie ustawiamy velocity = 0, pozwalając na dalsze skoki
+        } else if (birdRect.top <= gameAreaRect.top) {
+            birdPosition = gameAreaRect.top + 5; // Trochę luzu od górnej krawędzi
+            bird.style.top = birdPosition + 'px';
+            velocity = 1; // Delikatny spadek w dół
+        }
+        return false; // Brak kolizji w trybie nieśmiertelności
+    }
+    
+    // Standardowe sprawdzanie kolizji z górą i dołem ekranu
+    if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+        return true;
+    }
+    
+    // W trybie żaby, jeśli dotyka góry rury, przyklej się
+    if (frogModeActive) {
+        for (let pipe of pipes) {
+            if (!pipe.upPipe || !pipe.downPipe) continue;
+
+            const upPipeRect = pipe.upPipe.getBoundingClientRect();
+            const downPipeRect = pipe.downPipe.getBoundingClientRect();
+            
+            // Krokodyl może przyczepić się do górnej części rury
+            if (
+                birdRect.right >= upPipeRect.left && 
+                birdRect.left <= upPipeRect.right && 
+                birdRect.bottom >= upPipeRect.top && 
+                birdRect.bottom <= upPipeRect.top + 20 // tylko górna część rury
+            ) {
+                // Ustaw pozycję na górze rury
+                birdPosition = upPipeRect.top - birdRect.height / 2;
+                bird.style.top = birdPosition + 'px';
+                velocity = 0; // Zatrzymaj spadanie
+                return false; // Nie ma kolizji
+            }
+            
+            // Zwykłe kolizje
+            if (
+                birdRect.right >= upPipeRect.left && 
+                birdRect.left <= upPipeRect.right && 
+                birdRect.bottom >= upPipeRect.top + 20
+            ) {
+                return true;
+            }
+            
+            if (
+                birdRect.right >= downPipeRect.left && 
+                birdRect.left <= downPipeRect.right && 
+                birdRect.top <= downPipeRect.bottom
+            ) {
+                return true;
+            }
+        }
+    } else if (ghostModeActive) {
+        // W trybie ducha nie ma kolizji z rurami
+        return false;
+    } else {
+        // Normalne sprawdzanie kolizji
+        for (let pipe of pipes) {
+            if (!pipe.upPipe || !pipe.downPipe) continue;
+
+            const upPipeRect = pipe.upPipe.getBoundingClientRect();
+            const downPipeRect = pipe.downPipe.getBoundingClientRect();
+            
+            if (
+                birdRect.right >= upPipeRect.left && 
+                birdRect.left <= upPipeRect.right && 
+                birdRect.bottom >= upPipeRect.top
+            ) {
+                return true;
+            }
+            
+            if (
+                birdRect.right >= downPipeRect.left && 
+                birdRect.left <= downPipeRect.right && 
+                birdRect.top <= downPipeRect.bottom
+            ) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+function checkCoinCollision(coin) {
+    const birdRect = bird.getBoundingClientRect();
+    const coinRect = coin.element.getBoundingClientRect();
+    
+    return (
+        birdRect.right >= coinRect.left &&
+        birdRect.left <= coinRect.right &&
+        birdRect.bottom >= coinRect.top &&
+        birdRect.top <= coinRect.bottom
+    );
+}
+
+function collectCoin(coin) {
+    coin.collected = true;
+    coin.element.classList.add('coinCollected');
+    coin.removeTime = performance.now() + 300;
+    
+    // Sprawdź czy to fioletowa moneta
+    const isPurpleCoin = coin.element.classList.contains('purpleCoin');
+    
+    if (isPurpleCoin) {
+        purpleCoinScore += purpleCoinValue;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        purpleCoinCount++;
+        
+        playSound('purpleCoin');
+        
+        const coinPop = document.createElement('div');
+        if (!coinPop) {
+            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+            return;
+        }
+        coinPop.className = 'coinPop purpleCoinPop';
+        coinPop.textContent = `+${purpleCoinValue}`;
+        coinPop.style.left = coin.x + 'px';
+        coinPop.style.top = coin.y + 'px';
+        gameArea.appendChild(coinPop);
+        
+        setTimeout(() => {
+            if (coinPop && coinPop.parentNode) {
+                gameArea.removeChild(coinPop);
+            }
+        }, 1200);
+    } else {
+        coinScore += coinValue;
+        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+        normalCoinCount++;
+        
+        playSound('coin');
+        
+        const coinPop = document.createElement('div');
+        if (!coinPop) {
+            console.error("Nie udało się utworzyć efektu wizualnego dla monety.");
+            return;
+        }
+        coinPop.className = 'coinPop';
+        coinPop.textContent = `+${coinValue}`;
+        coinPop.style.left = coin.x + 'px';
+        coinPop.style.top = coin.y + 'px';
+        gameArea.appendChild(coinPop);
+        
+        setTimeout(() => {
+            if (coinPop && coinPop.parentNode) {
+                gameArea.removeChild(coinPop);
+            }
+        }, 1000);
+    }
+}
+
+function makeJump() {
+    if (gameRunning) {
+        velocity = jump;
+        playSound('jump');
+    }
+}
+
+// Funkcje TRYB FROGA
+function activateFrogMode(event) {
+    if (event) {
+        event.preventDefault(); // Zapobiega propagacji zdarzeń dotyku
+        event.stopPropagation();
+    }
+    
+    if (!gameRunning || frogModeActive || frogModeCooldown > 0) return;
+    
+    // Sprawdź czy gracz ma wystarczającą ilość monet
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    
+    if (normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost) {
+        // Odejmij koszt
+        coinScore -= normalFrogModeCost * coinValue;
+        purpleCoinScore -= purpleFrogModeCost * purpleCoinValue;
+        
+        // Aktualizuj wyświetlanie monet
+        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        
+        // Aktywuj TRYB FROGA
+        frogModeActive = true;
+        frogModeTime = frogModeDuration;
+        gameArea.classList.add('frog-mode-active');
+        frogModeTimer.style.display = 'block';
+        frogModeTimer.textContent = `TRYB FROGA: ${frogModeDuration}s`;
+        frogModeButton.disabled = true;
+        
+        // Zmień parametry gry i dodaj nieśmiertelność
+        jump = frogJump;
+        gravity = frogGravity;
+        invincible = true; // Włącz nieśmiertelność
+        currentPipeSpeed = pipeSpeed * frogSpeedMultiplier; // Podwójna prędkość w trybie żaby
+        
+        // Efekt dźwiękowy
+        playSound('frogMode');
+        
+        // Pokaż efekt aktywacji
+        const frogActivation = document.createElement('div');
+        frogActivation.className = 'coinPop purpleCoinPop';
+        frogActivation.textContent = 'TRYB FROGA!\nNIEŚMIERTELNOŚĆ!';
+        frogActivation.style.left = '50%';
+        frogActivation.style.top = '50%';
+        frogActivation.style.transform = 'translate(-50%, -50%) scale(2)';
+        frogActivation.style.whiteSpace = 'pre';
+        frogActivation.style.textAlign = 'center';
+        gameArea.appendChild(frogActivation);
+        
+        setTimeout(() => {
+            if (frogActivation && frogActivation.parentNode) {
+                gameArea.removeChild(frogActivation);
+            }
+        }, 1500);
+    }
+}
+
+function deactivateFrogMode() {
+    if (!frogModeActive) return;
+    
+    frogModeActive = false;
+    frogModeTime = 0;
+    gameArea.classList.remove('frog-mode-active');
+    frogModeTimer.style.display = 'none';
+    
+    // Przywróć normalne parametry
+    jump = normalJump;
+    gravity = normalGravity;
+    invincible = false; // Wyłącz nieśmiertelność
+    currentPipeSpeed = pipeSpeed; // Normalna prędkość
+    
+    // Usuń rurki wokół kurczaka, aby dać graczowi czas na reakcję
+    // po zakończeniu nieśmiertelności
+    const birdRect = bird.getBoundingClientRect();
+    let pipesToRemoveIndices = [];
+    let pipesBeforeCount = 0;
+    let pipesAfterCount = 0;
+    
+    // Znajdź indeksy 2 rurek przed i 1 za kurczakiem
+    for (let i = 0; i < pipes.length; i++) {
+        if (!pipes[i].upPipe) continue;
+        
+        const pipeRect = pipes[i].upPipe.getBoundingClientRect();
+        
+        if (pipeRect.left > birdRect.right) {
+            // Rury przed kurczakiem (na prawo od niego)
+            if (pipesBeforeCount < 2) {
+                pipesToRemoveIndices.push(i);
+                pipesBeforeCount++;
+            }
+        } else if (pipeRect.right < birdRect.left) {
+            // Rury za kurczakiem (na lewo od niego)
+            if (pipesAfterCount < 1 && pipeRect.right > birdRect.left - 300) {
+                // Tylko jeśli rura jest blisko (w odległości 300px)
+                pipesToRemoveIndices.push(i);
+                pipesAfterCount++;
+            }
+        }
+    }
+    
+    // Usuń rury w kolejności malejącej, aby indeksy się nie zmieniały podczas usuwania
+    pipesToRemoveIndices.sort((a, b) => b - a);
+    
+    // Pokaż efekt usuwania rurek
+    for (let index of pipesToRemoveIndices) {
+        if (index >= 0 && index < pipes.length) {
+            const pipe = pipes[index];
+            if (pipe.upPipe) {
+                // Animacja usuwania rury
+                pipe.upPipe.style.transition = 'opacity 0.5s';
+                pipe.upPipe.style.opacity = '0';
+                pipe.downPipe.style.transition = 'opacity 0.5s';
+                pipe.downPipe.style.opacity = '0';
+                
+                // Usuń po zakończeniu animacji
+                setTimeout(() => {
+                    if (pipe.upPipe && pipe.upPipe.parentNode) {
+                        gameArea.removeChild(pipe.upPipe);
+                    }
+                    if (pipe.downPipe && pipe.downPipe.parentNode) {
+                        gameArea.removeChild(pipe.downPipe);
+                    }
+                }, 500);
+            }
+            // Usuń z tablicy pipes
+            pipes.splice(index, 1);
+        }
+    }
+    
+    // Pokaż komunikat o końcu trybu żaby
+    const endModeMsg = document.createElement('div');
+    endModeMsg.className = 'coinPop';
+    endModeMsg.textContent = 'Koniec trybu froga!';
+    endModeMsg.style.left = '50%';
+    endModeMsg.style.top = '50%';
+    endModeMsg.style.transform = 'translate(-50%, -50%)';
+    endModeMsg.style.color = 'red';
+    endModeMsg.style.fontSize = '24px';
+    gameArea.appendChild(endModeMsg);
+    
+    setTimeout(() => {
+        if (endModeMsg.parentNode) {
+            gameArea.removeChild(endModeMsg);
+        }
+    }, 1500);
+    
+    // Ustaw cooldown
+    frogModeCooldown = frogModeCooldownTime;
+    frogModeButton.disabled = true;
+    
+    setTimeout(() => {
+        updateFrogModeButton();
+    }, 500);
+}
+
+function updateFrogModeButton() {
+    if (!gameRunning) return;
+    
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    const hasEnoughCoins = normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost;
+    
+    if (frogModeActive) {
+        frogModeButton.disabled = true;
+        frogModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
+    } else if (frogModeCooldown > 0) {
+        frogModeButton.disabled = true;
+        frogModeButton.querySelector('.mode-button-cost').textContent = `${Math.ceil(frogModeCooldown)}s`;
+    } else if (hasEnoughCoins) {
+        frogModeButton.disabled = false;
+        frogModeButton.querySelector('.mode-button-cost').textContent = `${normalFrogModeCost}🟡 ${purpleFrogModeCost}🟣`;
+    } else {
+        frogModeButton.disabled = true;
+        frogModeButton.querySelector('.mode-button-cost').textContent = `${normalFrogModeCost}🟡 ${purpleFrogModeCost}🟣`;
+    }
+}
+
+// Funkcje TRYB DUCHA
+function activateGhostMode(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    if (!gameRunning || ghostModeActive || ghostModeCooldown > 0) return;
+    
+    // Sprawdź czy gracz ma wystarczającą ilość monet
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    
+    if (normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost) {
+        // Odejmij koszt
+        coinScore -= normalGhostModeCost * coinValue;
+        purpleCoinScore -= purpleGhostModeCost * purpleCoinValue;
+        
+        // Aktualizuj wyświetlanie monet
+        bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
+        purpleCoinScoreElement.textContent = `Super monety: ${purpleCoinScore / purpleCoinValue}`;
+        
+        // Aktywuj TRYB DUCHA
+        ghostModeActive = true;
+        ghostModeTime = ghostModeDuration;
+        gameArea.classList.add('ghost-mode-active');
+        ghostModeTimer.style.display = 'block';
+        ghostModeTimer.textContent = `TRYB DUCHA: ${ghostModeDuration}s`;
+        ghostModeButton.disabled = true;
+        
+        // Włącz tryb ducha
+        ghostMode = true;
+        
+        // Efekt dźwiękowy
+        playSound('ghostMode');
+        
+        // Pokaż efekt aktywacji
+        const ghostActivation = document.createElement('div');
+        ghostActivation.className = 'coinPop purpleCoinPop';
+        ghostActivation.style.color = '#7B68EE';
+        ghostActivation.textContent = 'TRYB DUCHA!\nPRZENIKANIE PRZEZ RURY!';
+        ghostActivation.style.left = '50%';
+        ghostActivation.style.top = '50%';
+        ghostActivation.style.transform = 'translate(-50%, -50%) scale(2)';
+        ghostActivation.style.whiteSpace = 'pre';
+        ghostActivation.style.textAlign = 'center';
+        gameArea.appendChild(ghostActivation);
+        
+        setTimeout(() => {
+            if (ghostActivation && ghostActivation.parentNode) {
+                gameArea.removeChild(ghostActivation);
+            }
+        }, 1500);
+    }
+}
+
+function deactivateGhostMode() {
+    if (!ghostModeActive) return;
+    
+    ghostModeActive = false;
+    ghostModeTime = 0;
+    gameArea.classList.remove('ghost-mode-active');
+    ghostModeTimer.style.display = 'none';
+    ghostMode = false;
+    
+    // Pokaż komunikat o końcu trybu ducha
+    const endModeMsg = document.createElement('div');
+    endModeMsg.className = 'coinPop';
+    endModeMsg.textContent = 'Koniec trybu ducha!';
+    endModeMsg.style.left = '50%';
+    endModeMsg.style.top = '50%';
+    endModeMsg.style.transform = 'translate(-50%, -50%)';
+    endModeMsg.style.color = '#7B68EE';
+    endModeMsg.style.fontSize = '24px';
+    gameArea.appendChild(endModeMsg);
+    
+    setTimeout(() => {
+        if (endModeMsg.parentNode) {
+            gameArea.removeChild(endModeMsg);
+        }
+    }, 1500);
+    
+    // Ustaw cooldown
+    ghostModeCooldown = ghostModeCooldownTime;
+    ghostModeButton.disabled = true;
+    
+    setTimeout(() => {
+        updateGhostModeButton();
+    }, 500);
+}
+
+function updateGhostModeButton() {
+    if (!gameRunning) return;
+    
+    const normalCoins = coinScore / coinValue;
+    const purpleCoins = purpleCoinScore / purpleCoinValue;
+    const hasEnoughCoins = normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost;
+    
+    if (ghostModeActive) {
+        ghostModeButton.disabled = true;
+        ghostModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
+    } else if (ghostModeCooldown > 0) {
+        ghostModeButton.disabled = true;
+        ghostModeButton.querySelector('.mode-button-cost').textContent = `${Math.ceil(ghostModeCooldown)}s`;
+    } else if (hasEnoughCoins) {
+        ghostModeButton.disabled = false;
+        ghostModeButton.querySelector('.mode-button-cost').textContent = `${normalGhostModeCost}🟡 ${purpleGhostModeCost}🟣`;
+    } else {
+        ghostModeButton.disabled = true;
+        ghostModeButton.querySelector('.mode-button-cost').textContent = `${normalGhostModeCost}🟡 ${purpleGhostModeCost}🟣`;
+    }
+}
+
+startButton.addEventListener('click', startGame);
+restartButton.addEventListener('click', startGame);
+
+// Dodajemy obsługę dotykowego ekranu dla przycisków trybów specjalnych
+frogModeButton.addEventListener('click', activateFrogMode);
+frogModeButton.addEventListener('touchstart', activateFrogMode, { passive: false });
+
+ghostModeButton.addEventListener('click', activateGhostMode);
+ghostModeButton.addEventListener('touchstart', activateGhostMode, { passive: false });
+
+gameArea.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    if (gameRunning) {
+        makeJump();
+    }
+});
+
+document.addEventListener('keydown', function(event) {
+    if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
+        event.preventDefault();
+        makeJump();
+    }
+});
+
+gameArea.addEventListener('click', function(event) {
+    if (gameRunning) {
+        makeJump();
+    }
+});
+
+document.addEventListener('touchmove', function(event) {
+    event.preventDefault();
+}, { passive: false });
+
+window.addEventListener('resize', function() {
+    if (gameRunning) {
+        bird.style.left = birdHorizontalPosition + '%';
+    }
+});
+
+startScreen.addEventListener('touchstart', function(event) {
+    event.preventDefault();
+    startGame();
+});
+
+function delayedStart() {
+    setTimeout(function() {
+        startGame();
+    }, 100);
+}
+
+startButton.addEventListener('click', delayedStart);
+restartButton.addEventListener('click', delayedStart);
+});
