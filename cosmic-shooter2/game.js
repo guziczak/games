@@ -37,20 +37,13 @@ class Player {
         this.thrustParticleTimer = 0;
     }
     
+    // MODIFIED METHOD: Removed thrust effect completely
     draw() {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
         
-        // Engine glow (varies with thrust)
-        this.engineLight = (this.engineLight + 0.1) % 1;
-        const glowSize = 10 + Math.sin(this.engineLight * Math.PI * 2) * 5;
-        ctx.fillStyle = `rgba(100, 200, 255, ${0.2 + Math.sin(this.engineLight * Math.PI * 2) * 0.2})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, 30, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw the ship body
+        // Only a simple triangle with no thrust effects
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.moveTo(0, -this.height/2);
@@ -59,18 +52,7 @@ class Player {
         ctx.closePath();
         ctx.fill();
         
-        // Draw the engine flame
-        if (this.thrust > 0) {
-            ctx.fillStyle = `rgba(255, ${100 + Math.random() * 155}, 0, ${0.7 + Math.random() * 0.3})`;
-            ctx.beginPath();
-            ctx.moveTo(-this.width/4, this.height/2);
-            ctx.lineTo(0, this.height/2 + 10 + Math.random() * 10);
-            ctx.lineTo(this.width/4, this.height/2);
-            ctx.closePath();
-            ctx.fill();
-        }
-        
-        // Shield effect if active
+        // Shield is still needed for powerup display
         if (shield > 0) {
             ctx.strokeStyle = `rgba(100, 150, 255, ${0.5 + Math.sin(Date.now() * 0.005) * 0.5})`;
             ctx.lineWidth = 3;
@@ -82,16 +64,12 @@ class Player {
         ctx.restore();
     }
     
+    // MODIFIED METHOD: Removed thrust particles
     update() {
         // Update cooldown
         if (this.shootCooldown > 0) this.shootCooldown--;
         
-        // Add engine particles when thrusting
-        this.thrustParticleTimer--;
-        if (this.thrust > 0 && this.thrustParticleTimer <= 0) {
-            this.createThrustParticles();
-            this.thrustParticleTimer = 2;
-        }
+        // Completely disabled thrust particles
     }
     
     createThrustParticles() {
@@ -157,37 +135,37 @@ class Player {
         }
     }
     
-move(keys) {
-    // Movement speed (boosted if speed powerup is active)
-    const moveSpeed = activePowerups.speed > 0 ? this.speed * 1.5 : this.speed;
-    
-    // Reset thrust
-    this.thrust = 0;
-    
-    // Keyboard controls always active on all devices
-    if (keys.ArrowUp || keys.w) {
-        this.thrust = 1;
-        // Move forward in the direction of rotation
-        this.x += Math.sin(this.rotation) * moveSpeed;
-        this.y -= Math.cos(this.rotation) * moveSpeed;
+    move(keys) {
+        // Movement speed (boosted if speed powerup is active)
+        const moveSpeed = activePowerups.speed > 0 ? this.speed * 1.5 : this.speed;
+        
+        // Reset thrust
+        this.thrust = 0;
+        
+        // Keyboard controls always active on all devices
+        if (keys.ArrowUp || keys.w) {
+            this.thrust = 1;
+            // Move forward in the direction of rotation
+            this.x += Math.sin(this.rotation) * moveSpeed;
+            this.y -= Math.cos(this.rotation) * moveSpeed;
+        }
+        if (keys.ArrowDown || keys.s) {
+            this.thrust = 0.5;
+            // Move backward
+            this.x -= Math.sin(this.rotation) * moveSpeed * 0.5;
+            this.y += Math.cos(this.rotation) * moveSpeed * 0.5;
+        }
+        if (keys.ArrowLeft || keys.a) {
+            this.rotation -= 0.05;
+        }
+        if (keys.ArrowRight || keys.d) {
+            this.rotation += 0.05;
+        }
+        
+        // Keep player on screen
+        this.x = Math.max(this.width/2, Math.min(this.x, canvas.width - this.width/2));
+        this.y = Math.max(this.height/2, Math.min(this.y, canvas.height - this.height/2));
     }
-    if (keys.ArrowDown || keys.s) {
-        this.thrust = 0.5;
-        // Move backward
-        this.x -= Math.sin(this.rotation) * moveSpeed * 0.5;
-        this.y += Math.cos(this.rotation) * moveSpeed * 0.5;
-    }
-    if (keys.ArrowLeft || keys.a) {
-        this.rotation -= 0.05;
-    }
-    if (keys.ArrowRight || keys.d) {
-        this.rotation += 0.05;
-    }
-    
-    // Keep player on screen
-    this.x = Math.max(this.width/2, Math.min(this.x, canvas.width - this.width/2));
-    this.y = Math.max(this.height/2, Math.min(this.y, canvas.height - this.height/2));
-}
 }
 
 // Enhanced projectile with particle trail
@@ -1098,16 +1076,14 @@ function checkLevelAdvance() {
     }
 }
 
-// Advanced touch controls for canvas
+// MODIFIED FUNCTION: Improved touch controls with fixed joystick movement
 function setupTouchControls() {
     const canvas = document.getElementById('gameCanvas');
     const joystick = document.getElementById('joystick');
     const joystickKnob = document.getElementById('joystickKnob');
-    const fireButton = document.getElementById('fireButton');
     
-    // Hide fixed controls by default
+    // Hide controls
     joystick.style.display = 'none';
-    fireButton.style.display = 'none';
     
     // Touch variables
     let activeTouches = [];
@@ -1117,11 +1093,15 @@ function setupTouchControls() {
     const maxDistance = 70;
     let lastShootTime = 0;
     
+    // Variables for tap detection
+    const tapThreshold = 200; // Time in ms after which a touch is no longer considered a tap
+    const moveThreshold = 10; // Maximum distance in px that a finger can move to still be considered a tap
+    
     // Touch event handlers for canvas
-    canvas.addEventListener('touchstart', handleTouchStart, false);
-    canvas.addEventListener('touchmove', handleTouchMove, false);
-    canvas.addEventListener('touchend', handleTouchEnd, false);
-    canvas.addEventListener('touchcancel', handleTouchEnd, false);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
     
     // Handle keyboard as normal
     window.addEventListener('keydown', (e) => {
@@ -1151,19 +1131,22 @@ function setupTouchControls() {
         newTouches.forEach(touch => {
             const touchIndex = activeTouches.findIndex(t => t.identifier === touch.identifier);
             
-            // If it's a new touch
+            // If this is a new touch
             if (touchIndex === -1) {
                 const rect = canvas.getBoundingClientRect();
                 const touchX = touch.clientX - rect.left;
                 const touchY = touch.clientY - rect.top;
                 
-                // If this is the first touch or no joystick exists yet, create the joystick
+                // If there's no active joystick or this is the first touch
                 if (!joystickActive) {
+                    // Record touch time for tap detection
+                    const touchStartTime = Date.now();
+                    
                     joystickActive = true;
                     joystickID = touch.identifier;
                     joystickOrigin = { x: touchX, y: touchY };
                     
-                    // Show and position the joystick at touch position
+                    // Show and position joystick at touch location
                     joystick.style.display = 'block';
                     joystick.style.left = (touch.clientX - 75) + 'px';
                     joystick.style.top = (touch.clientY - 75) + 'px';
@@ -1175,11 +1158,13 @@ function setupTouchControls() {
                         startX: touchX,
                         startY: touchY,
                         currentX: touchX,
-                        currentY: touchY
+                        currentY: touchY,
+                        startTime: touchStartTime,
+                        moved: false
                     });
                 } else {
-                    // If joystick already exists, this is a fire touch
-                    if (Date.now() - lastShootTime > 200) { // Prevent too rapid fire
+                    // If joystick already exists, this is a shot
+                    if (Date.now() - lastShootTime > 200) { // Prevent shooting too quickly
                         player.shoot();
                         lastShootTime = Date.now();
                     }
@@ -1210,6 +1195,14 @@ function setupTouchControls() {
                 const touchX = touch.clientX - rect.left;
                 const touchY = touch.clientY - rect.top;
                 
+                // Calculate move distance
+                const moveDistance = Math.hypot(touchX - activeTouch.startX, touchY - activeTouch.startY);
+                
+                // If touch has moved more than threshold, mark as moved not a tap
+                if (moveDistance > moveThreshold) {
+                    activeTouch.moved = true;
+                }
+                
                 activeTouch.currentX = touchX;
                 activeTouch.currentY = touchY;
                 
@@ -1229,23 +1222,29 @@ function setupTouchControls() {
             if (touchIndex !== -1) {
                 const removedTouch = activeTouches.splice(touchIndex, 1)[0];
                 
+                // Check if this was a tap (short touch without movement)
+                if (removedTouch.type === 'joystick' && !removedTouch.moved && 
+                    (Date.now() - removedTouch.startTime < tapThreshold)) {
+                    // This was a tap - fire!
+                    if (player && Date.now() - lastShootTime > 200) {
+                        player.shoot();
+                        lastShootTime = Date.now();
+                    }
+                }
+                
                 if (removedTouch.type === 'joystick' && touch.identifier === joystickID) {
                     // Hide joystick
                     joystick.style.display = 'none';
                     joystickActive = false;
                     joystickID = null;
-                    
-                    // Reset player thrust
-                    if (player) {
-                        player.thrust = 0;
-                    }
                 }
             }
         });
     }
     
+    // MODIFIED FUNCTION: Fixed joystick movement by using consistent angle mathematics
     function updateJoystickPosition(touchX, touchY) {
-        // Calculate distance from joystick origin
+        // Calculate distance from joystick center
         let dx = touchX - joystickOrigin.x;
         let dy = touchY - joystickOrigin.y;
         
@@ -1255,28 +1254,36 @@ function setupTouchControls() {
         // Calculate distance
         let distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Limit distance to max
+        // Limit distance to maximum
         if (distance > maxDistance) {
             dx = Math.cos(angle) * maxDistance;
             dy = Math.sin(angle) * maxDistance;
             distance = maxDistance;
         }
         
-        // Update knob position within joystick
+        // Update joystick knob position
         joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         
         // Update player movement
         if (player && gameActive && !isPaused) {
-            // Update player rotation (angle)
+            // Update player rotation
             player.rotation = angle + Math.PI/2;
             
-            // Set thrust based on distance from center
-            player.thrust = distance / maxDistance;
-            
-            // Move player in the direction of the joystick
-            const moveSpeed = player.speed * (activePowerups.speed > 0 ? 1.5 : 1);
-            player.x += Math.cos(angle) * moveSpeed * player.thrust;
-            player.y += Math.sin(angle) * moveSpeed * player.thrust;
+            // Use requestAnimationFrame for smoother movement
+            window.requestAnimationFrame(() => {
+                if (player && gameActive && !isPaused) {
+                    const moveSpeed = player.speed * (activePowerups.speed > 0 ? 1.5 : 1);
+                    
+                    // Fix: Apply movement using the same logic as keyboard controls
+                    // Move forward in the direction of rotation
+                    player.x += Math.sin(player.rotation) * moveSpeed * (distance / maxDistance);
+                    player.y -= Math.cos(player.rotation) * moveSpeed * (distance / maxDistance);
+                    
+                    // Limit player position to screen
+                    player.x = Math.max(player.width/2, Math.min(player.x, canvas.width - player.width/2));
+                    player.y = Math.max(player.height/2, Math.min(player.y, canvas.height - player.height/2));
+                }
+            });
         }
     }
 }
@@ -1722,7 +1729,6 @@ document.getElementById('quitButton').addEventListener('click', () => {
     clearInterval(levelCheckInterval);
 });
 
-// Usuń przycisk toggle kontrolek i nie umieszczaj go w kodzie
 // Start button click handler
 document.getElementById('startButton').addEventListener('click', () => {
     document.getElementById('startScreen').style.display = 'none';
