@@ -183,15 +183,16 @@ button:hover {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
 
+/* Ulepszenie przycisków trybów */
 #frogModeButton, #ghostModeButton, #storkModeButton {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     right: 20px;
     padding: 0;
     font-size: 14px;
     border: none;
-    border-radius: 10px;
+    border-radius: 15px;
     cursor: pointer;
     z-index: 10;
     display: none;
@@ -204,28 +205,33 @@ button:hover {
     justify-content: center;
 }
 
+/* Wyśrodkowanie przycisków po prawej stronie */
 #frogModeButton {
-    bottom: 150px;
+    bottom: 50%;
+    margin-bottom: -110px;
     background-color: #3CB371;
     color: white;
 }
 
 #ghostModeButton {
-    bottom: 90px;
+    bottom: 50%;
+    margin-bottom: -30px;
     background-color: #7B68EE;
     color: white;
 }
 
 #storkModeButton {
-    bottom: 210px;
+    bottom: 50%;
+    margin-bottom: -190px;
     background-color: #FF4500;
     color: white;
 }
 
+/* Większe ikony SVG */
 .mode-button-icon {
-    width: 30px;
-    height: 30px;
-    margin-bottom: 2px;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 5px;
 }
 
 .mode-button-cost {
@@ -255,10 +261,12 @@ button:hover {
     opacity: 0.7;
 }
 
+/* Dostosowanie timerów */
 #frogModeTimer {
     position: absolute;
-    bottom: 210px;
-    right: 20px;
+    bottom: 50%;
+    margin-bottom: -130px;
+    right: 100px;
     font-size: 18px;
     font-weight: bold;
     color: #3CB371;
@@ -269,8 +277,9 @@ button:hover {
 
 #ghostModeTimer {
     position: absolute;
-    bottom: 150px;
-    right: 20px;
+    bottom: 50%;
+    margin-bottom: -50px;
+    right: 100px;
     font-size: 18px;
     font-weight: bold;
     color: #7B68EE;
@@ -281,8 +290,9 @@ button:hover {
 
 #storkModeTimer {
     position: absolute;
-    bottom: 270px;
-    right: 20px;
+    bottom: 50%;
+    margin-bottom: -210px;
+    right: 100px;
     font-size: 18px;
     font-weight: bold;
     color: #FF4500;
@@ -339,76 +349,111 @@ button:hover {
     100% { box-shadow: 0 0 20px 5px #FF4500; }
 }
 
-/* Style dla wroga - bociana */
+/* Style dla bociana */
 .stork {
     position: absolute;
-    width: 70px;
-    height: 80px;
+    width: 80px;
+    height: 90px;
     background-color: white;
-    border-radius: 40% 40% 20% 20%;
+    border-radius: 50% 50% 30% 30%;
     z-index: 1;
     box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+    transform: scaleX(-1); /* Odwrócenie bociana w przeciwną stronę */
 }
 
-/* Styl dla bociana-bossa */
-.boss-stork {
-    width: 90px;
-    height: 100px;
-    background-color: #FFE4C4; /* Jaśniejszy kolor */
-    box-shadow: 0 0 15px #FF4500;
-    animation: bossStorkPulse 1s infinite alternate;
-    z-index: 3; /* Wyższy z-index, żeby był na wierzchu */
-}
-
-@keyframes bossStorkPulse {
-    0% { box-shadow: 0 0 10px 2px #FF4500; transform: scale(1); }
-    100% { box-shadow: 0 0 20px 5px #FF4500; transform: scale(1.05); }
-}
-
+/* Dziób bociana */
 .stork:before {
     content: '';
     position: absolute;
-    width: 20px;
-    height: 40px;
+    width: 40px;
+    height: 12px;
     background-color: #FF4500;
-    border-radius: 50% 50% 20% 20%;
-    top: 5px;
-    left: 25px;
+    border-radius: 50% 10% 10% 50%;
+    top: 30px;
+    right: -30px; /* Dziób wystaje po prawej stronie (odwrócony) */
+    transform: rotate(-5deg);
 }
 
-.boss-stork:before {
-    width: 25px;
-    height: 50px;
-    background-color: #FF0000; /* Jaskrawoczerwony dziób dla bossa */
-    top: 5px;
-    left: 30px;
-}
-
+/* Nogi bociana */
 .stork:after {
     content: '';
     position: absolute;
+    width: 35px;
+    height: 20px;
+    border-left: 5px solid #FF4500;
+    border-right: 5px solid #FF4500;
+    bottom: -18px;
+    left: 20px;
+}
+
+/* Czarny wzór na skrzydłach */
+.stork .wings {
+    position: absolute;
     width: 60px;
-    height: 10px;
-    background-color: #FF4500;
-    border-radius: 10px;
-    bottom: 15px;
-    left: 5px;
+    height: 40px;
+    background-color: black;
+    clip-path: polygon(0 50%, 100% 0, 100% 20%, 0 70%);
+    top: 40px;
+    left: 10px;
+    opacity: 0.7;
+}
+
+/* Style dla bociana-bossa */
+.boss-stork {
+    width: 100px;
+    height: 110px;
+    background-color: #FFE4C4;
+    box-shadow: 0 0 15px #FF4500;
+    animation: bossStorkPulse 1s infinite alternate;
+    z-index: 3;
+}
+
+.boss-stork:before {
+    width: 50px;
+    height: 15px;
+    background-color: #FF0000;
+    top: 35px;
+    right: -40px;
 }
 
 .boss-stork:after {
+    width: 45px;
+    height: 25px;
+    border-left: 6px solid #FF0000;
+    border-right: 6px solid #FF0000;
+    bottom: -23px;
+    left: 25px;
+}
+
+.boss-stork .wings {
     width: 75px;
-    height: 12px;
+    height: 50px;
+    top: 45px;
+    left: 15px;
+}
+
+/* Czerwony czepek na głowie dla bossa */
+.boss-stork .cap {
+    position: absolute;
+    width: 30px;
+    height: 20px;
     background-color: #FF0000;
-    bottom: 18px;
-    left: 7px;
+    border-radius: 50% 50% 0 0;
+    top: 0;
+    left: 35px;
+}
+
+@keyframes bossStorkPulse {
+    0% { box-shadow: 0 0 10px 2px #FF4500; transform: scaleX(-1) scale(1); }
+    100% { box-shadow: 0 0 20px 5px #FF4500; transform: scaleX(-1) scale(1.05); }
 }
 
 .storkDefeated {
     animation: storkDefeatAnimation 1s ease-out forwards;
 }
 @keyframes storkDefeatAnimation {
-    0% { transform: scale(1) rotate(0); opacity: 1; }
-    100% { transform: scale(0) rotate(180deg); opacity: 0; }
+    0% { transform: scaleX(-1) rotate(0); opacity: 1; }
+    100% { transform: scaleX(-1) rotate(180deg); opacity: 0; }
 }
 
 /* Style dla monety żabiej */

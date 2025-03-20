@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastStorkCoinWindTime = 0; // Ostatni czas wiatru monet
     let storkCoinChance = 0.7; // 70% szansa na monetę w wietrze
 
-    function setupGame() {
+function setupGame() {
         score = 0;
         coinScore = 0;
         purpleCoinScore = 0;
@@ -530,8 +530,8 @@ function createStork() {
     }
 
     // Zwiększone wymiary bociana - teraz jest większy (bardziej jak boss)
-    const storkWidth = 90; // Było 70
-    const storkHeight = 100; // Było 80
+    const storkWidth = 100; // Zwiększone z 90
+    const storkHeight = 110; // Zwiększone ze 100
     
     const randomY = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
     // Ustaw dokładnie na prawej krawędzi ekranu
@@ -546,8 +546,19 @@ function createStork() {
     stork.className = 'stork';
     stork.style.left = storkX + 'px';
     stork.style.top = randomY + 'px';
+    
     // Dodajemy klasę boss dla efektu
     stork.classList.add('boss-stork');
+    
+    // Dodanie elementu skrzydeł
+    const wings = document.createElement('div');
+    wings.className = 'wings';
+    stork.appendChild(wings);
+    
+    // Dodanie czerwonego czepka dla bossa
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    stork.appendChild(cap);
     
     gameArea.appendChild(stork);
     
