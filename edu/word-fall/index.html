@@ -155,12 +155,12 @@
             height: calc(100vh - 150px);
             background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
             border-radius: 10px;
-            margin: 1rem 0;
+            margin: 0.5rem 0;
             overflow: hidden;
             box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Ulepszone elementy słów */
+        /* Enhanced word element styles */
         .word-element {
             position: absolute;
             padding: var(--spacing-md) var(--spacing-lg);
@@ -176,12 +176,14 @@
             animation: float 2s infinite ease-in-out;
             backdrop-filter: blur(3px);
             -webkit-backdrop-filter: blur(3px);
+            /* Added stronger glow for better visibility */
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
         }
 
         .word-element::after {
             content: '';
             position: absolute;
-            top: -20px;
+            top: -15px;
             left: 50%;
             transform: translateX(-50%);
             width: 30px;
@@ -198,18 +200,19 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
         
+        /* Enhanced warning animation for falling words */
         .about-to-fall {
-            animation: wobble 0.5s infinite alternate, glow 0.5s infinite alternate;
+            animation: wobble 0.4s infinite alternate, glow 0.4s infinite alternate;
         }
         
         @keyframes wobble {
-            0% { transform: rotate(-2deg); }
-            100% { transform: rotate(2deg); }
+            0% { transform: rotate(-3deg); }
+            100% { transform: rotate(3deg); }
         }
         
         @keyframes glow {
             0% { box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3); }
-            100% { box-shadow: 0 4px 12px rgba(255, 0, 0, 0.6); }
+            100% { box-shadow: 0 4px 15px rgba(255, 0, 0, 0.7); }
         }
 
         @keyframes float {
@@ -217,7 +220,7 @@
             50% { transform: translateY(-5px) rotate(1deg); }
         }
 
-        /* Ulepszone opcje odpowiedzi */
+        /* Improved answer container positioning */
         .answer-container {
             display: flex;
             flex-direction: column;
@@ -225,14 +228,14 @@
             align-items: center;
             width: 100%;
             max-width: 900px;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: var(--spacing-md);
+            background-color: rgba(255, 255, 255, 0.92);
+            padding: var(--spacing-sm) var(--spacing-md);
             border-radius: var(--border-radius-md);
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
             z-index: 5;
-            gap: 8px;
+            gap: 6px;
             position: absolute;
-            bottom: 10px;
+            bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
             backdrop-filter: blur(5px);
@@ -248,8 +251,9 @@
             margin-bottom: 5px;
         }
 
+        /* Enhanced answer options */
         .answer-option {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             padding: var(--spacing-xs) var(--spacing-sm);
             border-radius: var(--border-radius-xl);
             background-color: white;
@@ -280,7 +284,7 @@
         }
 
         .answer-option:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             box-shadow: var(--box-shadow-md);
             border-color: var(--primary-color);
         }
@@ -296,7 +300,7 @@
             box-shadow: 0 4px 8px rgba(108, 99, 255, 0.4);
         }
 
-        /* Ulepszone efekty wizualne dla poprawnych/niepoprawnych odpowiedzi */
+        /* Improved answer effect animations */
         .answer-correct {
             background-color: var(--success-color) !important;
             color: white !important;
@@ -385,8 +389,8 @@
         /* Lepsze animacje dla eksplozji i spadania */
         @keyframes explode {
             0% { transform: scale(0); opacity: 1; }
-            50% { transform: scale(2.5); opacity: 0.8; }
-            100% { transform: scale(4); opacity: 0; }
+            50% { transform: scale(2.8); opacity: 0.8; }
+            100% { transform: scale(4.5); opacity: 0; }
         }
 
         .explosion {
@@ -910,7 +914,7 @@
         }
 
         .accessibility-option input[type="checkbox"] {
-            width: 18px;
+width: 18px;
             height: 18px;
             cursor: pointer;
         }
@@ -1266,7 +1270,8 @@
             
             /* Podnosimy jeszcze bardziej na urządzeniach mobilnych */
             .answer-container {
-                bottom: 60px;
+                bottom: 5px;
+                padding: 0.4rem 0.5rem;
             }
         }
 
@@ -1298,7 +1303,7 @@
             .answer-container {
                 padding: 0.6rem;
                 gap: 6px;
-                bottom: 80px; /* Jeszcze wyżej na małych ekranach */
+                bottom: 2px;
             }
         }
 
@@ -1590,7 +1595,7 @@
                 comboTimeout: null,
                 optionsFrozen: false,
                 optionsFreezeTimeout: null,
-                adaptiveSpawnRate: 4000,
+                adaptiveSpawnRate: 3800, // Slightly faster spawning rate
                 maxActiveWords: 4,
                 achievements: [],
                 consecutiveCorrect: 0,
@@ -1737,7 +1742,7 @@
                 const lines = csvData.split('\n');
                 
                 lines.forEach(line => {
-                    if (line.trim() === '') return;
+if (line.trim() === '') return;
                     
                     const parts = line.split(',');
                     if (parts.length < 2) return;
@@ -1769,8 +1774,8 @@
                 gameState.combo = 0;
                 gameState.optionsFrozen = false;
                 gameState.consecutiveCorrect = 0;
-                gameState.adaptiveSpawnRate = 4000; // Fixed spawn rate
-                gameState.maxActiveWords = 4; // Fixed number of words
+                gameState.adaptiveSpawnRate = 3800; // Slightly faster spawning rate
+                gameState.maxActiveWords = 4;
                 gameState.achievements = [];
                 gameState.rewards = {
                     badges: [],
@@ -1778,7 +1783,7 @@
                     perfectRounds: 0
                 };
                 
-                // Upewniamy się, że wszystko jest wyczyszczone przed startem
+                // Make sure everything is cleared before starting
                 clearGameArea();
                 
                 // Add touch feedback for mobile devices
@@ -1809,14 +1814,14 @@
                     }, 300);
                 });
                 
-                // Aktualizacja wysokości obszaru gry
+                // Update game area height
                 adjustGameAreaHeight();
             }
             
             function gameLoop(timestamp) {
                 if (!gameState.gameRunning) return;
                 
-                // Obliczamy deltę czasu między klatkami
+                // Calculate time delta between frames
                 const deltaTime = gameState.lastFrameTime ? (timestamp - gameState.lastFrameTime) / 1000 : 0.016;
                 gameState.lastFrameTime = timestamp;
                 
@@ -1830,12 +1835,12 @@
             function spawnWords() {
                 if (!gameState.gameRunning || gameState.paused) return;
                 
-                // Używamy zmodyfikowanego maksimum słów
+                // Maximum number of words on screen
                 const maxWords = gameState.maxActiveWords;
                 
-                // Sprawdzenie, czy możemy dodać nowe słowo
-                if (gameState.activeWords.length >= maxWords + 1) {
-                    // Już mamy maksymalną liczbę słów + bezpieczny margines
+                // Check if we can add a new word
+                if (gameState.activeWords.length >= maxWords) {
+                    // Already have maximum number of words
                     setTimeout(spawnWords, gameState.adaptiveSpawnRate);
                     return;
                 }
@@ -1855,8 +1860,8 @@
                 // Create word element
                 createWordElement(nextWord);
                 
-                // Schedule next spawn - dodajmy losowość dla większej dynamiki
-                const randomDelay = gameState.adaptiveSpawnRate * (0.8 + Math.random() * 0.4);
+                // Schedule next spawn with randomness for more natural flow
+                const randomDelay = gameState.adaptiveSpawnRate * (0.85 + Math.random() * 0.3);
                 setTimeout(spawnWords, randomDelay);
             }
 
@@ -1867,23 +1872,23 @@
                 element.textContent = word.english;
                 element.dataset.word = word.english;
                 
-                // Dodanie atrybutów dostępności
+                // Accessibility attributes
                 element.setAttribute('role', 'button');
                 element.setAttribute('aria-label', `Słowo: ${word.english}`);
                 
-                // Set random position at top
+                // Set random position at the very top (completely off-screen)
                 const gameWidth = gameArea.offsetWidth;
                 const elementWidth = 150; // Estimated width
                 
-                // Make sure words don't spawn too close to edges on mobile
+                // Padding to avoid words spawning too close to edges
                 const padding = window.innerWidth <= 480 ? 20 : 10;
                 
-                // Sprawdzenie czy nowe słowo nie nakłada się na istniejące słowa
+                // Try to find a position that doesn't overlap with existing words
                 let validPosition = false;
                 let leftPosition;
                 let attemptCount = 0;
                 
-                // Próbujemy znaleźć pozycję, która nie koliduje z innymi słowami
+                // Try to find a non-colliding position
                 while (!validPosition && attemptCount < 10) {
                     leftPosition = Math.max(
                         padding, 
@@ -1895,13 +1900,13 @@
                     
                     validPosition = true;
                     
-                    // Sprawdzamy kolizje z istniejącymi słowami
+                    // Check collisions with existing words
                     for (const existingWord of gameState.wordElements) {
                         const existingLeft = parseFloat(existingWord.element.style.left);
                         const existingWidth = existingWord.element.offsetWidth;
                         
-                        // Sprawdzenie czy nowe słowo nakłada się na istniejące
-                        if (Math.abs(leftPosition - existingLeft) < (elementWidth + existingWidth) / 2) {
+                        // Check if new word overlaps with existing one
+                        if (Math.abs(leftPosition - existingLeft) < (elementWidth + existingWidth) / 1.5) {
                             validPosition = false;
                             break;
                         }
@@ -1910,8 +1915,9 @@
                     attemptCount++;
                 }
                 
+                // Position the word completely above the viewport (-100px) to ensure it's off-screen
                 element.style.left = `${leftPosition}px`;
-                element.style.top = '-50px'; // Start above the visible area
+                element.style.top = '-100px';
                 
                 // Set random color
                 const colorIndex = Math.floor(Math.random() * wordColors.length);
@@ -1930,7 +1936,7 @@
                 gameState.wordElements.push({
                     word: word,
                     element: element,
-                    top: -50,
+                    top: -100, // Start completely off-screen
                     left: leftPosition
                 });
                 
@@ -1950,8 +1956,9 @@
                 // Calculate the y-position where words should explode (top of answer container)
                 const explosionY = answerRect.top - gameRect.top;
                 
-                // Fixed speed (simplified without levels)
-                const speed = 1.5 * (gameState.speedModifier || 1);
+                // Base falling speed
+                const baseSpeed = 1.7; // Slightly faster than before
+                const speed = baseSpeed * (gameState.speedModifier || 1);
                 
                 // Move each word element down
                 gameState.wordElements.forEach((wordObj, index) => {
@@ -1964,7 +1971,7 @@
                     const wordBottom = wordObj.top + wordRect.height;
                     
                     // Add warning animation when word is close to hitting the answer container
-                    const dangerZone = explosionY - 50;
+                    const dangerZone = explosionY - 70; // Increased danger zone for better warning
                     if (wordObj.top > dangerZone && !wordObj.element.classList.contains('about-to-fall')) {
                         wordObj.element.classList.add('about-to-fall');
                     }
@@ -2004,7 +2011,7 @@
             }
 
             function updateAnswerOptions() {
-                // Jeśli opcje są zamrożone, wyjdź z funkcji
+                // If options are frozen, exit function
                 if (gameState.optionsFrozen) return;
                 
                 // Clear previous options
@@ -2013,6 +2020,7 @@
                 if (gameState.activeWords.length === 0) return;
                 
                 // Sort active words by their vertical position (top to bottom)
+                // This ensures words closer to the bottom have their options at the top of the answer panel
                 const sortedWords = [...gameState.wordElements].sort((a, b) => b.top - a.top);
                 
                 // Create a container for each word's options
@@ -2073,7 +2081,7 @@
                         
                         option.addEventListener('click', function() {
                             // Freeze options momentarily to prevent rapid clicking
-                            freezeOptions(800);
+                            freezeOptions(600); // Slightly faster to improve responsiveness
                             
                             handleAnswerSelection(translation);
                             
@@ -2099,19 +2107,19 @@
                 gameState.selectedAnswer = null;
             }
             
-            // Funkcja zamrażająca opcje na określony czas
+            // Function to freeze options for a specified time
             function freezeOptions(duration) {
                 gameState.optionsFrozen = true;
                 
-                // Anulujemy poprzedni timeout, jeśli istnieje
+                // Cancel previous timeout if exists
                 if (gameState.optionsFreezeTimeout) {
                     clearTimeout(gameState.optionsFreezeTimeout);
                 }
                 
-                // Ustawiamy nowy timeout
+                // Set new timeout
                 gameState.optionsFreezeTimeout = setTimeout(() => {
                     gameState.optionsFrozen = false;
-                    // Aktualizujemy opcje po odmrożeniu
+                    // Update options after unfreezing
                     updateAnswerOptions();
                 }, duration);
             }
@@ -2143,7 +2151,7 @@
                         createExplosionEffect(wordObj.element);
                         foundMatch = true;
                         
-                        // Dodanie efektu poprawnej odpowiedzi
+                        // Add correct answer effect
                         if (selectedOption) {
                             selectedOption.classList.add('answer-correct');
                             setTimeout(() => {
@@ -2151,10 +2159,10 @@
                             }, 700);
                         }
                         
-                        // Aktualizacja statystyk
+                        // Update statistics
                         gameState.totalAnswered++;
                         
-                        // Aktualizacja serii poprawnych odpowiedzi
+                        // Update consecutive correct answers streak
                         if (gameState.consecutiveCorrect === undefined) {
                             gameState.consecutiveCorrect = 0;
                         }
@@ -2168,16 +2176,16 @@
                         gameState.combo++;
                         updateComboDisplay(gameState.combo);
                         
-                        // Sprawdź osiągnięcia związane z combo
+                        // Check combo achievements
                         checkComboAchievements();
                         
-                        // Sprawdź osiągnięcie perfekcyjnej rundy
+                        // Check perfect round achievement
                         if (gameState.consecutiveCorrect >= 10 && 
                             !achievements.find(a => a.id === 'perfectRound').unlocked) {
                             unlockAchievement(achievements.find(a => a.id === 'perfectRound'));
                         }
                         
-                        // Zdarzenie niestandardowe dla combo
+                        // Custom event for combo
                         if (gameState.combo === 2) {
                             document.dispatchEvent(new CustomEvent('combo_started'));
                         }
@@ -2200,11 +2208,11 @@
                             updateComboDisplay(0);
                         }, 2500);
                         
-                        // Dodaj punkty z animacją
+                        // Add points with animation
                         updateScoreWithAnimation(points);
                         gameState.correctCount++;
                         
-                        // Dodanie efektu cząsteczek dla poprawnej odpowiedzi
+                        // Add particle effect for correct answer
                         createParticleEffect(wordObj.element, 'success');
                         
                         // Remove the word
@@ -2221,14 +2229,14 @@
                     gameState.combo = 0;
                     updateComboDisplay(0);
                     
-                    // Resetuj serię poprawnych odpowiedzi
+                    // Reset consecutive correct answers streak
                     gameState.consecutiveCorrect = 0;
                     
                     if (gameState.comboTimeout) {
                         clearTimeout(gameState.comboTimeout);
                     }
                     
-                    // Dodanie efektu niepoprawnej odpowiedzi
+                    // Add incorrect answer effect
                     if (selectedOption) {
                         selectedOption.classList.add('answer-incorrect');
                         setTimeout(() => {
@@ -2236,7 +2244,7 @@
                         }, 700);
                     }
                     
-                    // Dodanie efektu wskazówki - podświetlenie poprawnej odpowiedzi
+                    // Add hint effect - highlight correct answer
                     highlightCorrectAnswer();
                 }
             }
@@ -2376,7 +2384,7 @@
                     cancelAnimationFrame(gameState.animationFrameId);
                 }
                 
-                // Czyszczenie timeoutów
+                // Clear timeouts
                 if (gameState.comboTimeout) {
                     clearTimeout(gameState.comboTimeout);
                 }
@@ -2417,10 +2425,10 @@
                 // Hide game over screen
                 gameOver.style.display = 'none';
                 
-                // Dokładne wyczyszczenie wszystkich elementów gry
+                // Clear all game elements
                 clearGameArea();
                 
-                // Ponowne losowanie słów
+                // Reshuffle words
                 shuffleArray(gameState.words);
                 
                 // Start new game
@@ -2464,12 +2472,12 @@
             }
 
             function clearGameArea() {
-                // Zatrzymanie animacji
+                // Stop animation
                 if (gameState.animationFrameId) {
                     cancelAnimationFrame(gameState.animationFrameId);
                 }
                 
-                // Zatrzymaj wszystkie interwały
+                // Clear all intervals
                 if (gameState.comboTimeout) {
                     clearTimeout(gameState.comboTimeout);
                 }
@@ -2478,20 +2486,20 @@
                     clearTimeout(gameState.optionsFreezeTimeout);
                 }
                 
-                // Usunięcie listenerów przed usunięciem elementów
+                // Remove listeners before removing elements
                 const wordElements = gameArea.querySelectorAll('.word-element');
                 wordElements.forEach(element => {
                     const clone = element.cloneNode(true);
                     element.parentNode.replaceChild(clone, element);
                 });
                 
-                // Teraz możemy usunąć elementy bez ryzyka wycieków pamięci
+                // Now we can safely remove elements
                 const allGameElements = gameArea.querySelectorAll('.word-element, .splash, .explosion');
                 allGameElements.forEach(element => {
                     element.remove();
                 });
                 
-                // Czyszczenie stanu gry
+                // Clear game state
                 gameState.wordElements = [];
                 gameState.activeWords = [];
                 gameState.optionsFrozen = false;
@@ -2508,7 +2516,7 @@
                 return array;
             }
             
-            // Funkcja aktualizująca wizualnie combo
+            // Function to visually update combo
             function updateComboDisplay(combo) {
                 const comboIndicator = document.getElementById('comboIndicator') || setupComboIndicator();
                 
@@ -2516,8 +2524,8 @@
                     comboIndicator.textContent = `${combo}x Combo!`;
                     comboIndicator.classList.add('visible');
                     
-                    // Dodanie klasy z odpowiednim kolorem w zależności od wielkości combo
-comboIndicator.className = 'combo-indicator visible';
+                    // Add appropriate color class based on combo size
+                    comboIndicator.className = 'combo-indicator visible';
                     if (combo >= 5) {
                         comboIndicator.classList.add('combo-max');
                     } else if (combo >= 3) {
@@ -2526,7 +2534,7 @@ comboIndicator.className = 'combo-indicator visible';
                         comboIndicator.classList.add('combo-normal');
                     }
                     
-                    // Animacja na punktach
+                    // Animation on score
                     const scoreElement = document.getElementById('scoreValue');
                     scoreElement.classList.add('score-increase');
                     setTimeout(() => {
@@ -2537,7 +2545,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }
             }
             
-            // Stworzenie elementu dla wskaźnika combo
+            // Create combo indicator element
             function setupComboIndicator() {
                 const comboIndicator = document.createElement('div');
                 comboIndicator.className = 'combo-indicator';
@@ -2547,7 +2555,7 @@ comboIndicator.className = 'combo-indicator visible';
                 return comboIndicator;
             }
             
-            // Funkcja do wizualizacji zmiany punktów
+            // Function to visualize score changes
             function updateScoreWithAnimation(points) {
                 // Animation for score changes
                 const scoreElement = document.getElementById('scoreValue');
@@ -2567,7 +2575,7 @@ comboIndicator.className = 'combo-indicator visible';
                         displayScore = newScore;
                         clearInterval(scoreInterval);
                     }
-                    scoreElement.textContent = Math.floor(displayScore);
+scoreElement.textContent = Math.floor(displayScore);
                 }, interval);
                 
                 // Create an element with information about gained/lost points
@@ -2585,18 +2593,18 @@ comboIndicator.className = 'combo-indicator visible';
                 gameState.score = newScore;
             }
             
-            // Funkcja podświetlająca poprawną odpowiedź jako wskazówkę
+            // Function to highlight correct answer as a hint
             function highlightCorrectAnswer() {
-                // Znajdź wszystkie aktywne słowa i ich poprawne tłumaczenia
+                // Find all active words and their correct translations
                 const correctTranslations = gameState.activeWords.map(word => word.translations[0]);
                 
-                // Sprawdź, czy któreś z tłumaczeń jest widoczne w opcjach
+                // Check if any of these translations is visible in options
                 const options = document.querySelectorAll('.answer-option');
                 
                 options.forEach(option => {
                     const translation = option.dataset.translation;
                     if (correctTranslations.includes(translation)) {
-                        // Dodaj delikatny efekt wskazówki
+                        // Add subtle hint effect
                         option.classList.add('answer-hint');
                         setTimeout(() => {
                             option.classList.remove('answer-hint');
@@ -2605,7 +2613,7 @@ comboIndicator.className = 'combo-indicator visible';
                 });
             }
             
-            // Dodanie efektu cząsteczek dla lepszych wizualnych informacji zwrotnych
+            // Add particle effect for better visual feedback
             function createParticleEffect(element, type) {
                 const rect = element.getBoundingClientRect();
                 const gameRect = gameArea.getBoundingClientRect();
@@ -2622,7 +2630,7 @@ comboIndicator.className = 'combo-indicator visible';
                     const particle = document.createElement('div');
                     particle.className = 'particle';
                     
-                    // Losowe właściwości cząsteczki
+                    // Random particle properties
                     const size = Math.random() * 10 + 5;
                     const angle = Math.random() * Math.PI * 2;
                     const speed = Math.random() * 5 + 3;
@@ -2641,11 +2649,11 @@ comboIndicator.className = 'combo-indicator visible';
                     
                     gameArea.appendChild(particle);
                     
-                    // Animacja cząsteczki
+                    // Particle animation
                     const destinationX = centerX + Math.cos(angle) * speed * 20;
                     const destinationY = centerY + Math.sin(angle) * speed * 20;
                     
-                    // Animacja z użyciem requestAnimationFrame dla lepszej wydajności
+                    // Animation using requestAnimationFrame for better performance
                     let startTime = null;
                     const duration = 600 + Math.random() * 400;
                     
@@ -2671,36 +2679,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }
             }
             
-            // System adaptacyjny - dostosowuje trudność do wyników gracza
-            function updateAdaptiveDifficulty() {
-                if (!gameState.gameRunning) return;
-                
-                // Mierzymy wydajność gracza
-                const missRate = gameState.missedCount / Math.max(1, gameState.totalAnswered);
-                const successRate = gameState.correctCount / Math.max(1, gameState.totalAnswered);
-                
-                // Dynamiczne dostosowanie tempa spawnu słów
-                let spawnRateAdjustment = 0;
-                if (successRate > 0.8) {
-                    // Gracz radzi sobie dobrze, przyspieszamy nieco spawny
-                    spawnRateAdjustment = -200; // szybsze spawny
-                } else if (missRate > 0.3) {
-                    // Gracz ma problem, zwalniamy nieco spawny
-                    spawnRateAdjustment = 300; // wolniejsze spawny
-                }
-                
-                // Ograniczenie do min/max zakresu
-                let newSpawnRate = gameState.adaptiveSpawnRate + spawnRateAdjustment;
-                newSpawnRate = Math.max(2000, Math.min(6000, newSpawnRate));
-                
-                // Zapisz zaktualizowaną wartość
-                gameState.adaptiveSpawnRate = newSpawnRate;
-                
-                // Zaplanuj kolejną aktualizację
-                setTimeout(updateAdaptiveDifficulty, 10000); // co 10 sekund
-            }
-            
-            // Funkcja sprawdzająca osiągnięcia związane z combo
+            // Function to check combo achievements
             function checkComboAchievements() {
                 achievements.forEach(achievement => {
                     if (!achievement.unlocked && achievement.id.startsWith('combo') && achievement.check(gameState)) {
@@ -2709,32 +2688,32 @@ comboIndicator.className = 'combo-indicator visible';
                 });
             }
             
-            // Funkcja odblokowująca osiągnięcie
+            // Function to unlock achievement
             function unlockAchievement(achievement) {
                 achievement.unlocked = true;
                 gameState.achievements.push(achievement.id);
                 
-                // Wyświetl powiadomienie
+                // Show notification
                 showAchievementNotification(achievement);
                 
-                // Przyznaj nagrodę
+                // Award reward
                 if (achievement.reward) {
                     achievement.reward(gameState);
                 }
                 
-                // Zapisz osiągnięcie w localStorage dla statystyk
+                // Save achievement to localStorage for statistics
                 const savedAchievements = JSON.parse(localStorage.getItem('wordfall_achievements') || '[]');
                 if (!savedAchievements.includes(achievement.id)) {
                     savedAchievements.push(achievement.id);
                     localStorage.setItem('wordfall_achievements', JSON.stringify(savedAchievements));
                 }
                 
-                // Dźwięk osiągnięcia
+                // Achievement sound
                 playSound('achievement');
             }
             
             function showAchievementNotification(achievement) {
-                // Tworzenie powiadomienia o osiągnięciu
+                // Create achievement notification
                 const notification = document.createElement('div');
                 notification.className = 'achievement-notification';
                 
@@ -2761,7 +2740,7 @@ comboIndicator.className = 'combo-indicator visible';
                 
                 document.querySelector('.game-container').appendChild(notification);
                 
-                // Usuwamy powiadomienie po pewnym czasie
+                // Remove notification after a delay
                 setTimeout(() => {
                     notification.classList.add('slide-out');
                     setTimeout(() => {
@@ -2771,12 +2750,12 @@ comboIndicator.className = 'combo-indicator visible';
             }
             
             function addScore(points) {
-                // Dodaj punkty 
+                // Add points 
                 updateScoreWithAnimation(points);
             }
             
             function showRewardNotification(message) {
-                // Tworzenie powiadomienia o nagrodzie
+                // Create reward notification
                 const notification = document.createElement('div');
                 notification.className = 'reward-notification';
                 notification.textContent = message;
@@ -2790,7 +2769,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }, 2500);
             }
             
-            // Funkcja dla lepszego dostosowania wysokości obszaru gry
+            // Function for better game area height adjustment
             function adjustGameAreaHeight() {
                 const gameArea = document.getElementById('gameArea');
                 const header = document.querySelector('header');
@@ -2799,38 +2778,47 @@ comboIndicator.className = 'combo-indicator visible';
                 
                 if (!gameArea || !header || !statusBar || !answerContainer) return;
                 
+                // Get viewport dimensions
+                const windowHeight = window.innerHeight;
                 const headerHeight = header.offsetHeight;
                 const statusHeight = statusBar.offsetHeight;
                 const answerHeight = answerContainer.offsetHeight;
-                const windowHeight = window.innerHeight;
                 
-                // Dostosuj wysokość z uwzględnieniem marginesów
-                const margins = 20; // Margines górny i dolny
-                const gameHeight = windowHeight - headerHeight - statusHeight - answerHeight - margins;
+                // Calculate available space for game area
+                // Allow more space for the game area by reducing margins
+                const margins = 10; // Reduce margins
+                let gameHeight = windowHeight - headerHeight - statusHeight - answerHeight - margins;
                 
-                gameArea.style.height = `${Math.max(300, gameHeight)}px`;
+                // Ensure minimum height
+                gameHeight = Math.max(300, gameHeight);
+                
+                // Set game area height
+                gameArea.style.height = `${gameHeight}px`;
+                
+                // Adjust answer container position to ensure it's at the bottom
+                answerContainer.style.bottom = '5px';
             }
             
-            // Obsługa orientacji urządzenia
+            // Handle device orientation
             function handleOrientationChange() {
                 const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
                 document.body.setAttribute('data-orientation', orientation);
                 
-                // Dopasuj wysokość obszaru gry
+                // Adjust game area height
                 adjustGameAreaHeight();
                 
-                // Zaktualizuj opcje odpowiedzi
+                // Update answer options
                 if (gameState && gameState.gameRunning) {
                     setTimeout(updateAnswerOptions, 300);
                 }
             }
             
-            // Inicjalizacja trybu ciemnego
+            // Initialize dark mode
             function setupThemeToggle() {
                 const themeBtn = document.getElementById('themeBtn');
                 const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
                 
-                // Sprawdź, czy użytkownik ma już zapisane preferencje
+                // Check if user has saved preferences
                 const savedTheme = localStorage.getItem('theme');
                 
                 if (savedTheme === 'dark' || (savedTheme === null && prefersDarkScheme.matches)) {
@@ -2842,7 +2830,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }
                 
                 themeBtn.addEventListener('click', () => {
-                    // Przełącz motyw
+                    // Toggle theme
                     if (document.body.classList.contains('dark-theme')) {
                         document.body.classList.remove('dark-theme');
                         localStorage.setItem('theme', 'light');
@@ -2854,7 +2842,7 @@ comboIndicator.className = 'combo-indicator visible';
                     }
                 });
                 
-                // Nasłuchuj zmian preferencji systemowych
+                // Listen for system preference changes
                 prefersDarkScheme.addEventListener('change', (e) => {
                     if (!localStorage.getItem('theme')) {
                         if (e.matches) {
@@ -2868,13 +2856,13 @@ comboIndicator.className = 'combo-indicator visible';
                 });
             }
             
-            // Inicjalizacja menu dostępności
+            // Initialize accessibility menu
             function initAccessibilityMenu() {
                 const menuToggle = document.getElementById('accessibilityMenuToggle');
                 const menu = document.getElementById('accessibilityMenu');
                 const closeBtn = document.querySelector('.accessibility-menu-close');
                 
-                // Pobieranie opcji
+                // Get options
                 const reducedMotionToggle = document.getElementById('reducedMotion');
                 const highContrastToggle = document.getElementById('highContrast');
                 const largerTextToggle = document.getElementById('largerText');
@@ -2882,10 +2870,10 @@ comboIndicator.className = 'combo-indicator visible';
                 const audioFeedbackToggle = document.getElementById('audioFeedback');
                 const resetBtn = document.getElementById('resetAccessibility');
                 
-                // Ładowanie zapisanych ustawień
+                // Load saved settings
                 loadAccessibilitySettings();
                 
-                // Obsługa kliknięcia przycisku menu
+                // Handle menu toggle click
                 menuToggle.addEventListener('click', toggleMenu);
                 menuToggle.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -2893,10 +2881,10 @@ comboIndicator.className = 'combo-indicator visible';
                     }
                 });
                 
-                // Zamknięcie menu
+                // Close menu
                 closeBtn.addEventListener('click', closeMenu);
                 
-                // Obsługa kliknięcia poza menu
+                // Handle clicks outside menu
                 document.addEventListener('click', function(e) {
                     if (menu.classList.contains('visible') && 
                         !menu.contains(e.target) && 
@@ -2905,7 +2893,7 @@ comboIndicator.className = 'combo-indicator visible';
                     }
                 });
                 
-                // Obsługa zmian ustawień
+                // Handle settings changes
                 reducedMotionToggle.addEventListener('change', function() {
                     document.body.classList.toggle('reduced-motion', this.checked);
                     saveAccessibilitySetting('reducedMotion', this.checked);
@@ -2946,7 +2934,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }
                 
                 function loadAccessibilitySettings() {
-                    // Odczyt ustawień z localStorage
+                    // Read settings from localStorage
                     if (localStorage.getItem('a11y_reducedMotion') === 'true') {
                         reducedMotionToggle.checked = true;
                         document.body.classList.add('reduced-motion');
@@ -2979,7 +2967,7 @@ comboIndicator.className = 'combo-indicator visible';
                 }
                 
                 function resetAccessibilitySettings() {
-                    // Resetowanie wszystkich ustawień
+                    // Reset all settings
                     reducedMotionToggle.checked = false;
                     highContrastToggle.checked = false;
                     largerTextToggle.checked = false;
@@ -2991,7 +2979,7 @@ comboIndicator.className = 'combo-indicator visible';
                     gameState.speedModifier = 1;
                     gameState.audioFeedback = false;
                     
-                    // Usunięcie zapisanych ustawień
+                    // Remove saved settings
                     localStorage.removeItem('a11y_reducedMotion');
                     localStorage.removeItem('a11y_highContrast');
                     localStorage.removeItem('a11y_largerText');
@@ -3000,19 +2988,19 @@ comboIndicator.className = 'combo-indicator visible';
                 }
             }
             
-            // Dodanie obsługi klawiatury do gry
+            // Add keyboard controls
             function setupKeyboardControls() {
                 document.addEventListener('keydown', function(e) {
-                    // Naciśnięcie spacji lub klawisza Enter dla zapauzowania/wznowienia gry
+                    // Space or Enter to pause/resume game
                     if ((e.key === ' ' || e.key === 'Enter') && e.target === document.body) {
                         const pauseBtn = document.getElementById('pauseBtn');
                         if (pauseBtn) {
                             pauseBtn.click();
-                            e.preventDefault(); // Zapobieganie domyślnej akcji spacji
+                            e.preventDefault(); // Prevent default space action
                         }
                     }
                     
-                    // Naciśnięcie ESC do włączenia/wyłączenia menu dostępności
+                    // ESC to toggle accessibility menu
                     if (e.key === 'Escape') {
                         const menuToggle = document.getElementById('accessibilityMenuToggle');
                         if (menuToggle) {
@@ -3020,7 +3008,7 @@ comboIndicator.className = 'combo-indicator visible';
                         }
                     }
                     
-                    // Obsługa klawiszy 1-9 dla wyboru opcji odpowiedzi
+                    // Handle keys 1-9 for answer options
                     if (!isNaN(parseInt(e.key)) && e.key >= '1' && e.key <= '9') {
                         const index = parseInt(e.key) - 1;
                         const options = document.querySelectorAll('.answer-option');
@@ -3032,23 +3020,23 @@ comboIndicator.className = 'combo-indicator visible';
                 });
             }
             
-            // Dodanie informacji audio dla osób z niepełnosprawnościami wzroku
+            // Add audio feedback for visually impaired users
             function setupAudioFeedback() {
-                // Komunikat głosowy (dla wspieranych przeglądarek)
+                // Voice synthesis (for supported browsers)
                 if ('speechSynthesis' in window) {
-                    // Inicjalizacja syntezy mowy przy starcie
+                    // Initialize speech synthesis at start
                     const initUtterance = new SpeechSynthesisUtterance('');
                     window.speechSynthesis.speak(initUtterance);
                 }
             }
             
-            // Inicjalizacja samouczka
+            // Initialize tutorial
             function initTutorial() {
                 const tutorialElement = document.getElementById('tutorial');
                 const tutorialSteps = document.querySelectorAll('.tutorial-step');
                 let currentStep = 1;
                 
-                // Sprawdzamy, czy użytkownik już widział samouczek
+                // Check if user has already seen tutorial
                 const tutorialSeen = localStorage.getItem('wordfall_tutorial_seen');
                 
                 if (tutorialSeen) {
@@ -3056,10 +3044,10 @@ comboIndicator.className = 'combo-indicator visible';
                     return;
                 }
                 
-                // Ukrywamy ekran startowy na czas samouczka
+                // Hide start screen during tutorial
                 document.getElementById('gameStart').style.display = 'none';
                 
-                // Obsługa przycisków samouczka
+                // Handle tutorial buttons
                 document.getElementById('tutorialNextBtn').addEventListener('click', () => {
                     showTutorialStep(2);
                 });
@@ -3081,12 +3069,12 @@ comboIndicator.className = 'combo-indicator visible';
                 });
                 
                 function showTutorialStep(step) {
-                    // Ukryj wszystkie kroki
+                    // Hide all steps
                     tutorialSteps.forEach(stepEl => {
                         stepEl.style.display = 'none';
                     });
                     
-                    // Pokaż aktualny krok
+                    // Show current step
                     const currentStepEl = document.querySelector(`.tutorial-step[data-step="${step}"]`);
                     if (currentStepEl) {
                         currentStepEl.style.display = 'block';
@@ -3095,20 +3083,20 @@ comboIndicator.className = 'combo-indicator visible';
                 }
                 
                 function completeTutorial() {
-                    // Zapisz informację, że samouczek został zobaczony
+                    // Save that tutorial has been seen
                     localStorage.setItem('wordfall_tutorial_seen', 'true');
                     
-                    // Ukryj samouczek
+                    // Hide tutorial
                     tutorialElement.style.display = 'none';
                     
-                    // Pokaż ekran startowy
+                    // Show start screen
                     document.getElementById('gameStart').style.display = 'flex';
                 }
             }
             
-            // Funkcja tworząca wskazówkę
+            // Create tooltip function
             function createTooltip(targetElement, title, message, position = 'bottom', showOnce = true, tooltipId = null) {
-                // Sprawdź, czy wskazówka ma być pokazana tylko raz
+                // Check if tooltip should be shown only once
                 if (showOnce && tooltipId) {
                     const tooltipSeen = localStorage.getItem(`wordfall_tooltip_${tooltipId}`);
                     if (tooltipSeen) return;
@@ -3135,7 +3123,7 @@ comboIndicator.className = 'combo-indicator visible';
                 tooltip.appendChild(closeButton);
                 tooltipContainer.appendChild(tooltip);
                 
-                // Pozycjonowanie względem elementu docelowego
+                // Position relative to target element
                 const targetRect = targetElement.getBoundingClientRect();
                 const tooltipRect = tooltip.getBoundingClientRect();
                 
@@ -3158,7 +3146,7 @@ comboIndicator.className = 'combo-indicator visible';
                         break;
                 }
                 
-                // Zdarzenie zamknięcia
+                // Close event
                 closeButton.addEventListener('click', () => {
                     tooltip.classList.add('tooltip-fade-out');
                     
@@ -3171,7 +3159,7 @@ comboIndicator.className = 'combo-indicator visible';
                     }, 300);
                 });
                 
-                // Automatyczne zamknięcie po 10 sekundach
+                // Auto-close after 10 seconds
                 setTimeout(() => {
                     if (tooltipContainer.contains(tooltip)) {
                         tooltip.classList.add('tooltip-fade-out');
@@ -3186,9 +3174,9 @@ comboIndicator.className = 'combo-indicator visible';
                 return tooltip;
             }
             
-            // Dodanie wskazówek dla gry
+            // Add game tooltips
             function setupGameTooltips() {
-                // Wskazówka o spadających słowach po rozpoczęciu gry
+                // Falling words tooltip after game start
                 if (!localStorage.getItem('wordfall_tooltip_game_start')) {
                     setTimeout(() => {
                         const gameArea = document.getElementById('gameArea');
@@ -3205,7 +3193,7 @@ comboIndicator.className = 'combo-indicator visible';
                     }, 2000);
                 }
                 
-                // Wskazówka o combo po pierwszej poprawnej odpowiedzi
+                // Combo tooltip after first correct answer
                 document.addEventListener('combo_started', () => {
                     if (!localStorage.getItem('wordfall_tooltip_combo')) {
                         const scoreEl = document.getElementById('scoreValue');
@@ -3223,10 +3211,10 @@ comboIndicator.className = 'combo-indicator visible';
                 });
             }
             
-            // Obsługa zmiany rozmiaru okna
+            // Handle window resize
             window.addEventListener('resize', handleOrientationChange);
             
-            // Inicjalizacja przy załadowaniu strony
+            // Initialize on page load
             handleOrientationChange();
         });
     </script>
