@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordFall - Spadające słówka</title>
+    <style>
+        :root {
+            --primary-color: #6C63FF;
+            --secondary-color: #FF6584;
+            --success-color: #2ECC71;
+            --danger-color: #E74C3C;
+            --warning-color: #F39C12;
+            --info-color: #3498DB;
+            --light-color: #F8F9FA;
+            --dark-color: #343A40;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: radial-gradient(circle, #f9f9f9, #e3e3e3);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-image: linear-gradient(135deg, var(--primary-color), #8D7FFF);
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: calc(100vh - 70px); /* Header height */
+            position: relative;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 900px;
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 5;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .score {
+            color: var(--success-color);
+        }
+
+        .level {
+            color: var(--info-color);
+        }
+
+        .lives {
+            color: var(--danger-color);
+        }
+
+        .game-area {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            height: calc(100vh - 180px);
+            background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
+            border-radius: 10px;
+            margin: 1rem 0;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .word-element {
+            position: absolute;
+            padding: 0.8rem 1.5rem;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+            z-index: 2;
+            animation: float 2s infinite ease-in-out;
+        }
+
+        .word-element::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 20px;
+            background-image: 
+                radial-gradient(circle at 15px 5px, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 60%), 
+                radial-gradient(circle at 15px 5px, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.1) 40%);
+            border-radius: 50% 50% 0 0;
+            z-index: -1;
+        }
+
+        .word-element:hover {
+            transform: scale(1.05);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(1deg); }
+        }
+
+        .answer-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 5;
+        }
+
+        .answer-option {
+            padding: 0.8rem 1.2rem;
+            margin: 0 0.5rem;
+            border-radius: 25px;
+            background-color: white;
+            color: var(--dark-color);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+        }
+
+        .answer-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .answer-option.selected {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+            width: 100px;
+            height: 100px;
+            z-index: 10;
+            background-image: radial-gradient(circle, rgba(255,255,153,0.9) 0%, rgba(255,204,0,0) 70%);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: explode 0.5s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        .splash {
+            position: absolute;
+            pointer-events: none;
+            bottom: 0;
+            width: 60px;
+            height: 60px;
+            z-index: 10;
+            background-image: radial-gradient(ellipse at center, rgba(66,133,244,0.8) 0%, rgba(66,133,244,0) 70%);
+            transform: scale(0);
+            animation: splash 0.5s ease-out forwards;
+        }
+
+        @keyframes splash {
+            0% { transform: scale(0) translateY(0); opacity: 1; }
+            100% { transform: scale(2) translateY(-20px); opacity: 0; }
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background-color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .game-over, .game-start {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+            text-align: center;
+        }
+
+        .game-start {
+            background-color: rgba(108, 99, 255, 0.9);
+        }
+
+        .game-over h2, .game-start h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .game-over p, .game-start p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            background-image: linear-gradient(135deg, var(--primary-color), #8D7FFF);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            margin-bottom: 2rem;
+        }
+
+        .difficulty-option {
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .difficulty-option:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .difficulty-option.selected {
+            background-color: white;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        .spinner {
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .answer-container {
+                flex-wrap: wrap;
+            }
+
+            .answer-option {
+                margin: 0.3rem;
+                padding: 0.6rem 1rem;
+            }
+
+            .status-bar {
+                padding: 0.3rem;
+            }
+
+            .stat {
+                padding: 0.3rem 0.5rem;
+            }
+
+            .stat-value {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .game-over h2, .game-start h2 {
+                font-size: 2rem;
+            }
+
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>WordFall</h1>
+        <div class="controls">
+            <button class="control-btn" id="pauseBtn" title="Pauza">⏸️</button>
+            <button class="control-btn" id="soundBtn" title="Dźwięk">🔊</button>
+        </div>
+    </header>
+
+    <div class="game-container">
+        <div class="status-bar">
+            <div class="stat">
+                <div class="stat-label">Punkty</div>
+                <div class="stat-value score" id="scoreValue">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Poziom</div>
+                <div class="stat-value level" id="levelValue">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Życia</div>
+                <div class="stat-value lives" id="livesValue">❤️❤️❤️</div>
+            </div>
+        </div>
+
+        <div class="game-area" id="gameArea">
+            <!-- Falling words will be dynamically added here -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Wczytywanie słówek...</p>
+            </div>
+        </div>
+
+        <div class="answer-container" id="answerContainer">
+            <!-- Answer options will be dynamically added here -->
+        </div>
+
+        <div class="game-start" id="gameStart">
+            <h2>WordFall</h2>
+            <p>Dopasuj spadające słówka do ich tłumaczeń zanim spadną zbyt nisko!</p>
+            
+            <div class="difficulty-selector">
+                <div class="difficulty-option" data-difficulty="easy">Łatwy</div>
+                <div class="difficulty-option selected" data-difficulty="medium">Średni</div>
+                <div class="difficulty-option" data-difficulty="hard">Trudny</div>
+            </div>
+            
+            <button class="btn" id="startBtn">Rozpocznij grę</button>
+        </div>
+
+        <div class="game-over" id="gameOver" style="display: none;">
+            <h2>Koniec Gry</h2>
+            <p>Twój wynik: <span id="finalScore">0</span></p>
+            <p>Poprawne odpowiedzi: <span id="correctAnswers">0</span> z <span id="totalWords">0</span></p>
+            <button class="btn" id="restartBtn">Zagraj ponownie</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const gameArea = document.getElementById('gameArea');
+            const answerContainer = document.getElementById('answerContainer');
+            const scoreValue = document.getElementById('scoreValue');
+            const levelValue = document.getElementById('levelValue');
+            const livesValue = document.getElementById('livesValue');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const soundBtn = document.getElementById('soundBtn');
+            const gameStart = document.getElementById('gameStart');
+            const gameOver = document.getElementById('gameOver');
+            const startBtn = document.getElementById('startBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            const finalScore = document.getElementById('finalScore');
+            const correctAnswers = document.getElementById('correctAnswers');
+            const totalWords = document.getElementById('totalWords');
+            const difficultyOptions = document.querySelectorAll('.difficulty-option');
+            const loading = document.getElementById('loading');
+
+            // Game configuration
+            const config = {
+                easy: {
+                    fallSpeed: 1.2,
+                    spawnRate: 5000,
+                    wordCount: 1,
+                    lives: 5
+                },
+                medium: {
+                    fallSpeed: 2,
+                    spawnRate: 4000,
+                    wordCount: 2,
+                    lives: 3
+                },
+                hard: {
+                    fallSpeed: 3,
+                    spawnRate: 3000,
+                    wordCount: 3,
+                    lives: 2
+                }
+            };
+
+            // Game state
+            let gameState = {
+                words: [],
+                activeWords: [],
+                currentOptions: [],
+                score: 0,
+                level: 1,
+                lives: 3,
+                selectedAnswer: null,
+                gameRunning: false,
+                paused: false,
+                soundEnabled: true,
+                difficulty: 'medium',
+                correctCount: 0,
+                wordElements: [],
+                intervalId: null,
+                currentWordIndex: 0
+            };
+
+            // Fallback vocabulary in case CSV loading fails
+            const fallbackVocabulary = [
+                {english: "apple", translations: ["jabłko", "gruszka", "banan", "pomarańcza"]},
+                {english: "book", translations: ["książka", "zeszyt", "długopis", "gazeta"]}
+            ];
+
+            // Colors for the falling words
+            const wordColors = [
+                "linear-gradient(135deg, #FF6B6B, #FFE66D)",
+                "linear-gradient(135deg, #6C63FF, #BD6AFF)",
+                "linear-gradient(135deg, #63FFD1, #6AE4FF)",
+                "linear-gradient(135deg, #FF9A8B, #FF6A88)",
+                "linear-gradient(135deg, #FFC75F, #FF9671)"
+            ];
+
+            // Event listeners
+            startBtn.addEventListener('click', startGame);
+            restartBtn.addEventListener('click', restartGame);
+            pauseBtn.addEventListener('click', togglePause);
+            soundBtn.addEventListener('click', toggleSound);
+            
+            difficultyOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    difficultyOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    gameState.difficulty = this.dataset.difficulty;
+                });
+            });
+
+            // Load vocabulary from CSV file
+            loadVocabulary();
+
+            // Functions
+            function loadVocabulary() {
+                // Try to fetch the vocabulary.csv file from the same directory
+                fetch('vocabulary.csv')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Nie można znaleźć pliku vocabulary.csv');
+                        }
+                        return response.text();
+                    })
+                    .then(csvData => {
+                        parseVocabulary(csvData);
+                        loading.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.warn('Błąd wczytywania pliku CSV:', error);
+                        // Use fallback vocabulary
+                        gameState.words = fallbackVocabulary;
+                        loading.style.display = 'none';
+                    });
+            }
+
+            function parseVocabulary(csvData) {
+                gameState.words = [];
+                const lines = csvData.split('\n');
+                
+                lines.forEach(line => {
+                    if (line.trim() === '') return;
+                    
+                    const parts = line.split(',');
+                    if (parts.length < 2) return;
+                    
+                    const englishWord = parts[0].trim();
+                    const translations = parts.slice(1).map(word => word.trim()).filter(word => word !== '');
+                    
+                    if (translations.length > 0) {
+                        gameState.words.push({
+                            english: englishWord,
+                            translations: translations
+                        });
+                    }
+                });
+                
+                // Shuffle the words
+                shuffleArray(gameState.words);
+            }
+
+            function startGame() {
+                // Reset game state
+                gameState.score = 0;
+                gameState.level = 1;
+                gameState.lives = config[gameState.difficulty].lives;
+                gameState.correctCount = 0;
+                gameState.currentWordIndex = 0;
+                gameState.activeWords = [];
+                gameState.wordElements = [];
+                
+                // Update display
+                scoreValue.textContent = gameState.score;
+                levelValue.textContent = gameState.level;
+                updateLivesDisplay();
+                
+                // Clear game area and answer container
+                clearGameArea();
+                
+                // Hide start screen
+                gameStart.style.display = 'none';
+                
+                // Start spawning words
+                gameState.gameRunning = true;
+                spawnWords();
+                
+                // Start the fall animation
+                gameState.intervalId = setInterval(moveWords, 50);
+                
+                // Schedule difficulty increase
+                setTimeout(increaseDifficulty, 30000); // Increase difficulty every 30 seconds
+            }
+
+            function spawnWords() {
+                if (!gameState.gameRunning || gameState.paused) return;
+                
+                const wordCount = Math.min(
+                    config[gameState.difficulty].wordCount,
+                    gameState.words.length - gameState.currentWordIndex
+                );
+                
+                if (gameState.activeWords.length >= wordCount) {
+                    // Already have max active words
+                    setTimeout(spawnWords, config[gameState.difficulty].spawnRate);
+                    return;
+                }
+                
+                if (gameState.currentWordIndex >= gameState.words.length) {
+                    // No more words, game over (win)
+                    if (gameState.activeWords.length === 0) {
+                        endGame(true);
+                    }
+                    return;
+                }
+                
+                // Get next word
+                const nextWord = gameState.words[gameState.currentWordIndex++];
+                gameState.activeWords.push(nextWord);
+                
+                // Create word element
+                createWordElement(nextWord);
+                
+                // Schedule next spawn
+                setTimeout(spawnWords, config[gameState.difficulty].spawnRate);
+            }
+
+            function createWordElement(word) {
+                // Create element
+                const element = document.createElement('div');
+                element.className = 'word-element';
+                element.textContent = word.english;
+                element.dataset.word = word.english;
+                
+                // Set random position at top
+                const gameWidth = gameArea.offsetWidth;
+                const elementWidth = 150; // Estimated width
+                const leftPosition = Math.random() * (gameWidth - elementWidth);
+                
+                element.style.left = `${leftPosition}px`;
+                element.style.top = '-50px'; // Start above the visible area
+                
+                // Set random color
+                const colorIndex = Math.floor(Math.random() * wordColors.length);
+                element.style.background = wordColors[colorIndex];
+                
+                // Add to game area
+                gameArea.appendChild(element);
+                
+                // Store reference to element
+                gameState.wordElements.push({
+                    word: word,
+                    element: element,
+                    top: -50,
+                    left: leftPosition
+                });
+                
+                // Update answer options
+                updateAnswerOptions();
+            }
+
+            function moveWords() {
+                if (!gameState.gameRunning || gameState.paused) return;
+                
+                const gameHeight = gameArea.offsetHeight;
+                let removed = false;
+                
+                // Move each word element down
+                gameState.wordElements.forEach((wordObj, index) => {
+                    // Move down based on difficulty
+                    wordObj.top += config[gameState.difficulty].fallSpeed;
+                    wordObj.element.style.top = `${wordObj.top}px`;
+                    
+                    // Check if word has fallen off screen
+                    if (wordObj.top > gameHeight) {
+                        // Word missed, remove it
+                        createSplashEffect(wordObj.left);
+                        removeWord(index);
+                        removed = true;
+                        
+                        // Lose a life
+                        gameState.lives--;
+                        updateLivesDisplay();
+                        
+                        // Check for game over
+                        if (gameState.lives <= 0) {
+                            endGame(false);
+                        }
+                    }
+                });
+                
+                // Update indexes if words were removed
+                if (removed) {
+                    updateAnswerOptions();
+                }
+            }
+
+            function updateAnswerOptions() {
+                // Clear previous options
+                answerContainer.innerHTML = '';
+                
+                if (gameState.activeWords.length === 0) return;
+                
+                // Get all current words
+                const allTranslations = [];
+                let correctTranslations = [];
+                
+                gameState.activeWords.forEach(word => {
+                    // Correct translation is the first one
+                    correctTranslations.push(word.translations[0]);
+                    
+                    // Add all translations to the pool
+                    word.translations.forEach(translation => {
+                        if (!allTranslations.includes(translation)) {
+                            allTranslations.push(translation);
+                        }
+                    });
+                });
+                
+                // Limit to 5 options max
+                let displayTranslations = [...correctTranslations];
+                
+                // Add some incorrect translations if needed
+                while (displayTranslations.length < 5 && displayTranslations.length < allTranslations.length) {
+                    const randomTranslation = allTranslations[Math.floor(Math.random() * allTranslations.length)];
+                    if (!displayTranslations.includes(randomTranslation)) {
+                        displayTranslations.push(randomTranslation);
+                    }
+                }
+                
+                // Shuffle the options
+                shuffleArray(displayTranslations);
+                
+                // Create options
+                displayTranslations.forEach(translation => {
+                    const option = document.createElement('div');
+                    option.className = 'answer-option';
+                    option.textContent = translation;
+                    option.dataset.translation = translation;
+                    
+                    option.addEventListener('click', function() {
+                        handleAnswerSelection(translation);
+                    });
+                    
+                    answerContainer.appendChild(option);
+                });
+                
+                // Store current options
+                gameState.currentOptions = displayTranslations;
+                gameState.selectedAnswer = null;
+            }
+
+            function handleAnswerSelection(translation) {
+                // Update selected answer
+                gameState.selectedAnswer = translation;
+                
+                // Update visual selection
+                const options = document.querySelectorAll('.answer-option');
+                options.forEach(option => {
+                    if (option.dataset.translation === translation) {
+                        option.classList.add('selected');
+                    } else {
+                        option.classList.remove('selected');
+                    }
+                });
+                
+                // Check if any active word matches this translation
+                for (let i = 0; i < gameState.wordElements.length; i++) {
+                    const wordObj = gameState.wordElements[i];
+                    
+                    if (wordObj.word.translations[0] === translation) {
+                        // Correct match!
+                        createExplosionEffect(wordObj.element);
+                        
+                        // Update score
+                        gameState.score += 10;
+                        gameState.correctCount++;
+                        scoreValue.textContent = gameState.score;
+                        
+                        // Remove the word
+                        removeWord(i);
+                        
+                        // Update options
+                        updateAnswerOptions();
+                        break;
+                    }
+                }
+            }
+
+            function removeWord(index) {
+                if (index >= 0 && index < gameState.wordElements.length) {
+                    // Remove from DOM
+                    gameArea.removeChild(gameState.wordElements[index].element);
+                    
+                    // Remove from active words
+                    const englishWord = gameState.wordElements[index].word.english;
+                    gameState.activeWords = gameState.activeWords.filter(w => w.english !== englishWord);
+                    
+                    // Remove from word elements
+                    gameState.wordElements.splice(index, 1);
+                }
+            }
+
+            function createExplosionEffect(wordElement) {
+                const rect = wordElement.getBoundingClientRect();
+                const gameRect = gameArea.getBoundingClientRect();
+                
+                const explosion = document.createElement('div');
+                explosion.className = 'explosion';
+                explosion.style.left = `${rect.left + rect.width/2 - gameRect.left - 50}px`;
+                explosion.style.top = `${rect.top + rect.height/2 - gameRect.top - 50}px`;
+                
+                gameArea.appendChild(explosion);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    if (gameArea.contains(explosion)) {
+                        gameArea.removeChild(explosion);
+                    }
+                }, 500);
+                
+                // Play sound if enabled
+                if (gameState.soundEnabled) {
+                    playSound('correct');
+                }
+            }
+
+            function createSplashEffect(leftPosition) {
+                const splash = document.createElement('div');
+                splash.className = 'splash';
+                splash.style.left = `${leftPosition + 30}px`; // Center splash under the word
+                
+                gameArea.appendChild(splash);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    if (gameArea.contains(splash)) {
+                        gameArea.removeChild(splash);
+                    }
+                }, 500);
+                
+                // Play sound if enabled
+                if (gameState.soundEnabled) {
+                    playSound('miss');
+                }
+            }
+
+            function playSound(type) {
+                // Sound would be implemented here
+                // This is a placeholder for sound effects
+            }
+
+            function endGame(win) {
+                // Stop game
+                gameState.gameRunning = false;
+                clearInterval(gameState.intervalId);
+                
+                // Update final score
+                finalScore.textContent = gameState.score;
+                correctAnswers.textContent = gameState.correctCount;
+                totalWords.textContent = gameState.words.length;
+                
+                // Show game over screen
+                gameOver.style.display = 'flex';
+            }
+
+            function restartGame() {
+                // Hide game over screen
+                gameOver.style.display = 'none';
+                
+                // Reshuffle words
+                shuffleArray(gameState.words);
+                
+                // Start new game
+                startGame();
+            }
+
+            function togglePause() {
+                gameState.paused = !gameState.paused;
+                
+                if (gameState.paused) {
+                    pauseBtn.textContent = '▶️';
+                    pauseBtn.title = 'Wznów';
+                } else {
+                    pauseBtn.textContent = '⏸️';
+                    pauseBtn.title = 'Pauza';
+                }
+            }
+
+            function toggleSound() {
+                gameState.soundEnabled = !gameState.soundEnabled;
+                
+                if (gameState.soundEnabled) {
+                    soundBtn.textContent = '🔊';
+                    soundBtn.title = 'Wyłącz dźwięk';
+                } else {
+                    soundBtn.textContent = '🔇';
+                    soundBtn.title = 'Włącz dźwięk';
+                }
+            }
+
+            function increaseDifficulty() {
+                if (!gameState.gameRunning) return;
+                
+                gameState.level++;
+                levelValue.textContent = gameState.level;
+                
+                // Increase fall speed
+                config[gameState.difficulty].fallSpeed *= 1.1;
+                
+                // Schedule next increase
+                setTimeout(increaseDifficulty, 30000);
+            }
+
+            function clearGameArea() {
+                // Remove all word elements
+                gameState.wordElements.forEach(wordObj => {
+                    if (gameArea.contains(wordObj.element)) {
+                        gameArea.removeChild(wordObj.element);
+                    }
+                });
+                
+                gameState.wordElements = [];
+                gameState.activeWords = [];
+                
+                // Clear answer container
+                answerContainer.innerHTML = '';
+            }
+
+            function updateLivesDisplay() {
+                let lives = '';
+                for (let i = 0; i < gameState.lives; i++) {
+                    lives += '❤️';
+                }
+                livesValue.textContent = lives;
+            }
+
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+        });
+    </script>
+</body>
+</html>
