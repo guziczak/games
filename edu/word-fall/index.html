@@ -140,6 +140,20 @@
         .word-element:hover {
             transform: scale(1.05);
         }
+        
+        .about-to-fall {
+            animation: wobble 0.5s infinite alternate, glow 0.5s infinite alternate;
+        }
+        
+        @keyframes wobble {
+            0% { transform: rotate(-2deg); }
+            100% { transform: rotate(2deg); }
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3); }
+            100% { box-shadow: 0 4px 12px rgba(255, 0, 0, 0.6); }
+        }
 
         @keyframes float {
             0%, 100% { transform: translateY(0) rotate(0deg); }
@@ -149,18 +163,19 @@
         .answer-container {
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             width: 100%;
             max-width: 900px;
             background-color: rgba(255, 255, 255, 0.9);
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 10px;
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
             z-index: 5;
+            gap: 8px;
         }
 
         .answer-option {
-            padding: 0.8rem 1.2rem;
-            margin: 0 0.5rem;
+            padding: 0.6rem 1rem;
             border-radius: 25px;
             background-color: white;
             color: var(--dark-color);
@@ -169,6 +184,11 @@
             transition: all 0.3s;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             border: 2px solid transparent;
+            flex: 1 0 auto;
+            min-width: 120px;
+            max-width: 200px;
+            text-align: center;
+            margin: 0;
         }
 
         .answer-option:hover {
@@ -346,15 +366,6 @@
 
         /* Responsive design */
         @media (max-width: 768px) {
-            .answer-container {
-                flex-wrap: wrap;
-            }
-
-            .answer-option {
-                margin: 0.3rem;
-                padding: 0.6rem 1rem;
-            }
-
             .status-bar {
                 padding: 0.3rem;
             }
@@ -365,6 +376,17 @@
 
             .stat-value {
                 font-size: 1rem;
+            }
+            
+            .answer-option {
+                min-width: 100px;
+                padding: 0.5rem 0.8rem;
+                font-size: 0.9rem;
+            }
+            
+            .word-element {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
             }
         }
 
@@ -380,6 +402,22 @@
             .btn {
                 padding: 0.8rem 1.5rem;
                 font-size: 1rem;
+            }
+            
+            .answer-option {
+                min-width: 80px;
+                padding: 0.4rem 0.6rem;
+                font-size: 0.85rem;
+                max-width: 150px;
+            }
+            
+            .game-area {
+                height: calc(100vh - 220px);
+            }
+            
+            .answer-container {
+                padding: 0.6rem;
+                gap: 6px;
             }
         }
     </style>
@@ -415,6 +453,7 @@
                 <div class="spinner"></div>
                 <p>Wczytywanie słówek...</p>
             </div>
+            <div class="combo-indicator" id="comboIndicator">Combo x2!</div>
         </div>
 
         <div class="answer-container" id="answerContainer">
@@ -500,7 +539,9 @@
                 correctCount: 0,
                 wordElements: [],
                 intervalId: null,
-                currentWordIndex: 0
+                currentWordIndex: 0,
+                combo: 0,
+                comboTimeout: null
             };
 
             // Fallback vocabulary in case CSV loading fails
@@ -591,6 +632,12 @@
                 gameState.currentWordIndex = 0;
                 gameState.activeWords = [];
                 gameState.wordElements = [];
+                gameState.combo = 0;
+                
+                // Add touch feedback for mobile devices
+                if ("ontouchstart" in document.documentElement) {
+                    document.body.classList.add('touch-device');
+                }
                 
                 // Update display
                 scoreValue.textContent = gameState.score;
@@ -612,13 +659,29 @@
                 
                 // Schedule difficulty increase
                 setTimeout(increaseDifficulty, 30000); // Increase difficulty every 30 seconds
+                
+                // Add resize event listener to handle orientation changes
+                window.addEventListener('resize', function() {
+                    // Small delay to let the browser finish resizing
+                    setTimeout(updateAnswerOptions, 300);
+                });
             }
 
             function spawnWords() {
                 if (!gameState.gameRunning || gameState.paused) return;
                 
+                // Check max word count based on screen size/orientation
+                const isMobile = window.innerWidth <= 768;
+                const isPortrait = window.innerHeight > window.innerWidth;
+                
+                // Adjust max word count for mobile or portrait orientation
+                let adjustedMaxWords = config[gameState.difficulty].wordCount;
+                if (isMobile && isPortrait) {
+                    adjustedMaxWords = Math.max(1, adjustedMaxWords - 1);
+                }
+                
                 const wordCount = Math.min(
-                    config[gameState.difficulty].wordCount,
+                    adjustedMaxWords,
                     gameState.words.length - gameState.currentWordIndex
                 );
                 
@@ -657,7 +720,16 @@
                 // Set random position at top
                 const gameWidth = gameArea.offsetWidth;
                 const elementWidth = 150; // Estimated width
-                const leftPosition = Math.random() * (gameWidth - elementWidth);
+                
+                // Make sure words don't spawn too close to edges on mobile
+                const padding = window.innerWidth <= 480 ? 20 : 10;
+                const leftPosition = Math.max(
+                    padding, 
+                    Math.min(
+                        gameWidth - elementWidth - padding,
+                        Math.random() * (gameWidth - elementWidth)
+                    )
+                );
                 
                 element.style.left = `${leftPosition}px`;
                 element.style.top = '-50px'; // Start above the visible area
@@ -665,6 +737,12 @@
                 // Set random color
                 const colorIndex = Math.floor(Math.random() * wordColors.length);
                 element.style.background = wordColors[colorIndex];
+                
+                // Add touch support for mobile
+                element.addEventListener('touchstart', function(e) {
+                    // Prevent default to avoid scrolling
+                    e.preventDefault();
+                });
                 
                 // Add to game area
                 gameArea.appendChild(element);
@@ -693,12 +771,24 @@
                     wordObj.top += config[gameState.difficulty].fallSpeed;
                     wordObj.element.style.top = `${wordObj.top}px`;
                     
+                    // Add warning animation when word is close to falling
+                    const dangerZone = gameHeight - 100; // 100px from bottom
+                    if (wordObj.top > dangerZone && !wordObj.element.classList.contains('about-to-fall')) {
+                        wordObj.element.classList.add('about-to-fall');
+                    }
+                    
                     // Check if word has fallen off screen
                     if (wordObj.top > gameHeight) {
                         // Word missed, remove it
                         createSplashEffect(wordObj.left);
                         removeWord(index);
                         removed = true;
+                        
+                        // Reset combo
+                        gameState.combo = 0;
+                        if (gameState.comboTimeout) {
+                            clearTimeout(gameState.comboTimeout);
+                        }
                         
                         // Lose a life
                         gameState.lives--;
@@ -739,14 +829,23 @@
                     });
                 });
                 
-                // Limit to 5 options max
+                // Adaptive options count based on screen size
+                const isMobile = window.innerWidth <= 768;
+                const maxOptions = isMobile ? 4 : 5;
+                
+                // Ensure all correct translations are included
                 let displayTranslations = [...correctTranslations];
                 
-                // Add some incorrect translations if needed
-                while (displayTranslations.length < 5 && displayTranslations.length < allTranslations.length) {
-                    const randomTranslation = allTranslations[Math.floor(Math.random() * allTranslations.length)];
-                    if (!displayTranslations.includes(randomTranslation)) {
-                        displayTranslations.push(randomTranslation);
+                // Limit to available space if too many correct answers
+                if (displayTranslations.length > maxOptions) {
+                    displayTranslations = displayTranslations.slice(0, maxOptions);
+                } else {
+                    // Add some incorrect translations if needed
+                    while (displayTranslations.length < maxOptions && displayTranslations.length < allTranslations.length) {
+                        const randomTranslation = allTranslations[Math.floor(Math.random() * allTranslations.length)];
+                        if (!displayTranslations.includes(randomTranslation)) {
+                            displayTranslations.push(randomTranslation);
+                        }
                     }
                 }
                 
@@ -762,6 +861,11 @@
                     
                     option.addEventListener('click', function() {
                         handleAnswerSelection(translation);
+                        
+                        // Add vibration on mobile if available
+                        if (window.navigator && window.navigator.vibrate) {
+                            window.navigator.vibrate(50);
+                        }
                     });
                     
                     answerContainer.appendChild(option);
@@ -787,15 +891,52 @@
                 });
                 
                 // Check if any active word matches this translation
+                let foundMatch = false;
                 for (let i = 0; i < gameState.wordElements.length; i++) {
                     const wordObj = gameState.wordElements[i];
                     
                     if (wordObj.word.translations[0] === translation) {
                         // Correct match!
                         createExplosionEffect(wordObj.element);
+                        foundMatch = true;
+                        
+                        // Handle combo system
+                        if (gameState.comboTimeout) {
+                            clearTimeout(gameState.comboTimeout);
+                        }
+                        
+                        gameState.combo++;
+                        
+                        // Calculate bonus based on combo
+                        let points = 10;
+                        let comboMultiplier = 1;
+                        
+                        if (gameState.combo >= 3) {
+                            comboMultiplier = Math.min(3, 1 + (gameState.combo - 1) * 0.5);
+                            points = Math.floor(10 * comboMultiplier);
+                            
+                            // Show combo indicator
+                            const comboIndicator = document.getElementById('comboIndicator');
+                            comboIndicator.textContent = `Combo x${comboMultiplier.toFixed(1)}! +${points}`;
+                            comboIndicator.style.opacity = 1;
+                            comboIndicator.style.transform = 'translateX(-50%) scale(1.2)';
+                            
+                            setTimeout(() => {
+                                comboIndicator.style.transform = 'translateX(-50%) scale(1)';
+                            }, 200);
+                            
+                            setTimeout(() => {
+                                comboIndicator.style.opacity = 0;
+                            }, 1500);
+                        }
+                        
+                        // Reset combo after 2.5 seconds of inactivity
+                        gameState.comboTimeout = setTimeout(() => {
+                            gameState.combo = 0;
+                        }, 2500);
                         
                         // Update score
-                        gameState.score += 10;
+                        gameState.score += points;
                         gameState.correctCount++;
                         scoreValue.textContent = gameState.score;
                         
@@ -805,6 +946,14 @@
                         // Update options
                         updateAnswerOptions();
                         break;
+                    }
+                }
+                
+                // If no match was found, break the combo
+                if (!foundMatch) {
+                    gameState.combo = 0;
+                    if (gameState.comboTimeout) {
+                        clearTimeout(gameState.comboTimeout);
                     }
                 }
             }
