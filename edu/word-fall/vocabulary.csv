@@ -1,30 +1,181 @@
-apple,jabłko,gruszka,banan,pomarańcza
-book,książka,zeszyt,długopis,gazeta
-car,samochód,rower,pociąg,autobus
-dog,pies,kot,mysz,ptak
-house,dom,mieszkanie,biuro,sklep
-sun,słońce,księżyc,gwiazda,chmura
-water,woda,sok,kawa,herbata
-school,szkoła,przedszkole,uniwersytet,biblioteka
-tree,drzewo,kwiat,trawa,krzew
-friend,przyjaciel,wróg,kolega,sąsiad
-money,pieniądze,moneta,banknot,portfel
-time,czas,godzina,minuta,sekunda
-food,jedzenie,napój,deser,przekąska
-computer,komputer,telefon,tablet,laptop
-city,miasto,wieś,stolica,dzielnica
-music,muzyka,film,książka,obraz
-chair,krzesło,stół,łóżko,sofa
-game,gra,zabawa,sport,rozrywka
-hand,ręka,noga,głowa,ramię
-family,rodzina,przyjaciele,krewni,dzieci
-job,praca,zawód,kariera,biznes
-table,stół,biurko,krzesło,półka
-phone,telefon,komórka,smartfon,tablet
-flower,kwiat,róża,tulipan,stokrotka
-animal,zwierzę,ptak,ryba,owad
-clothes,ubrania,spodnie,koszula,buty
-color,kolor,czerwony,niebieski,zielony
-door,drzwi,okno,ściana,podłoga
-night,noc,wieczór,poranek,dzień
-beach,plaża,morze,piasek,ocean
+ambivalence,ambiwalencja,dwuznaczność,obojętność,sprzeczność
+serendipity,przypadkowe odkrycie,szczęśliwy traf,przeznaczenie,zrządzenie losu
+ephemeral,ulotny,nietrwały,przemijający,tymczasowy
+quintessence,kwintesencja,istota,sedno,esencja
+ubiquitous,wszechobecny,powszechny,popularny,znany
+mellifluous,melodyjny,harmonijny,przyjemny,śpiewny
+resilience,odporność,wytrzymałość,elastyczność,siła
+euphoria,euforia,ekstaza,zadowolenie,radość
+synchronicity,synchroniczność,zbieżność,zgodność,koincydencja
+nebulous,mglisty,niejasny,niewyraźny,mętny
+labyrinth,labirynt,plątanina,zagadka,łamigłówka
+enigma,zagadka,tajemnica,sekret,szyfr
+soliloquy,monolog,przemowa,oracja,wypowiedź
+zephyr,zefirek,wiatr,podmuch,bryza
+quintessential,typowy,charakterystyczny,wzorcowy,modelowy
+archipelago,archipelag,wyspa,atol,laguna
+juxtaposition,zestawienie,porównanie,kontrast,przeciwieństwo
+denouement,rozwiązanie,zakończenie,finał,konkluzja
+quixotic,donkiszotowski,idealistyczny,naiwny,romantyczny
+kaleidoscope,kalejdoskop,mozaika,różnorodność,wielobarwność
+metamorphosis,metamorfoza,przemiana,transformacja,zmiana
+diaphanous,przejrzysty,delikatny,zwiewny,eteryczny
+cacophony,kakofonia,dysonans,hałas,zgiełk
+dichotomy,dychotomia,podział,rozdźwięk,kontrast
+paradigm,paradygmat,model,wzorzec,schemat
+verisimilitude,prawdopodobieństwo,realizm,autentyczność,wiarygodność
+nefarious,nikczemny,podły,zły,niegodziwy
+vernacular,gwara,dialekt,mowa,język
+aplomb,pewność siebie,opanowanie,spokój,zimna krew
+obfuscate,zaciemniać,gmatwać,komplikować,zamazywać
+pernicious,szkodliwy,zgubny,niszczycielski,destrukcyjny
+ineffable,niewyrażalny,nieopisany,niepojęty,niewyobrażalny
+oblivion,zapomnienie,niepamięć,nieistnienie,nicość
+esoteric,ezoteryczny,tajemny,niejasny,ukryty
+paragon,wzór,ideał,model,przykład
+insidious,podstępny,zdradziecki,skryty,nieuczciwy
+melancholy,melancholia,smutek,przygnębienie,żal
+perfidious,wiarołomny,zdradziecki,fałszywy,oszukańczy
+aplomb,pewność siebie,opanowanie,spokój,zimna krew
+gossamer,delikatny,zwiewny,lekki,eteryczny
+ethereal,eteryczny,nieziemski,subtelny,delikatny
+harbinger,zwiastun,zapowiedź,omen,znak
+vicissitude,zmiana,kolej losu,wahanie,niepewność
+ennui,znudzenie,nuda,apatia,zniechęcenie
+petrichor,zapach deszczu,woń ziemi,aromat,orzeźwienie
+loquacious,gadatliwy,rozmowny,elokwentny,wielomówny
+surreptitious,ukradkowy,potajemny,skryty,sekretny
+peregrination,wędrówka,podróż,pielgrzymka,tułaczka
+crepuscular,zmierzchowy,półmroczny,wieczorny,ciemnawy
+inexorable,nieubłagany,nieuchronny,nieodwracalny,niezmienny
+desultory,chaotyczny,bezładny,przypadkowy,niedbały
+anathema,anatema,przekleństwo,potępienie,klątwa
+equanimity,równowaga,spokój,opanowanie,niewzruszoność
+ebullience,entuzjazm,zapał,żywiołowość,werwę
+incandescent,żarzący się,świecący,jaśniejący,błyszczący
+incipient,początkowy,rodzący się,wschodzący,zaczynający się
+propinquity,bliskość,sąsiedztwo,pokrewieństwo,przyległość
+soporific,nasenny,usypiający,monotonny,nużący
+penumbra,półcień,cień,mroczność,ciemność
+pugnacious,wojowniczy,zadziorny,agresywny,skłonny do walki
+puerile,dziecinny,niedojrzały,infantylny,naiwny
+pulchritude,piękno,uroda,wdzięk,atrakcyjność
+pusillanimous,tchórzliwy,bojaźliwy,strachliwy,małoduszny
+quiddity,istota,sedno,esencja,kwintesencja
+querulous,marudny,narzekający,zrzędliwy,gderliwy
+quotidian,codzienny,powszedni,zwyczajny,rutynowy
+rambunctious,hałaśliwy,żywiołowy,energiczny,nieokiełznany
+redolent,pachnący,wonny,aromatyczny,perfumowany
+resplendent,wspaniały,olśniewający,świetlisty,przepyszny
+rhapsody,rapsodia,uniesienie,ekstaza,zachwyt
+sagacious,mądry,bystry,przenikliwy,rozważny
+sanguine,optymistyczny,pogodny,pozytywny,pełen nadziei
+scintillating,błyszczący,iskrzący,olśniewający,fascynujący
+sempiternal,wieczny,odwieczny,nieustający,nieprzerwany
+seraphic,anielski,niebiański,boski,niewinny
+sinuous,kręty,wijący się,falisty,serpentynowy
+sonorous,dźwięczny,donośny,głęboki,melodyjny
+stentorian,gromki,donośny,potężny,tubalny
+susurration,szmer,szept,szelest,szemranie
+taciturn,małomówny,milczący,cichy,skryty
+temerity,zuchwalstwo,lekkomyślność,brawura,odwaga
+tenebrous,mroczny,ciemny,ponury,posępny
+tenuous,nikły,słaby,wątły,kruchy
+timorous,lękliwy,bojaźliwy,nieśmiały,strachliwy
+torpor,odrętwienie,letarg,ospałość,apatia
+trenchant,ostry,cięty,przenikliwy,bezwzględny
+truculent,agresywny,wojowniczy,wrogi,napastliwy
+tumultuous,burzliwy,chaotyczny,wzburzony,niespokojny
+umbrage,uraza,gniew,niechęć,obraza
+unctuous,wygładzony,oleisty,ugrzeczniony,przesadnie uprzejmy
+vapid,mdły,nijakie,nudny,bezbarwny
+variegated,różnobarwny,wielokolorowy,pstry,barwny
+verdant,zielony,bujny,świeży,soczysty
+vicarious,zastępczy,pośredni,wtórny,zapożyczony
+viridity,zieleń,świeżość,bujność,żywotność
+voluble,gadatliwy,rozmowny,elokwentny,wielomówny
+voluptuous,zmysłowy,ponętny,kształtny,atrakcyjny
+wistful,tęskny,melancholijny,nostalgiczny,smętny
+zealot,fanatyk,zagorzały zwolennik,ekstremista,radykał
+abscond,uciec,zbiec,umknąć,wymknąć się
+acrimony,gorycz,wrogość,niechęć,złośliwość
+adumbrate,zarysować,naszkicować,nakreślić,przedstawić w zarysie
+alacrity,ochota,skwapliwość,gorliwość,żwawość
+alleviate,złagodzić,ulżyć,uśmierzyć,zmniejszyć
+amalgamate,połączyć,scalić,zmieszać,stopić
+ameliorate,ulepszyć,poprawić,udoskonalić,polepszyć
+anachronism,anachronizm,przestarzałość,nieaktualność,przeżytek
+anodyne,łagodzący,kojący,uspokajający,uśmierzający
+anomalous,anomalny,nietypowy,odbiegający od normy,osobliwy
+antedate,wyprzedzać,poprzedzać,być wcześniejszym,istnieć wcześniej
+antipathy,antypatia,niechęć,wstręt,awersja
+apocryphal,apokryficzny,nieprawdziwy,zmyślony,fałszywy
+apotheosis,apoteoza,uwznioślenie,uwielbienie,kult
+approbation,aprobata,pochwała,uznanie,przychylność
+archetypal,archetypowy,wzorcowy,pierwotny,modelowy
+assiduous,pilny,sumienny,wytrwały,gorliwy
+assuage,złagodzić,uśmierzyć,uspokoić,zmniejszyć
+astringent,cierpki,kwaśny,gorzki,ściągający
+atrophy,atrofia,zanik,degeneracja,uwstecznienie
+augury,wróżba,przepowiednia,omen,znak
+auspicious,pomyślny,szczęśliwy,sprzyjający,korzystny
+avarice,chciwość,skąpstwo,zachłanność,żądza posiadania
+bailiwick,domena,dziedzina,obszar działania,pole zainteresowań
+beatific,błogosławiony,szczęśliwy,niebiański,radosny
+beguile,oczarować,uwieść,zwieść,zmamić
+behemoth,kolos,gigant,olbrzym,monstrum
+belligerent,wojowniczy,agresywny,wrogi,napastliwy
+benighted,ciemny,nieświadomy,ignorancki,zacofany
+benison,błogosławieństwo,łaska,dar,przychylność
+boorish,chamski,prostacki,nieokrzesany,grubiański
+bucolic,sielski,wiejski,rustykalny,pasterski
+byzantine,bizantyjski,skomplikowany,zawiły,intrygujący
+calumny,oszczerstwo,zniesławienie,potwarz,pomówienie
+canorous,melodyjny,śpiewny,dźwięczny,harmonijny
+capricious,kapryśny,zmienny,niestały,nieprzewidywalny
+captious,czepliwy,wybredny,krytyczny,kłótliwy
+carmustline,łagodzić,uspokajać,uśmierzać,koić
+castigate,karcić,ganić,strofować,łajać
+catalyst,katalizator,czynnik przyspieszający,inicjator,bodziec
+catharsis,katharsis,oczyszczenie,uwolnienie,uzdrowienie
+caustic,ostry,żrący,uszczypliwy,cięty
+celerity,szybkość,prędkość,pospiech,żwawość
+chimera,chimera,złudzenie,fantazja,urojenie
+churlish,gburowatyy,opryskliwy,zgryźliwy,nieuprzejmy
+circumlocution,wielosłowie,gadulstwo,rozwlekłość,wielomówność
+clemency,łaskawość,miłosierdzie,wyrozumiałość,litość
+cognizant,świadomy,znający,zorientowany,poinformowany
+colloquial,potoczny,mówiony,codzienny,nieoficjalny
+compendium,kompendium,zarys,streszczenie,skrót
+conciliatory,pojednawczy,ugodowy,łagodzący,łagodny
+concupiscence,pożądliwość,chuć,lubieżność,zmysłowość
+condign,zasłużony,odpowiedni,stosowny,właściwy
+conflagration,pożar,pożoga,płomienie,ogień
+confute,obalić,zbić,odeprzeć,zanegować
+connoisseur,koneser,znawca,ekspert,miłośnik
+conscientious,sumienny,skrupulatny,rzetelny,dokładny
+consternation,konsternacja,przerażenie,zdumienie,osłupienie
+contumacious,krnąbrny,oporny,nieposłuszny,buntowniczy
+convivial,towarzyski,wesoły,biesiadny,przyjacielski
+corroborate,potwierdzić,poprzeć,wzmocnić,uwiarygodnić
+countenance,wyraz twarzy,oblicze,mina,fizjonomia
+crepitation,trzeszczenie,chrzęszczenie,skrzypienie,chrobotanie
+deleterious,szkodliwy,zgubny,niszczący,destrukcyjny
+demagogue,demagog,podżegacz,agitator,wichrzyciel
+denizen,mieszkaniec,obywatel,tubylec,lokator
+depredation,grabież,rabunek,spustoszenie,zniszczenie
+deracinate,wykorzeniać,wyrywać,usuwać,wydobywać
+derelict,opuszczony,porzucony,zaniedbany,zrujnowany
+desiccate,wysuszyć,odwodnić,wyschnąć,zeschnąć
+desideratum,cel,dążenie,pragnienie,pożądana rzecz
+desuetude,zaniechanie,zapomnienie,nieużywanie,przestarzałość
+diapason,zakres,pełnia,harmonia,skala
+diffident,nieśmiały,bojaźliwy,wstydliwy,onieśmielony
+dilettante,dyletant,amator,hobbysta,nieprofesjonalista
+discomfit,pokonać,zwyciężyć,rozgromić,pobić
+discordant,niezgodny,dysharmonijny,niespójny,rozdźwięczny
+disinterested,bezstronny,neutralny,obiektywny,nieprzychylny
+disparage,umniejszać,dyskredytować,poniżać,pomniejszać
+dissemble,udawać,maskować,ukrywać,taić
+dissonance,dysonans,rozdźwięk,niezgodność,rozdźwięczność
+dyspeptic,niestrawny,zgryźliwy,rozdrażniony,marudny
