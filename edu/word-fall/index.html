@@ -227,8 +227,9 @@
         /* Ulepszone opcje odpowiedzi */
         .answer-container {
             display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
             width: 100%;
             max-width: 900px;
             background-color: rgba(255, 255, 255, 0.9);
@@ -243,6 +244,15 @@
             transform: translateX(-50%);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
+        }
+
+        .answer-options-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+            gap: 8px;
+            margin-bottom: 5px;
         }
 
         .answer-option {
@@ -1101,6 +1111,32 @@
             color: var(--primary-color);
         }
 
+        /* Dodajemy style dla pauzy */
+        .game-paused .word-element {
+            filter: blur(5px);
+            transition: filter 0.3s ease;
+            pointer-events: none;
+        }
+
+        .options-paused .answer-option {
+            filter: blur(5px);
+            transition: filter 0.3s ease;
+            pointer-events: none;
+        }
+
+        .game-paused::after {
+            content: "PAUZA";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+            z-index: 100;
+        }
+
         /* Dodanie obsługi motywu ciemnego */
         @media (prefers-color-scheme: dark) {
             :root {
@@ -1173,6 +1209,21 @@
                 background-color: rgba(50, 50, 50, 0.95);
                 color: white;
             }
+        }
+
+        /* Dark theme improvements */
+        body.dark-theme .option-number {
+            color: #aaaaaa;
+        }
+
+        body.dark-theme .answer-container {
+            background-color: rgba(40, 40, 40, 0.9);
+        }
+
+        body.dark-theme .combo-indicator,
+        body.dark-theme .status-bar {
+            background-color: rgba(40, 40, 40, 0.9);
+            color: white;
         }
 
         /* Ulepszone media queries dla różnych orientacji i urządzeń */
@@ -1518,6 +1569,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Dodanie własnych stylów i dostosowań
+            addCustomStyles();
+
             // DOM elements
             const gameArea = document.getElementById('gameArea');
             const answerContainer = document.getElementById('answerContainer');
@@ -1540,10 +1594,10 @@
             // System konfiguracji trudności
             const difficultyConfig = {
                 easy: {
-                    baseSpeed: 1.2,
+                    baseSpeed: 0.5,  // Was 1.2
                     levelSpeedIncrease: 0.05,
-                    maxSpeed: 2.5,
-                    baseSpawnRate: 5000,
+                    maxSpeed: 1.2,   // Was 2.5
+                    baseSpawnRate: 6000,   // Was 5000
                     minSpawnRate: 3000,
                     wordCount: 3,
                     lives: 5,
@@ -1552,10 +1606,10 @@
                     scoreMultiplier: 0.8
                 },
                 medium: {
-                    baseSpeed: 2,
+                    baseSpeed: 0.8, // Was 2.0
                     levelSpeedIncrease: 0.1,
-                    maxSpeed: 3.5,
-                    baseSpawnRate: 4000,
+                    maxSpeed: 1.8,  // Was 3.5
+                    baseSpawnRate: 5000, // Was 4000
                     minSpawnRate: 2500,
                     wordCount: 4,
                     lives: 4,
@@ -1564,10 +1618,10 @@
                     scoreMultiplier: 1
                 },
                 hard: {
-                    baseSpeed: 3,
+                    baseSpeed: 1.2,   // Was 3.0
                     levelSpeedIncrease: 0.15,
-                    maxSpeed: 5,
-                    baseSpawnRate: 3000,
+                    maxSpeed: 2.5,    // Was 5.0
+                    baseSpawnRate: 4000,   // Was 3000
                     minSpawnRate: 2000,
                     wordCount: 5,
                     lives: 3,
@@ -1760,6 +1814,14 @@
 
             // Load vocabulary from CSV file
             loadVocabulary();
+
+            // Funkcja dodająca niestandardowe style
+            function addCustomStyles() {
+                // Style są już dodane w sekcji CSS
+                
+                // Dodatkowe dostosowania mogą być dodawane tutaj
+                console.log("Custom styles applied");
+            }
 
             // Functions
             function loadVocabulary() {
@@ -2031,7 +2093,7 @@
                     // Check if word has fallen off screen
                     if (wordObj.top > gameHeight) {
                         // Word missed, remove it
-                        createSplashEffect(wordObj.left);
+                        createSplashEffect(wordObj.left, wordObj.word.english);
                         removeWord(index);
                         removed = true;
                         
@@ -2076,89 +2138,90 @@
                 
                 if (gameState.activeWords.length === 0) return;
                 
-                // Get all current words
-                const allTranslations = [];
-                let correctTranslations = [];
+                // Sort active words by their vertical position (top to bottom)
+                const sortedWords = [...gameState.wordElements].sort((a, b) => b.top - a.top);
                 
-                gameState.activeWords.forEach(word => {
-                    // Correct translation is the first one
-                    correctTranslations.push(word.translations[0]);
+                // Create a container for each word's options
+                sortedWords.forEach((wordObj) => {
+                    const optionsRow = document.createElement('div');
+                    optionsRow.className = 'answer-options-row';
+                    optionsRow.dataset.forWord = wordObj.word.english;
+                    answerContainer.appendChild(optionsRow);
                     
-                    // Add all translations to the pool
-                    word.translations.forEach(translation => {
-                        if (!allTranslations.includes(translation)) {
-                            allTranslations.push(translation);
+                    // Get correct translation for this word
+                    const correctTranslation = wordObj.word.translations[0];
+                    
+                    // Create a pool of options
+                    let options = [correctTranslation];
+                    
+                    // Add some incorrect options
+                    const allTranslations = [];
+                    gameState.words.forEach(word => {
+                        if (word.english !== wordObj.word.english) {
+                            word.translations.forEach(translation => {
+                                if (!allTranslations.includes(translation) && translation !== correctTranslation) {
+                                    allTranslations.push(translation);
+                                }
+                            });
                         }
                     });
-                });
-                
-                // Adaptive options count - zapewniamy wystarczająco dużo miejsca
-                const maxOptions = 8; // Zwiększamy maksymalną liczbę opcji
-                
-                // Ensure all correct translations are included
-                let displayTranslations = [...correctTranslations];
-                
-                // Limit to available space if too many correct answers
-                if (displayTranslations.length > maxOptions) {
-                    displayTranslations = displayTranslations.slice(0, maxOptions);
-                } else {
-                    // Add some incorrect translations if needed
-                    while (displayTranslations.length < Math.min(maxOptions, allTranslations.length)) {
-                        const randomTranslation = allTranslations[Math.floor(Math.random() * allTranslations.length)];
-                        if (!displayTranslations.includes(randomTranslation)) {
-                            displayTranslations.push(randomTranslation);
-                        }
+                    
+                    // Add 3 random incorrect options (or fewer if not enough available)
+                    while (options.length < 4 && allTranslations.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * allTranslations.length);
+                        options.push(allTranslations[randomIndex]);
+                        allTranslations.splice(randomIndex, 1);
                     }
-                }
-                
-                // Shuffle the options
-                shuffleArray(displayTranslations);
-                
-                // Create options
-                displayTranslations.forEach((translation, index) => {
-                    const option = document.createElement('div');
-                    option.className = 'answer-option';
-                    option.textContent = translation;
-                    option.dataset.translation = translation;
                     
-                    // Dodanie atrybutów dostępności
-                    option.setAttribute('role', 'button');
-                    option.setAttribute('tabindex', '0');
-                    option.setAttribute('aria-label', `Wybierz tłumaczenie: ${translation}`);
+                    // Shuffle options
+                    shuffleArray(options);
                     
-                    // Dodanie obsługi klawiatury
-                    option.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                    // Create option elements
+                    options.forEach((translation, index) => {
+                        const option = document.createElement('div');
+                        option.className = 'answer-option';
+                        option.textContent = translation;
+                        option.dataset.translation = translation;
+                        option.dataset.forWord = wordObj.word.english;
+                        
+                        // Add accessibility attributes
+                        option.setAttribute('role', 'button');
+                        option.setAttribute('tabindex', '0');
+                        option.setAttribute('aria-label', `Wybierz tłumaczenie: ${translation}`);
+                        
+                        // Add keyboard handling
+                        option.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                freezeOptions(800);
+                                handleAnswerSelection(translation);
+                            }
+                        });
+                        
+                        option.addEventListener('click', function() {
+                            // Freeze options momentarily to prevent rapid clicking
                             freezeOptions(800);
+                            
                             handleAnswerSelection(translation);
+                            
+                            // Add vibration on mobile if available
+                            if (window.navigator && window.navigator.vibrate) {
+                                window.navigator.vibrate(50);
+                            }
+                        });
+                        
+                        optionsRow.appendChild(option);
+                        
+                        // Add number indicators for options 1-9
+                        if (index < 9) {
+                            const numberIndicator = document.createElement('span');
+                            numberIndicator.className = 'option-number';
+                            numberIndicator.textContent = (index + 1).toString();
+                            option.prepend(numberIndicator);
                         }
                     });
-                    
-                    option.addEventListener('click', function() {
-                        // Zamrażamy opcje na moment, aby uniknąć przeskakiwania
-                        freezeOptions(800);
-                        
-                        handleAnswerSelection(translation);
-                        
-                        // Add vibration on mobile if available
-                        if (window.navigator && window.navigator.vibrate) {
-                            window.navigator.vibrate(50);
-                        }
-                    });
-                    
-                    answerContainer.appendChild(option);
-                    
-                    // Dodanie numerów dla pierwszych 9 opcji (klawisze 1-9)
-                    if (index < 9) {
-                        const numberIndicator = document.createElement('span');
-                        numberIndicator.className = 'option-number';
-                        numberIndicator.textContent = (index + 1).toString();
-                        option.prepend(numberIndicator);
-                    }
                 });
                 
-                // Store current options
-                gameState.currentOptions = displayTranslations;
+                // Store current options state
                 gameState.selectedAnswer = null;
             }
             
@@ -2342,13 +2405,19 @@
                     playSound('correct');
                 }
                 
-                // Dodanie informacji głosowej
+                // Add audio feedback - both English pronunciation and Polish confirmation
                 if (wordElement && wordElement.textContent && gameState.audioFeedback) {
-                    speak(`Poprawnie! ${wordElement.textContent}`);
+                    // First pronounce the English word
+                    speak(wordElement.textContent, true);
+                    
+                    // Then provide feedback in Polish
+                    setTimeout(() => {
+                        speak("Poprawnie!");
+                    }, 1000);
                 }
             }
 
-            function createSplashEffect(leftPosition) {
+            function createSplashEffect(leftPosition, missedWord) {
                 const splash = document.createElement('div');
                 splash.className = 'splash';
                 splash.style.left = `${leftPosition + 30}px`; // Center splash under the word
@@ -2367,9 +2436,15 @@
                     playSound('miss');
                 }
                 
-                // Dodanie informacji głosowej
-                if (gameState.audioFeedback) {
-                    speak("Słowo uciekło!");
+                // Audio feedback for missed word
+                if (gameState.audioFeedback && missedWord) {
+                    // First pronounce the English word that was missed
+                    speak(missedWord, true);
+                    
+                    // Then provide feedback in Polish
+                    setTimeout(() => {
+                        speak("Słowo uciekło!");
+                    }, 1000);
                 }
             }
 
@@ -2438,12 +2513,14 @@
             }
             
             // Funkcja do komunikatów głosowych
-            function speak(text) {
+            function speak(text, isEnglish = false) {
                 if (!gameState.audioFeedback) return;
                 
                 if ('speechSynthesis' in window) {
                     const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'pl-PL';
+                    
+                    // Set appropriate language based on content
+                    utterance.lang = isEnglish ? 'en-US' : 'pl-PL';
                     utterance.volume = 0.8;
                     
                     window.speechSynthesis.speak(utterance);
@@ -2461,8 +2538,7 @@
                 if (gameState.comboTimeout) {
                     clearTimeout(gameState.comboTimeout);
                 }
-                
-                if (gameState.optionsFreezeTimeout) {
+if (gameState.optionsFreezeTimeout) {
                     clearTimeout(gameState.optionsFreezeTimeout);
                 }
                 
@@ -2486,7 +2562,7 @@
                     rewardsInfo.innerHTML = `Dodatkowe życia: <span class="bonus-lives">${gameState.rewards.bonusLives}</span> | 
                                              Perfekcyjne rundy: <span class="perfect-rounds">${gameState.rewards.perfectRounds || 0}</span>`;
                     
-// Dodaj do ekranu końca gry
+                    // Dodaj do ekranu końca gry
                     gameOverStats.insertAdjacentElement('afterend', achievementsInfo);
                     achievementsInfo.insertAdjacentElement('afterend', rewardsInfo);
                 }
@@ -2516,10 +2592,18 @@
                     pauseBtn.innerHTML = '<span aria-hidden="true">▶️</span>';
                     pauseBtn.title = 'Wznów';
                     pauseBtn.setAttribute('aria-label', 'Wznów grę');
+                    
+                    // Add blur class to game area and answer options
+                    gameArea.classList.add('game-paused');
+                    answerContainer.classList.add('options-paused');
                 } else {
                     pauseBtn.innerHTML = '<span aria-hidden="true">⏸️</span>';
                     pauseBtn.title = 'Pauza';
                     pauseBtn.setAttribute('aria-label', 'Wstrzymaj grę');
+                    
+                    // Remove blur class
+                    gameArea.classList.remove('game-paused');
+                    answerContainer.classList.remove('options-paused');
                 }
             }
 
