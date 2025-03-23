@@ -172,6 +172,10 @@
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
             z-index: 5;
             gap: 8px;
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .answer-option {
@@ -388,6 +392,11 @@
                 padding: 0.6rem 1.2rem;
                 font-size: 0.9rem;
             }
+            
+            /* Podnosimy jeszcze bardziej na urządzeniach mobilnych */
+            .answer-container {
+                bottom: 60px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -418,6 +427,7 @@
             .answer-container {
                 padding: 0.6rem;
                 gap: 6px;
+                bottom: 80px; /* Jeszcze wyżej na małych ekranach */
             }
         }
     </style>
@@ -443,7 +453,7 @@
             </div>
             <div class="stat">
                 <div class="stat-label">Życia</div>
-                <div class="stat-value lives" id="livesValue">❤️❤️❤️</div>
+                <div class="stat-value lives" id="livesValue">❤️❤️❤️❤️</div>
             </div>
         </div>
 
@@ -529,7 +539,7 @@
                 currentOptions: [],
                 score: 0,
                 level: 1,
-                lives: 3,
+                lives: 4,
                 selectedAnswer: null,
                 gameRunning: false,
                 paused: false,
@@ -540,7 +550,9 @@
                 intervalId: null,
                 currentWordIndex: 0,
                 combo: 0,
-                comboTimeout: null
+                comboTimeout: null,
+                optionsFrozen: false,
+                optionsFreezeTimeout: null
             };
 
             // Fallback vocabulary in case CSV loading fails
@@ -618,7 +630,7 @@
                     }
                 });
                 
-                // Shuffle the words
+                // Zawsze losujemy słówka po wczytaniu
                 shuffleArray(gameState.words);
             }
 
@@ -632,6 +644,10 @@
                 gameState.activeWords = [];
                 gameState.wordElements = [];
                 gameState.combo = 0;
+                gameState.optionsFrozen = false;
+                
+                // Upewniamy się, że wszystko jest wyczyszczone przed startem
+                clearGameArea();
                 
                 // Add touch feedback for mobile devices
                 if ("ontouchstart" in document.documentElement) {
@@ -642,9 +658,6 @@
                 scoreValue.textContent = gameState.score;
                 levelValue.textContent = gameState.level;
                 updateLivesDisplay();
-                
-                // Clear game area and answer container
-                clearGameArea();
                 
                 // Hide start screen
                 gameStart.style.display = 'none';
@@ -822,6 +835,9 @@
             }
 
             function updateAnswerOptions() {
+                // Jeśli opcje są zamrożone, wyjdź z funkcji
+                if (gameState.optionsFrozen) return;
+                
                 // Clear previous options
                 answerContainer.innerHTML = '';
                 
@@ -873,6 +889,9 @@
                     option.dataset.translation = translation;
                     
                     option.addEventListener('click', function() {
+                        // Zamrażamy opcje na moment, aby uniknąć przeskakiwania
+                        freezeOptions(800);
+                        
                         handleAnswerSelection(translation);
                         
                         // Add vibration on mobile if available
@@ -887,6 +906,23 @@
                 // Store current options
                 gameState.currentOptions = displayTranslations;
                 gameState.selectedAnswer = null;
+            }
+            
+            // Funkcja zamrażająca opcje na określony czas
+            function freezeOptions(duration) {
+                gameState.optionsFrozen = true;
+                
+                // Anulujemy poprzedni timeout, jeśli istnieje
+                if (gameState.optionsFreezeTimeout) {
+                    clearTimeout(gameState.optionsFreezeTimeout);
+                }
+                
+                // Ustawiamy nowy timeout
+                gameState.optionsFreezeTimeout = setTimeout(() => {
+                    gameState.optionsFrozen = false;
+                    // Aktualizujemy opcje po odmrożeniu
+                    updateAnswerOptions();
+                }, duration);
             }
 
             function handleAnswerSelection(translation) {
@@ -1038,7 +1074,10 @@
                 // Hide game over screen
                 gameOver.style.display = 'none';
                 
-                // Reshuffle words
+                // Dokładne wyczyszczenie wszystkich elementów gry
+                clearGameArea();
+                
+                // Ponowne losowanie słów
                 shuffleArray(gameState.words);
                 
                 // Start new game
@@ -1083,15 +1122,39 @@
             }
 
             function clearGameArea() {
-                // Remove all word elements
-                gameState.wordElements.forEach(wordObj => {
-                    if (gameArea.contains(wordObj.element)) {
-                        gameArea.removeChild(wordObj.element);
-                    }
+                // Zatrzymaj wszystkie interwały
+                if (gameState.intervalId) {
+                    clearInterval(gameState.intervalId);
+                }
+                
+                if (gameState.comboTimeout) {
+                    clearTimeout(gameState.comboTimeout);
+                }
+                
+                if (gameState.optionsFreezeTimeout) {
+                    clearTimeout(gameState.optionsFreezeTimeout);
+                }
+                
+                // Remove all word elements - bezpośrednio usuwamy wszystkie elementy
+                const wordElements = gameArea.querySelectorAll('.word-element');
+                wordElements.forEach(element => {
+                    gameArea.removeChild(element);
+                });
+                
+                // Czyszczenie innych elementów
+                const splashes = gameArea.querySelectorAll('.splash');
+                splashes.forEach(element => {
+                    gameArea.removeChild(element);
+                });
+                
+                const explosions = gameArea.querySelectorAll('.explosion');
+                explosions.forEach(element => {
+                    gameArea.removeChild(element);
                 });
                 
                 gameState.wordElements = [];
                 gameState.activeWords = [];
+                gameState.optionsFrozen = false;
                 
                 // Clear answer container
                 answerContainer.innerHTML = '';
