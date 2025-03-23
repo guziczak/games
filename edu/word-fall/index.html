@@ -453,7 +453,6 @@
                 <div class="spinner"></div>
                 <p>Wczytywanie słówek...</p>
             </div>
-            <div class="combo-indicator" id="comboIndicator">Combo x2!</div>
         </div>
 
         <div class="answer-container" id="answerContainer">
@@ -506,20 +505,20 @@
                 easy: {
                     fallSpeed: 1.2,
                     spawnRate: 5000,
-                    wordCount: 1,
-                    lives: 5
+                    wordCount: 3,  // Zwiększona liczba słów
+                    lives: 4       // Stała liczba żyć
                 },
                 medium: {
                     fallSpeed: 2,
                     spawnRate: 4000,
-                    wordCount: 2,
-                    lives: 3
+                    wordCount: 4,  // Zwiększona liczba słów
+                    lives: 4       // Stała liczba żyć
                 },
                 hard: {
                     fallSpeed: 3,
                     spawnRate: 3000,
-                    wordCount: 3,
-                    lives: 2
+                    wordCount: 5,  // Zwiększona liczba słów
+                    lives: 4       // Stała liczba żyć
                 }
             };
 
@@ -670,23 +669,12 @@
             function spawnWords() {
                 if (!gameState.gameRunning || gameState.paused) return;
                 
-                // Check max word count based on screen size/orientation
-                const isMobile = window.innerWidth <= 768;
-                const isPortrait = window.innerHeight > window.innerWidth;
+                // Ustawienie minimalnej i maksymalnej liczby słów w zależności od trudności
+                const maxWords = config[gameState.difficulty].wordCount;
                 
-                // Adjust max word count for mobile or portrait orientation
-                let adjustedMaxWords = config[gameState.difficulty].wordCount;
-                if (isMobile && isPortrait) {
-                    adjustedMaxWords = Math.max(1, adjustedMaxWords - 1);
-                }
-                
-                const wordCount = Math.min(
-                    adjustedMaxWords,
-                    gameState.words.length - gameState.currentWordIndex
-                );
-                
-                if (gameState.activeWords.length >= wordCount) {
-                    // Already have max active words
+                // Sprawdzenie, czy możemy dodać nowe słowo
+                if (gameState.activeWords.length >= maxWords + 1) {
+                    // Już mamy maksymalną liczbę słów + bezpieczny margines
                     setTimeout(spawnWords, config[gameState.difficulty].spawnRate);
                     return;
                 }
@@ -706,8 +694,9 @@
                 // Create word element
                 createWordElement(nextWord);
                 
-                // Schedule next spawn
-                setTimeout(spawnWords, config[gameState.difficulty].spawnRate);
+                // Schedule next spawn - dodajmy losowość dla większej dynamiki
+                const randomDelay = config[gameState.difficulty].spawnRate * (0.8 + Math.random() * 0.4);
+                setTimeout(spawnWords, randomDelay);
             }
 
             function createWordElement(word) {
@@ -723,13 +712,38 @@
                 
                 // Make sure words don't spawn too close to edges on mobile
                 const padding = window.innerWidth <= 480 ? 20 : 10;
-                const leftPosition = Math.max(
-                    padding, 
-                    Math.min(
-                        gameWidth - elementWidth - padding,
-                        Math.random() * (gameWidth - elementWidth)
-                    )
-                );
+                
+                // Sprawdzenie czy nowe słowo nie nakłada się na istniejące słowa
+                let validPosition = false;
+                let leftPosition;
+                let attemptCount = 0;
+                
+                // Próbujemy znaleźć pozycję, która nie koliduje z innymi słowami
+                while (!validPosition && attemptCount < 10) {
+                    leftPosition = Math.max(
+                        padding, 
+                        Math.min(
+                            gameWidth - elementWidth - padding,
+                            Math.random() * (gameWidth - elementWidth)
+                        )
+                    );
+                    
+                    validPosition = true;
+                    
+                    // Sprawdzamy kolizje z istniejącymi słowami
+                    for (const existingWord of gameState.wordElements) {
+                        const existingLeft = parseFloat(existingWord.element.style.left);
+                        const existingWidth = existingWord.element.offsetWidth;
+                        
+                        // Sprawdzenie czy nowe słowo nakłada się na istniejące
+                        if (Math.abs(leftPosition - existingLeft) < (elementWidth + existingWidth) / 2) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attemptCount++;
+                }
                 
                 element.style.left = `${leftPosition}px`;
                 element.style.top = '-50px'; // Start above the visible area
@@ -829,9 +843,8 @@
                     });
                 });
                 
-                // Adaptive options count based on screen size
-                const isMobile = window.innerWidth <= 768;
-                const maxOptions = isMobile ? 4 : 5;
+                // Adaptive options count - zapewniamy wystarczająco dużo miejsca
+                const maxOptions = 8; // Zwiększamy maksymalną liczbę opcji
                 
                 // Ensure all correct translations are included
                 let displayTranslations = [...correctTranslations];
@@ -841,7 +854,7 @@
                     displayTranslations = displayTranslations.slice(0, maxOptions);
                 } else {
                     // Add some incorrect translations if needed
-                    while (displayTranslations.length < maxOptions && displayTranslations.length < allTranslations.length) {
+                    while (displayTranslations.length < Math.min(maxOptions, allTranslations.length)) {
                         const randomTranslation = allTranslations[Math.floor(Math.random() * allTranslations.length)];
                         if (!displayTranslations.includes(randomTranslation)) {
                             displayTranslations.push(randomTranslation);
@@ -900,7 +913,7 @@
                         createExplosionEffect(wordObj.element);
                         foundMatch = true;
                         
-                        // Handle combo system
+                        // Handle combo (tylko do naliczania punktów, bez pokazywania)
                         if (gameState.comboTimeout) {
                             clearTimeout(gameState.comboTimeout);
                         }
@@ -914,20 +927,6 @@
                         if (gameState.combo >= 3) {
                             comboMultiplier = Math.min(3, 1 + (gameState.combo - 1) * 0.5);
                             points = Math.floor(10 * comboMultiplier);
-                            
-                            // Show combo indicator
-                            const comboIndicator = document.getElementById('comboIndicator');
-                            comboIndicator.textContent = `Combo x${comboMultiplier.toFixed(1)}! +${points}`;
-                            comboIndicator.style.opacity = 1;
-                            comboIndicator.style.transform = 'translateX(-50%) scale(1.2)';
-                            
-                            setTimeout(() => {
-                                comboIndicator.style.transform = 'translateX(-50%) scale(1)';
-                            }, 200);
-                            
-                            setTimeout(() => {
-                                comboIndicator.style.opacity = 0;
-                            }, 1500);
                         }
                         
                         // Reset combo after 2.5 seconds of inactivity
