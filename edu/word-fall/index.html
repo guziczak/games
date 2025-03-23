@@ -82,7 +82,7 @@
         /* Ulepszony pasek statusu */
         .status-bar {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             width: 100%;
             max-width: 900px;
             padding: var(--spacing-sm) var(--spacing-md);
@@ -105,6 +105,7 @@
             transition: transform var(--transition-fast);
             position: relative;
             overflow: hidden;
+            min-width: 120px;
         }
 
         .stat:hover {
@@ -136,14 +137,6 @@
             color: var(--success-color);
         }
 
-        .level {
-            color: var(--info-color);
-        }
-
-        .lives {
-            color: var(--danger-color);
-        }
-
         /* Animacja punktów */
         @keyframes score-pulse {
             0% { transform: scale(1); }
@@ -159,7 +152,7 @@
             position: relative;
             width: 100%;
             max-width: 900px;
-            height: calc(100vh - 180px);
+            height: calc(100vh - 150px);
             background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
             border-radius: 10px;
             margin: 1rem 0;
@@ -256,7 +249,8 @@
         }
 
         .answer-option {
-            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.9rem;
+            padding: var(--spacing-xs) var(--spacing-sm);
             border-radius: var(--border-radius-xl);
             background-color: white;
             color: var(--text-primary);
@@ -266,8 +260,8 @@
             box-shadow: var(--box-shadow-sm);
             border: 2px solid transparent;
             flex: 1 0 auto;
-            min-width: 120px;
-            max-width: 200px;
+            min-width: 100px;
+            max-width: 180px;
             text-align: center;
             margin: 0;
             position: relative;
@@ -391,8 +385,8 @@
         /* Lepsze animacje dla eksplozji i spadania */
         @keyframes explode {
             0% { transform: scale(0); opacity: 1; }
-            50% { transform: scale(2); opacity: 0.8; }
-            100% { transform: scale(3); opacity: 0; }
+            50% { transform: scale(2.5); opacity: 0.8; }
+            100% { transform: scale(4); opacity: 0; }
         }
 
         .explosion {
@@ -409,24 +403,28 @@
             );
             border-radius: 50%;
             transform: scale(0);
-            animation: explode 0.5s ease-out forwards;
+            animation: explode 0.6s ease-out forwards;
         }
 
         .splash {
             position: absolute;
             pointer-events: none;
             bottom: 0;
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             z-index: 10;
-            background-image: radial-gradient(ellipse at center, rgba(66,133,244,0.8) 0%, rgba(66,133,244,0) 70%);
+            background-image: radial-gradient(
+                ellipse at center, 
+                rgba(255,0,0,0.7) 0%, 
+                rgba(255,0,0,0) 70%
+            );
             transform: scale(0);
             animation: splash 0.5s ease-out forwards;
         }
 
         @keyframes splash {
-            0% { transform: scale(0) translateY(0); opacity: 1; }
-            100% { transform: scale(2) translateY(-20px); opacity: 0; }
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
         }
 
         /* Ulepszone okno Game Over */
@@ -621,7 +619,6 @@
             top: -30px;
             right: 0;
             font-weight: bold;
-            color: var(--success-color);
             animation: points-up 1s forwards;
             font-size: 1.2em;
         }
@@ -1093,23 +1090,6 @@
             font-size: 0.9rem;
             color: var(--text-secondary);
         }
-        
-        /* Animacja dodatkowego życia */
-        .lives-bonus {
-            animation: pulse-life 1s;
-        }
-        
-        @keyframes pulse-life {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); color: #ff4d4d; }
-            100% { transform: scale(1); }
-        }
-        
-        /* Style dla ekranu końca gry */
-        .achievement-count, .bonus-lives, .perfect-rounds {
-            font-weight: bold;
-            color: var(--primary-color);
-        }
 
         /* Dodajemy style dla pauzy */
         .game-paused .word-element {
@@ -1433,14 +1413,6 @@
                 <div class="stat-label">Punkty</div>
                 <div class="stat-value score" id="scoreValue">0</div>
             </div>
-            <div class="stat">
-                <div class="stat-label">Poziom</div>
-                <div class="stat-value level" id="levelValue">1</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Życia</div>
-                <div class="stat-value lives" id="livesValue">❤️❤️❤️❤️</div>
-            </div>
         </div>
 
         <div class="game-area" id="gameArea" role="application" aria-label="Obszar gry ze spadającymi słówkami">
@@ -1508,10 +1480,10 @@
             </div>
             
             <div class="tutorial-step" data-step="4" style="display: none;">
-                <h3>Uważaj na życia</h3>
-                <p>Każde słówko, które spadnie na dół, zabiera jedno życie. Gra kończy się, gdy stracisz wszystkie życia. Poziom trudności wzrasta z czasem!</p>
+                <h3>Zbieraj punkty</h3>
+                <p>Zdobywaj punkty za poprawne odpowiedzi. Każde niewłaściwe słówko, które dotknie paska odpowiedzi, odejmuje punkty! Sprawdź jak dużo uda Ci się zdobyć!</p>
                 <div class="tutorial-image">
-                    <img src="/api/placeholder/300/200" alt="System żyć" />
+                    <img src="/api/placeholder/300/200" alt="System punktów" />
                 </div>
                 <div class="tutorial-buttons">
                     <button class="tutorial-btn tutorial-btn-skip" id="tutorialSkipBtn">Pomiń samouczek</button>
@@ -1569,15 +1541,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Dodanie własnych stylów i dostosowań
-            addCustomStyles();
-
             // DOM elements
             const gameArea = document.getElementById('gameArea');
             const answerContainer = document.getElementById('answerContainer');
             const scoreValue = document.getElementById('scoreValue');
-            const levelValue = document.getElementById('levelValue');
-            const livesValue = document.getElementById('livesValue');
             const pauseBtn = document.getElementById('pauseBtn');
             const soundBtn = document.getElementById('soundBtn');
             const themeBtn = document.getElementById('themeBtn');
@@ -1591,45 +1558,14 @@
             const difficultyOptions = document.querySelectorAll('.difficulty-option');
             const loading = document.getElementById('loading');
 
-            // System konfiguracji trudności
-            const difficultyConfig = {
-                easy: {
-                    baseSpeed: 0.5,  // Was 1.2
-                    levelSpeedIncrease: 0.05,
-                    maxSpeed: 1.2,   // Was 2.5
-                    baseSpawnRate: 6000,   // Was 5000
-                    minSpawnRate: 3000,
-                    wordCount: 3,
-                    lives: 5,
-                    comboMultiplierMax: 2.5,
-                    levelUpTime: 35000, // ms
-                    scoreMultiplier: 0.8
-                },
-                medium: {
-                    baseSpeed: 0.8, // Was 2.0
-                    levelSpeedIncrease: 0.1,
-                    maxSpeed: 1.8,  // Was 3.5
-                    baseSpawnRate: 5000, // Was 4000
-                    minSpawnRate: 2500,
-                    wordCount: 4,
-                    lives: 4,
-                    comboMultiplierMax: 3,
-                    levelUpTime: 30000, // ms
-                    scoreMultiplier: 1
-                },
-                hard: {
-                    baseSpeed: 1.2,   // Was 3.0
-                    levelSpeedIncrease: 0.15,
-                    maxSpeed: 2.5,    // Was 5.0
-                    baseSpawnRate: 4000,   // Was 3000
-                    minSpawnRate: 2000,
-                    wordCount: 5,
-                    lives: 3,
-                    comboMultiplierMax: 3.5,
-                    levelUpTime: 25000, // ms
-                    scoreMultiplier: 1.2
-                }
-            };
+            // Fallback vocabulary in case CSV loading fails
+            const fallbackVocabulary = [
+                {english: "apple", translations: ["jabłko", "gruszka", "banan", "pomarańcza"]},
+                {english: "book", translations: ["książka", "zeszyt", "długopis", "gazeta"]},
+                {english: "house", translations: ["dom", "mieszkanie", "budynek", "kamienica"]},
+                {english: "dog", translations: ["pies", "kot", "królik", "chomik"]},
+                {english: "car", translations: ["samochód", "rower", "motocykl", "autobus"]}
+            ];
 
             // Game state
             let gameState = {
@@ -1637,8 +1573,6 @@
                 activeWords: [],
                 currentOptions: [],
                 score: 0,
-                level: 1,
-                lives: 4,
                 selectedAnswer: null,
                 gameRunning: false,
                 paused: false,
@@ -1663,20 +1597,10 @@
                 speedModifier: 1,
                 rewards: {
                     badges: [],
-                    bonusLives: 0,
                     streaks: 0,
                     perfectRounds: 0
                 }
             };
-
-            // Fallback vocabulary in case CSV loading fails
-            const fallbackVocabulary = [
-                {english: "apple", translations: ["jabłko", "gruszka", "banan", "pomarańcza"]},
-                {english: "book", translations: ["książka", "zeszyt", "długopis", "gazeta"]},
-                {english: "house", translations: ["dom", "mieszkanie", "budynek", "kamienica"]},
-                {english: "dog", translations: ["pies", "kot", "królik", "chomik"]},
-                {english: "car", translations: ["samochód", "rower", "motocykl", "autobus"]}
-            ];
 
             // Osiągnięcia
             const achievements = [
@@ -1717,34 +1641,6 @@
                     },
                     reward: function(state) {
                         addScore(100);
-                        giveBonusLife();
-                    }
-                },
-                {
-                    id: 'level3',
-                    name: 'Poziom 3',
-                    description: 'Osiągnij poziom 3.',
-                    icon: '🏆',
-                    unlocked: false,
-                    check: function(state) {
-                        return state.level >= 3;
-                    },
-                    reward: function(state) {
-                        addScore(50);
-                    }
-                },
-                {
-                    id: 'level5',
-                    name: 'Poziom 5',
-                    description: 'Osiągnij poziom 5.',
-                    icon: '🏆🏆',
-                    unlocked: false,
-                    check: function(state) {
-                        return state.level >= 5;
-                    },
-                    reward: function(state) {
-                        addScore(100);
-                        giveBonusLife();
                     }
                 },
                 {
@@ -1758,7 +1654,6 @@
                     },
                     reward: function(state) {
                         addScore(150);
-                        giveBonusLife();
                         state.rewards.perfectRounds++;
                     }
                 }
@@ -1815,14 +1710,6 @@
             // Load vocabulary from CSV file
             loadVocabulary();
 
-            // Funkcja dodająca niestandardowe style
-            function addCustomStyles() {
-                // Style są już dodane w sekcji CSS
-                
-                // Dodatkowe dostosowania mogą być dodawane tutaj
-                console.log("Custom styles applied");
-            }
-
             // Functions
             function loadVocabulary() {
                 // Try to fetch the vocabulary.csv file from the same directory
@@ -1873,8 +1760,6 @@
             function startGame() {
                 // Reset game state
                 gameState.score = 0;
-                gameState.level = 1;
-                gameState.lives = difficultyConfig[gameState.difficulty].lives;
                 gameState.correctCount = 0;
                 gameState.missedCount = 0;
                 gameState.totalAnswered = 0;
@@ -1884,12 +1769,11 @@
                 gameState.combo = 0;
                 gameState.optionsFrozen = false;
                 gameState.consecutiveCorrect = 0;
-                gameState.adaptiveSpawnRate = difficultyConfig[gameState.difficulty].baseSpawnRate;
-                gameState.maxActiveWords = difficultyConfig[gameState.difficulty].wordCount;
+                gameState.adaptiveSpawnRate = 4000; // Fixed spawn rate
+                gameState.maxActiveWords = 4; // Fixed number of words
                 gameState.achievements = [];
                 gameState.rewards = {
                     badges: [],
-                    bonusLives: 0,
                     streaks: 0,
                     perfectRounds: 0
                 };
@@ -1904,8 +1788,6 @@
                 
                 // Update display
                 scoreValue.textContent = gameState.score;
-                levelValue.textContent = gameState.level;
-                updateLivesDisplay();
                 
                 // Hide start screen
                 gameStart.style.display = 'none';
@@ -1917,12 +1799,6 @@
                 // Start the fall animation with requestAnimationFrame
                 gameState.lastFrameTime = 0;
                 gameState.animationFrameId = requestAnimationFrame(gameLoop);
-                
-                // Schedule difficulty increase
-                setTimeout(increaseDifficulty, difficultyConfig[gameState.difficulty].levelUpTime);
-                
-                // Inicjalizacja systemu adaptacyjnego
-                setTimeout(updateAdaptiveDifficulty, 10000);
                 
                 // Add resize event listener to handle orientation changes
                 window.addEventListener('resize', function() {
@@ -2065,60 +1941,58 @@
             function moveWords(deltaTime) {
                 if (!gameState.gameRunning || gameState.paused) return;
                 
-                const gameHeight = gameArea.offsetHeight;
                 let removed = false;
                 
-                // Obliczamy aktualną prędkość spadania z ograniczeniem maksymalnym
-                const diffConfig = difficultyConfig[gameState.difficulty];
-                const currentSpeed = Math.min(
-                    diffConfig.maxSpeed,
-                    diffConfig.baseSpeed + (gameState.level - 1) * diffConfig.levelSpeedIncrease
-                );
+                // Get the answer container's position
+                const answerRect = answerContainer.getBoundingClientRect();
+                const gameRect = gameArea.getBoundingClientRect();
                 
-                // Jeśli mamy modyfikator prędkości, stosujemy go
-                const speedWithModifier = gameState.speedModifier ? currentSpeed * gameState.speedModifier : currentSpeed;
+                // Calculate the y-position where words should explode (top of answer container)
+                const explosionY = answerRect.top - gameRect.top;
+                
+                // Fixed speed (simplified without levels)
+                const speed = 1.5 * (gameState.speedModifier || 1);
                 
                 // Move each word element down
                 gameState.wordElements.forEach((wordObj, index) => {
                     // Move down based on current speed and deltaTime
-                    wordObj.top += speedWithModifier * 60 * deltaTime;
+                    wordObj.top += speed * 60 * deltaTime;
                     wordObj.element.style.top = `${wordObj.top}px`;
                     
-                    // Add warning animation when word is close to falling
-                    const dangerZone = gameHeight - 100; // 100px from bottom
+                    // Get element's position and size
+                    const wordRect = wordObj.element.getBoundingClientRect();
+                    const wordBottom = wordObj.top + wordRect.height;
+                    
+                    // Add warning animation when word is close to hitting the answer container
+                    const dangerZone = explosionY - 50;
                     if (wordObj.top > dangerZone && !wordObj.element.classList.contains('about-to-fall')) {
                         wordObj.element.classList.add('about-to-fall');
                     }
                     
-                    // Check if word has fallen off screen
-                    if (wordObj.top > gameHeight) {
-                        // Word missed, remove it
-                        createSplashEffect(wordObj.left, wordObj.word.english);
+                    // Check if word has hit the answer container
+                    if (wordBottom >= explosionY) {
+                        // Word missed, create explosion at the top of answer container
+                        createExplosionEffect(wordObj.element, true); // true indicates it's a miss
+                        
+                        // Deduct points for missed word
+                        const pointsLost = 5; // Lose 5 points per missed word
+                        updateScoreWithAnimation(-pointsLost);
+                        
+                        // Remove the word
                         removeWord(index);
                         removed = true;
                         
-                        // Aktualizacja statystyk adaptacyjnych
+                        // Update statistics
                         gameState.missedCount++;
                         gameState.totalAnswered++;
                         
                         // Reset combo
                         gameState.combo = 0;
                         updateComboDisplay(0);
-                        
-                        // Resetuj serię poprawnych odpowiedzi
                         gameState.consecutiveCorrect = 0;
                         
                         if (gameState.comboTimeout) {
                             clearTimeout(gameState.comboTimeout);
-                        }
-                        
-                        // Lose a life
-                        gameState.lives--;
-                        updateLivesDisplay();
-                        
-                        // Check for game over
-                        if (gameState.lives <= 0) {
-                            endGame(false);
                         }
                     }
                 });
@@ -2313,9 +2187,8 @@
                         let comboMultiplier = 1;
                         
                         if (gameState.combo >= 3) {
-                            const config = difficultyConfig[gameState.difficulty];
                             comboMultiplier = Math.min(
-                                config.comboMultiplierMax, 
+                                3.5, 
                                 1 + (gameState.combo - 1) * 0.5
                             );
                             points = Math.floor(10 * comboMultiplier);
@@ -2382,14 +2255,24 @@
                 }
             }
 
-            function createExplosionEffect(wordElement) {
+            function createExplosionEffect(wordElement, isMiss = false) {
                 const rect = wordElement.getBoundingClientRect();
                 const gameRect = gameArea.getBoundingClientRect();
                 
+                // Calculate the position of the explosion
+                const explosionX = rect.left + rect.width/2 - gameRect.left - 50;
+                
+                // If it's a miss, position at the bottom of game area (top of answer container)
+                const answerContainer = document.getElementById('answerContainer');
+                const answerRect = answerContainer.getBoundingClientRect();
+                const explosionY = isMiss ? 
+                    (answerRect.top - gameRect.top - 50) : // At answer container top
+                    (rect.top + rect.height/2 - gameRect.top - 50); // At word position
+                
                 const explosion = document.createElement('div');
-                explosion.className = 'explosion';
-                explosion.style.left = `${rect.left + rect.width/2 - gameRect.left - 50}px`;
-                explosion.style.top = `${rect.top + rect.height/2 - gameRect.top - 50}px`;
+                explosion.className = isMiss ? 'splash' : 'explosion';
+                explosion.style.left = `${explosionX}px`;
+                explosion.style.top = `${explosionY}px`;
                 
                 gameArea.appendChild(explosion);
                 
@@ -2402,48 +2285,17 @@
                 
                 // Play sound if enabled
                 if (gameState.soundEnabled) {
-                    playSound('correct');
+                    playSound(isMiss ? 'miss' : 'correct');
                 }
                 
-                // Add audio feedback - both English pronunciation and Polish confirmation
+                // Audio feedback
                 if (wordElement && wordElement.textContent && gameState.audioFeedback) {
-                    // First pronounce the English word
+                    // Pronounce the English word
                     speak(wordElement.textContent, true);
                     
                     // Then provide feedback in Polish
                     setTimeout(() => {
-                        speak("Poprawnie!");
-                    }, 1000);
-                }
-            }
-
-            function createSplashEffect(leftPosition, missedWord) {
-                const splash = document.createElement('div');
-                splash.className = 'splash';
-                splash.style.left = `${leftPosition + 30}px`; // Center splash under the word
-                
-                gameArea.appendChild(splash);
-                
-                // Remove after animation
-                setTimeout(() => {
-                    if (gameArea.contains(splash)) {
-                        gameArea.removeChild(splash);
-                    }
-                }, 500);
-                
-                // Play sound if enabled
-                if (gameState.soundEnabled) {
-                    playSound('miss');
-                }
-                
-                // Audio feedback for missed word
-                if (gameState.audioFeedback && missedWord) {
-                    // First pronounce the English word that was missed
-                    speak(missedWord, true);
-                    
-                    // Then provide feedback in Polish
-                    setTimeout(() => {
-                        speak("Słowo uciekło!");
+                        speak(isMiss ? "Słowo uciekło!" : "Poprawnie!");
                     }, 1000);
                 }
             }
@@ -2452,8 +2304,6 @@
                 if (!gameState.soundEnabled) return;
                 
                 // Implementacja dźwięków
-                let frequency, duration;
-                
                 switch (type) {
                     case 'correct':
                         // Dźwięk poprawnej odpowiedzi
@@ -2465,12 +2315,6 @@
                         // Dźwięk niepoprawnej odpowiedzi
                         playTone(330, 'sine', 0.2); // E4
                         setTimeout(() => playTone(277, 'sine', 0.4), 100); // C#4
-                        break;
-                    case 'level-up':
-                        // Dźwięk zwiększenia poziomu
-                        playTone(523, 'square', 0.2); // C5
-                        setTimeout(() => playTone(659, 'square', 0.2), 150); // E5
-                        setTimeout(() => playTone(784, 'square', 0.4), 300); // G5
                         break;
                     case 'achievement':
                         // Dźwięk osiągnięcia
@@ -2518,8 +2362,6 @@
                 
                 if ('speechSynthesis' in window) {
                     const utterance = new SpeechSynthesisUtterance(text);
-                    
-                    // Set appropriate language based on content
                     utterance.lang = isEnglish ? 'en-US' : 'pl-PL';
                     utterance.volume = 0.8;
                     
@@ -2527,7 +2369,7 @@
                 }
             }
 
-            function endGame(win) {
+            function endGame() {
                 // Stop game
                 gameState.gameRunning = false;
                 if (gameState.animationFrameId) {
@@ -2538,31 +2380,31 @@
                 if (gameState.comboTimeout) {
                     clearTimeout(gameState.comboTimeout);
                 }
-if (gameState.optionsFreezeTimeout) {
+                
+                if (gameState.optionsFreezeTimeout) {
                     clearTimeout(gameState.optionsFreezeTimeout);
                 }
                 
                 // Update final score
                 finalScore.textContent = gameState.score;
                 correctAnswers.textContent = gameState.correctCount;
-                totalWords.textContent = gameState.words.length;
+                totalWords.textContent = gameState.totalAnswered;
                 
-                // Dodanie informacji o osiągnięciach
+                // Add achievement information
                 const achievementsCount = gameState.achievements.length;
                 
-                // Znajdź element z wynikiem i dodaj informacje o osiągnięciach
+                // Find the element with the score and add achievement information
                 const gameOverStats = document.querySelector('#gameOver p:nth-child(3)');
                 if (gameOverStats) {
-                    // Utwórz nowy paragraf dla osiągnięć
+                    // Create a new paragraph for achievements
                     const achievementsInfo = document.createElement('p');
                     achievementsInfo.innerHTML = `Zdobyte osiągnięcia: <span class="achievement-count">${achievementsCount}</span>`;
                     
-                    // Utwórz paragraf dla dodatkowych nagród
+                    // Create a paragraph for additional rewards
                     const rewardsInfo = document.createElement('p');
-                    rewardsInfo.innerHTML = `Dodatkowe życia: <span class="bonus-lives">${gameState.rewards.bonusLives}</span> | 
-                                             Perfekcyjne rundy: <span class="perfect-rounds">${gameState.rewards.perfectRounds || 0}</span>`;
+                    rewardsInfo.innerHTML = `Perfekcyjne rundy: <span class="perfect-rounds">${gameState.rewards.perfectRounds || 0}</span>`;
                     
-                    // Dodaj do ekranu końca gry
+                    // Add to the game over screen
                     gameOverStats.insertAdjacentElement('afterend', achievementsInfo);
                     achievementsInfo.insertAdjacentElement('afterend', rewardsInfo);
                 }
@@ -2621,26 +2463,6 @@ if (gameState.optionsFreezeTimeout) {
                 }
             }
 
-            function increaseDifficulty() {
-                if (!gameState.gameRunning) return;
-                
-                gameState.level++;
-                levelValue.textContent = gameState.level;
-                
-                // Dodanie efektu levelowania
-                levelUpEffect();
-                
-                // Sprawdzanie osiągnięć przy każdym poziomie
-                checkLevelAchievements();
-                
-                // Zdarzenie niestandardowe dla zwiększenia poziomu
-                document.dispatchEvent(new CustomEvent('level_up'));
-                
-                // Zaplanowanie następnego podniesienia poziomu
-                const levelUpTime = difficultyConfig[gameState.difficulty].levelUpTime;
-                setTimeout(increaseDifficulty, levelUpTime);
-            }
-
             function clearGameArea() {
                 // Zatrzymanie animacji
                 if (gameState.animationFrameId) {
@@ -2678,14 +2500,6 @@ if (gameState.optionsFreezeTimeout) {
                 answerContainer.innerHTML = '';
             }
 
-            function updateLivesDisplay() {
-                let lives = '';
-                for (let i = 0; i < gameState.lives; i++) {
-                    lives += '❤️';
-                }
-                livesValue.textContent = lives;
-            }
-
             function shuffleArray(array) {
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -2703,7 +2517,7 @@ if (gameState.optionsFreezeTimeout) {
                     comboIndicator.classList.add('visible');
                     
                     // Dodanie klasy z odpowiednim kolorem w zależności od wielkości combo
-                    comboIndicator.className = 'combo-indicator visible';
+comboIndicator.className = 'combo-indicator visible';
                     if (combo >= 5) {
                         comboIndicator.classList.add('combo-max');
                     } else if (combo >= 3) {
@@ -2735,12 +2549,12 @@ if (gameState.optionsFreezeTimeout) {
             
             // Funkcja do wizualizacji zmiany punktów
             function updateScoreWithAnimation(points) {
-                // Animacja punktów
+                // Animation for score changes
                 const scoreElement = document.getElementById('scoreValue');
                 const currentScore = parseInt(scoreElement.textContent);
-                const newScore = currentScore + points;
+                const newScore = Math.max(0, currentScore + points); // Prevent negative score
                 
-                // Aktualizacja punktów z efektem liczenia
+                // Update the score with a counting effect
                 let displayScore = currentScore;
                 const duration = 500; // ms
                 const interval = 20; // ms
@@ -2756,17 +2570,18 @@ if (gameState.optionsFreezeTimeout) {
                     scoreElement.textContent = Math.floor(displayScore);
                 }, interval);
                 
-                // Tworzymy element z informacją o zdobytych punktach
+                // Create an element with information about gained/lost points
                 const pointsIndicator = document.createElement('div');
                 pointsIndicator.className = 'points-indicator';
-                pointsIndicator.textContent = `+${points}`;
+                pointsIndicator.textContent = points >= 0 ? `+${points}` : `${points}`;
+                pointsIndicator.style.color = points >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
                 document.querySelector('.score').appendChild(pointsIndicator);
                 
                 setTimeout(() => {
                     pointsIndicator.remove();
                 }, 1000);
                 
-                // Aktualizacja stanu gry
+                // Update game state
                 gameState.score = newScore;
             }
             
@@ -2856,43 +2671,6 @@ if (gameState.optionsFreezeTimeout) {
                 }
             }
             
-            // Funkcja dla efektu levelowania
-            function levelUpEffect() {
-                const levelElement = document.getElementById('levelValue');
-                
-                // Dodanie animacji
-                levelElement.classList.add('level-up');
-                
-                // Stworzenie komunikatu o levelowaniu
-                const levelUpMessage = document.createElement('div');
-                levelUpMessage.className = 'level-up-message';
-                levelUpMessage.textContent = `Poziom ${gameState.level}!`;
-                document.querySelector('.game-container').appendChild(levelUpMessage);
-                
-                // Usunięcie po animacji
-                setTimeout(() => {
-                    levelElement.classList.remove('level-up');
-                    levelUpMessage.remove();
-                }, 2000);
-                
-                // Dodanie efektu tła
-                const flash = document.createElement('div');
-                flash.className = 'level-up-flash';
-                gameArea.appendChild(flash);
-                
-                setTimeout(() => {
-                    flash.remove();
-                }, 1000);
-                
-                // Dźwięk zwiększenia poziomu
-                playSound('level-up');
-                
-                // Komunikat głosowy
-                if (gameState.audioFeedback) {
-                    speak(`Poziom ${gameState.level}! Słowa spadają szybciej.`);
-                }
-            }
-            
             // System adaptacyjny - dostosowuje trudność do wyników gracza
             function updateAdaptiveDifficulty() {
                 if (!gameState.gameRunning) return;
@@ -2912,25 +2690,11 @@ if (gameState.optionsFreezeTimeout) {
                 }
                 
                 // Ograniczenie do min/max zakresu
-                const currentConfig = difficultyConfig[gameState.difficulty];
-                let newSpawnRate = currentConfig.baseSpawnRate + spawnRateAdjustment;
-                newSpawnRate = Math.max(currentConfig.minSpawnRate, 
-                           Math.min(currentConfig.baseSpawnRate + 1000, newSpawnRate));
+                let newSpawnRate = gameState.adaptiveSpawnRate + spawnRateAdjustment;
+                newSpawnRate = Math.max(2000, Math.min(6000, newSpawnRate));
                 
                 // Zapisz zaktualizowaną wartość
                 gameState.adaptiveSpawnRate = newSpawnRate;
-                
-                // Skalowanie liczby słów na ekranie w zależności od poziomu
-                if (gameState.level > 1) {
-                    // Co dwa poziomy zwiększamy maksymalną liczbę słów
-                    const additionalWords = Math.floor((gameState.level - 1) / 2);
-                    gameState.maxActiveWords = Math.min(
-                        currentConfig.wordCount + additionalWords,
-                        currentConfig.wordCount + 3 // maksymalnie dodajemy 3 dodatkowe słowa
-                    );
-                } else {
-                    gameState.maxActiveWords = currentConfig.wordCount;
-                }
                 
                 // Zaplanuj kolejną aktualizację
                 setTimeout(updateAdaptiveDifficulty, 10000); // co 10 sekund
@@ -2940,15 +2704,6 @@ if (gameState.optionsFreezeTimeout) {
             function checkComboAchievements() {
                 achievements.forEach(achievement => {
                     if (!achievement.unlocked && achievement.id.startsWith('combo') && achievement.check(gameState)) {
-                        unlockAchievement(achievement);
-                    }
-                });
-            }
-            
-            // Funkcja sprawdzająca osiągnięcia związane z poziomem
-            function checkLevelAchievements() {
-                achievements.forEach(achievement => {
-                    if (!achievement.unlocked && achievement.id.startsWith('level') && achievement.check(gameState)) {
                         unlockAchievement(achievement);
                     }
                 });
@@ -3016,30 +2771,8 @@ if (gameState.optionsFreezeTimeout) {
             }
             
             function addScore(points) {
-                // Dodaj punkty z uwzględnieniem mnożnika trudności
-                const multiplier = difficultyConfig[gameState.difficulty].scoreMultiplier;
-                const adjustedPoints = Math.round(points * multiplier);
-                
-                // Wyświetl animację zdobycia punktów
-                updateScoreWithAnimation(adjustedPoints);
-            }
-            
-            function giveBonusLife() {
-                gameState.lives = Math.min(gameState.lives + 1, 5); // Max 5 żyć
-                gameState.rewards.bonusLives++;
-                updateLivesDisplay();
-                
-                // Animacja dodatkowego życia
-                const heartsContainer = document.getElementById('livesValue');
-                if (heartsContainer) {
-                    heartsContainer.classList.add('lives-bonus');
-                    setTimeout(() => {
-                        heartsContainer.classList.remove('lives-bonus');
-                    }, 1000);
-                }
-                
-                // Komunikat o dodatkowym życiu
-                showRewardNotification('Dodatkowe życie! ❤️');
+                // Dodaj punkty 
+                updateScoreWithAnimation(points);
             }
             
             function showRewardNotification(message) {
@@ -3484,23 +3217,6 @@ if (gameState.optionsFreezeTimeout) {
                                 'bottom',
                                 true,
                                 'combo'
-                            );
-                        }
-                    }
-                });
-                
-                // Wskazówka o poziomie trudności po pierwszym awansie
-                document.addEventListener('level_up', () => {
-                    if (!localStorage.getItem('wordfall_tooltip_level_up')) {
-                        const levelEl = document.getElementById('levelValue');
-                        if (levelEl) {
-                            createTooltip(
-                                levelEl,
-                                "Nowy poziom!",
-                                "Uwaga! Słówka będą teraz spadać szybciej. Bądź gotowy!",
-                                'bottom',
-                                true,
-                                'level_up'
                             );
                         }
                     }
