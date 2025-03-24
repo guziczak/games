@@ -758,17 +758,20 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Wskazówki (tooltips) */
+        /* Wskazówki (tooltips) - ZAKTUALIZOWANE */
         .tooltip {
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.95);
+            background-color: rgba(255, 255, 255, 0.85); /* Zwiększona przezroczystość */
             border-radius: 10px;
             padding: 15px;
-            max-width: 250px;
+            max-width: 220px; /* Zmniejszona szerokość */
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-            z-index: 50;
+            z-index: 30; /* Wyższy niż spadające słowa, ale niższy niż menu */
             animation: tooltip-bounce 0.5s;
             border-left: 4px solid var(--primary-color);
+            cursor: pointer; /* Wskazuje że można kliknąć */
+            font-size: 0.85rem; /* Mniejszy tekst */
+            pointer-events: auto; /* Umożliwia interakcję */
         }
 
         .tooltip::after {
@@ -831,13 +834,13 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Menu dostępności */
+        /* Menu dostępności - ZAKTUALIZOWANE */
         .accessibility-menu-toggle {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 50px;
-            height: 50px;
+            width: 40px; /* Zmniejszony z 50px */
+            height: 40px; /* Zmniejszony z 50px */
             background-color: var(--primary-color);
             color: white;
             border-radius: 50%;
@@ -846,9 +849,19 @@
             align-items: center;
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            z-index: 100;
+            z-index: 50; /* Wyższy niż opcje odpowiedzi, ale niższy niż menu dostępności */
             transition: all 0.3s;
             font-size: 1.5rem;
+        }
+
+        /* Dostosowanie dla małych ekranów */
+        @media (max-width: 768px) {
+            .accessibility-menu-toggle {
+                bottom: 70px; /* Uniesiony wyżej, ponad opcje odpowiedzi */
+                right: 10px;
+                width: 35px; /* Jeszcze mniejszy na małych ekranach */
+                height: 35px;
+            }
         }
 
         .accessibility-menu-toggle:hover, 
@@ -862,12 +875,12 @@
             position: fixed;
             bottom: 80px;
             right: 20px;
-            width: 280px;
+            width: 250px; /* Zmniejszone z 280px */
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            z-index: 100;
-            padding: 20px;
+            z-index: 100; /* Wartość ma być wyższa niż wszystkie inne elementy */
+            padding: 15px; /* Zmniejszone z 20px */
             transform: scale(0.95);
             opacity: 0;
             pointer-events: none;
@@ -1004,6 +1017,13 @@
         .answer-option {
             position: relative;
             padding-left: 18px !important; /* Zmniejszony padding dla numeru opcji */
+            /* DODANE Z POPRAWEK */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto; /* Dodanie dzielenia wyrazów */
+            white-space: normal; /* Zapewnia łamanie wierszy */
+            text-overflow: ellipsis; /* Dodaje wielokropek dla bardzo długich słów */
+            line-height: 1.2; /* Zwiększa czytelność zawijanych wierszy */
         }
 
         /* Style dla powiadomień o nagrodach */
@@ -1165,7 +1185,7 @@
             }
 
             .dark-theme .tooltip {
-                background-color: rgba(40, 40, 40, 0.95);
+                background-color: rgba(40, 40, 40, 0.85); /* Poprawione dla ciemnego trybu */
                 color: white;
             }
             
@@ -2027,30 +2047,30 @@
                 }
             }
 
+            // ZAKTUALIZOWANA funkcja aktualizacji opcji odpowiedzi
             function updateAnswerOptions() {
-                // If options are frozen, exit function
+                // Sprawdzenie czy opcje są zamrożone
                 if (gameState.optionsFrozen) return;
                 
-                // Clear previous options
+                // Wyczyszczenie poprzednich opcji
                 answerContainer.innerHTML = '';
                 
                 if (gameState.activeWords.length === 0) return;
                 
-                // Sort active words by their vertical position (top to bottom)
-                // Zmiana sortowania: starsze słówka (o większej wartości top) będą miały opcje niżej
+                // Sortowanie aktywnych słów według ich pozycji pionowej (od góry do dołu)
                 const sortedWords = [...gameState.wordElements].sort((a, b) => a.top - b.top);
                 
-                // Create a container for each word's options
+                // Tworzenie kontenera dla opcji każdego słowa
                 sortedWords.forEach((wordObj) => {
                     const optionsRow = document.createElement('div');
                     optionsRow.className = 'answer-options-row';
                     optionsRow.dataset.forWord = wordObj.word.english;
                     answerContainer.appendChild(optionsRow);
                     
-                    // Pobierz przetasowane opcje przypisane do tego słówka
+                    // Pobranie przetasowanych opcji przypisanych do tego słówka
                     const options = wordObj.word.shuffledOptions;
                     
-                    // Create option elements
+                    // Tworzenie elementów opcji
                     options.forEach((translation, index) => {
                         const option = document.createElement('div');
                         option.className = 'answer-option';
@@ -2058,17 +2078,17 @@
                         option.dataset.translation = translation;
                         option.dataset.forWord = wordObj.word.english;
                         
-                        // Dodaj atrybut określający, czy to poprawna odpowiedź (pierwsze tłumaczenie)
+                        // Dodanie atrybutu określającego, czy to poprawna odpowiedź
                         if (translation === wordObj.word.translations[0]) {
                             option.dataset.correct = 'true';
                         }
                         
-                        // Add accessibility attributes
+                        // Dodanie atrybutów dostępności
                         option.setAttribute('role', 'button');
                         option.setAttribute('tabindex', '0');
                         option.setAttribute('aria-label', `Wybierz tłumaczenie: ${translation}`);
                         
-                        // Add keyboard handling
+                        // Obsługa klawiatury
                         option.addEventListener('keydown', function(e) {
                             if (e.key === 'Enter' || e.key === ' ') {
                                 freezeOptions(800);
@@ -2077,12 +2097,12 @@
                         });
                         
                         option.addEventListener('click', function() {
-                            // Freeze options momentarily to prevent rapid clicking
-                            freezeOptions(600); // Slightly faster to improve responsiveness
+                            // Tymczasowe zamrożenie opcji, aby zapobiec szybkiemu klikaniu
+                            freezeOptions(600);
                             
                             handleAnswerSelection(translation);
                             
-                            // Add vibration on mobile if available
+                            // Wibracja na urządzeniach mobilnych
                             if (window.navigator && window.navigator.vibrate) {
                                 window.navigator.vibrate(50);
                             }
@@ -2090,7 +2110,7 @@
                         
                         optionsRow.appendChild(option);
                         
-                        // Add number indicators for options 1-9
+                        // Dodanie wskaźników numerycznych dla opcji 1-9
                         if (index < 9) {
                             const numberIndicator = document.createElement('span');
                             numberIndicator.className = 'option-number';
@@ -2100,8 +2120,35 @@
                     });
                 });
                 
-                // Store current options state
+                // Zapisanie bieżącego stanu opcji
                 gameState.selectedAnswer = null;
+                
+                // NOWA FUNKCJONALNOŚĆ: Sprawdzanie kolizji z przyciskiem dostępności
+                adjustForAccessibilityButton();
+            }
+            
+            // Nowa funkcja do dostosowania kontenera odpowiedzi, aby uniknąć kolizji z przyciskiem dostępności
+            function adjustForAccessibilityButton() {
+                const accessibilityBtn = document.getElementById('accessibilityMenuToggle');
+                const answerContainer = document.getElementById('answerContainer');
+                
+                if (!accessibilityBtn || !answerContainer) return;
+                
+                const btnRect = accessibilityBtn.getBoundingClientRect();
+                const containerRect = answerContainer.getBoundingClientRect();
+                
+                // Sprawdzenie, czy jest kolizja na małych ekranach
+                if (window.innerWidth < 768 && 
+                    containerRect.right > btnRect.left && 
+                    containerRect.bottom > btnRect.top) {
+                    
+                    // Dodaj dodatkowy padding z prawej strony, aby nie zakrywać przycisku
+                    const paddingRight = Math.max(0, containerRect.right - btnRect.left + 10);
+                    answerContainer.style.paddingRight = `${paddingRight}px`;
+                } else {
+                    // Zresetuj padding na większych ekranach
+                    answerContainer.style.paddingRight = '';
+                }
             }
             
             // Function to freeze options for a specified time
@@ -2399,820 +2446,842 @@
                 // Add achievement information
                 const achievementsCount = gameState.achievements.length;
                 
-                // Find the element with the score and add achievement information
-                const gameOverStats = document.querySelector('#gameOver p:nth-child(3)');
-                if (gameOverStats) {
-                    // Create a new paragraph for achievements
-                    const achievementsInfo = document.createElement('p');
-                    achievementsInfo.innerHTML = `Zdobyte osiągnięcia: <span class="achievement-count">${achievementsCount}</span>`;
-                    
-                    // Create a paragraph for additional rewards
-                    const rewardsInfo = document.createElement('p');
-                    rewardsInfo.innerHTML = `Perfekcyjne rundy: <span class="perfect-rounds">${gameState.rewards.perfectRounds || 0}</span>`;
-                    
-                    // Add to the game over screen
-                    gameOverStats.insertAdjacentElement('afterend', achievementsInfo);
-                    achievementsInfo.insertAdjacentElement('afterend', rewardsInfo);
-                }
-                
-                // Show game over screen
-                gameOver.style.display = 'flex';
-            }
+// Find the element with the score and add achievement information
+const gameOverStats = document.querySelector('#gameOver p:nth-child(3)');
+if (gameOverStats) {
+    // Create a new paragraph for achievements
+    const achievementsInfo = document.createElement('p');
+    achievementsInfo.innerHTML = `Zdobyte osiągnięcia: <span class="achievement-count">${achievementsCount}</span>`;
+    
+    // Create a paragraph for additional rewards
+    const rewardsInfo = document.createElement('p');
+    rewardsInfo.innerHTML = `Perfekcyjne rundy: <span class="perfect-rounds">${gameState.rewards.perfectRounds || 0}</span>`;
+    
+    // Add to the game over screen
+    gameOverStats.insertAdjacentElement('afterend', achievementsInfo);
+    achievementsInfo.insertAdjacentElement('afterend', rewardsInfo);
+}
 
-            function restartGame() {
-                // Hide game over screen
-                gameOver.style.display = 'none';
-                
-                // Clear all game elements
-                clearGameArea();
-                
-                // Reshuffle words
-                shuffleArray(gameState.words);
-                
-                // Start new game
-                startGame();
-            }
+// Show game over screen
+gameOver.style.display = 'flex';
+}
 
-            function togglePause() {
-                gameState.paused = !gameState.paused;
-                
-                if (gameState.paused) {
-                    pauseBtn.innerHTML = '<span aria-hidden="true">▶️</span>';
-                    pauseBtn.title = 'Wznów';
-                    pauseBtn.setAttribute('aria-label', 'Wznów grę');
-                    
-                    // Add blur class to game area and answer options
-                    gameArea.classList.add('game-paused');
-                    answerContainer.classList.add('options-paused');
-                } else {
-                    pauseBtn.innerHTML = '<span aria-hidden="true">⏸️</span>';
-                    pauseBtn.title = 'Pauza';
-                    pauseBtn.setAttribute('aria-label', 'Wstrzymaj grę');
-                    
-                    // Remove blur class
-                    gameArea.classList.remove('game-paused');
-                    answerContainer.classList.remove('options-paused');
-                }
-            }
+function restartGame() {
+    // Hide game over screen
+    gameOver.style.display = 'none';
+    
+    // Clear all game elements
+    clearGameArea();
+    
+    // Reshuffle words
+    shuffleArray(gameState.words);
+    
+    // Start new game
+    startGame();
+}
 
-            function toggleSound() {
-                gameState.soundEnabled = !gameState.soundEnabled;
-                
-                if (gameState.soundEnabled) {
-                    soundBtn.innerHTML = '<span aria-hidden="true">🔊</span>';
-                    soundBtn.title = 'Wyłącz dźwięk';
-                    soundBtn.setAttribute('aria-label', 'Wyłącz dźwięk');
-                } else {
-                    soundBtn.innerHTML = '<span aria-hidden="true">🔇</span>';
-                    soundBtn.title = 'Włącz dźwięk';
-                    soundBtn.setAttribute('aria-label', 'Włącz dźwięk');
-                }
-            }
+function togglePause() {
+    gameState.paused = !gameState.paused;
+    
+    if (gameState.paused) {
+        pauseBtn.innerHTML = '<span aria-hidden="true">▶️</span>';
+        pauseBtn.title = 'Wznów';
+        pauseBtn.setAttribute('aria-label', 'Wznów grę');
+        
+        // Add blur class to game area and answer options
+        gameArea.classList.add('game-paused');
+        answerContainer.classList.add('options-paused');
+    } else {
+        pauseBtn.innerHTML = '<span aria-hidden="true">⏸️</span>';
+        pauseBtn.title = 'Pauza';
+        pauseBtn.setAttribute('aria-label', 'Wstrzymaj grę');
+        
+        // Remove blur class
+        gameArea.classList.remove('game-paused');
+        answerContainer.classList.remove('options-paused');
+    }
+}
 
-            function clearGameArea() {
-                // Stop animation
-                if (gameState.animationFrameId) {
-                    cancelAnimationFrame(gameState.animationFrameId);
-                }
-                
-                // Clear all intervals
-                if (gameState.comboTimeout) {
-                    clearTimeout(gameState.comboTimeout);
-                }
-                
-                if (gameState.optionsFreezeTimeout) {
-                    clearTimeout(gameState.optionsFreezeTimeout);
-                }
-                
-                // Remove listeners before removing elements
-                const wordElements = gameArea.querySelectorAll('.word-element');
-                wordElements.forEach(element => {
-                    const clone = element.cloneNode(true);
-                    element.parentNode.replaceChild(clone, element);
-                });
-                
-                // Now we can safely remove elements
-                const allGameElements = gameArea.querySelectorAll('.word-element, .splash, .explosion');
-                allGameElements.forEach(element => {
-                    element.remove();
-                });
-                
-                // Clear game state
-                gameState.wordElements = [];
-                gameState.activeWords = [];
-                gameState.optionsFrozen = false;
-                
-                // Clear answer container
-                answerContainer.innerHTML = '';
-            }
+function toggleSound() {
+    gameState.soundEnabled = !gameState.soundEnabled;
+    
+    if (gameState.soundEnabled) {
+        soundBtn.innerHTML = '<span aria-hidden="true">🔊</span>';
+        soundBtn.title = 'Wyłącz dźwięk';
+        soundBtn.setAttribute('aria-label', 'Wyłącz dźwięk');
+    } else {
+        soundBtn.innerHTML = '<span aria-hidden="true">🔇</span>';
+        soundBtn.title = 'Włącz dźwięk';
+        soundBtn.setAttribute('aria-label', 'Włącz dźwięk');
+    }
+}
 
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-                return array;
-            }
-            
+function clearGameArea() {
+    // Stop animation
+    if (gameState.animationFrameId) {
+        cancelAnimationFrame(gameState.animationFrameId);
+    }
+    
+    // Clear all intervals
+    if (gameState.comboTimeout) {
+        clearTimeout(gameState.comboTimeout);
+    }
+    
+    if (gameState.optionsFreezeTimeout) {
+        clearTimeout(gameState.optionsFreezeTimeout);
+    }
+    
+    // Remove listeners before removing elements
+    const wordElements = gameArea.querySelectorAll('.word-element');
+    wordElements.forEach(element => {
+        const clone = element.cloneNode(true);
+        element.parentNode.replaceChild(clone, element);
+    });
+    
+    // Now we can safely remove elements
+    const allGameElements = gameArea.querySelectorAll('.word-element, .splash, .explosion');
+    allGameElements.forEach(element => {
+        element.remove();
+    });
+    
+    // Clear game state
+    gameState.wordElements = [];
+    gameState.activeWords = [];
+    gameState.optionsFrozen = false;
+    
+    // Clear answer container
+    answerContainer.innerHTML = '';
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 // Function to visually update combo
 function updateComboDisplay(combo) {
-                const comboIndicator = document.getElementById('comboIndicator') || setupComboIndicator();
+    const comboIndicator = document.getElementById('comboIndicator') || setupComboIndicator();
+    
+    if (combo > 1) {
+        comboIndicator.textContent = `${combo}x Combo!`;
+        comboIndicator.classList.add('visible');
+        
+        // Add appropriate color class based on combo size
+        comboIndicator.className = 'combo-indicator visible';
+        if (combo >= 5) {
+            comboIndicator.classList.add('combo-max');
+        } else if (combo >= 3) {
+            comboIndicator.classList.add('combo-high');
+        } else {
+            comboIndicator.classList.add('combo-normal');
+        }
+        
+        // Animation on score
+        const scoreElement = document.getElementById('scoreValue');
+        scoreElement.classList.add('score-increase');
+        setTimeout(() => {
+            scoreElement.classList.remove('score-increase');
+        }, 300);
+    } else {
+        comboIndicator.classList.remove('visible');
+    }
+}
+
+// Create combo indicator element
+function setupComboIndicator() {
+    const comboIndicator = document.createElement('div');
+    comboIndicator.className = 'combo-indicator';
+    comboIndicator.id = 'comboIndicator';
+    document.querySelector('.game-container').appendChild(comboIndicator);
+    
+    return comboIndicator;
+}
+
+// Function to visualize score changes
+function updateScoreWithAnimation(points) {
+    // Animation for score changes
+    const scoreElement = document.getElementById('scoreValue');
+    const currentScore = parseInt(scoreElement.textContent);
+    const newScore = Math.max(0, currentScore + points); // Prevent negative score
+    
+    // Update the score with a counting effect
+    let displayScore = currentScore;
+    const duration = 500; // ms
+    const interval = 20; // ms
+    const step = points / (duration / interval);
+    
+    const scoreInterval = setInterval(() => {
+        displayScore += step;
+        if ((step > 0 && displayScore >= newScore) || 
+            (step < 0 && displayScore <= newScore)) {
+            displayScore = newScore;
+            clearInterval(scoreInterval);
+        }
+        scoreElement.textContent = Math.floor(displayScore);
+    }, interval);
+    
+    // Create an element with information about gained/lost points
+    const pointsIndicator = document.createElement('div');
+    pointsIndicator.className = 'points-indicator';
+    pointsIndicator.textContent = points >= 0 ? `+${points}` : `${points}`;
+    pointsIndicator.style.color = points >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    document.querySelector('.score').appendChild(pointsIndicator);
+    
+    setTimeout(() => {
+        pointsIndicator.remove();
+    }, 1000);
+    
+    // Update game state
+    gameState.score = newScore;
+}
+
+// Function to highlight correct answer as a hint
+function highlightCorrectAnswer() {
+    // Find all active words and their correct translations
+    const correctTranslations = gameState.activeWords.map(word => word.translations[0]);
+    
+    // Check if any of these translations is visible in options
+    const options = document.querySelectorAll('.answer-option');
+    
+    options.forEach(option => {
+        const translation = option.dataset.translation;
+        if (correctTranslations.includes(translation)) {
+            // Add subtle hint effect
+            option.classList.add('answer-hint');
+            setTimeout(() => {
+                option.classList.remove('answer-hint');
+            }, 500);
+        }
+    });
+}
+
+// Add particle effect for better visual feedback
+function createParticleEffect(element, type) {
+    const rect = element.getBoundingClientRect();
+    const gameRect = gameArea.getBoundingClientRect();
+    
+    const particleCount = 15;
+    const colors = type === 'success' 
+        ? ['#2ECC71', '#27AE60', '#A3FFB0'] 
+        : ['#E74C3C', '#C0392B', '#FF8573'];
+    
+    const centerX = rect.left + rect.width/2 - gameRect.left;
+    const centerY = rect.top + rect.height/2 - gameRect.top;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // Random particle properties
+        const size = Math.random() * 10 + 5;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 3;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.backgroundColor = color;
+        particle.style.left = `${centerX}px`;
+        particle.style.top = `${centerY}px`;
+        particle.style.opacity = '1';
+        particle.style.borderRadius = '50%';
+        particle.style.position = 'absolute';
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '10';
+        
+        gameArea.appendChild(particle);
+        
+        // Particle animation
+        const destinationX = centerX + Math.cos(angle) * speed * 20;
+        const destinationY = centerY + Math.sin(angle) * speed * 20;
+        
+        // Animation using requestAnimationFrame for better performance
+        let startTime = null;
+        const duration = 600 + Math.random() * 400;
+        
+        function animateParticle(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const progress = (timestamp - startTime) / duration;
+            
+            if (progress < 1) {
+                const x = centerX + (destinationX - centerX) * progress;
+                const y = centerY + (destinationY - centerY) * progress - (progress * 30) * (1 - progress);
                 
-                if (combo > 1) {
-                    comboIndicator.textContent = `${combo}x Combo!`;
-                    comboIndicator.classList.add('visible');
-                    
-                    // Add appropriate color class based on combo size
-                    comboIndicator.className = 'combo-indicator visible';
-                    if (combo >= 5) {
-                        comboIndicator.classList.add('combo-max');
-                    } else if (combo >= 3) {
-                        comboIndicator.classList.add('combo-high');
-                    } else {
-                        comboIndicator.classList.add('combo-normal');
-                    }
-                    
-                    // Animation on score
-                    const scoreElement = document.getElementById('scoreValue');
-                    scoreElement.classList.add('score-increase');
-                    setTimeout(() => {
-                        scoreElement.classList.remove('score-increase');
-                    }, 300);
-                } else {
-                    comboIndicator.classList.remove('visible');
-                }
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.opacity = 1 - progress;
+                
+                requestAnimationFrame(animateParticle);
+            } else {
+                gameArea.removeChild(particle);
             }
-            
-            // Create combo indicator element
-            function setupComboIndicator() {
-                const comboIndicator = document.createElement('div');
-                comboIndicator.className = 'combo-indicator';
-                comboIndicator.id = 'comboIndicator';
-                document.querySelector('.game-container').appendChild(comboIndicator);
-                
-                return comboIndicator;
+        }
+        
+        requestAnimationFrame(animateParticle);
+    }
+}
+
+// Function to check combo achievements
+function checkComboAchievements() {
+    achievements.forEach(achievement => {
+        if (!achievement.unlocked && achievement.id.startsWith('combo') && achievement.check(gameState)) {
+            unlockAchievement(achievement);
+        }
+    });
+}
+
+// Function to unlock achievement
+function unlockAchievement(achievement) {
+    achievement.unlocked = true;
+    gameState.achievements.push(achievement.id);
+    
+    // Show notification
+    showAchievementNotification(achievement);
+    
+    // Award reward
+    if (achievement.reward) {
+        achievement.reward(gameState);
+    }
+    
+    // Save achievement to localStorage for statistics
+    const savedAchievements = JSON.parse(localStorage.getItem('wordfall_achievements') || '[]');
+    if (!savedAchievements.includes(achievement.id)) {
+        savedAchievements.push(achievement.id);
+        localStorage.setItem('wordfall_achievements', JSON.stringify(savedAchievements));
+    }
+    
+    // Achievement sound
+    playSound('achievement');
+}
+
+function showAchievementNotification(achievement) {
+    // Create achievement notification
+    const notification = document.createElement('div');
+    notification.className = 'achievement-notification';
+    
+    const icon = document.createElement('div');
+    icon.className = 'achievement-icon';
+    icon.textContent = achievement.icon;
+    
+    const content = document.createElement('div');
+    content.className = 'achievement-content';
+    
+    const title = document.createElement('div');
+    title.className = 'achievement-title';
+    title.textContent = achievement.name;
+    
+    const description = document.createElement('div');
+    description.className = 'achievement-description';
+    description.textContent = achievement.description;
+    
+    content.appendChild(title);
+    content.appendChild(description);
+    
+    notification.appendChild(icon);
+    notification.appendChild(content);
+    
+    document.querySelector('.game-container').appendChild(notification);
+    
+    // Remove notification after a delay
+    setTimeout(() => {
+        notification.classList.add('slide-out');
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }, 4000);
+}
+
+function addScore(points) {
+    // Add points 
+    updateScoreWithAnimation(points);
+}
+
+function showRewardNotification(message) {
+    // Create reward notification
+    const notification = document.createElement('div');
+    notification.className = 'reward-notification';
+    notification.textContent = message;
+    document.querySelector('.game-container').appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }, 2500);
+}
+
+// Function for better game area height adjustment
+function adjustGameAreaHeight() {
+    const gameArea = document.getElementById('gameArea');
+    const header = document.querySelector('header');
+    const answerContainer = document.getElementById('answerContainer');
+    
+    if (!gameArea || !header || !answerContainer) return;
+    
+    // Get viewport dimensions
+    const windowHeight = window.innerHeight;
+    const headerHeight = header.offsetHeight;
+    const answerHeight = answerContainer.offsetHeight;
+    
+    // Calculate available space for game area
+    // Zmniejsz margines, aby uzyskać więcej miejsca
+    const margins = 5; // Zmniejszony z 10 na 5
+    let gameHeight = windowHeight - headerHeight - answerHeight - margins;
+    
+    // Ensure minimum height
+    gameHeight = Math.max(300, gameHeight);
+    
+    // Set game area height
+    gameArea.style.height = `${gameHeight}px`;
+    
+    // Adjust answer container position to ensure it's at the bottom
+    answerContainer.style.bottom = '5px';
+}
+
+// Handle device orientation
+function handleOrientationChange() {
+    const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+    document.body.setAttribute('data-orientation', orientation);
+    
+    // Adjust game area height
+    adjustGameAreaHeight();
+    
+    // Update answer options
+    if (gameState && gameState.gameRunning) {
+        setTimeout(updateAnswerOptions, 300);
+    }
+}
+
+// Initialize dark mode
+function setupThemeToggle() {
+    const themeBtn = document.getElementById('themeBtn');
+    const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    // Check if user has saved preferences
+    const savedTheme = localStorage.getItem('theme');
+    
+    if (savedTheme === 'dark' || (savedTheme === null && prefersDarkScheme.matches)) {
+        document.body.classList.add('dark-theme');
+        themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
+    } else {
+        document.body.classList.remove('dark-theme');
+        themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
+    }
+    
+    themeBtn.addEventListener('click', () => {
+        // Toggle theme
+        if (document.body.classList.contains('dark-theme')) {
+            document.body.classList.remove('dark-theme');
+            localStorage.setItem('theme', 'light');
+            themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
+        } else {
+            document.body.classList.add('dark-theme');
+            localStorage.setItem('theme', 'dark');
+            themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
+        }
+    });
+    
+    // Listen for system preference changes
+    prefersDarkScheme.addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+            if (e.matches) {
+                document.body.classList.add('dark-theme');
+                themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
+            } else {
+                document.body.classList.remove('dark-theme');
+                themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
             }
-            
-            // Function to visualize score changes
-            function updateScoreWithAnimation(points) {
-                // Animation for score changes
-                const scoreElement = document.getElementById('scoreValue');
-                const currentScore = parseInt(scoreElement.textContent);
-                const newScore = Math.max(0, currentScore + points); // Prevent negative score
-                
-                // Update the score with a counting effect
-                let displayScore = currentScore;
-                const duration = 500; // ms
-                const interval = 20; // ms
-                const step = points / (duration / interval);
-                
-                const scoreInterval = setInterval(() => {
-                    displayScore += step;
-                    if ((step > 0 && displayScore >= newScore) || 
-                        (step < 0 && displayScore <= newScore)) {
-                        displayScore = newScore;
-                        clearInterval(scoreInterval);
-                    }
-                    scoreElement.textContent = Math.floor(displayScore);
-                }, interval);
-                
-                // Create an element with information about gained/lost points
-                const pointsIndicator = document.createElement('div');
-                pointsIndicator.className = 'points-indicator';
-                pointsIndicator.textContent = points >= 0 ? `+${points}` : `${points}`;
-                pointsIndicator.style.color = points >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
-                document.querySelector('.score').appendChild(pointsIndicator);
-                
-                setTimeout(() => {
-                    pointsIndicator.remove();
-                }, 1000);
-                
-                // Update game state
-                gameState.score = newScore;
+        }
+    });
+}
+
+// Initialize accessibility menu
+function initAccessibilityMenu() {
+    const menuToggle = document.getElementById('accessibilityMenuToggle');
+    const menu = document.getElementById('accessibilityMenu');
+    const closeBtn = document.querySelector('.accessibility-menu-close');
+    
+    // Get options
+    const reducedMotionToggle = document.getElementById('reducedMotion');
+    const highContrastToggle = document.getElementById('highContrast');
+    const largerTextToggle = document.getElementById('largerText');
+    const gameSpeedSelect = document.getElementById('gameSpeed');
+    const audioFeedbackToggle = document.getElementById('audioFeedback');
+    const resetBtn = document.getElementById('resetAccessibility');
+    
+    // Load saved settings
+    loadAccessibilitySettings();
+    
+    // Handle menu toggle click
+    menuToggle.addEventListener('click', toggleMenu);
+    menuToggle.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            toggleMenu();
+        }
+    });
+    
+    // Close menu
+    closeBtn.addEventListener('click', closeMenu);
+    
+    // Handle clicks outside menu
+    document.addEventListener('click', function(e) {
+        if (menu.classList.contains('visible') && 
+            !menu.contains(e.target) && 
+            e.target !== menuToggle) {
+            closeMenu();
+        }
+    });
+    
+    // Handle settings changes
+    reducedMotionToggle.addEventListener('change', function() {
+        document.body.classList.toggle('reduced-motion', this.checked);
+        saveAccessibilitySetting('reducedMotion', this.checked);
+    });
+    
+    highContrastToggle.addEventListener('change', function() {
+        document.body.classList.toggle('high-contrast', this.checked);
+        saveAccessibilitySetting('highContrast', this.checked);
+    });
+    
+    largerTextToggle.addEventListener('change', function() {
+        document.body.classList.toggle('larger-text', this.checked);
+        saveAccessibilitySetting('largerText', this.checked);
+    });
+    
+    gameSpeedSelect.addEventListener('change', function() {
+        gameState.speedModifier = parseFloat(this.value);
+        saveAccessibilitySetting('gameSpeed', this.value);
+    });
+    
+    audioFeedbackToggle.addEventListener('change', function() {
+        gameState.audioFeedback = this.checked;
+        saveAccessibilitySetting('audioFeedback', this.checked);
+    });
+    
+    resetBtn.addEventListener('click', resetAccessibilitySettings);
+    
+    function toggleMenu() {
+        menu.classList.toggle('visible');
+        menuToggle.setAttribute('aria-expanded', menu.classList.contains('visible'));
+        menu.setAttribute('aria-hidden', !menu.classList.contains('visible'));
+    }
+    
+    function closeMenu() {
+        menu.classList.remove('visible');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('aria-hidden', 'true');
+    }
+    
+    function loadAccessibilitySettings() {
+        // Read settings from localStorage
+        if (localStorage.getItem('a11y_reducedMotion') === 'true') {
+            reducedMotionToggle.checked = true;
+            document.body.classList.add('reduced-motion');
+        }
+        
+        if (localStorage.getItem('a11y_highContrast') === 'true') {
+            highContrastToggle.checked = true;
+            document.body.classList.add('high-contrast');
+        }
+        
+        if (localStorage.getItem('a11y_largerText') === 'true') {
+            largerTextToggle.checked = true;
+            document.body.classList.add('larger-text');
+        }
+        
+        const savedSpeed = localStorage.getItem('a11y_gameSpeed');
+        if (savedSpeed) {
+            gameSpeedSelect.value = savedSpeed;
+            gameState.speedModifier = parseFloat(savedSpeed);
+        }
+        
+        if (localStorage.getItem('a11y_audioFeedback') === 'true') {
+            audioFeedbackToggle.checked = true;
+            gameState.audioFeedback = true;
+        }
+    }
+    
+    function saveAccessibilitySetting(key, value) {
+        localStorage.setItem(`a11y_${key}`, value);
+    }
+    
+    function resetAccessibilitySettings() {
+        // Reset all settings
+        reducedMotionToggle.checked = false;
+        highContrastToggle.checked = false;
+        largerTextToggle.checked = false;
+        gameSpeedSelect.value = "1";
+        audioFeedbackToggle.checked = false;
+        
+        document.body.classList.remove('reduced-motion', 'high-contrast', 'larger-text');
+        
+        gameState.speedModifier = 1;
+        gameState.audioFeedback = false;
+        
+        // Remove saved settings
+        localStorage.removeItem('a11y_reducedMotion');
+        localStorage.removeItem('a11y_highContrast');
+        localStorage.removeItem('a11y_largerText');
+        localStorage.removeItem('a11y_gameSpeed');
+        localStorage.removeItem('a11y_audioFeedback');
+    }
+}
+
+// Add keyboard controls
+function setupKeyboardControls() {
+    document.addEventListener('keydown', function(e) {
+        // Space or Enter to pause/resume game
+        if ((e.key === ' ' || e.key === 'Enter') && e.target === document.body) {
+            const pauseBtn = document.getElementById('pauseBtn');
+            if (pauseBtn) {
+                pauseBtn.click();
+                e.preventDefault(); // Prevent default space action
             }
-            
-            // Function to highlight correct answer as a hint
-            function highlightCorrectAnswer() {
-                // Find all active words and their correct translations
-                const correctTranslations = gameState.activeWords.map(word => word.translations[0]);
-                
-                // Check if any of these translations is visible in options
-                const options = document.querySelectorAll('.answer-option');
-                
-                options.forEach(option => {
-                    const translation = option.dataset.translation;
-                    if (correctTranslations.includes(translation)) {
-                        // Add subtle hint effect
-                        option.classList.add('answer-hint');
-                        setTimeout(() => {
-                            option.classList.remove('answer-hint');
-                        }, 500);
-                    }
-                });
+        }
+        
+        // ESC to toggle accessibility menu
+        if (e.key === 'Escape') {
+            const menuToggle = document.getElementById('accessibilityMenuToggle');
+            if (menuToggle) {
+                menuToggle.click();
             }
+        }
+        
+        // Handle keys 1-9 for answer options
+        if (!isNaN(parseInt(e.key)) && e.key >= '1' && e.key <= '9') {
+            const index = parseInt(e.key) - 1;
+            const options = document.querySelectorAll('.answer-option');
             
-            // Add particle effect for better visual feedback
-            function createParticleEffect(element, type) {
-                const rect = element.getBoundingClientRect();
-                const gameRect = gameArea.getBoundingClientRect();
-                
-                const particleCount = 15;
-                const colors = type === 'success' 
-                    ? ['#2ECC71', '#27AE60', '#A3FFB0'] 
-                    : ['#E74C3C', '#C0392B', '#FF8573'];
-                
-                const centerX = rect.left + rect.width/2 - gameRect.left;
-                const centerY = rect.top + rect.height/2 - gameRect.top;
-                
-                for (let i = 0; i < particleCount; i++) {
-                    const particle = document.createElement('div');
-                    particle.className = 'particle';
-                    
-                    // Random particle properties
-                    const size = Math.random() * 10 + 5;
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 5 + 3;
-                    const color = colors[Math.floor(Math.random() * colors.length)];
-                    
-                    particle.style.width = `${size}px`;
-                    particle.style.height = `${size}px`;
-                    particle.style.backgroundColor = color;
-                    particle.style.left = `${centerX}px`;
-                    particle.style.top = `${centerY}px`;
-                    particle.style.opacity = '1';
-                    particle.style.borderRadius = '50%';
-                    particle.style.position = 'absolute';
-                    particle.style.pointerEvents = 'none';
-                    particle.style.zIndex = '10';
-                    
-                    gameArea.appendChild(particle);
-                    
-                    // Particle animation
-                    const destinationX = centerX + Math.cos(angle) * speed * 20;
-                    const destinationY = centerY + Math.sin(angle) * speed * 20;
-                    
-                    // Animation using requestAnimationFrame for better performance
-                    let startTime = null;
-                    const duration = 600 + Math.random() * 400;
-                    
-                    function animateParticle(timestamp) {
-                        if (!startTime) startTime = timestamp;
-                        const progress = (timestamp - startTime) / duration;
-                        
-                        if (progress < 1) {
-                            const x = centerX + (destinationX - centerX) * progress;
-                            const y = centerY + (destinationY - centerY) * progress - (progress * 30) * (1 - progress);
-                            
-                            particle.style.left = `${x}px`;
-                            particle.style.top = `${y}px`;
-                            particle.style.opacity = 1 - progress;
-                            
-                            requestAnimationFrame(animateParticle);
-                        } else {
-                            gameArea.removeChild(particle);
-                        }
-                    }
-                    
-                    requestAnimationFrame(animateParticle);
-                }
+            if (options.length > index) {
+                options[index].click();
             }
-            
-            // Function to check combo achievements
-            function checkComboAchievements() {
-                achievements.forEach(achievement => {
-                    if (!achievement.unlocked && achievement.id.startsWith('combo') && achievement.check(gameState)) {
-                        unlockAchievement(achievement);
-                    }
-                });
-            }
-            
-            // Function to unlock achievement
-            function unlockAchievement(achievement) {
-                achievement.unlocked = true;
-                gameState.achievements.push(achievement.id);
-                
-                // Show notification
-                showAchievementNotification(achievement);
-                
-                // Award reward
-                if (achievement.reward) {
-                    achievement.reward(gameState);
-                }
-                
-                // Save achievement to localStorage for statistics
-                const savedAchievements = JSON.parse(localStorage.getItem('wordfall_achievements') || '[]');
-                if (!savedAchievements.includes(achievement.id)) {
-                    savedAchievements.push(achievement.id);
-                    localStorage.setItem('wordfall_achievements', JSON.stringify(savedAchievements));
-                }
-                
-                // Achievement sound
-                playSound('achievement');
-            }
-            
-            function showAchievementNotification(achievement) {
-                // Create achievement notification
-                const notification = document.createElement('div');
-                notification.className = 'achievement-notification';
-                
-                const icon = document.createElement('div');
-                icon.className = 'achievement-icon';
-                icon.textContent = achievement.icon;
-                
-                const content = document.createElement('div');
-                content.className = 'achievement-content';
-                
-                const title = document.createElement('div');
-                title.className = 'achievement-title';
-                title.textContent = achievement.name;
-                
-                const description = document.createElement('div');
-                description.className = 'achievement-description';
-                description.textContent = achievement.description;
-                
-                content.appendChild(title);
-                content.appendChild(description);
-                
-                notification.appendChild(icon);
-                notification.appendChild(content);
-                
-                document.querySelector('.game-container').appendChild(notification);
-                
-                // Remove notification after a delay
-                setTimeout(() => {
-                    notification.classList.add('slide-out');
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 500);
-                }, 4000);
-            }
-            
-            function addScore(points) {
-                // Add points 
-                updateScoreWithAnimation(points);
-            }
-            
-            function showRewardNotification(message) {
-                // Create reward notification
-                const notification = document.createElement('div');
-                notification.className = 'reward-notification';
-                notification.textContent = message;
-                document.querySelector('.game-container').appendChild(notification);
-                
-                setTimeout(() => {
-                    notification.classList.add('fade-out');
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 500);
-                }, 2500);
-            }
-            
-            // Function for better game area height adjustment
-            function adjustGameAreaHeight() {
-                const gameArea = document.getElementById('gameArea');
-                const header = document.querySelector('header');
-                const answerContainer = document.getElementById('answerContainer');
-                
-                if (!gameArea || !header || !answerContainer) return;
-                
-                // Get viewport dimensions
-                const windowHeight = window.innerHeight;
-                const headerHeight = header.offsetHeight;
-                const answerHeight = answerContainer.offsetHeight;
-                
-                // Calculate available space for game area
-                // Zmniejsz margines, aby uzyskać więcej miejsca
-                const margins = 5; // Zmniejszony z 10 na 5
-                let gameHeight = windowHeight - headerHeight - answerHeight - margins;
-                
-                // Ensure minimum height
-                gameHeight = Math.max(300, gameHeight);
-                
-                // Set game area height
-                gameArea.style.height = `${gameHeight}px`;
-                
-                // Adjust answer container position to ensure it's at the bottom
-                answerContainer.style.bottom = '5px';
-            }
-            
-            // Handle device orientation
-            function handleOrientationChange() {
-                const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-                document.body.setAttribute('data-orientation', orientation);
-                
-                // Adjust game area height
-                adjustGameAreaHeight();
-                
-                // Update answer options
-                if (gameState && gameState.gameRunning) {
-                    setTimeout(updateAnswerOptions, 300);
-                }
-            }
-            
-            // Initialize dark mode
-            function setupThemeToggle() {
-                const themeBtn = document.getElementById('themeBtn');
-                const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-                
-                // Check if user has saved preferences
-                const savedTheme = localStorage.getItem('theme');
-                
-                if (savedTheme === 'dark' || (savedTheme === null && prefersDarkScheme.matches)) {
-                    document.body.classList.add('dark-theme');
-                    themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
-                } else {
-                    document.body.classList.remove('dark-theme');
-                    themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
-                }
-                
-                themeBtn.addEventListener('click', () => {
-                    // Toggle theme
-                    if (document.body.classList.contains('dark-theme')) {
-                        document.body.classList.remove('dark-theme');
-                        localStorage.setItem('theme', 'light');
-                        themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
-                    } else {
-                        document.body.classList.add('dark-theme');
-                        localStorage.setItem('theme', 'dark');
-                        themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
-                    }
-                });
-                
-                // Listen for system preference changes
-                prefersDarkScheme.addEventListener('change', (e) => {
-                    if (!localStorage.getItem('theme')) {
-                        if (e.matches) {
-                            document.body.classList.add('dark-theme');
-                            themeBtn.innerHTML = '<span aria-hidden="true">☀️</span>';
-                        } else {
-                            document.body.classList.remove('dark-theme');
-                            themeBtn.innerHTML = '<span aria-hidden="true">🌙</span>';
-                        }
-                    }
-                });
-            }
-            
-            // Initialize accessibility menu
-            function initAccessibilityMenu() {
-                const menuToggle = document.getElementById('accessibilityMenuToggle');
-                const menu = document.getElementById('accessibilityMenu');
-                const closeBtn = document.querySelector('.accessibility-menu-close');
-                
-                // Get options
-                const reducedMotionToggle = document.getElementById('reducedMotion');
-                const highContrastToggle = document.getElementById('highContrast');
-                const largerTextToggle = document.getElementById('largerText');
-                const gameSpeedSelect = document.getElementById('gameSpeed');
-                const audioFeedbackToggle = document.getElementById('audioFeedback');
-                const resetBtn = document.getElementById('resetAccessibility');
-                
-                // Load saved settings
-                loadAccessibilitySettings();
-                
-                // Handle menu toggle click
-                menuToggle.addEventListener('click', toggleMenu);
-                menuToggle.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        toggleMenu();
-                    }
-                });
-                
-                // Close menu
-                closeBtn.addEventListener('click', closeMenu);
-                
-                // Handle clicks outside menu
-                document.addEventListener('click', function(e) {
-                    if (menu.classList.contains('visible') && 
-                        !menu.contains(e.target) && 
-                        e.target !== menuToggle) {
-                        closeMenu();
-                    }
-                });
-                
-                // Handle settings changes
-                reducedMotionToggle.addEventListener('change', function() {
-                    document.body.classList.toggle('reduced-motion', this.checked);
-                    saveAccessibilitySetting('reducedMotion', this.checked);
-                });
-                
-                highContrastToggle.addEventListener('change', function() {
-                    document.body.classList.toggle('high-contrast', this.checked);
-                    saveAccessibilitySetting('highContrast', this.checked);
-                });
-                
-                largerTextToggle.addEventListener('change', function() {
-                    document.body.classList.toggle('larger-text', this.checked);
-                    saveAccessibilitySetting('largerText', this.checked);
-                });
-                
-                gameSpeedSelect.addEventListener('change', function() {
-                    gameState.speedModifier = parseFloat(this.value);
-                    saveAccessibilitySetting('gameSpeed', this.value);
-                });
-                
-                audioFeedbackToggle.addEventListener('change', function() {
-                    gameState.audioFeedback = this.checked;
-                    saveAccessibilitySetting('audioFeedback', this.checked);
-                });
-                
-                resetBtn.addEventListener('click', resetAccessibilitySettings);
-                
-                function toggleMenu() {
-                    menu.classList.toggle('visible');
-                    menuToggle.setAttribute('aria-expanded', menu.classList.contains('visible'));
-                    menu.setAttribute('aria-hidden', !menu.classList.contains('visible'));
-                }
-                
-                function closeMenu() {
-                    menu.classList.remove('visible');
-                    menuToggle.setAttribute('aria-expanded', 'false');
-                    menu.setAttribute('aria-hidden', 'true');
-                }
-                
-                function loadAccessibilitySettings() {
-                    // Read settings from localStorage
-                    if (localStorage.getItem('a11y_reducedMotion') === 'true') {
-                        reducedMotionToggle.checked = true;
-                        document.body.classList.add('reduced-motion');
-                    }
-                    
-                    if (localStorage.getItem('a11y_highContrast') === 'true') {
-                        highContrastToggle.checked = true;
-                        document.body.classList.add('high-contrast');
-                    }
-                    
-                    if (localStorage.getItem('a11y_largerText') === 'true') {
-                        largerTextToggle.checked = true;
-                        document.body.classList.add('larger-text');
-                    }
-                    
-                    const savedSpeed = localStorage.getItem('a11y_gameSpeed');
-                    if (savedSpeed) {
-                        gameSpeedSelect.value = savedSpeed;
-                        gameState.speedModifier = parseFloat(savedSpeed);
-                    }
-                    
-                    if (localStorage.getItem('a11y_audioFeedback') === 'true') {
-                        audioFeedbackToggle.checked = true;
-                        gameState.audioFeedback = true;
-                    }
-                }
-                
-                function saveAccessibilitySetting(key, value) {
-                    localStorage.setItem(`a11y_${key}`, value);
-                }
-                
-                function resetAccessibilitySettings() {
-                    // Reset all settings
-                    reducedMotionToggle.checked = false;
-                    highContrastToggle.checked = false;
-                    largerTextToggle.checked = false;
-                    gameSpeedSelect.value = "1";
-                    audioFeedbackToggle.checked = false;
-                    
-                    document.body.classList.remove('reduced-motion', 'high-contrast', 'larger-text');
-                    
-                    gameState.speedModifier = 1;
-                    gameState.audioFeedback = false;
-                    
-                    // Remove saved settings
-                    localStorage.removeItem('a11y_reducedMotion');
-                    localStorage.removeItem('a11y_highContrast');
-                    localStorage.removeItem('a11y_largerText');
-                    localStorage.removeItem('a11y_gameSpeed');
-                    localStorage.removeItem('a11y_audioFeedback');
-                }
-            }
-            
-            // Add keyboard controls
-            function setupKeyboardControls() {
-                document.addEventListener('keydown', function(e) {
-                    // Space or Enter to pause/resume game
-                    if ((e.key === ' ' || e.key === 'Enter') && e.target === document.body) {
-                        const pauseBtn = document.getElementById('pauseBtn');
-                        if (pauseBtn) {
-                            pauseBtn.click();
-                            e.preventDefault(); // Prevent default space action
-                        }
-                    }
-                    
-                    // ESC to toggle accessibility menu
-                    if (e.key === 'Escape') {
-                        const menuToggle = document.getElementById('accessibilityMenuToggle');
-                        if (menuToggle) {
-                            menuToggle.click();
-                        }
-                    }
-                    
-                    // Handle keys 1-9 for answer options
-                    if (!isNaN(parseInt(e.key)) && e.key >= '1' && e.key <= '9') {
-                        const index = parseInt(e.key) - 1;
-                        const options = document.querySelectorAll('.answer-option');
-                        
-                        if (options.length > index) {
-                            options[index].click();
-                        }
-                    }
-                });
-            }
-            
-            // Add audio feedback for visually impaired users
-            function setupAudioFeedback() {
-                // Voice synthesis (for supported browsers)
-                if ('speechSynthesis' in window) {
-                    // Initialize speech synthesis at start
-                    const initUtterance = new SpeechSynthesisUtterance('');
-                    window.speechSynthesis.speak(initUtterance);
-                }
-            }
-            
-            // Initialize tutorial
-            function initTutorial() {
-                const tutorialElement = document.getElementById('tutorial');
-                const tutorialSteps = document.querySelectorAll('.tutorial-step');
-                let currentStep = 1;
-                
-                // Check if user has already seen tutorial
-                const tutorialSeen = localStorage.getItem('wordfall_tutorial_seen');
-                
-                if (tutorialSeen) {
-                    tutorialElement.style.display = 'none';
-                    return;
-                }
-                
-                // Hide start screen during tutorial
-                document.getElementById('gameStart').style.display = 'none';
-                
-                // Handle tutorial buttons
-                document.getElementById('tutorialNextBtn').addEventListener('click', () => {
-                    showTutorialStep(2);
-                });
-                
-                document.getElementById('tutorialNextBtn2').addEventListener('click', () => {
-                    showTutorialStep(3);
-                });
-                
-                document.getElementById('tutorialNextBtn3').addEventListener('click', () => {
-                    showTutorialStep(4);
-                });
-                
-                document.getElementById('tutorialSkipBtn').addEventListener('click', () => {
-                    completeTutorial();
-                });
-                
-                document.getElementById('tutorialFinishBtn').addEventListener('click', () => {
-                    completeTutorial();
-                });
-                
-                function showTutorialStep(step) {
-                    // Hide all steps
-                    tutorialSteps.forEach(stepEl => {
-                        stepEl.style.display = 'none';
-                    });
-                    
-                    // Show current step
-                    const currentStepEl = document.querySelector(`.tutorial-step[data-step="${step}"]`);
-                    if (currentStepEl) {
-                        currentStepEl.style.display = 'block';
-                        currentStep = step;
-                    }
-                }
-                
-                function completeTutorial() {
-                    // Save that tutorial has been seen
-                    localStorage.setItem('wordfall_tutorial_seen', 'true');
-                    
-                    // Hide tutorial
-                    tutorialElement.style.display = 'none';
-                    
-                    // Show start screen
-                    document.getElementById('gameStart').style.display = 'flex';
-                }
-            }
-            
-            // Create tooltip function
-            function createTooltip(targetElement, title, message, position = 'bottom', showOnce = true, tooltipId = null) {
-                // Check if tooltip should be shown only once
-                if (showOnce && tooltipId) {
-                    const tooltipSeen = localStorage.getItem(`wordfall_tooltip_${tooltipId}`);
-                    if (tooltipSeen) return;
-                }
-                
-                const tooltipContainer = document.getElementById('tooltipContainer');
-                const tooltip = document.createElement('div');
-                tooltip.className = `tooltip ${position}`;
-                
-                const titleElement = document.createElement('div');
-                titleElement.className = 'tooltip-title';
-                titleElement.textContent = title;
-                
-                const messageElement = document.createElement('div');
-                messageElement.className = 'tooltip-message';
-                messageElement.textContent = message;
-                
-                const closeButton = document.createElement('button');
-                closeButton.className = 'tooltip-close';
-                closeButton.setAttribute('aria-label', 'Zamknij wskazówkę');
-                
-                tooltip.appendChild(titleElement);
-                tooltip.appendChild(messageElement);
-                tooltip.appendChild(closeButton);
-                tooltipContainer.appendChild(tooltip);
-                
-                // Position relative to target element
-                const targetRect = targetElement.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
-                
-                switch (position) {
-                    case 'top':
-                        tooltip.style.left = `${targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2)}px`;
-                        tooltip.style.top = `${targetRect.top - tooltipRect.height - 10}px`;
-                        break;
-                    case 'bottom':
-                        tooltip.style.left = `${targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2)}px`;
-                        tooltip.style.top = `${targetRect.bottom + 10}px`;
-                        break;
-                    case 'left':
-                        tooltip.style.left = `${targetRect.left - tooltipRect.width - 10}px`;
-                        tooltip.style.top = `${targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2)}px`;
-                        break;
-                    case 'right':
-                        tooltip.style.left = `${targetRect.right + 10}px`;
-                        tooltip.style.top = `${targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2)}px`;
-                        break;
-                }
-                
-                // Close event
-                closeButton.addEventListener('click', () => {
-                    tooltip.classList.add('tooltip-fade-out');
-                    
-                    if (showOnce && tooltipId) {
-                        localStorage.setItem(`wordfall_tooltip_${tooltipId}`, 'true');
-                    }
-                    
-                    setTimeout(() => {
-                        tooltipContainer.removeChild(tooltip);
-                    }, 300);
-                });
-                
-                // Auto-close after 10 seconds
-                setTimeout(() => {
-                    if (tooltipContainer.contains(tooltip)) {
-                        tooltip.classList.add('tooltip-fade-out');
-                        setTimeout(() => {
-                            if (tooltipContainer.contains(tooltip)) {
-                                tooltipContainer.removeChild(tooltip);
-                            }
-                        }, 300);
-                    }
-                }, 10000);
-                
-                return tooltip;
-            }
-            
-            // Add game tooltips
-            function setupGameTooltips() {
-                // Falling words tooltip after game start
-                if (!localStorage.getItem('wordfall_tooltip_game_start')) {
-                    setTimeout(() => {
-                        const gameArea = document.getElementById('gameArea');
-                        if (gameArea && gameState.gameRunning) {
-                            createTooltip(
-                                gameArea,
-                                "Spójrz w górę!",
-                                "Słówka spadają z góry. Znajdź ich tłumaczenie zanim spadną na dół ekranu!",
-                                'top',
-                                true,
-                                'game_start'
-                            );
-                        }
-                    }, 2000);
-                }
-                
-                // Combo tooltip after first correct answer
-                document.addEventListener('combo_started', () => {
-                    if (!localStorage.getItem('wordfall_tooltip_combo')) {
-                        const scoreEl = document.getElementById('scoreValue');
-                        if (scoreEl) {
-                            createTooltip(
-                                scoreEl,
-                                "Combo!",
-                                "Seryjne poprawne odpowiedzi zwiększają mnożnik punktów. Utrzymaj passę!",
-                                'bottom',
-                                true,
-                                'combo'
-                            );
-                        }
-                    }
-                });
-            }
-            
-            // Handle window resize
-            window.addEventListener('resize', handleOrientationChange);
-            
-            // Initialize on page load
-            handleOrientationChange();
+        }
+    });
+}
+
+// Add audio feedback for visually impaired users
+function setupAudioFeedback() {
+    // Voice synthesis (for supported browsers)
+    if ('speechSynthesis' in window) {
+        // Initialize speech synthesis at start
+        const initUtterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(initUtterance);
+    }
+}
+
+// Initialize tutorial
+function initTutorial() {
+    const tutorialElement = document.getElementById('tutorial');
+    const tutorialSteps = document.querySelectorAll('.tutorial-step');
+    let currentStep = 1;
+    
+    // Check if user has already seen tutorial
+    const tutorialSeen = localStorage.getItem('wordfall_tutorial_seen');
+    
+    if (tutorialSeen) {
+        tutorialElement.style.display = 'none';
+        return;
+    }
+    
+    // Hide start screen during tutorial
+    document.getElementById('gameStart').style.display = 'none';
+    
+    // Handle tutorial buttons
+    document.getElementById('tutorialNextBtn').addEventListener('click', () => {
+        showTutorialStep(2);
+    });
+    
+    document.getElementById('tutorialNextBtn2').addEventListener('click', () => {
+        showTutorialStep(3);
+    });
+    
+    document.getElementById('tutorialNextBtn3').addEventListener('click', () => {
+        showTutorialStep(4);
+    });
+    
+    document.getElementById('tutorialSkipBtn').addEventListener('click', () => {
+        completeTutorial();
+    });
+    
+    document.getElementById('tutorialFinishBtn').addEventListener('click', () => {
+        completeTutorial();
+    });
+    
+    function showTutorialStep(step) {
+        // Hide all steps
+        tutorialSteps.forEach(stepEl => {
+            stepEl.style.display = 'none';
         });
-    </script>
+        
+        // Show current step
+        const currentStepEl = document.querySelector(`.tutorial-step[data-step="${step}"]`);
+        if (currentStepEl) {
+            currentStepEl.style.display = 'block';
+            currentStep = step;
+        }
+    }
+    
+    function completeTutorial() {
+        // Save that tutorial has been seen
+        localStorage.setItem('wordfall_tutorial_seen', 'true');
+        
+        // Hide tutorial
+        tutorialElement.style.display = 'none';
+        
+        // Show start screen
+        document.getElementById('gameStart').style.display = 'flex';
+    }
+}
+
+// ZAKTUALIZOWANA funkcja tworzenia dymków (tooltips)
+function createTooltip(targetElement, title, message, position = 'bottom', showOnce = true, tooltipId = null) {
+    // Sprawdzenie, czy dymek powinien być pokazany tylko raz
+    if (showOnce && tooltipId) {
+        const tooltipSeen = localStorage.getItem(`wordfall_tooltip_${tooltipId}`);
+        if (tooltipSeen) return;
+    }
+    
+    const tooltipContainer = document.getElementById('tooltipContainer');
+    const tooltip = document.createElement('div');
+    tooltip.className = `tooltip ${position}`;
+    
+    const titleElement = document.createElement('div');
+    titleElement.className = 'tooltip-title';
+    titleElement.textContent = title;
+    
+    const messageElement = document.createElement('div');
+    messageElement.className = 'tooltip-message';
+    messageElement.textContent = message;
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'tooltip-close';
+    closeButton.setAttribute('aria-label', 'Zamknij wskazówkę');
+    closeButton.innerHTML = '&times;'; // Dodany znak X
+    
+    tooltip.appendChild(titleElement);
+    tooltip.appendChild(messageElement);
+    tooltip.appendChild(closeButton);
+    tooltipContainer.appendChild(tooltip);
+    
+    // Pozycjonowanie względem elementu docelowego
+    const targetRect = targetElement.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Poprawione pozycjonowanie z zabezpieczeniem przed wyjściem poza ekran
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    // Domyślne położenie
+    let left, top;
+    
+    switch (position) {
+        case 'top':
+            left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+            top = targetRect.top - tooltipRect.height - 15; // Zwiększony odstęp (z 10 do 15)
+            break;
+        case 'bottom':
+            left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+            top = targetRect.bottom + 15; // Zwiększony odstęp
+            break;
+        case 'left':
+            left = targetRect.left - tooltipRect.width - 15;
+            top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+            break;
+        case 'right':
+            left = targetRect.right + 15;
+            top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+            break;
+    }
+    
+    // Zapobieganie wyjściu poza ekran
+    left = Math.max(10, Math.min(windowWidth - tooltipRect.width - 10, left));
+    top = Math.max(10, Math.min(windowHeight - tooltipRect.height - 10, top));
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    
+    // NOWA FUNKCJONALNOŚĆ: Obsługa kliknięcia całego dymka
+    tooltip.addEventListener('click', function(e) {
+        // Zamykamy tylko gdy kliknięto na dymek, nie na jego zawartość
+        if (e.target === tooltip || e.target === titleElement || e.target === messageElement) {
+            closeTooltip();
+        }
+    });
+    
+    // Obsługa kliknięcia przycisku zamykania
+    closeButton.addEventListener('click', closeTooltip);
+    
+    function closeTooltip() {
+        tooltip.classList.add('tooltip-fade-out');
+        
+        if (showOnce && tooltipId) {
+            localStorage.setItem(`wordfall_tooltip_${tooltipId}`, 'true');
+        }
+        
+        setTimeout(() => {
+            if (tooltipContainer.contains(tooltip)) {
+                tooltipContainer.removeChild(tooltip);
+            }
+        }, 300);
+    }
+    
+    // Auto-zamykanie po 8 sekundach (skrócone z 10s)
+    setTimeout(() => {
+        if (tooltipContainer.contains(tooltip)) {
+            closeTooltip();
+        }
+    }, 8000);
+    
+    return tooltip;
+}
+
+// Add game tooltips
+function setupGameTooltips() {
+    // Falling words tooltip after game start
+    if (!localStorage.getItem('wordfall_tooltip_game_start')) {
+        setTimeout(() => {
+            const gameArea = document.getElementById('gameArea');
+            if (gameArea && gameState.gameRunning) {
+                createTooltip(
+                    gameArea,
+                    "Spójrz w górę!",
+                    "Słówka spadają z góry. Znajdź ich tłumaczenie zanim spadną na dół ekranu!",
+                    'top',
+                    true,
+                    'game_start'
+                );
+            }
+        }, 2000);
+    }
+    
+    // Combo tooltip after first correct answer
+    document.addEventListener('combo_started', () => {
+        if (!localStorage.getItem('wordfall_tooltip_combo')) {
+            const scoreEl = document.getElementById('scoreValue');
+            if (scoreEl) {
+                createTooltip(
+                    scoreEl,
+                    "Combo!",
+                    "Seryjne poprawne odpowiedzi zwiększają mnożnik punktów. Utrzymaj passę!",
+                    'bottom',
+                    true,
+                    'combo'
+                );
+            }
+        }
+    });
+}
+
+// Handle window resize
+window.addEventListener('resize', handleOrientationChange);
+
+// Initialize on page load
+handleOrientationChange();
+});
+</script>
 </body>
 </html>
