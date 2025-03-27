@@ -1,1 +1,743 @@
-aaa
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endodontic CBCT Diagnosis Simulator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .case-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .image-viewer {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .image-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        
+        .slice-image {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: block;
+        }
+        
+        .slice-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .plane-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .plane-btn {
+            background-color: #95a5a6;
+        }
+        
+        .plane-btn.active {
+            background-color: #3498db;
+        }
+        
+        .diagnosis-area {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .diagnosis-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .diagnosis-btn {
+            background-color: #ecf0f1;
+            color: #333;
+            text-align: left;
+            padding: 12px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .diagnosis-btn:hover {
+            background-color: #d6eaf8;
+        }
+        
+        .feedback {
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .correct {
+            background-color: #d5f5e3;
+            color: #27ae60;
+            border: 1px solid #2ecc71;
+        }
+        
+        .incorrect {
+            background-color: #fadbd8;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+        
+        .case-progress {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        
+        .case-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            padding: 0;
+        }
+        
+        .marker-tool {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        .apical-lesion {
+            background-color: rgba(255,0,0,0.3);
+        }
+        
+        .root-resorption {
+            background-color: rgba(0,255,0,0.3);
+        }
+        
+        .perforation {
+            background-color: rgba(0,0,255,0.3);
+        }
+        
+        .fracture {
+            background-color: rgba(255,255,0,0.3);
+        }
+        
+        .calcification {
+            background-color: rgba(255,0,255,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .diagnosis-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .plane-selector {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Endodontic CBCT Diagnosis Simulator</h1>
+            <p>Analiza zmian patologicznych w trzech płaszczyznach przestrzennych</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="game-area">
+            <div class="case-info">
+                <h2 id="case-title">Case 1: Patient 32-year-old female</h2>
+                <p id="case-description">Patient reports persistent pain in the right mandibular molar region for 3 weeks. Tooth responds positively to cold test but pain lingers for 30 seconds. No visible caries or restoration. Mild tenderness to percussion.</p>
+                <div class="case-progress">
+                    Case <span id="current-case">1</span> of <span id="total-cases">10</span>
+                </div>
+            </div>
+            
+            <div class="image-viewer">
+                <div class="plane-selector">
+                    <button class="plane-btn active" data-plane="axial">Axial</button>
+                    <button class="plane-btn" data-plane="coronal">Coronal</button>
+                    <button class="plane-btn" data-plane="sagittal">Sagittal</button>
+                </div>
+                
+                <div class="image-container">
+                    <img id="slice-image" class="slice-image" src="" alt="CBCT slice">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoom-in">+</button>
+                        <button class="zoom-btn" id="zoom-out">-</button>
+                    </div>
+                    <div class="marker-tool">Click on image to mark findings</div>
+                </div>
+                
+                <div class="slice-controls">
+                    <button id="prev-slice">Previous Slice</button>
+                    <span id="slice-number">Slice 5/10</span>
+                    <button id="next-slice">Next Slice</button>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color apical-lesion"></div>
+                        <span>Apical lesion</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color root-resorption"></div>
+                        <span>Root resorption</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color perforation"></div>
+                        <span>Perforation</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color fracture"></div>
+                        <span>Fracture</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color calcification"></div>
+                        <span>Calcification</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="diagnosis-area">
+                <h3>What is your diagnosis?</h3>
+                <div class="diagnosis-options" id="diagnosis-options">
+                    <!-- Options will be inserted here by JavaScript -->
+                </div>
+                
+                <button id="submit-diagnosis">Submit Diagnosis</button>
+                
+                <div class="feedback" id="feedback">
+                    <!-- Feedback will be inserted here -->
+                </div>
+                
+                <div class="case-navigation">
+                    <button id="prev-case" disabled>Previous Case</button>
+                    <button id="next-case">Next Case</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game data - multiple cases with different pathologies
+        const cases = [
+            {
+                id: 1,
+                title: "Case 1: 32-year-old female",
+                description: "Patient reports persistent pain in the right mandibular molar region for 3 weeks. Tooth responds positively to cold test but pain lingers for 30 seconds. No visible caries or restoration. Mild tenderness to percussion.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><circle cx='${200 + Math.sin(i/2)*30}' cy='${200 + Math.cos(i/2)*20}' r='${15 + i*0.5}' fill='none' stroke='red' stroke-width='2'/><text x='${200 + Math.sin(i/2)*30 + 20}' y='${200 + Math.cos(i/2)*20}' font-family='Arial' font-size='12' fill='red'>radiolucency</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><circle cx='${200 - i*5}' cy='${150 + i*3}' r='${20 - i}' fill='none' stroke='red' stroke-width='2'/><text x='${200 - i*5 + 25}' y='${150 + i*3}' font-family='Arial' font-size='12' fill='red'>lesion</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><path d='M${150 + i*5},${180 - i*2} L${250 - i*3},${220 + i} L${230},${250}' fill='none' stroke='red' stroke-width='2'/><text x='${200}' y='${250}' font-family='Arial' font-size='12' fill='red'>apical change</text></svg>`)
+                },
+                correctDiagnosis: "Apical periodontitis",
+                options: [
+                    "Normal anatomy",
+                    "Apical periodontitis",
+                    "Vertical root fracture",
+                    "Internal root resorption",
+                    "Periapical cemento-osseous dysplasia"
+                ],
+                explanation: "The CBCT shows a well-defined radiolucency at the apex of tooth #30, consistent with apical periodontitis. The tooth is vital but shows lingering pain, suggesting irreversible pulpitis with apical involvement."
+            },
+            {
+                id: 2,
+                title: "Case 2: 45-year-old male",
+                description: "Patient presents with a history of trauma to tooth #8 5 years ago. Now reports tooth is discolored and slightly mobile. No response to cold or EPT testing.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><rect x='${180 + i}' y='${180}' width='${40 - i*2}' height='${40 - i*2}' fill='none' stroke='green' stroke-width='2'/><text x='${180 + i + 50}' y='${180 + 20}' font-family='Arial' font-size='12' fill='green'>resorption</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><ellipse cx='200' cy='${200 + i*2}' rx='${30 - i}' ry='${25 - i}' fill='none' stroke='green' stroke-width='2'/><text x='200' y='${200 + i*2 + 30}' font-family='Arial' font-size='12' fill='green'>internal resorption</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><circle cx='200' cy='${180 + i*3}' r='${25 - i*0.5}' fill='none' stroke='green' stroke-width='2'/><text x='200' y='${180 + i*3 + 30}' font-family='Arial' font-size='12' fill='green'>resorption cavity</text></svg>`)
+                },
+                correctDiagnosis: "Internal root resorption",
+                options: [
+                    "External root resorption",
+                    "Internal root resorption",
+                    "Apical periodontitis",
+                    "Dental caries",
+                    "Root fracture"
+                ],
+                explanation: "The CBCT reveals an oval-shaped radiolucency within the root canal space of tooth #8, characteristic of internal root resorption. The history of trauma and current lack of vitality are consistent with this diagnosis."
+            },
+            {
+                id: 3,
+                title: "Case 3: 60-year-old female",
+                description: "Patient with a history of root canal treatment on tooth #14 8 years ago. Now reports pain on chewing and occasional swelling. Large existing crown present.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><line x1='${180 + i*2}' y1='${180 + i}' x2='${220 - i}' y2='${220 - i}' stroke='blue' stroke-width='2'/><text x='${200}' y='${250}' font-family='Arial' font-size='12' fill='blue'>fracture line</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><line x1='${180 + i}' y1='${180 + i}' x2='${220 - i}' y2='${220 - i}' stroke='blue' stroke-width='2'/><text x='${200}' y='${250}' font-family='Arial' font-size='12' fill='blue'>vertical fracture</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><path d='M${180},${180 + i*3} L${220},${220 - i} L${200},${250}' fill='none' stroke='blue' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='blue'>fracture</text></svg>`)
+                },
+                correctDiagnosis: "Vertical root fracture",
+                options: [
+                    "Vertical root fracture",
+                    "Failed root canal treatment",
+                    "Periodontal abscess",
+                    "Periapical cyst",
+                    "External root resorption"
+                ],
+                explanation: "The CBCT demonstrates a radiolucent line running vertically along the root of tooth #14, consistent with a vertical root fracture. The history of endodontic treatment and current symptoms of pain on chewing are classic for this condition."
+            },
+            {
+                id: 4,
+                title: "Case 4: 28-year-old male",
+                description: "Patient presents with a sinus tract adjacent to tooth #19. Tooth previously treated with root canal 2 years ago. No response to vitality tests.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><circle cx='${200 + i*2}' cy='${200 - i}' r='${25 - i}' fill='none' stroke='red' stroke-width='2'/><circle cx='${220 + i}' cy='${180 - i}' r='5' fill='red'/><text x='${200 + i*2 + 30}' y='${200 - i}' font-family='Arial' font-size='12' fill='red'>lesion + sinus</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><path d='M${180},${200 + i} L${220},${200 - i} L${240},${220}' fill='none' stroke='red' stroke-width='2'/><circle cx='${230}' cy='${210 - i}' r='3' fill='red'/><text x='${200}' y='${250}' font-family='Arial' font-size='12' fill='red'>apical lesion</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><ellipse cx='200' cy='${200 + i}' rx='${30 - i}' ry='${25 - i}' fill='none' stroke='red' stroke-width='2'/><path d='M${200},${200 + i + 25} L${200},${250}' stroke='red' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='red'>sinus tract</text></svg>`)
+                },
+                correctDiagnosis: "Chronic apical abscess",
+                options: [
+                    "Chronic apical abscess",
+                    "Periapical granuloma",
+                    "Periapical cyst",
+                    "Condensing osteitis",
+                    "Periapical scar"
+                ],
+                explanation: "The CBCT shows a periapical radiolucency with evidence of a sinus tract extending from the lesion to the oral mucosa. This is characteristic of a chronic apical abscess in a previously treated tooth."
+            },
+            {
+                id: 5,
+                title: "Case 5: 35-year-old female",
+                description: "Patient reports sensitivity to percussion on tooth #5. Tooth has large amalgam restoration and responds abnormally to cold test (intense pain that lingers). No visible caries or periodontal involvement.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><rect x='${180 + i}' y='${180}' width='${40 - i*2}' height='${40 - i*2}' fill='none' stroke='purple' stroke-width='2'/><text x='${180 + i + 50}' y='${180 + 20}' font-family='Arial' font-size='12' fill='purple'>calcification</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><circle cx='200' cy='${200 + i*2}' r='${20 - i}' fill='none' stroke='purple' stroke-width='2'/><text x='200' y='${200 + i*2 + 30}' font-family='Arial' font-size='12' fill='purple'>pulp stones</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><rect x='180' y='${180 + i*3}' width='40' height='${10 + i}' fill='none' stroke='purple' stroke-width='2'/><text x='200' y='${180 + i*3 + 30}' font-family='Arial' font-size='12' fill='purple'>calcifications</text></svg>`)
+                },
+                correctDiagnosis: "Pulp calcifications with irreversible pulpitis",
+                options: [
+                    "Normal pulp",
+                    "Reversible pulpitis",
+                    "Pulp calcifications with irreversible pulpitis",
+                    "Pulp necrosis",
+                    "Internal resorption"
+                ],
+                explanation: "The CBCT reveals multiple pulp calcifications (pulp stones) within the chamber and canals of tooth #5. The clinical symptoms suggest irreversible pulpitis secondary to these calcifications restricting blood flow."
+            },
+            {
+                id: 6,
+                title: "Case 6: 50-year-old male",
+                description: "Patient with a history of trauma to teeth #8 and #9 15 years ago. Now reports slight mobility of #9. Teeth are non-vital but asymptomatic. Radiograph shows irregular root outline.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><path d='M${180},${180 + i} L${220},${220 - i} L${200},${250}' fill='none' stroke='green' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='green'>external resorption</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><path d='M${180 + i},${180} L${220 - i},${220} L${200},${250}' fill='none' stroke='green' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='green'>resorption</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><path d='M${180},${180 + i*3} L${220},${220 - i} L${200},${250}' fill='none' stroke='green' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='green'>external resorption</text></svg>`)
+                },
+                correctDiagnosis: "External inflammatory root resorption",
+                options: [
+                    "Internal root resorption",
+                    "External inflammatory root resorption",
+                    "Cervical root resorption",
+                    "Apical periodontitis",
+                    "Dental caries"
+                ],
+                explanation: "The CBCT shows irregular radiolucencies affecting the external surface of the root of tooth #9, characteristic of external inflammatory root resorption. This is a common sequela of dental trauma in non-vital teeth."
+            },
+            {
+                id: 7,
+                title: "Case 7: 40-year-old female",
+                description: "Patient reports vague pain in the left maxillary posterior region. Tooth #14 has a deep amalgam restoration but is vital. Radiograph shows diffuse radiopacity at apex.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><circle cx='200' cy='200' r='${30 - i*2}' fill='rgba(0,0,0,0.2)'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='%23333'>condensing osteitis</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><rect x='180' y='180' width='40' height='${40 - i*3}' fill='rgba(0,0,0,0.2)'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='%23333'>sclerotic bone</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><path d='M180,180 L220,180 L200,${220 - i}' fill='rgba(0,0,0,0.2)'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='%23333'>condensation</text></svg>`)
+                },
+                correctDiagnosis: "Condensing osteitis",
+                options: [
+                    "Periapical cemento-osseous dysplasia",
+                    "Condensing osteitis",
+                    "Chronic sclerosing osteomyelitis",
+                    "Paget's disease of bone",
+                    "Hypercementosis"
+                ],
+                explanation: "The CBCT demonstrates a localized area of increased bone density around the apex of tooth #14, consistent with condensing osteitis. This is a reactive bone change to low-grade inflammatory stimulus from a vital tooth with deep restoration."
+            },
+            {
+                id: 8,
+                title: "Case 8: 25-year-old male",
+                description: "Patient presents for routine examination. No symptoms reported. Incidental finding on radiograph of radiolucency between roots of teeth #29 and #30. Teeth are vital and asymptomatic.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><path d='M${180 + i},${180} L${220 - i},${220} L${200},${250}' fill='none' stroke='red' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='red'>bifurcation lesion</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><ellipse cx='200' cy='200' rx='${30 - i}' ry='${25 - i}' fill='none' stroke='red' stroke-width='2'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='red'>furcation radiolucency</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><circle cx='200' cy='200' r='${25 - i}' fill='none' stroke='red' stroke-width='2'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='red'>incidental finding</text></svg>`)
+                },
+                correctDiagnosis: "Primordial cyst",
+                options: [
+                    "Primordial cyst",
+                    "Lateral periodontal cyst",
+                    "Periapical granuloma",
+                    "Traumatic bone cyst",
+                    "Keratocystic odontogenic tumor"
+                ],
+                explanation: "The CBCT reveals a well-circumscribed radiolucency in the interradicular region of teeth #29 and #30, not associated with any tooth pathology. The most likely diagnosis is a primordial cyst given the location and appearance."
+            },
+            {
+                id: 9,
+                title: "Case 9: 55-year-old female",
+                description: "Patient with a history of root canal treatment on tooth #3 10 years ago. Now reports intermittent swelling and bad taste. Radiograph shows poorly obturated canals and large periapical lesion.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><circle cx='200' cy='200' r='${30 - i}' fill='none' stroke='red' stroke-width='2'/><path d='M180,180 L220,220' stroke='black' stroke-width='2'/><path d='M220,180 L180,220' stroke='black' stroke-width='2'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='red'>failed RCT</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><path d='M180,180 L220,220 L200,250' fill='none' stroke='red' stroke-width='2'/><path d='M190,190 L210,210' stroke='black' stroke-width='2'/><text x='200' y='${270}' font-family='Arial' font-size='12' fill='red'>inadequate obturation</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><circle cx='200' cy='200' r='${25 - i}' fill='none' stroke='red' stroke-width='2'/><line x1='200' y1='180' x2='200' y2='220' stroke='black' stroke-width='2'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='red'>periapical lesion</text></svg>`)
+                },
+                correctDiagnosis: "Failed root canal treatment with chronic apical abscess",
+                options: [
+                    "Healing periapical lesion",
+                    "Failed root canal treatment with chronic apical abscess",
+                    "Periapical cyst",
+                    "Vertical root fracture",
+                    "Foreign body reaction"
+                ],
+                explanation: "The CBCT shows inadequate root canal obturation with a persistent large periapical radiolucency, indicating failed endodontic treatment. The clinical symptoms suggest a chronic apical abscess."
+            },
+            {
+                id: 10,
+                title: "Case 10: 30-year-old male",
+                description: "Patient reports trauma to anterior teeth 3 months ago. Tooth #9 is slightly extruded and non-vital. Radiograph shows widened PDL space and root resorption.",
+                images: {
+                    axial: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Axial View - Slice ${i+1}/10</text><path d='M${180 + i},${180} L${220 - i},${220} L${200},${250}' fill='none' stroke='yellow' stroke-width='2'/><text x='${200}' y='${270}' font-family='Arial' font-size='12' fill='yellow'>resorption</text></svg>`),
+                    coronal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Coronal View - Slice ${i+1}/10</text><rect x='180' y='180' width='40' height='40' fill='none' stroke='yellow' stroke-width='2'/><rect x='185' y='185' width='30' height='30' fill='none' stroke='yellow' stroke-width='1' stroke-dasharray='5,5'/><text x='200' y='${240}' font-family='Arial' font-size='12' fill='yellow'>PDL widening</text></svg>`),
+                    sagittal: Array(10).fill().map((_, i) => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%23f0f0f0'/><text x='200' y='200' font-family='Arial' font-size='16' text-anchor='middle' fill='%23333'>Sagittal View - Slice ${i+1}/10</text><path d='M180,180 L220,220 L200,250' fill='none' stroke='yellow' stroke-width='2'/><path d='M185,185 L215,215' stroke='yellow' stroke-width='1' stroke-dasharray='5,5'/><text x='200' y='${270}' font-family='Arial' font-size='12' fill='yellow'>external resorption</text></svg>`)
+                },
+                correctDiagnosis: "External replacement resorption (ankylosis)",
+                options: [
+                    "Internal inflammatory resorption",
+                    "External surface resorption",
+                    "External replacement resorption (ankylosis)",
+                    "External inflammatory resorption",
+                    "Cervical resorption"
+                ],
+                explanation: "The CBCT findings show root resorption with areas where bone appears to be replacing the resorbed dentin, characteristic of external replacement resorption (ankylosis). This is a common sequela of dental trauma in replanted or severely luxated teeth."
+            }
+        ];
+
+        // Game state
+        let currentCaseIndex = 0;
+        let currentPlane = 'axial';
+        let currentSlice = 4;
+        let selectedDiagnosis = null;
+        let zoomLevel = 1;
+
+        // DOM elements
+        const caseTitleEl = document.getElementById('case-title');
+        const caseDescriptionEl = document.getElementById('case-description');
+        const currentCaseEl = document.getElementById('current-case');
+        const totalCasesEl = document.getElementById('total-cases');
+        const sliceImageEl = document.getElementById('slice-image');
+        const sliceNumberEl = document.getElementById('slice-number');
+        const diagnosisOptionsEl = document.getElementById('diagnosis-options');
+        const feedbackEl = document.getElementById('feedback');
+        const prevCaseBtn = document.getElementById('prev-case');
+        const nextCaseBtn = document.getElementById('next-case');
+        const prevSliceBtn = document.getElementById('prev-slice');
+        const nextSliceBtn = document.getElementById('next-slice');
+        const planeBtns = document.querySelectorAll('.plane-btn');
+        const submitDiagnosisBtn = document.getElementById('submit-diagnosis');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+
+        // Initialize game
+        function initGame() {
+            totalCasesEl.textContent = cases.length;
+            loadCase(currentCaseIndex);
+            
+            // Set up event listeners
+            planeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    planeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentPlane = btn.dataset.plane;
+                    currentSlice = 4; // Reset to middle slice when changing plane
+                    updateSliceImage();
+                });
+            });
+            
+            prevSliceBtn.addEventListener('click', () => {
+                if (currentSlice > 0) {
+                    currentSlice--;
+                    updateSliceImage();
+                }
+            });
+            
+            nextSliceBtn.addEventListener('click', () => {
+                if (currentSlice < cases[currentCaseIndex].images[currentPlane].length - 1) {
+                    currentSlice++;
+                    updateSliceImage();
+                }
+            });
+            
+            prevCaseBtn.addEventListener('click', () => {
+                if (currentCaseIndex > 0) {
+                    currentCaseIndex--;
+                    loadCase(currentCaseIndex);
+                }
+            });
+            
+            nextCaseBtn.addEventListener('click', () => {
+                if (currentCaseIndex < cases.length - 1) {
+                    currentCaseIndex++;
+                    loadCase(currentCaseIndex);
+                }
+            });
+            
+            submitDiagnosisBtn.addEventListener('click', submitDiagnosis);
+            
+            zoomInBtn.addEventListener('click', () => {
+                if (zoomLevel < 2) {
+                    zoomLevel += 0.1;
+                    sliceImageEl.style.transform = `scale(${zoomLevel})`;
+                }
+            });
+            
+            zoomOutBtn.addEventListener('click', () => {
+                if (zoomLevel > 0.5) {
+                    zoomLevel -= 0.1;
+                    sliceImageEl.style.transform = `scale(${zoomLevel})`;
+                }
+            });
+            
+            // Click on image to mark findings
+            sliceImageEl.addEventListener('click', (e) => {
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Create a marker
+                const marker = document.createElement('div');
+                marker.style.position = 'absolute';
+                marker.style.left = `${x}px`;
+                marker.style.top = `${y}px`;
+                marker.style.width = '10px';
+                marker.style.height = '10px';
+                marker.style.backgroundColor = 'rgba(255,0,0,0.5)';
+                marker.style.borderRadius = '50%';
+                marker.style.transform = 'translate(-50%, -50%)';
+                
+                // Add to image container
+                const container = sliceImageEl.parentElement;
+                container.appendChild(marker);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    marker.style.transition = 'all 0.5s';
+                    marker.style.opacity = '0';
+                    marker.style.transform = 'translate(-50%, -50%) scale(2)';
+                    setTimeout(() => marker.remove(), 500);
+                }, 1000);
+            });
+        }
+        
+        // Load a case
+        function loadCase(index) {
+            const currentCase = cases[index];
+            
+            caseTitleEl.textContent = currentCase.title;
+            caseDescriptionEl.textContent = currentCase.description;
+            currentCaseEl.textContent = index + 1;
+            
+            // Reset diagnosis selection
+            selectedDiagnosis = null;
+            document.querySelectorAll('.diagnosis-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Reset feedback
+            feedbackEl.style.display = 'none';
+            feedbackEl.className = 'feedback';
+            feedbackEl.innerHTML = '';
+            
+            // Update diagnosis options
+            diagnosisOptionsEl.innerHTML = '';
+            currentCase.options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'diagnosis-btn';
+                btn.textContent = option;
+                btn.addEventListener('click', () => {
+                    selectedDiagnosis = option;
+                    document.querySelectorAll('.diagnosis-btn').forEach(b => {
+                        b.classList.remove('selected');
+                    });
+                    btn.classList.add('selected');
+                });
+                diagnosisOptionsEl.appendChild(btn);
+            });
+            
+            // Update navigation buttons
+            prevCaseBtn.disabled = index === 0;
+            nextCaseBtn.disabled = index === cases.length - 1;
+            
+            // Reset slice and plane
+            currentPlane = 'axial';
+            currentSlice = 4;
+            zoomLevel = 1;
+            sliceImageEl.style.transform = 'scale(1)';
+            
+            // Update image
+            updateSliceImage();
+        }
+        
+        // Update the slice image
+        function updateSliceImage() {
+            const currentCase = cases[currentCaseIndex];
+            sliceImageEl.src = currentCase.images[currentPlane][currentSlice];
+            sliceNumberEl.textContent = `Slice ${currentSlice + 1}/${currentCase.images[currentPlane].length}`;
+            
+            // Update slice navigation buttons
+            prevSliceBtn.disabled = currentSlice === 0;
+            nextSliceBtn.disabled = currentSlice === currentCase.images[currentPlane].length - 1;
+        }
+        
+        // Submit diagnosis
+        function submitDiagnosis() {
+            if (!selectedDiagnosis) {
+                alert('Please select a diagnosis before submitting.');
+                return;
+            }
+            
+            const currentCase = cases[currentCaseIndex];
+            feedbackEl.style.display = 'block';
+            
+            if (selectedDiagnosis === currentCase.correctDiagnosis) {
+                feedbackEl.className = 'feedback correct';
+                feedbackEl.innerHTML = `
+                    <h4>Correct!</h4>
+                    <p>Your diagnosis: <strong>${selectedDiagnosis}</strong></p>
+                    <p>${currentCase.explanation}</p>
+                `;
+            } else {
+                feedbackEl.className = 'feedback incorrect';
+                feedbackEl.innerHTML = `
+                    <h4>Incorrect</h4>
+                    <p>Your diagnosis: <strong>${selectedDiagnosis}</strong></p>
+                    <p>Correct diagnosis: <strong>${currentCase.correctDiagnosis}</strong></p>
+                    <p>${currentCase.explanation}</p>
+                `;
+            }
+            
+            // Scroll to feedback
+            feedbackEl.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
