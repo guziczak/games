@@ -1,0 +1,141 @@
+id,title,description,diagnosis1,diagnosisCorrect1,diagnosis2,diagnosisCorrect2,diagnosis3,diagnosisCorrect3,diagnosis4,diagnosisCorrect4,diagnosis5,diagnosisCorrect5,finding1,findingCorrect1,finding2,findingCorrect2,finding3,findingCorrect3,finding4,findingCorrect4,finding5,findingCorrect5,treatment1,treatmentCorrect1,treatment2,treatmentCorrect2,treatment3,treatmentCorrect3,treatment4,treatmentCorrect4,treatment5,treatmentCorrect5,feedback
+1,Przypadek 1: Ząb 36 - Ból przy żuciu,Pacjent 45 lat zgłasza się z bólem w okolicy zęba 36 który nasila się podczas żucia. Ząb reaguje nadwrażliwie na bodźce termiczne. W wywiadzie leczenie kanałowe w przeszłości.,Odwracalne zapalenie miazgi,false,Nieodwracalne zapalenie miazgi,false,Martwica miazgi,false,Przewlekłe zapalenie tkanek okołowierzchołkowych,true,Ostre zapalenie tkanek okołowierzchołkowych,false,Widoczne wypełnienie kanałowe,true,Rozrzedzenie kości w okolicy wierzchołka korzenia,true,Złamanie korzenia,false,Niewypełniony kanał dodatkowy,true,Resorpcja zewnętrzna korzenia,false,Leczenie zachowawcze - obserwacja,false,Pierwotne leczenie kanałowe,false,Powtórne leczenie kanałowe,true,Hemisekcja korzenia,false,Ekstrakcja zęba,false,"<p>Ten przypadek pokazuje przewlekłe zapalenie tkanek okołowierzchołkowych widoczne jako rozrzedzenie kości w okolicy wierzchołka korzenia.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>W kanałach widoczne jest wypełnienie kanałowe, ale jest ono niepełne</li>
+    <li>W widoku osiowym widać dodatkowy, niewypełniony kanał dystalny</li>
+    <li>Wokół wierzchołka korzenia widoczne jest rozrzedzenie kości sugerujące przewlekły stan zapalny</li>
+</ul>
+<p>Najlepszym rozwiązaniem jest ponowne leczenie kanałowe, które uwzględni niewypełniony kanał dodatkowy. To powinno wyeliminować źródło infekcji i umożliwić gojenie zmiany okołowierzchołkowej.</p>"
+2,Przypadek 2: Ząb 21 - Przebarwienie korony,Pacjentka 28 lat zgłasza przebarwienie korony zęba 21. Badanie wykazuje brak reakcji na testy wrażliwości miazgi. W wywiadzie uraz tej okolicy 3 lata temu.,Martwica miazgi,true,Resorpcja wewnętrzna korzenia,true,Złamanie korzenia,false,Przewlekłe zapalenie tkanek okołowierzchołkowych,true,Pionowe złamanie korzenia,false,Poszerzenie kanału w części koronowej,true,Rozrzedzenie kości w okolicy wierzchołka korzenia,true,Złamanie korony zęba,false,Widoczna linia złamania,false,Zwężenie kanału korzeniowego,false,Leczenie zachowawcze - obserwacja,false,Leczenie kanałowe,true,Leczenie chirurgiczne - resekcja wierzchołka,false,Rewizja leczenia kanałowego,false,Ekstrakcja zęba,false,"<p>Ten przypadek przedstawia resorpcję wewnętrzną korzenia z martwicą miazgi i przewlekłym zapaleniem tkanek okołowierzchołkowych.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Widoczne poszerzenie kanału w części koronowej - charakterystyczny objaw resorpcji wewnętrznej</li>
+    <li>Przebarwienie korony związane z martwicą miazgi po urazie</li>
+    <li>Rozrzedzenie kości przy wierzchołku korzenia wskazujące na przewlekłe zapalenie okolowierzchołkowe</li>
+</ul>
+<p>Resorpcja wewnętrzna to proces niszczenia zębiny od wewnątrz przez komórki zapalne (osteoklasty). Najczęściej jest skutkiem urazu zęba i wiąże się z zapaleniem miazgi.</p>
+<p>Leczenie kanałowe jest postępowaniem z wyboru - należy dokładnie opracować poszerzony kanał oraz wypełnić go, co zatrzyma proces resorpcji.</p>"
+3,Przypadek 3: Ząb 46 - Nawracający ból,Pacjent 52 lata zgłasza nawracający ból zęba 46 który był leczony kanałowo 5 lat temu. Ząb jest wrażliwy na nagryzanie.,Źle wypełnione kanały korzeniowe,true,Złamanie instrumentu endodontycznego,false,Pionowe złamanie korzenia,true,Przewlekłe zapalenie tkanek okołowierzchołkowych,true,Torbiel korzeniowa,false,Niewypełniony kanał boczny,true,Rozrzedzenie kości w okolicy furkacji,false,Rozrzedzenie kości wzdłuż dystalnego korzenia,true,Linia złamania biegnąca wzdłuż korzenia,true,Złamany instrument w kanale,false,Rewizja leczenia kanałowego,false,Leczenie chirurgiczne - resekcja wierzchołka,false,Hemisekcja korzenia,true,Ekstrakcja zęba,true,Obserwacja i leczenie farmakologiczne,false,"<p>Ten przypadek przedstawia pionowe złamanie korzenia z przewlekłym zapaleniem tkanek okołowierzchołkowych, dodatkowo z niewypełnionym kanałem bocznym.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Widoczna linia złamania biegnąca wzdłuż dystalnego korzenia</li>
+    <li>Charakterystyczne rozrzedzenie kości wzdłuż linii złamania korzenia</li>
+    <li>Niewypełniony kanał boczny, który mógł przyczynić się do rozwoju stanu zapalnego</li>
+</ul>
+<p>Pionowe złamanie korzenia to poważne powikłanie, które często występuje w zębach po leczeniu kanałowym. Rokowanie jest zwykle niepomyślne.</p>
+<p>W zależności od zasięgu złamania i preferencji pacjenta można rozważyć:</p>
+<ul>
+    <li>Hemisekcję korzenia - usunięcie złamanej części z zachowaniem reszty zęba (jeśli złamanie dotyczy tylko jednego korzenia)</li>
+    <li>Ekstrakcję całego zęba (zwłaszcza jeśli złamanie obejmuje większy obszar)</li>
+</ul>"
+4,Przypadek 4: Ząb 13 - Opuchnięcie dziąsła,Pacjentka 34 lata zgłasza się z opuchnięciem dziąsła w okolicy zęba 13. Ząb nie reaguje na testy wrażliwości miazgi. Widoczna jest przetoka na błonie śluzowej.,Martwica miazgi,true,Ropień okołowierzchołkowy,true,Torbiel korzeniowa,false,Zapalenie dziąseł,false,Resorpcja zewnętrzna korzenia,false,Rozrzedzenie kości w okolicy wierzchołka korzenia,true,Droga przetoki od wierzchołka do błony śluzowej,true,Poszerzona szpara ozębnej,true,Złamanie korzenia,false,Obliteracja kanału korzeniowego,false,Leczenie zachowawcze - drenaż,false,Leczenie kanałowe,true,Antybiotykoterapia bez leczenia kanałowego,false,Resekcja wierzchołka korzenia,false,Ekstrakcja zęba,false,"<p>Ten przypadek przedstawia martwicę miazgi z ropniem okołowierzchołkowym i drogą przetoki.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Wyraźne rozrzedzenie kości w okolicy wierzchołka korzenia zęba 13</li>
+    <li>Widoczna droga przetoki od wierzchołka korzenia do błony śluzowej</li>
+    <li>Poszerzona szpara ozębnej wokół wierzchołka, wskazująca na stan zapalny</li>
+</ul>
+<p>Przetoka jest drogą drenażu ropnia okołowierzchołkowego. Obecność przetoki często zmniejsza ból, ponieważ zapewnia ujście dla wydzieliny ropnej i zmniejsza ciśnienie w tkankach.</p>
+<p>Leczenie kanałowe jest postępowaniem z wyboru. Mimo że antybiotykoterapia może tymczasowo złagodzić objawy, nie eliminuje przyczyny infekcji, którą jest martwica miazgi. Tylko leczenie kanałowe może skutecznie usunąć zakażoną miazgę i umożliwić gojenie tkanek okołowierzchołkowych.</p>"
+5,Przypadek 5: Ząb 17 - Bolesność przy nagryzaniu,Pacjent 48 lat zgłasza ból przy nagryzaniu na ząb 17. Na zdjęciu RTG widoczne wypełnienie kanałowe wykonane 2 lata temu.,Perforacja korzenia,false,Złamanie instrumentu endodontycznego,false,Pionowe złamanie korzenia,true,Przepchnięte wypełnienie kanałowe,false,Niepełne wypełnienie kanałowe,false,Linia złamania biegnąca od kanału do powierzchni korzenia,true,Przejaśnienie wzdłuż bocznej powierzchni korzenia,true,Nieprawidłowe wypełnienie kanałowe,false,Złamany instrument w kanale,false,Nadmiar materiału wypełniającego poza wierzchołkiem,false,Rewizja leczenia kanałowego,false,Leczenie chirurgiczne - resekcja wierzchołka,false,Ekstrakcja zęba,true,Hemisekcja korzenia,false,Obserwacja i leczenie farmakologiczne,false,"<p>Ten przypadek przedstawia pionowe złamanie korzenia w zębie po leczeniu kanałowym.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Widoczna linia złamania biegnąca od kanału korzeniowego do powierzchni korzenia</li>
+    <li>Charakterystyczne przejaśnienie (rozrzedzenie kości) wzdłuż bocznej powierzchni korzenia</li>
+    <li>Brak innych nieprawidłowości w leczeniu kanałowym</li>
+</ul>
+<p>Pionowe złamanie korzenia jest poważnym powikłaniem, które najczęściej występuje w zębach po leczeniu kanałowym. Zęby trzonowe i przedtrzonowe są szczególnie narażone ze względu na siły żucia.</p>
+<p>Ekstrakcja zęba jest zazwyczaj jedynym realnym rozwiązaniem w przypadku pionowego złamania korzenia, zwłaszcza gdy złamanie obejmuje znaczną część korzenia. Rokowanie dla zachowania takiego zęba jest niepomyślne.</p>"
+6,Przypadek 6: Ząb 15 - Przetrwały ból po leczeniu,Pacjentka 39 lat zgłasza się z bólem zęba 15 który utrzymuje się mimo przeprowadzonego miesiąc temu leczenia kanałowego.,Niewypełniony kanał boczny,true,Przepchnięte wypełnienie kanałowe,false,Perforacja korzenia,false,Przewlekłe zapalenie tkanek okołowierzchołkowych,true,Złamanie instrumentu endodontycznego,false,Rozrzedzenie kości w okolicy wierzchołka korzenia,true,Widoczny niewypełniony kanał boczny,true,Nadmiar materiału wypełniającego poza wierzchołkiem,false,Złamany instrument w kanale,false,Perforacja ściany korzenia,false,Rewizja leczenia kanałowego,true,Leczenie chirurgiczne - resekcja wierzchołka,true,Ekstrakcja zęba,false,Antybiotykoterapia,false,Obserwacja i leczenie farmakologiczne,false,"<p>Ten przypadek przedstawia niewypełniony kanał boczny z przewlekłym zapaleniem tkanek okołowierzchołkowych.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Widoczny niewypełniony kanał boczny odchodzący od głównego kanału korzeniowego</li>
+    <li>Rozrzedzenie kości wokół wierzchołka korzenia wskazujące na przewlekły stan zapalny</li>
+    <li>Główne kanały są wypełnione prawidłowo</li>
+</ul>
+<p>Kanały boczne (dodatkowe) mogą być trudne do zidentyfikowania i wypełnienia podczas leczenia kanałowego. Jeśli pozostaną niewypełnione, mogą stanowić rezerwuar bakterii i prowadzić do przetrwałego zapalenia i bólu.</p>
+<p>Dostępne są dwie główne opcje leczenia:</p>
+<ul>
+    <li>Rewizja leczenia kanałowego - próba ponownego opracowania i wypełnienia kanału bocznego</li>
+    <li>Leczenie chirurgiczne (resekcja wierzchołka) - wskazane szczególnie gdy kanał boczny jest trudno dostępny od strony korony</li>
+</ul>
+<p>Wybór metody zależy od lokalizacji kanału bocznego, możliwości technicznych i preferencji pacjenta.</p>"
+7,Przypadek 7: Ząb 24 - Odsłonięcie miazgi,Pacjent 22 lata zgłasza się z bólem zęba 24 po urazie. Widoczne jest punktowe odsłonięcie miazgi. Ząb reaguje na bodźce termiczne.,Odwracalne zapalenie miazgi,true,Nieodwracalne zapalenie miazgi,false,Martwica miazgi,false,Próchnica głęboka,false,Złamanie korony z odsłonięciem miazgi,true,Punktowe odsłonięcie miazgi,true,Hiperemia miazgi,true,Rozrzedzenie kości w okolicy wierzchołka,false,Obliteracja kanału korzeniowego,false,Złamanie korzenia,false,Bezpośrednie pokrycie miazgi,true,Częściowa pulpotomia (amputacja przyżyciowa),true,Całkowite leczenie kanałowe,false,Ekstrakcja zęba,false,Obserwacja bez interwencji,false,"<p>Ten przypadek przedstawia złamanie korony z punktowym odsłonięciem miazgi i odwracalnym zapaleniem miazgi.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Punktowe odsłonięcie miazgi widoczne w obrazowaniu</li>
+    <li>Hiperemia (przekrwienie) miazgi - widoczna jako intensywniejszy kolor miazgi</li>
+    <li>Brak zmian w tkankach okołowierzchołkowych</li>
+    <li>Ząb reaguje na bodźce termiczne, co wskazuje na żywotność miazgi</li>
+</ul>
+<p>Przy świeżym urazie z niewielkim odsłonięciem miazgi u młodego pacjenta, leczenie zachowawcze ma szansę powodzenia.</p>
+<p>Zalecanym postępowaniem jest:</p>
+<ul>
+    <li>Bezpośrednie pokrycie miazgi materiałami na bazie wodorotlenku wapnia lub MTA (Mineral Trioxide Aggregate)</li>
+    <li>Lub częściowa pulpotomia, czyli usunięcie tylko powierzchownej, uszkodzonej warstwy miazgi</li>
+</ul>
+<p>Zabiegi te mają na celu zachowanie żywotności miazgi. Całkowite leczenie kanałowe byłoby zbyt radykalnym podejściem w tym przypadku.</p>"
+8,Przypadek 8: Ząb 26 - Objawy po leczeniu kanałowym,Pacjentka 51 lat zgłasza się z bólem i obrzękiem policzka w okolicy zęba 26 który był leczony kanałowo 10 dni temu.,Ostre zapalenie tkanek okołowierzchołkowych,true,Ropień okołowierzchołkowy,true,Przepchnięcie materiału wypełniającego,false,Perforacja korzenia,false,Zaostrzenie przewlekłego zapalenia tkanek okołowierzchołkowych,true,Obrzęk tkanek miękkich przylegających do zęba,true,Zatarcie granic anatomicznych w tkankach miękkich,true,Wypełnione kanały korzeniowe,true,Złamany instrument w kanale,false,Widoczna perforacja korzenia,false,Nacięcie i drenaż,true,Antybiotykoterapia,true,Rewizja leczenia kanałowego,false,Ekstrakcja zęba,false,Obserwacja bez interwencji,false,"<p>Ten przypadek przedstawia zaostrzenie przewlekłego zapalenia tkanek okołowierzchołkowych z ostrym zapaleniem i ropniem.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Widoczny obrzęk tkanek miękkich w okolicy zęba</li>
+    <li>Zatarcie granic anatomicznych w tkankach miękkich wskazujące na stan zapalny</li>
+    <li>Wypełnione kanały korzeniowe bez widocznych nieprawidłowości technicznych</li>
+    <li>Wystąpienie objawów krótko po leczeniu kanałowym</li>
+</ul>
+<p>Po leczeniu kanałowym może dojść do zaostrzenia stanu zapalnego z powodu:</p>
+<ul>
+    <li>Przejściowego podrażnienia tkanek okołowierzchołkowych podczas instrumentacji</li>
+    <li>Przemieszczenia bakterii poza wierzchołek korzenia</li>
+    <li>Reakcji immunologicznej na materiały wypełniające</li>
+</ul>
+<p>Leczenie obejmuje:</p>
+<ul>
+    <li>Nacięcie i drenaż w przypadku ropnia, aby zmniejszyć ciśnienie i ułatwić odpływ wydzieliny ropnej</li>
+    <li>Antybiotykoterapię, szczególnie przy objawach ogólnoustrojowych lub rozległym obrzęku</li>
+    <li>Leki przeciwbólowe i przeciwzapalne</li>
+</ul>
+<p>Rewizja leczenia kanałowego zwykle nie jest konieczna, jeśli zostało ono wykonane prawidłowo. Stan zapalny powinien ustąpić w ciągu kilku dni.</p>"
+9,Przypadek 9: Ząb 37 - Resorpcja zewnętrzna,Pacjent 40 lat zgłasza się na rutynowy przegląd. Podczas badania CBCT wykryto zmiany w korzeniu zęba 37 który jest bezobjawowy.,Resorpcja zewnętrzna korzenia,true,Resorpcja wewnętrzna korzenia,false,Próchnica korzenia,false,Pionowe złamanie korzenia,false,Ankyloza zęba,false,Ubytek tkanki korzenia od strony zewnętrznej,true,Nieregularny kształt kanału korzeniowego,false,Zatarcie granic ozębnej,true,Linia złamania w korzeniu,false,Poszerzony kanał korzeniowy,false,Leczenie zachowawcze - obserwacja,true,Leczenie kanałowe z wypełnieniem ubytku MTA,true,Ekstrakcja zęba,false,Rewizja leczenia kanałowego,false,Chirurgiczne usunięcie zmiany,false,"<p>Ten przypadek przedstawia resorpcję zewnętrzną korzenia.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Ubytek tkanki korzenia widoczny od strony zewnętrznej</li>
+    <li>Zatarcie granic ozębnej w miejscu resorpcji</li>
+    <li>Kanał korzeniowy ma prawidłowy, regularny kształt (w przeciwieństwie do resorpcji wewnętrznej)</li>
+</ul>
+<p>Resorpcja zewnętrzna może być spowodowana:</p>
+<ul>
+    <li>Urazem zęba</li>
+    <li>Przewlekłym zapaleniem przyzębia</li>
+    <li>Ortodontycznym przemieszczaniem zębów</li>
+    <li>Naciskiem z sąsiednich struktur</li>
+</ul>
+<p>Leczenie zależy od zasięgu resorpcji i objawów:</p>
+<ul>
+    <li>W przypadku niewielkiej, bezobjawowej resorpcji - obserwacja</li>
+    <li>Jeśli resorpcja sięga do kanału - leczenie kanałowe z wypełnieniem ubytku materiałem biokompatybilnym (np. MTA)</li>
+    <li>Tylko w zaawansowanych przypadkach konieczna jest ekstrakcja</li>
+</ul>
+<p>Ponieważ ząb jest bezobjawowy, a zmiana niewielka, odpowiednim postępowaniem jest regularna obserwacja lub leczenie kanałowe z zamknięciem ubytku resorpcyjnego.</p>"
+10,Przypadek 10: Ząb 22 - Zmiany po urazie,Pacjent 15 lat zgłasza się po urazie zęba 22 który miał miejsce 3 dni temu. Ząb jest nieco ruchomy korona nie ma widocznych uszkodzeń.,Złamanie poziome korzenia,true,Złamanie pionowe korzenia,false,Zwichnięcie zęba,true,Wstrząśnienie zęba,false,Złamanie korony zęba,false,Linia złamania w środkowej części korzenia,true,Poszerzenie szpary ozębnej,true,Przemieszczenie fragmentów korzenia,false,Złamanie wyrostka zębodołowego,false,Złamanie korony zęba,false,Szynowanie zęba,true,Natychmiastowe leczenie kanałowe,false,Obserwacja i kontrola żywotności miazgi,true,Ekstrakcja zęba,false,Repozycja i szynowanie,false,"<p>Ten przypadek przedstawia złamanie poziome korzenia (złamanie poprzeczne) z towarzyszącym zwichnięciem zęba.</p>
+<p>Kluczowe obserwacje:</p>
+<ul>
+    <li>Wyraźna linia złamania przebiegająca poziomo w środkowej części korzenia</li>
+    <li>Poszerzenie szpary ozębnej wskazujące na zwichnięcie zęba</li>
+    <li>Brak znacznego przemieszczenia fragmentów korzenia</li>
+</ul>
+<p>Złamania poziome korzenia mają stosunkowo dobre rokowanie, szczególnie u młodych pacjentów. Gojenie może przebiegać na kilka sposobów:</p>
+<ul>
+    <li>Poprzez wytworzenie tkanki twardej (zębiny i cementu)</li>
+    <li>Poprzez wytworzenie tkanki łącznej</li>
+    <li>Poprzez wytworzenie tkanki kostnej i łącznej</li>
+    <li>Przez wytworzenie ziarniny zapalnej (niepomyślne rokowanie)</li>
+</ul>
+<p>Zalecanym leczeniem jest:</p>
+<ul>
+    <li>Szynowanie zęba na okres 4 tygodni, aby ustabilizować odłamy</li>
+    <li>Regularna kontrola żywotności miazgi - leczenie kanałowe należy wdrożyć tylko w przypadku martwicy miazgi</li>
+    <li>Długoterminowa obserwacja - nawet do kilku lat</li>
+</ul>
+<p>Natychmiastowe leczenie kanałowe nie jest wskazane, ponieważ miazga może zachować żywotność, szczególnie u młodych pacjentów.</p>"

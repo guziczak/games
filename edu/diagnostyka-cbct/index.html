@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostyka CBCT w Endodoncji - Gra Edukacyjna</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Diagnostyka CBCT w Endodoncji</h1>
+            <p>Gra edukacyjna do nauki diagnozowania zmian w badaniach tomografii stożkowej</p>
+        </div>
+        
+        <div class="main">
+            <!-- Ekran powitalny -->
+            <div id="welcome-screen" class="screen active">
+                <h2>Witaj w grze diagnostycznej CBCT!</h2>
+                
+                <div class="card info-panel">
+                    <h3><span class="icon icon-info"></span>Instrukcje:</h3>
+                    <p>Ta gra pomoże Ci w nauce diagnozowania zmian endodontycznych widocznych w badaniach CBCT w trzech płaszczyznach przestrzennych.</p>
+                    <ul>
+                        <li>Dla każdego przypadku zobaczysz obrazy w trzech płaszczyznach: osiowej, strzałkowej i czołowej</li>
+                        <li>Twoim zadaniem jest przeanalizować zmiany widoczne na obrazach i postawić prawidłową diagnozę</li>
+                        <li>Wybierz poprawne odpowiedzi z dostępnych opcji</li>
+                        <li>Po każdym przypadku otrzymasz informację zwrotną z wyjaśnieniem</li>
+                        <li>Na koniec otrzymasz podsumowanie wyników</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3><span class="icon icon-legend"></span>Legenda obrazów CBCT:</h3>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: white; border: 1px solid #ccc;"></div>
+                            <span>Powietrze/Puste przestrzenie</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #bbb;"></div>
+                            <span>Tkanki miękkie</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #777;"></div>
+                            <span>Zębina</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #444;"></div>
+                            <span>Szkliwo</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #999;"></div>
+                            <span>Kość</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #ddd;"></div>
+                            <span>Zmiany patologiczne</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="button-container">
+                    <button id="start-game" class="btn btn-primary btn-large">
+                        <span class="icon icon-play"></span>ROZPOCZNIJ GRĘ
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Ekran gry -->
+            <div id="game-screen" class="screen">
+                <div class="progress-container">
+                    <div class="progress-info">
+                        <span id="progress-text">Przypadek 1 z 10</span>
+                        <span id="progress-percent">10%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress-bar"></div>
+                    </div>
+                </div>
+                
+                <div class="case-info card">
+                    <h2 id="case-title">Przypadek 1</h2>
+                    <p id="case-description">Opis przypadku...</p>
+                </div>
+                
+                <div class="view-buttons">
+                    <button id="view-all" class="btn btn-toggle active" data-view="all">Wszystkie widoki</button>
+                    <button id="view-axial" class="btn btn-toggle" data-view="axial">Widok osiowy</button>
+                    <button id="view-sagittal" class="btn btn-toggle" data-view="sagittal">Widok strzałkowy</button>
+                    <button id="view-coronal" class="btn btn-toggle" data-view="coronal">Widok czołowy</button>
+                </div>
+                
+                <div class="imaging-container">
+                    <div class="imaging-view card" id="axial-view">
+                        <h3>Widok osiowy (poziomy)</h3>
+                        <div class="svg-container" id="axial-svg-container">
+                            <!-- SVG obrazy będą wstawiane dynamicznie -->
+                        </div>
+                        <div class="view-indicator">
+                            <div class="indicator-line horizontal"></div>
+                            <div class="indicator-label">Poziom cięcia</div>
+                        </div>
+                    </div>
+                    
+                    <div class="imaging-view card" id="sagittal-view">
+                        <h3>Widok strzałkowy</h3>
+                        <div class="svg-container" id="sagittal-svg-container">
+                            <!-- SVG obrazy będą wstawiane dynamicznie -->
+                        </div>
+                        <div class="view-indicator">
+                            <div class="indicator-line vertical"></div>
+                            <div class="indicator-label">Poziom cięcia</div>
+                        </div>
+                    </div>
+                    
+                    <div class="imaging-view card" id="coronal-view">
+                        <h3>Widok czołowy</h3>
+                        <div class="svg-container" id="coronal-svg-container">
+                            <!-- SVG obrazy będą wstawiane dynamicznie -->
+                        </div>
+                        <div class="view-indicator">
+                            <div class="indicator-line vertical"></div>
+                            <div class="indicator-label">Poziom cięcia</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="options-section">
+                    <div class="options-container card">
+                        <h3><span class="icon icon-diagnosis"></span>Diagnoza:</h3>
+                        <div id="diagnosis-options" class="options-list">
+                            <!-- Opcje diagnozy będą wstawiane dynamicznie -->
+                        </div>
+                    </div>
+                    
+                    <div class="options-container card">
+                        <h3><span class="icon icon-findings"></span>Jakie zmiany obserwujesz?</h3>
+                        <div id="findings-options" class="options-list">
+                            <!-- Opcje obserwacji będą wstawiane dynamicznie -->
+                        </div>
+                    </div>
+                    
+                    <div class="options-container card">
+                        <h3><span class="icon icon-treatment"></span>Zalecane leczenie:</h3>
+                        <div id="treatment-options" class="options-list">
+                            <!-- Opcje leczenia będą wstawiane dynamicznie -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="button-container">
+                    <button id="submit-answer" class="btn btn-primary btn-large">
+                        <span class="icon icon-check"></span>ZATWIERDŹ ODPOWIEDŹ
+                    </button>
+                </div>
+                
+                <div id="feedback" class="feedback card" style="display: none;">
+                    <h3><span class="icon icon-feedback"></span>Informacja zwrotna:</h3>
+                    <div id="feedback-content"></div>
+                    <div class="button-container">
+                        <button id="next-case" class="btn btn-primary">
+                            <span class="icon icon-next"></span>NASTĘPNY PRZYPADEK
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ekran wyników -->
+            <div id="results-screen" class="screen">
+                <h2>Podsumowanie wyników</h2>
+                
+                <div class="card">
+                    <div class="score-container">
+                        <div class="score-circle">
+                            <div class="score-value" id="final-score-value">0%</div>
+                        </div>
+                        <div class="score-label">Twój wynik</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3><span class="icon icon-summary"></span>Podsumowanie przypadków:</h3>
+                    <div class="cases-summary">
+                        <ul class="cases-list" id="cases-summary">
+                            <!-- Lista przypadków będzie wstawiana dynamicznie -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card info-panel">
+                    <h3><span class="icon icon-tips"></span>Wskazówki do dalszej nauki:</h3>
+                    <p>Zwróć szczególną uwagę na następujące aspekty diagnozy endodontycznej w CBCT:</p>
+                    <ul>
+                        <li>Ocena anatomii kanałów korzeniowych</li>
+                        <li>Identyfikacja dodatkowych kanałów</li>
+                        <li>Rozpoznawanie resorpcji korzeni (wewnętrznej i zewnętrznej)</li>
+                        <li>Diagnostyka złamań korzeni</li>
+                        <li>Ocena zmian okołowierzchołkowych</li>
+                        <li>Analiza perforacji</li>
+                    </ul>
+                </div>
+                
+                <div class="button-container">
+                    <button id="restart-game" class="btn btn-primary btn-large">
+                        <span class="icon icon-restart"></span>ZAGRAJ PONOWNIE
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <p>Ładowanie danych...</p>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
