@@ -49,30 +49,11 @@ async function initializeGame() {
     
     try {
         // Wczytanie danych z plików CSV
-        console.log('Próba wczytania plików CSV...');
-        
         const casesData = await loadCasesFromCSV('cases.csv');
-        console.log('Wczytano plik cases.csv:', casesData);
-        
         const svgData = await loadSVGsFromCSV('svg_data.csv');
-        console.log('Wczytano plik svg_data.csv:', svgData);
-        
-        if (!casesData || casesData.length === 0) {
-            throw new Error('Nie udało się wczytać danych przypadków lub plik jest pusty.');
-        }
-        
-        if (!svgData || svgData.length === 0) {
-            throw new Error('Nie udało się wczytać danych SVG lub plik jest pusty.');
-        }
         
         // Przetworzenie danych
-        console.log('Przetwarzanie danych...');
         cases = processCasesData(casesData, svgData);
-        console.log('Przetworzone przypadki:', cases);
-        
-        if (!cases || cases.length === 0) {
-            throw new Error('Nie udało się przetworzyć danych. Przypadki są puste.');
-        }
         
         // Przypisanie akcji do przycisków
         attachEventListeners();
@@ -82,7 +63,7 @@ async function initializeGame() {
         showWelcomeScreen();
     } catch (error) {
         console.error('Błąd podczas inicjalizacji gry:', error);
-        displayErrorMessage('Nie udało się wczytać danych gry: ' + error.message);
+        displayErrorMessage('Nie udało się wczytać danych gry. Odśwież stronę i spróbuj ponownie.');
     }
 }
 
@@ -91,7 +72,6 @@ async function initializeGame() {
 // Funkcja do wczytywania danych przypadków z CSV
 async function loadCasesFromCSV(filename) {
     try {
-        console.log(`Rozpoczęcie ładowania pliku ${filename}`);
         const response = await fetch(filename);
         
         if (!response.ok) {
@@ -99,128 +79,65 @@ async function loadCasesFromCSV(filename) {
         }
         
         const csvText = await response.text();
-        console.log(`Zawartość pliku ${filename} (pierwsze 200 znaków):`, csvText.substring(0, 200));
-        
-        // Sprawdź czy plik nie jest pusty
-        if (!csvText || csvText.trim() === '') {
-            throw new Error(`Plik ${filename} jest pusty.`);
-        }
-        
         return parseCSV(csvText);
     } catch (error) {
-        console.error(`Błąd podczas ładowania pliku ${filename}:`, error);
+        console.error('Błąd podczas ładowania pliku CSV:', error);
         throw error;
     }
 }
 
 // Funkcja do wczytywania danych SVG z CSV
 async function loadSVGsFromCSV(filename) {
-    return loadCasesFromCSV(filename); // Używamy tej samej funkcji dla obu plików
+    try {
+        const response = await fetch(filename);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const csvText = await response.text();
+        return parseCSV(csvText);
+    } catch (error) {
+        console.error('Błąd podczas ładowania SVG z CSV:', error);
+        throw error;
+    }
 }
 
-// Ulepszony parser CSV obsługujący formatowanie CSV z cudzysłowami
+// Prosty parser CSV
 function parseCSV(csvText) {
-    // Usunięcie BOM (Byte Order Mark) jeśli istnieje
-    csvText = csvText.replace(/^\uFEFF/, '');
-    
-    // Normalizacja znaków końca linii (CR, LF, CRLF -> LF)
-    csvText = csvText.replace(/\r\n?/g, '\n');
-    
     const lines = csvText.split('\n');
-    
-    // Sprawdź czy są nagłówki
-    if (lines.length === 0) {
-        console.error('Plik CSV nie zawiera linii.');
-        return [];
-    }
-    
     const headers = lines[0].split(',').map(header => header.trim());
-    console.log('Wykryte nagłówki CSV:', headers);
     
-    // Jeśli nie ma nagłówków, zwróć pustą tablicę
-    if (headers.length === 0) {
-        console.error('Plik CSV nie zawiera nagłówków.');
-        return [];
-    }
-    
-    // Funkcja do dekodowania pola CSV z uwzględnieniem cudzysłowów
-    const decodeField = (field) => {
-        // Jeśli pole zaczyna i kończy się cudzysłowem, usuwamy je i zamieniamy podwójne cudzysłowy
-        if (field.startsWith('"') && field.endsWith('"')) {
-            return field.substring(1, field.length - 1).replace(/""/g, '"');
-        }
-        return field;
-    };
-    
-    const parsedData = [];
-    
-    // Przetwarzanie wierszy danych
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line === '') continue;
-        
+    return lines.slice(1).filter(line => line.trim() !== '').map(line => {
+        const values = line.split(',');
         const entry = {};
-        let inQuotes = false;
-        let currentField = '';
-        let headerIndex = 0;
         
-        // Parsuj każdy znak w wierszu
-        for (let j = 0; j < line.length; j++) {
-            const char = line[j];
-            
-            if (char === '"') {
-                // Sprawdź, czy to podwójny cudzysłów wewnątrz pola
-                if (j + 1 < line.length && line[j + 1] === '"') {
-                    currentField += '"';
-                    j++; // Pomiń następny cudzysłów
-                } else {
-                    // Przełącz stan "wewnątrz cudzysłowów"
-                    inQuotes = !inQuotes;
+        headers.forEach((header, index) => {
+            // Obsługa wartości zawierających przecinki
+            if (values[index] && values[index].startsWith('"')) {
+                let value = values[index];
+                let valueIndex = index;
+                
+                while (!values[valueIndex].endsWith('"') && valueIndex < values.length - 1) {
+                    valueIndex++;
+                    value += ',' + values[valueIndex];
                 }
-            } else if (char === ',' && !inQuotes) {
-                // Koniec pola, dodaj do obiektu i zresetuj
-                if (headerIndex < headers.length) {
-                    entry[headers[headerIndex]] = decodeField(currentField);
-                    headerIndex++;
-                    currentField = '';
-                }
+                
+                entry[header] = value.replace(/^"|"$/g, '').replace(/""/g, '"');
             } else {
-                // Dodaj znak do aktualnego pola
-                currentField += char;
+                entry[header] = values[index] ? values[index].trim() : '';
             }
-        }
+        });
         
-        // Dodaj ostatnie pole
-        if (headerIndex < headers.length) {
-            entry[headers[headerIndex]] = decodeField(currentField);
-        }
-        
-        // Uzupełnij brakujące pola
-        for (let j = headerIndex + 1; j < headers.length; j++) {
-            entry[headers[j]] = '';
-        }
-        
-        // Dodaj wpis do tablicy wyników
-        parsedData.push(entry);
-        
-        // Loguj kilka pierwszych wpisów do debugowania
-        if (i <= 2) {
-            console.log(`Wiersz ${i}: `, entry);
-        }
-    }
-    
-    console.log(`Sparsowano ${parsedData.length} wierszy danych.`);
-    return parsedData;
+        return entry;
+    });
 }
 
 // Przetwarzanie danych przypadków
 function processCasesData(casesData, svgData) {
-    return casesData.map((caseData, index) => {
-        console.log(`Przetwarzanie przypadku ${index + 1}, ID: ${caseData.id}`);
-        
-        // Znajdź odpowiednie SVG dla tego przypadku - zapewniamy konwersję do String
-        const caseSVGs = svgData.filter(svg => String(svg.caseId) === String(caseData.id));
-        console.log(`Znaleziono ${caseSVGs.length} SVG dla przypadku ID: ${caseData.id}`);
+    return casesData.map(caseData => {
+        // Znajdź odpowiednie SVG dla tego przypadku
+        const caseSVGs = svgData.filter(svg => svg.caseId === caseData.id);
         
         // Przygotuj opcje diagnozy
         const diagnosisOptions = [];
@@ -263,26 +180,17 @@ function processCasesData(casesData, svgData) {
         const sagittalSvg = caseSVGs.find(svg => svg.viewType === 'sagittal')?.svgContent || '';
         const coronalSvg = caseSVGs.find(svg => svg.viewType === 'coronal')?.svgContent || '';
         
-        // Log dla pierwszego przypadku - pomoc w debugowaniu
-        if (index === 0) {
-            console.log('Pierwsze widoki SVG:', {
-                axial: axialSvg ? `${axialSvg.substring(0, 50)}...` : 'brak',
-                sagittal: sagittalSvg ? `${sagittalSvg.substring(0, 50)}...` : 'brak',
-                coronal: coronalSvg ? `${coronalSvg.substring(0, 50)}...` : 'brak'
-            });
-        }
-        
         return {
             id: caseData.id,
-            title: caseData.title || `Przypadek ${index + 1}`,
-            description: caseData.description || 'Brak opisu przypadku.',
+            title: caseData.title,
+            description: caseData.description,
             axialSvg: axialSvg,
             sagittalSvg: sagittalSvg,
             coronalSvg: coronalSvg,
             diagnosisOptions: diagnosisOptions,
             findingsOptions: findingsOptions,
             treatmentOptions: treatmentOptions,
-            feedback: caseData.feedback || 'Brak informacji zwrotnej dla tego przypadku.'
+            feedback: caseData.feedback
         };
     });
 }
@@ -305,8 +213,6 @@ function attachEventListeners() {
             changeView(viewType);
         });
     });
-    
-    console.log('Przypisano wszystkie zdarzenia do przycisków.');
 }
 
 // Zmiana aktywnego przycisku widoku
@@ -346,15 +252,6 @@ function createCheckboxOptions(options, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
     
-    // Jeśli brak opcji, dodaj informację
-    if (!options || options.length === 0) {
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'option';
-        infoDiv.textContent = 'Brak dostępnych opcji';
-        container.appendChild(infoDiv);
-        return;
-    }
-    
     options.forEach(option => {
         const div = document.createElement('div');
         div.className = 'option';
@@ -385,15 +282,6 @@ function createCheckboxOptions(options, containerId) {
 
 // Rozpoczęcie gry
 function startGame() {
-    console.log('Rozpoczynanie gry...');
-    
-    // Sprawdź czy mamy przypadki
-    if (!cases || cases.length === 0) {
-        console.error('Brak przypadków do wyświetlenia.');
-        displayErrorMessage('Nie można rozpocząć gry - brak danych przypadków.');
-        return;
-    }
-    
     // Losowe ułożenie kolejności przypadków
     shuffleArray(cases);
     
@@ -408,13 +296,10 @@ function startGame() {
     
     // Załadowanie pierwszego przypadku
     loadCase(currentCaseIndex);
-    console.log('Gra rozpoczęta, załadowano pierwszy przypadek.');
 }
 
 // Ładowanie przypadku
 function loadCase(caseIndex) {
-    console.log(`Ładowanie przypadku ${caseIndex + 1}/${cases.length}`);
-    
     const currentCase = cases[caseIndex];
     
     // Aktualizacja informacji o przypadku
@@ -422,34 +307,9 @@ function loadCase(caseIndex) {
     caseDescription.textContent = currentCase.description;
     
     // Wczytanie obrazów SVG
-    console.log('Ładowanie obrazów SVG...');
-    
-    // Zastosowanie odpowiedniego kodowania do SVG
-    const axialSvgContent = decodeSVG(currentCase.axialSvg);
-    const sagittalSvgContent = decodeSVG(currentCase.sagittalSvg);
-    const coronalSvgContent = decodeSVG(currentCase.coronalSvg);
-    
-    axialSvgContainer.innerHTML = enhanceSVG(axialSvgContent, 'axial');
-    sagittalSvgContainer.innerHTML = enhanceSVG(sagittalSvgContent, 'sagittal');
-    coronalSvgContainer.innerHTML = enhanceSVG(coronalSvgContent, 'coronal');
-    
-    // Sprawdź czy SVG zostały załadowane
-    console.log('Status ładowania SVG:', {
-        axial: axialSvgContainer.innerHTML.length > 0 ? 'załadowano' : 'pusty',
-        sagittal: sagittalSvgContainer.innerHTML.length > 0 ? 'załadowano' : 'pusty',
-        coronal: coronalSvgContainer.innerHTML.length > 0 ? 'załadowano' : 'pusty'
-    });
-    
-    // Jeśli brakuje SVG, dodaj placeholdera
-    if (axialSvgContainer.innerHTML.length === 0) {
-        axialSvgContainer.innerHTML = createSVGPlaceholder('Brak obrazu osiowego');
-    }
-    if (sagittalSvgContainer.innerHTML.length === 0) {
-        sagittalSvgContainer.innerHTML = createSVGPlaceholder('Brak obrazu strzałkowego');
-    }
-    if (coronalSvgContainer.innerHTML.length === 0) {
-        coronalSvgContainer.innerHTML = createSVGPlaceholder('Brak obrazu czołowego');
-    }
+    axialSvgContainer.innerHTML = enhanceSVG(currentCase.axialSvg, 'axial');
+    sagittalSvgContainer.innerHTML = enhanceSVG(currentCase.sagittalSvg, 'sagittal');
+    coronalSvgContainer.innerHTML = enhanceSVG(currentCase.coronalSvg, 'coronal');
     
     // Utwórz opcje diagnozy, obserwacji i leczenia
     createCheckboxOptions(shuffleArray([...currentCase.diagnosisOptions]), 'diagnosis-options');
@@ -471,27 +331,6 @@ function loadCase(caseIndex) {
     
     // Reset przycisku zatwierdzania
     submitAnswerBtn.disabled = false;
-    
-    console.log(`Przypadek ${caseIndex + 1} załadowany.`);
-}
-
-// Funkcja dekodująca zawartość SVG (usuwanie dodatkowych znaków cudzysłowów)
-function decodeSVG(svgContent) {
-    if (!svgContent) return '';
-    
-    // Usunięcie podwójnych cudzysłowów (często spotykane w CSV)
-    return svgContent.replace(/""/g, '"');
-}
-
-// Funkcja tworząca placeholder SVG gdy brakuje obrazu
-function createSVGPlaceholder(message) {
-    return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="100%" height="100%">
-        <rect width="100%" height="100%" fill="#f0f0f0" />
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#666666">${message}</text>
-        <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#666666" font-size="smaller">Sprawdź plik svg_data.csv</text>
-    </svg>
-    `;
 }
 
 // Sprawdzanie odpowiedzi
@@ -518,17 +357,8 @@ function checkAnswers() {
         totalCorrect += 1;
     });
     
-    // Zabezpieczenie przed dzieleniem przez zero
-    if (totalCorrect === 0) {
-        totalCorrect = 1; // Unikamy dzielenia przez zero
-    }
-    
     // Oblicz wynik
-    const totalOptions = 
-        (currentCase.diagnosisOptions ? currentCase.diagnosisOptions.length : 0) +
-        (currentCase.findingsOptions ? currentCase.findingsOptions.length : 0) +
-        (currentCase.treatmentOptions ? currentCase.treatmentOptions.length : 0);
-    
+    const totalOptions = currentCase.diagnosisOptions.length + currentCase.findingsOptions.length + currentCase.treatmentOptions.length;
     const score = Math.round((correctCount / totalCorrect) * 100);
     
     // Zapisz wynik
@@ -558,23 +388,12 @@ function checkAnswers() {
     
     // Podświetl ważne elementy w SVG
     highlightPathologicalElements();
-    
-    console.log(`Sprawdzono odpowiedzi dla przypadku ${currentCaseIndex + 1}. Wynik: ${score}%`);
 }
 
 // Sprawdzanie grupy opcji (diagnoza, obserwacje, leczenie)
 function checkOptionGroup(options, prefix, callback) {
-    if (!options || options.length === 0) {
-        return; // Brak opcji do sprawdzenia
-    }
-    
     options.forEach(option => {
         const checkbox = document.getElementById(option.id);
-        if (!checkbox) {
-            console.error(`Nie znaleziono checkboxa o ID: ${option.id}`);
-            return;
-        }
-        
         const parent = checkbox.parentElement;
         
         if (option.correct) {
@@ -613,8 +432,6 @@ function checkOptionGroup(options, prefix, callback) {
 function highlightPathologicalElements() {
     const svgElements = document.querySelectorAll('.tooth-pathology');
     
-    console.log(`Podświetlanie ${svgElements.length} elementów patologicznych w SVG.`);
-    
     svgElements.forEach(element => {
         element.classList.add('highlight');
     });
@@ -641,10 +458,7 @@ function showResults() {
     showResultsScreen();
     
     // Oblicz średni wynik
-    const averageScore = answeredCases.length > 0 
-        ? Math.round(userScore / answeredCases.length) 
-        : 0;
-        
+    const averageScore = Math.round(userScore / answeredCases.length);
     finalScoreValue.textContent = `${averageScore}%`;
     
     // Dostosuj kolor koła wyników
@@ -659,14 +473,6 @@ function showResults() {
     
     // Wyczyść i wypełnij podsumowanie przypadków
     casesSummary.innerHTML = '';
-    
-    // Sprawdź czy mamy jakiekolwiek odpowiedzi
-    if (answeredCases.length === 0) {
-        const noResultsMsg = document.createElement('li');
-        noResultsMsg.textContent = 'Brak danych do wyświetlenia.';
-        casesSummary.appendChild(noResultsMsg);
-        return;
-    }
     
     // Sortuj od najlepszych do najgorszych wyników
     answeredCases.sort((a, b) => b.score - a.score);
@@ -691,8 +497,6 @@ function showResults() {
         
         casesSummary.appendChild(li);
     });
-    
-    console.log('Wyświetlono ekran wyników.');
 }
 
 // Restart gry
@@ -708,19 +512,12 @@ function restartGame() {
     
     // Załaduj pierwszy przypadek
     loadCase(currentCaseIndex);
-    
-    console.log('Gra zrestartowana.');
 }
 
 // ====== FUNKCJE POMOCNICZE ======
 
 // Mieszanie tablicy (algorytm Fisher-Yates)
 function shuffleArray(array) {
-    if (!array || !Array.isArray(array)) {
-        console.error('Próba wymieszania nieprawidłowej tablicy:', array);
-        return array || [];
-    }
-    
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
@@ -728,78 +525,40 @@ function shuffleArray(array) {
     return array;
 }
 
-// Ulepszony i bardziej odporny SVG enhancement
+// Ulepszenie kodu SVG
 function enhanceSVG(svgContent, viewType) {
-    if (!svgContent || typeof svgContent !== 'string') {
-        console.warn(`Brak zawartości SVG dla widoku ${viewType}`);
-        return '';
-    }
+    if (!svgContent) return '';
     
-    if (svgContent.trim().length === 0) {
-        console.warn(`Pusty ciąg SVG dla widoku ${viewType}`);
-        return '';
-    }
+    // Dodaj klasy i atrybuty do SVG dla lepszych efektów wizualnych
+    let enhancedSVG = svgContent;
     
-    try {
-        // Sprawdź czy zawartość to prawidłowy SVG
-        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>')) {
-            console.error(`Nieprawidłowy format SVG dla widoku ${viewType}:`, svgContent.substring(0, 100));
-            return svgContent; // Zwróć oryginał, jeśli nie wygląda na SVG
-        }
-        
-        // Dodaj klasy i atrybuty do SVG dla lepszych efektów wizualnych
-        let enhancedSVG = svgContent;
-        
-        // Dodaj klasę 'tooth-element' do elementów tylko gdy nie mają już klasy
-        enhancedSVG = enhancedSVG.replace(/<(circle|rect|ellipse|path)(\s+[^>]*?)(?!\sclass=)(\s*\/?>)/g, 
-            '<$1$2 class="tooth-element"$3');
-        
-        // Dodaj klasę 'tooth-pathology' do elementów patologicznych na podstawie koloru
-        const pathologyPattern = /(fill="#ddd"|fill="#f99"|stroke="#f00"|stroke="#c00")([^>]*?)(?!\sclass=)(\s*\/?>)/g;
-        enhancedSVG = enhancedSVG.replace(pathologyPattern, '$1$2 class="tooth-pathology"$3');
-        
-        // Dodaj animacje linii wskaźnikowych
-        enhancedSVG = enhancedSVG.replace(/(stroke-dasharray="2"|stroke-dasharray="3,3")([^>]*?)(?!\sclass=)(\s*\/?>)/g, 
-            '$1$2 class="animated-line"$3');
-        
-        return enhancedSVG;
-    } catch (error) {
-        console.error(`Error enhancing SVG for ${viewType}:`, error);
-        return svgContent; // Zwróć oryginał jeśli ulepszenie nie powiedzie się
-    }
+    // Dodaj klasę 'tooth-element' do wszystkich elementów anatomicznych
+    enhancedSVG = enhancedSVG.replace(/<(circle|rect|ellipse|path)\s/g, '<$1 class="tooth-element" ');
+    
+    // Dodaj klasę 'tooth-pathology' do elementów patologicznych
+    enhancedSVG = enhancedSVG.replace(/fill="#ddd"|fill="#f99"|stroke="#f00"|stroke="#c00"/g, (match) => {
+        return match + ' class="tooth-pathology"';
+    });
+    
+    // Dodaj animacje linii wskaźnikowych
+    enhancedSVG = enhancedSVG.replace(/stroke-dasharray="2"/g, 'stroke-dasharray="6,3" class="animated-line"');
+    
+    return enhancedSVG;
 }
 
-// Udoskonalony wyświetlacz komunikatu o błędzie
+// Pokaż komunikat o błędzie
 function displayErrorMessage(message) {
     hideLoadingScreen();
     
-    // Usuń wcześniejsze komunikaty o błędach, jeśli istnieją
-    const existingErrors = document.querySelectorAll('.error-message');
-    existingErrors.forEach(error => error.remove());
-    
     const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message card';
-    errorDiv.style.position = 'fixed';
-    errorDiv.style.top = '50%';
-    errorDiv.style.left = '50%';
-    errorDiv.style.transform = 'translate(-50%, -50%)';
-    errorDiv.style.zIndex = '9999';
-    errorDiv.style.padding = '2rem';
-    errorDiv.style.maxWidth = '90%';
-    errorDiv.style.width = '500px';
-    errorDiv.style.backgroundColor = 'white';
-    errorDiv.style.boxShadow = 'var(--shadow-lg)';
-    
+    errorDiv.className = 'error-message';
     errorDiv.innerHTML = `
-        <h2 style="color: var(--danger);">Wystąpił błąd</h2>
+        <h2>Wystąpił błąd</h2>
         <p>${message}</p>
-        <div class="button-container">
-            <button class="btn btn-primary" onclick="location.reload()">Odśwież stronę</button>
-        </div>
+        <button class="btn btn-primary" onclick="location.reload()">Odśwież stronę</button>
     `;
     
     document.body.appendChild(errorDiv);
-    console.error('Wyświetlono komunikat o błędzie:', message);
 }
 
 // ====== ZARZĄDZANIE WIDOCZNOŚCIĄ EKRANÓW ======
@@ -845,4 +604,20 @@ function showResultsScreen() {
 
 function hideResultsScreen() {
     resultsScreen.classList.remove('active');
+}
+
+// ====== FALLBACK DLA OBSŁUGI BŁĘDÓW WCZYTYWANIA CSV ======
+
+// Funkcja do wczytywania zastępczych danych przypadków (na wypadek, gdyby wczytanie CSV się nie powiodło)
+function getFallbackCases() {
+    // Tu należy umieścić kopię danych z oryginalnego pliku jako backup
+    return [
+        {
+            id: '1',
+            title: 'Przypadek 1: Ząb 36 - Ból przy żuciu',
+            description: 'Pacjent, 45 lat, zgłasza się z bólem w okolicy zęba 36, który nasila się podczas żucia. Ząb reaguje nadwrażliwie na bodźce termiczne. W wywiadzie leczenie kanałowe w przeszłości.',
+            // Reszta danych przypadku...
+        },
+        // Pozostałe przypadki...
+    ];
 }
