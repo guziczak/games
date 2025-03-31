@@ -11,11 +11,30 @@
             --empty-cell-color: #cdc1b4;
             --text-color: #776e65;
             --light-text-color: #f9f6f2;
+            --button-color: #8f7a66;
+            --button-text-color: white;
             --game-width: min(500px, 95vw);
             --tile-size: calc((var(--game-width) - 50px) / 4);
             --tile-margin: 10px;
             --tile-border-radius: 6px;
             --font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+            
+            /* Dark mode colors (initially not active) */
+            --dark-background-color: #1f2937;
+            --dark-grid-color: #4b5563;
+            --dark-empty-cell-color: #374151;
+            --dark-text-color: #e5e7eb;
+            --dark-button-color: #4b5563;
+            --dark-button-hover-color: #6b7280;
+        }
+        
+        /* Dark mode class to toggle */
+        .dark-mode {
+            --background-color: var(--dark-background-color);
+            --grid-color: var(--dark-grid-color);
+            --empty-cell-color: var(--dark-empty-cell-color);
+            --text-color: var(--dark-text-color);
+            --button-color: var(--dark-button-color);
         }
 
         * {
@@ -34,6 +53,7 @@
             min-height: 100vh;
             padding: 20px;
             overflow: hidden;
+            transition: background-color 0.3s ease;
         }
 
         .game-container {
@@ -54,9 +74,10 @@
         }
 
         .title {
-            font-size: 72px;
+            font-size: 52px;
             font-weight: bold;
             margin: 0;
+            transition: color 0.3s ease;
         }
 
         .scores {
@@ -71,6 +92,8 @@
             border-radius: 5px;
             text-align: center;
             min-width: 100px;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .score-label {
@@ -89,10 +112,15 @@
             justify-content: space-between;
             margin-bottom: 20px;
         }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
 
         .btn {
-            background-color: #8f7a66;
-            color: white;
+            background-color: var(--button-color);
+            color: var(--button-text-color);
             border: none;
             border-radius: 5px;
             padding: 10px 15px;
@@ -101,10 +129,18 @@
             font-family: var(--font-family);
             transition: all 0.2s ease;
             font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .btn:hover {
-            opacity: 0.8;
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .game-board {
@@ -115,6 +151,8 @@
             border-radius: 8px;
             padding: 10px;
             overflow: hidden;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
         }
 
         .grid-cell {
@@ -123,6 +161,7 @@
             height: var(--tile-size);
             background-color: var(--empty-cell-color);
             border-radius: var(--tile-border-radius);
+            transition: background-color 0.3s ease;
         }
 
         .tile {
@@ -135,14 +174,16 @@
             justify-content: center;
             align-items: center;
             border-radius: var(--tile-border-radius);
-            transition: all 0.15s ease;
+            transition: transform 0.15s ease, left 0.15s ease, top 0.15s ease;
             z-index: 1;
             animation: appear 0.2s ease 0s 1;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .tile-merged {
             z-index: 2;
-            animation: pop 0.2s ease 0.1s 1;
+            animation: pop 0.3s ease 0.1s 1;
         }
 
         .tile-2 {
@@ -213,6 +254,17 @@
             color: var(--light-text-color);
             font-size: calc(var(--tile-size) / 4);
         }
+        
+        /* Special tile for gameplay enhancement */
+        .tile-special {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #6ee7b7, #3b82f6);
+        }
+
+        .game-over {
+animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #6ee7b7, #3b82f6);
+        }
 
         .game-over {
             position: absolute;
@@ -229,6 +281,7 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.5s ease;
+            backdrop-filter: blur(3px);
         }
 
         .game-over.active {
@@ -244,25 +297,232 @@
             font-size: 36px;
             font-weight: bold;
             margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .game-overlay-btn {
             margin-top: 20px;
         }
-
-        .how-to-play {
-            width: var(--game-width);
-            margin-top: 20px;
-            color: #776e65;
-            font-size: 16px;
-            line-height: 1.5;
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0.8;
+            z-index: 20;
+            animation: confetti-fall 4s linear forwards;
+        }
+        
+        .settings-panel {
+            position: absolute;
+            top: 0;
+            right: -300px;
+            width: 250px;
+            height: 100%;
+            background-color: var(--background-color);
+            z-index: 100;
+            padding: 20px;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .settings-panel.active {
+            right: 0;
+        }
+        
+        .settings-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        
+        .settings-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--grid-color);
+        }
+        
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .score-addition {
+            position: absolute;
+            font-size: 20px;
+            font-weight: bold;
+            color: #65b943;
+            opacity: 0;
+            animation: score-pop 1s ease forwards;
+        }
+        
+        .game-goals {
+            width: 100%;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .goal-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background-color: var(--grid-color);
+            border-radius: 20px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .goal-text {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .goal-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.2);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .settings-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 5;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+        }
+        
+        .settings-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-color);
+        }
+        
+        .move-count {
+            font-size: 14px;
+            margin-top: 5px;
+            text-align: center;
+            opacity: 0.8;
+        }
+        
+        .tutorial-highlight {
+            position: absolute;
+            border: 3px dashed #f65e3b;
+            border-radius: 10px;
+            z-index: 999;
+            animation: pulse-border 2s infinite;
+            pointer-events: none;
+        }
+        
+        .tutorial-message {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.95);
+            color: var(--text-color);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 999;
+            max-width: 250px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .tutorial-next {
+            background-color: var(--button-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
         }
 
-        .how-to-play p {
-            margin-bottom: 10px;
-        }
-
-        /* Animations */
+        /* Custom CSS animations */
         @keyframes appear {
             0% {
                 opacity: 0;
@@ -285,10 +545,59 @@
                 transform: scale(1);
             }
         }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.7);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(110, 231, 183, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+            }
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(500px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes score-pop {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-20px) scale(1.2);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes pulse-border {
+            0% {
+                box-shadow: 0 0 0 0 rgba(246, 94, 59, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(246, 94, 59, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(246, 94, 59, 0);
+            }
+        }
 
         @media screen and (max-width: 520px) {
             .title {
-                font-size: 48px;
+                font-size: 42px;
             }
 
             .header {
@@ -304,11 +613,27 @@
             .score-box {
                 flex: 1;
             }
+            
+            .actions {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="game-container">
+        <button class="settings-btn" id="settings-btn" aria-label="Settings">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+            </svg>
+        </button>
+        
         <div class="header">
             <h1 class="title">2048</h1>
             <div class="scores">
@@ -322,10 +647,24 @@
                 </div>
             </div>
         </div>
-        <div class="actions">
-            <button class="btn" id="new-game-btn">Nowa gra</button>
-            <button class="btn" id="undo-btn">Cofnij</button>
+        
+        <div class="game-goals" id="game-goals">
+            <div class="goal-container">
+                <div class="goal-progress" id="goal-progress"></div>
+                <div class="goal-text">Cel: <span id="current-goal">16</span></div>
+            </div>
         </div>
+        
+        <div class="actions">
+            <div class="btn-group">
+                <button class="btn" id="new-game-btn">Nowa gra</button>
+                <button class="btn" id="undo-btn">Cofnij</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="help-btn">Pomoc</button>
+            </div>
+        </div>
+        
         <div class="game-board" id="game-board">
             <!-- Grid cells will be generated by JavaScript -->
             <div class="game-over" id="game-over">
@@ -333,10 +672,47 @@
                 <button class="btn game-overlay-btn" id="retry-btn">Spróbuj ponownie</button>
             </div>
         </div>
-        <div class="how-to-play">
-            <p><strong>Jak grać:</strong> Przeciągnij palcem (lub użyj strzałek), aby przesuwać płytki. Kiedy dwie płytki z tą samą liczbą się zetkną, łączą się w jedną!</p>
-            <p>Celem gry jest uzyskanie płytki o wartości 2048.</p>
+        
+        <div class="move-count">Ruchy: <span id="moves">0</span></div>
+    </div>
+    
+    <div class="settings-panel" id="settings-panel">
+        <button class="settings-close" id="settings-close">×</button>
+        <h3 class="settings-title">Ustawienia</h3>
+        
+        <div class="setting-group">
+            <span class="setting-label">Tryb ciemny</span>
+            <label class="switch">
+                <input type="checkbox" id="dark-mode-toggle">
+                <span class="slider"></span>
+            </label>
         </div>
+        
+        <div class="setting-group">
+            <span class="setting-label">Dźwięki</span>
+            <label class="switch">
+                <input type="checkbox" id="sound-toggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-group">
+            <span class="setting-label">Efekty wizualne</span>
+            <label class="switch">
+                <input type="checkbox" id="effects-toggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-group">
+            <span class="setting-label">Specjalne płytki</span>
+            <label class="switch">
+                <input type="checkbox" id="special-tiles-toggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <button class="btn" id="reset-stats-btn" style="margin-top: 20px;">Resetuj statystyki</button>
     </div>
 
     <script>
@@ -347,11 +723,23 @@
             const gameBoard = document.getElementById('game-board');
             const scoreElement = document.getElementById('score');
             const bestScoreElement = document.getElementById('best-score');
+            const movesElement = document.getElementById('moves');
             const newGameBtn = document.getElementById('new-game-btn');
             const undoBtn = document.getElementById('undo-btn');
+            const helpBtn = document.getElementById('help-btn');
             const gameOverElement = document.getElementById('game-over');
             const gameMessageElement = document.getElementById('game-message');
             const retryBtn = document.getElementById('retry-btn');
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsPanel = document.getElementById('settings-panel');
+            const settingsClose = document.getElementById('settings-close');
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            const soundToggle = document.getElementById('sound-toggle');
+            const effectsToggle = document.getElementById('effects-toggle');
+            const specialTilesToggle = document.getElementById('special-tiles-toggle');
+            const resetStatsBtn = document.getElementById('reset-stats-btn');
+            const goalProgressElement = document.getElementById('goal-progress');
+            const currentGoalElement = document.getElementById('current-goal');
             
             // Game state
             let grid;
@@ -360,14 +748,198 @@
             let previousStates = [];
             let gameOver = false;
             let gameWon = false;
+            let moveCount = 0;
+            let audioContext;
+            let soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
+            let effectsEnabled = localStorage.getItem('effectsEnabled') !== 'false';
+            let specialTilesEnabled = localStorage.getItem('specialTilesEnabled') !== 'false';
+            let darkModeEnabled = localStorage.getItem('darkModeEnabled') === 'true';
+            let currentGoal = 16;
+            let highestTile = 2;
+            let lastMergedTile = null;
+            let tutorialStep = 0;
+            let tutorialElements = [];
+            
+            // Goals progression
+            const goals = [16, 32, 64, 128, 256, 512, 1024, 2048];
+            
+            // Initialize settings
+            soundToggle.checked = soundEnabled;
+            effectsToggle.checked = effectsEnabled;
+            specialTilesToggle.checked = specialTilesEnabled;
+            darkModeToggle.checked = darkModeEnabled;
+            
+            if (darkModeEnabled) {
+                document.body.classList.add('dark-mode');
+            }
             
             bestScoreElement.textContent = bestScore;
+            
+            // Initialize audio context for sound generation
+            function initAudio() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioContext = new AudioContext();
+                } catch (e) {
+                    console.warn('Web Audio API is not supported in this browser');
+                    soundEnabled = false;
+                }
+            }
+            
+            // Generate sounds using oscillators (not samples)
+            function playSound(type, freq = 440, duration = 0.1) {
+                if (!soundEnabled || !audioContext) return;
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // Different sound types for different actions
+                switch (type) {
+                    case 'move':
+                        oscillator.type = 'sine';
+                        freq = 220;
+                        duration = 0.05;
+                        break;
+                    case 'merge':
+                        oscillator.type = 'triangle';
+                        duration = 0.15;
+                        break;
+                    case 'gameover':
+                        oscillator.type = 'sawtooth';
+                        freq = 100;
+                        duration = 0.5;
+                        break;
+                    case 'win':
+                        playMelody();
+                        return;
+                    case 'special':
+                        oscillator.type = 'square';
+                        freq = 880;
+                        duration = 0.2;
+                        break;
+                }
+                
+                oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + duration);
+            }
+            
+            // Play a victory melody
+            function playMelody() {
+                if (!soundEnabled || !audioContext) return;
+                
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                const durations = [0.2, 0.2, 0.2, 0.4];
+                
+                notes.forEach((note, i) => {
+                    setTimeout(() => {
+                        const osc = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(note, audioContext.currentTime);
+                        
+                        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + durations[i]);
+                        
+                        osc.connect(gain);
+                        gain.connect(audioContext.destination);
+                        
+                        osc.start();
+                        osc.stop(audioContext.currentTime + durations[i]);
+                    }, (i * 250));
+                });
+            }
             
             // Touch handling variables
             let touchStartX = 0;
             let touchStartY = 0;
             let touchEndX = 0;
             let touchEndY = 0;
+            
+            // Create confetti effect for celebrations
+            function createConfetti() {
+                if (!effectsEnabled) return;
+                
+                const confettiCount = 100;
+                const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590'];
+                
+                for (let i = 0; i < confettiCount; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = `${Math.random() * 100}%`;
+                    confetti.style.top = '-10px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.width = `${Math.random() * 8 + 5}px`;
+                    confetti.style.height = `${Math.random() * 4 + 5}px`;
+                    confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                    confetti.style.animationDelay = `${Math.random() * 2}s`;
+                    
+                    document.body.appendChild(confetti);
+                    
+                    // Remove confetti after animation completes
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 5000);
+                }
+            }
+            
+            // Show score addition animation
+            function showScoreAddition(value, x, y) {
+                if (!effectsEnabled) return;
+                
+                const addition = document.createElement('div');
+                addition.className = 'score-addition';
+                addition.textContent = `+${value}`;
+                
+                const rect = gameBoard.getBoundingClientRect();
+                const cellSize = getCellSize();
+                
+                addition.style.left = `${x * (cellSize + CELL_GAP) + CELL_GAP + cellSize/2}px`;
+                addition.style.top = `${y * (cellSize + CELL_GAP) + CELL_GAP + cellSize/2}px`;
+                
+                gameBoard.appendChild(addition);
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    addition.remove();
+                }, 1000);
+            }
+            
+            // Update goal progress
+            function updateGoalProgress() {
+                // Find next goal
+                let nextGoalIndex = 0;
+                for (let i = 0; i < goals.length; i++) {
+                    if (highestTile < goals[i]) {
+                        nextGoalIndex = i;
+                        break;
+                    }
+                }
+                
+                // If reached the highest goal
+                if (nextGoalIndex >= goals.length) {
+                    currentGoal = "∞";
+                    goalProgressElement.style.width = "100%";
+                    currentGoalElement.textContent = currentGoal;
+                    return;
+                }
+                
+                // Update current goal display
+                currentGoal = goals[nextGoalIndex];
+                currentGoalElement.textContent = currentGoal;
+                
+                // Calculate progress towards next goal
+                const prevGoal = nextGoalIndex > 0 ? goals[nextGoalIndex - 1] : 2;
+                const progress = ((highestTile - prevGoal) / (currentGoal - prevGoal)) * 100;
+                goalProgressElement.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+            }
             
             // Create grid cells
             function setupGrid() {
@@ -431,7 +1003,8 @@
                             tiles.push({
                                 value: tile.value,
                                 x: x,
-                                y: y
+                                y: y,
+                                isSpecial: tile.isSpecial
                             });
                         }
                     });
@@ -440,7 +1013,9 @@
                 previousStates.push({
                     grid: gridCopy,
                     tiles: tiles,
-                    score: score
+                    score: score,
+                    moveCount: moveCount,
+                    highestTile: highestTile
                 });
                 
                 // Keep only the last 10 states to save memory
@@ -450,9 +1025,14 @@
             }
             
             // Create a new tile
-            function createTile(x, y, value) {
+            function createTile(x, y, value, isSpecial = false) {
                 const tile = document.createElement('div');
                 tile.className = `tile tile-${value}`;
+                
+                if (isSpecial && specialTilesEnabled) {
+                    tile.classList.add('tile-special');
+                }
+                
                 tile.textContent = value;
                 tile.style.left = `${x * (getCellSize() + CELL_GAP) + CELL_GAP}px`;
                 tile.style.top = `${y * (getCellSize() + CELL_GAP) + CELL_GAP}px`;
@@ -464,6 +1044,12 @@
                 
                 gameBoard.appendChild(tile);
                 
+                // Update highest tile value
+                if (value > highestTile) {
+                    highestTile = value;
+                    updateGoalProgress();
+                }
+                
                 return {
                     element: tile,
                     value: value,
@@ -471,7 +1057,8 @@
                     y: y,
                     previousX: null,
                     previousY: null,
-                    mergedFrom: null
+                    mergedFrom: null,
+                    isSpecial: isSpecial
                 };
             }
             
@@ -490,8 +1077,18 @@
                 // If there are empty cells, add a tile to a random one
                 if (emptyCells.length > 0) {
                     const { x, y } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                    
+                    // 5% chance for a special tile if feature is enabled
+                    const isSpecial = specialTilesEnabled && Math.random() < 0.05;
+                    
                     const value = Math.random() < 0.9 ? 2 : 4; // 90% chance for 2, 10% for 4
-                    grid[y][x] = createTile(x, y, value);
+                    grid[y][x] = createTile(x, y, value, isSpecial);
+                    
+                    // Play spawn sound
+                    if (isSpecial) {
+                        playSound('special');
+                    }
+                    
                     return true;
                 }
                 return false;
@@ -513,6 +1110,11 @@
             // Move tiles in a specific direction
             function moveTiles(direction) {
                 if (gameOver) return false;
+                
+                // Ensure audio context is initialized on first user interaction
+                if (!audioContext && soundEnabled) {
+                    initAudio();
+                }
                 
                 // Save state before move
                 saveState();
@@ -558,8 +1160,11 @@
                                 const mergedTile = grid[next.y][next.x];
                                 const newValue = tile.value * 2;
                                 
+                                // Special tiles give double points when merged
+                                const pointMultiplier = (tile.isSpecial || mergedTile.isSpecial) ? 2 : 1;
+                                
                                 // Create a new tile to represent the merged result
-                                const merged = createTile(next.x, next.y, newValue);
+                                const merged = createTile(next.x, next.y, newValue, false);
                                 merged.mergedFrom = [tile, mergedTile];
                                 
                                 // Remove the original tiles
@@ -567,8 +1172,18 @@
                                 grid[next.y][next.x] = merged;
                                 
                                 // Update score
-                                score += newValue;
+                                const scoreAddition = newValue * pointMultiplier;
+                                score += scoreAddition;
                                 updateScore();
+                                
+                                // Show score addition animation
+                                showScoreAddition(scoreAddition, next.x, next.y);
+                                
+                                // Play merge sound
+                                playSound('merge', 440 * (Math.log2(newValue) / 10));
+                                
+                                // Remember last merged tile for potential tutorial
+                                lastMergedTile = merged;
                                 
                                 // Check if player won
                                 if (newValue === 2048 && !gameWon) {
@@ -601,6 +1216,13 @@
                 
                 // If tiles moved, update their positions visually
                 if (moved) {
+                    // Increment move counter
+                    moveCount++;
+                    movesElement.textContent = moveCount;
+                    
+                    // Play move sound
+                    playSound('move');
+                    
                     setTimeout(() => {
                         updateTilePositions();
                         
@@ -697,6 +1319,9 @@
             function showGameOver() {
                 gameOverElement.classList.add('active');
                 gameMessageElement.textContent = 'Koniec gry!';
+                
+                // Play game over sound
+                playSound('gameover');
             }
             
             // Show game won message
@@ -704,6 +1329,12 @@
                 gameOverElement.classList.add('active');
                 gameOverElement.classList.add('game-won');
                 gameMessageElement.textContent = 'Wygrałeś!';
+                
+                // Play victory sound
+                playSound('win');
+                
+                // Add confetti effect
+                createConfetti();
             }
             
             // Start a new game
@@ -718,9 +1349,13 @@
                 previousStates = [];
                 gameOver = false;
                 gameWon = false;
+                moveCount = 0;
+                highestTile = 2;
                 
-                // Update score display
+                // Update displays
                 updateScore();
+                movesElement.textContent = moveCount;
+                updateGoalProgress();
                 
                 // Reset game over message
                 gameOverElement.classList.remove('active');
@@ -729,6 +1364,9 @@
                 // Add initial tiles
                 addRandomTile();
                 addRandomTile();
+                
+                // Clear any tutorial elements
+                clearTutorial();
             }
             
             // Undo the last move
@@ -746,16 +1384,148 @@
                 
                 // Recreate tiles
                 lastState.tiles.forEach(tileData => {
-                    grid[tileData.y][tileData.x] = createTile(tileData.x, tileData.y, tileData.value);
+                    grid[tileData.y][tileData.x] = createTile(tileData.x, tileData.y, tileData.value, tileData.isSpecial);
                 });
                 
-                // Restore score
+                // Restore game state
                 score = lastState.score;
+                moveCount = lastState.moveCount;
+                highestTile = lastState.highestTile;
+                
+                // Update displays
                 updateScore();
+                movesElement.textContent = moveCount;
+                updateGoalProgress();
+                
+                // If game was over, make it not over
+                if (gameOver) {
+                    gameOver = false;
+                    gameOverElement.classList.remove('active');
+                    gameOverElement.classList.remove('game-won');
+                }
+            }
+            
+            // Show interactive tutorial
+            function startTutorial() {
+                tutorialStep = 0;
+                showTutorialStep();
+            }
+            
+            // Show a specific tutorial step
+            function showTutorialStep() {
+                // Clear previous tutorial elements
+                clearTutorial();
+                
+                // Tutorial steps
+                const steps = [
+                    {
+                        element: '.game-board',
+                        message: 'Przeciągnij palcem lub użyj strzałek, aby przesuwać płytki w danym kierunku.',
+                        position: 'bottom'
+                    },
+                    {
+                        element: '.title',
+                        message: 'Celem gry jest uzyskanie płytki o wartości 2048.',
+                        position: 'right'
+                    },
+                    {
+                        element: '.score-box',
+                        message: 'Śledź swój wynik i najlepszy wynik tutaj.',
+                        position: 'bottom'
+                    },
+                    {
+                        element: '.game-goals',
+                        message: 'Tu widać twój aktualny postęp do kolejnego celu.',
+                        position: 'bottom'
+                    },
+                    {
+                        element: '#undo-btn',
+                        message: 'Możesz cofnąć swój ostatni ruch, jeśli popełnisz błąd.',
+                        position: 'right'
+                    },
+                    {
+                        element: '#settings-btn',
+                        message: 'Dostosuj ustawienia gry, włącz lub wyłącz dźwięki i efekty.',
+                        position: 'left'
+                    }
+                ];
+                
+                if (tutorialStep >= steps.length) {
+                    return; // End of tutorial
+                }
+                
+                const currentStep = steps[tutorialStep];
+                const targetElement = document.querySelector(currentStep.element);
+                
+                if (!targetElement) {
+                    tutorialStep++;
+                    showTutorialStep();
+                    return;
+                }
+                
+                // Create highlight
+                const highlight = document.createElement('div');
+                highlight.className = 'tutorial-highlight';
+                document.body.appendChild(highlight);
+                
+                // Create message
+                const message = document.createElement('div');
+                message.className = 'tutorial-message';
+                message.innerHTML = currentStep.message + 
+                    '<br><button class="tutorial-next">Dalej</button>';
+                document.body.appendChild(message);
+                
+                // Position elements
+                const rect = targetElement.getBoundingClientRect();
+                highlight.style.left = `${rect.left - 5}px`;
+                highlight.style.top = `${rect.top - 5}px`;
+                highlight.style.width = `${rect.width + 10}px`;
+                highlight.style.height = `${rect.height + 10}px`;
+                
+                // Position message based on specified position
+                switch(currentStep.position) {
+                    case 'top':
+                        message.style.left = `${rect.left + rect.width/2 - 125}px`;
+                        message.style.top = `${rect.top - message.offsetHeight - 15}px`;
+                        break;
+                    case 'right':
+                        message.style.left = `${rect.right + 15}px`;
+                        message.style.top = `${rect.top + rect.height/2 - message.offsetHeight/2}px`;
+                        break;
+                    case 'bottom':
+                        message.style.left = `${rect.left + rect.width/2 - 125}px`;
+                        message.style.top = `${rect.bottom + 15}px`;
+                        break;
+                    case 'left':
+                        message.style.left = `${rect.left - 250 - 15}px`;
+                        message.style.top = `${rect.top + rect.height/2 - message.offsetHeight/2}px`;
+                        break;
+                }
+                
+                // Add to tutorial elements array
+                tutorialElements.push(highlight, message);
+                
+                // Add next button listener
+                const nextButton = message.querySelector('.tutorial-next');
+                nextButton.addEventListener('click', () => {
+                    tutorialStep++;
+                    showTutorialStep();
+                });
+            }
+            
+            // Clear tutorial elements
+            function clearTutorial() {
+                tutorialElements.forEach(element => {
+                    element.remove();
+                });
+                tutorialElements = [];
             }
             
             // Handle keyboard input
             function handleKeydown(e) {
+                // Don't handle keys if settings panel is open
+                if (settingsPanel.classList.contains('active')) return;
+                
                 switch(e.key) {
                     case 'ArrowUp':
                         e.preventDefault();
@@ -778,15 +1548,22 @@
             
             // Handle touch input for mobile
             function handleTouchStart(e) {
+                // Don't handle touch if settings panel is open
+                if (settingsPanel.classList.contains('active')) return;
+                
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
             }
             
             function handleTouchMove(e) {
-                e.preventDefault(); // Prevent scrolling when touching the game board
+                // Prevent scrolling when touching the game board
+                e.preventDefault();
             }
             
             function handleTouchEnd(e) {
+                // Don't handle touch if settings panel is open
+                if (settingsPanel.classList.contains('active')) return;
+                
                 touchEndX = e.changedTouches[0].clientX;
                 touchEndY = e.changedTouches[0].clientY;
                 
@@ -811,6 +1588,50 @@
                 }
             }
             
+            // Toggle settings panel
+            function toggleSettings() {
+                settingsPanel.classList.toggle('active');
+            }
+            
+            // Toggle dark mode
+            function toggleDarkMode() {
+                darkModeEnabled = darkModeToggle.checked;
+                document.body.classList.toggle('dark-mode', darkModeEnabled);
+                localStorage.setItem('darkModeEnabled', darkModeEnabled);
+            }
+            
+            // Toggle sound
+            function toggleSound() {
+                soundEnabled = soundToggle.checked;
+                localStorage.setItem('soundEnabled', soundEnabled);
+                
+                if (soundEnabled && !audioContext) {
+                    initAudio();
+                }
+            }
+            
+            // Toggle visual effects
+            function toggleEffects() {
+                effectsEnabled = effectsToggle.checked;
+                localStorage.setItem('effectsEnabled', effectsEnabled);
+            }
+            
+            // Toggle special tiles
+            function toggleSpecialTiles() {
+                specialTilesEnabled = specialTilesToggle.checked;
+                localStorage.setItem('specialTilesEnabled', specialTilesEnabled);
+            }
+            
+            // Reset game statistics
+            function resetStats() {
+                bestScore = 0;
+                localStorage.setItem('bestScore', 0);
+                bestScoreElement.textContent = '0';
+                
+                // Close settings panel
+                settingsPanel.classList.remove('active');
+            }
+            
             // Event listeners
             document.addEventListener('keydown', handleKeydown);
             gameBoard.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -819,6 +1640,14 @@
             newGameBtn.addEventListener('click', startNewGame);
             undoBtn.addEventListener('click', undoMove);
             retryBtn.addEventListener('click', startNewGame);
+            helpBtn.addEventListener('click', startTutorial);
+            settingsBtn.addEventListener('click', toggleSettings);
+            settingsClose.addEventListener('click', toggleSettings);
+            darkModeToggle.addEventListener('change', toggleDarkMode);
+            soundToggle.addEventListener('change', toggleSound);
+            effectsToggle.addEventListener('change', toggleEffects);
+            specialTilesToggle.addEventListener('change', toggleSpecialTiles);
+            resetStatsBtn.addEventListener('click', resetStats);
             
             // Handle window resizing
             window.addEventListener('resize', () => {
@@ -828,6 +1657,7 @@
             
             // Initialize the game
             setupGrid();
+            updateGoalProgress();
             startNewGame();
         });
     </script>
