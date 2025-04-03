@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wirtualny Spacer po Domu</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --dark-color: #1a1a1a;
+            --light-color: #f8f9fa;
+            --accent-color: #e74c3c;
+            --text-light: #ffffff;
+            --text-dark: #333;
+            --transition-speed: 0.3s;
+            --transition-speed-fast: 0.15s;
+            --sidebar-width: 300px;
+            --sidebar-collapsed-width: 0px;
+            --shadow-standard: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --sidebar-z-index: 1000;
+            --controls-z-index: 900;
+            --nav-hints-z-index: 800;
+            --overlay-z-index: 700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--light-color);
+            color: var(--text-dark);
+            touch-action: manipulation;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panorama-container {
+            position: relative;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+            transition: margin-left var(--transition-speed);
+        }
+
+        .panorama {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease, opacity 0.3s ease, transform 0.5s ease;
+            cursor: grab;
+            position: relative;
+        }
+
+        .panorama:active {
+            cursor: grabbing;
+        }
+
+        /* Nawigacyjne strzałki na panoramie */
+        .nav-hint {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            color: var(--dark-color);
+            box-shadow: var(--shadow-standard);
+            cursor: pointer;
+            z-index: var(--nav-hints-z-index);
+            transition: all var(--transition-speed-fast);
+            backdrop-filter: blur(3px);
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            opacity: 0.9;
+            transform-origin: center;
+        }
+
+        .nav-hint:hover, .nav-hint:active {
+            background-color: rgba(255, 255, 255, 0.95);
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        .nav-hint.forward {
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -150px);
+        }
+
+        .nav-hint.left {
+            top: 50%;
+            left: 60px;
+            transform: translateY(-50%);
+        }
+
+        .nav-hint.right {
+            top: 50%;
+            right: 60px;
+            transform: translateY(-50%);
+        }
+
+        .nav-hint.backward {
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .nav-hint.stairs-up {
+            bottom: 180px;
+            right: 90px;
+            background-color: rgba(46, 204, 113, 0.85);
+            color: white;
+        }
+
+        .nav-hint.stairs-down {
+            bottom: 180px;
+            left: 90px;
+            background-color: rgba(231, 76, 60, 0.85);
+            color: white;
+        }
+
+        .nav-hint.hidden {
+            display: none;
+        }
+
+        .nav-hint .tooltip {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .nav-hint:hover .tooltip {
+            opacity: 1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--dark-color);
+            color: var(--text-light);
+            padding: 0;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            transition: transform var(--transition-speed), width var(--transition-speed);
+            z-index: var(--sidebar-z-index);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-content {
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .floor-select-container {
+            position: relative;
+            margin-bottom: 5px;
+        }
+
+        .floor-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 16px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .floor-select:hover, .floor-select:focus {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        .floor-select-arrow {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--primary-color);
+        }
+
+        .minimap-container {
+            position: relative;
+            flex: 1;
+            min-height: 240px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .minimap-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .info-panel {
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-panel h3 i {
+            font-size: 16px;
+        }
+
+        .info-panel p {
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .minimap-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        /* Wskaźnik piętra */
+        .floor-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 16px;
+            box-shadow: var(--shadow-standard);
+            z-index: var(--controls-z-index);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition-speed);
+        }
+
+        .floor-indicator:hover {
+            background-color: rgba(0, 0, 0, 0.85);
+            transform: translateY(2px);
+        }
+
+        /* Panel kontrolny */
+        .control-panel {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: var(--controls-z-index);
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all var(--transition-speed-fast);
+            box-shadow: var(--shadow-standard);
+            backdrop-filter: blur(5px);
+            border: none;
+            opacity: 0.9;
+        }
+
+        .control-btn:hover, .control-btn:focus {
+            background-color: var(--primary-color);
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .control-btn .tooltip {
+            position: absolute;
+            right: 60px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .control-btn:hover .tooltip {
+            opacity: 1;
+        }
+
+        /* Przycisk do przełączania panelu bocznego */
+        .toggle-sidebar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: var(--controls-z-index);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all var(--transition-speed-fast);
+            box-shadow: var(--shadow-standard);
+            backdrop-filter: blur(5px);
+            border: none;
+            opacity: 0.9;
+        }
+
+        .toggle-sidebar:hover {
+            background-color: var(--primary-color);
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        .toggle-sidebar:active {
+            transform: scale(0.95);
+        }
+
+        .toggle-sidebar .tooltip {
+            position: absolute;
+            right: 60px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toggle-sidebar:hover .tooltip {
+            opacity: 1;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--dark-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: var(--text-light);
+            transition: opacity 0.5s;
+        }
+
+        .loading-spinner {
+            position: relative;
+            width: 70px;
+            height: 70px;
+        }
+
+        .loading-spinner:before, .loading-spinner:after {
+            content: "";
+            position: absolute;
+            border: 4px solid transparent;
+            border-radius: 50%;
+            width: 100%;
+            height: 100%;
+            animation: spin 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67) infinite;
+        }
+
+        .loading-spinner:before {
+            border-top-color: var(--primary-color);
+            border-bottom-color: var(--secondary-color);
+            animation-delay: 0.2s;
+        }
+
+        .loading-spinner:after {
+            border-left-color: var(--accent-color);
+            border-right-color: var(--primary-color);
+            animation-delay: 0s;
+        }
+
+        .loading-text {
+            font-size: 18px;
+            margin-top: 20px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--primary-color);
+            transition: width 0.3s;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Help overlay */
+        .help-overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            z-index: var(--overlay-z-index);
+            box-shadow: var(--shadow-standard);
+            opacity: 0;
+            transition: opacity 1s, transform 0.5s;
+            max-width: 80%;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-overlay.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .help-overlay i {
+            color: var(--primary-color);
+        }
+
+        /* Panel pomocy */
+        .help-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            z-index: 1500;
+            max-width: 90%;
+            max-height: 90vh;
+            width: 500px;
+            overflow-y: auto;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .help-panel.visible {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .help-panel h3 {
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-align: center;
+            font-size: 22px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .help-section {
+            margin-bottom: 25px;
+        }
+
+        .help-section h4 {
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-section ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .help-section li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .help-panel .close-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto 0;
+            transition: background-color var(--transition-speed);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .help-panel .close-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .help-panel .close-btn:active {
+            transform: translateY(1px);
+        }
+
+        .keyboard-shortcut {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Strzałki rotacji na ekranie dotykowym */
+        .rotation-control {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            z-index: var(--overlay-z-index);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .rotation-control.left {
+            left: 0;
+            cursor: w-resize;
+        }
+
+        .rotation-control.right {
+            right: 0;
+            cursor: e-resize;
+        }
+
+        .rotation-arrow {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 40px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            background-color: rgba(0, 0, 0, 0.3);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rotation-control:hover .rotation-arrow,
+        .rotation-control:active .rotation-arrow {
+            opacity: 0.8;
+        }
+
+        /* Auto tour button */
+        .auto-tour-container {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            z-index: var(--controls-z-index);
+        }
+
+        .auto-tour-btn {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all var(--transition-speed-fast);
+            box-shadow: var(--shadow-standard);
+            backdrop-filter: blur(5px);
+        }
+
+        .auto-tour-btn:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .auto-tour-btn:active {
+            transform: translateY(1px);
+        }
+
+        .auto-tour-btn.active {
+            background-color: var(--accent-color);
+            animation: pulse 2s infinite;
+        }
+
+        .auto-tour-btn i {
+            font-size: 18px;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 30px;
+            z-index: 2000;
+            box-shadow: var(--shadow-standard);
+            opacity: 0;
+            transition: transform 0.5s, opacity 0.5s;
+            max-width: 80%;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .notification.success {
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .notification.info {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .notification i {
+            font-size: 20px;
+        }
+
+        .notification i.success {
+            color: var(--secondary-color);
+        }
+
+        .notification i.error {
+            color: var(--accent-color);
+        }
+
+        .notification i.info {
+            color: var(--primary-color);
+        }
+
+        /* Panorama tilt effect */
+        .panorama.tilt-effect {
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Responsywność */
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 260px;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                z-index: 1100;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .nav-hint {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+
+            .nav-hint.left {
+                left: 20px;
+            }
+
+            .nav-hint.right {
+                right: 20px;
+            }
+
+            .nav-hint.forward {
+                transform: translate(-50%, -120px);
+            }
+
+            .floor-indicator {
+                top: 20px;
+                left: 20px;
+                font-size: 14px;
+                padding: 8px 15px;
+            }
+
+            .control-panel {
+                bottom: 20px;
+                right: 20px;
+                gap: 10px;
+            }
+
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .auto-tour-container {
+                bottom: 20px;
+                left: 20px;
+            }
+
+            .auto-tour-btn {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            .help-panel {
+                width: 90%;
+                padding: 20px;
+                max-height: 80vh;
+            }
+
+            .nav-hint .tooltip,
+            .control-btn .tooltip,
+            .toggle-sidebar .tooltip {
+                display: none;
+            }
+
+            /* Prevent pull-to-refresh on mobile */
+            html, body {
+                overscroll-behavior-y: contain;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .rotation-arrow {
+                display: none;
+            }
+        }
+
+        /* Dark mode overlay for when sidebar is open on mobile */
+        .dark-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1050;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .dark-overlay.visible {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Focus styles for accessibility */
+        button:focus, select:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        /* Fullscreen styling */
+        .fullscreen-element {
+            width: 100vw !important;
+            height: 100vh !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: auto !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="container">
+    <button class="toggle-sidebar" id="toggleSidebar">
+        <i class="fas fa-bars"></i>
+        <span class="tooltip">Przełącz panel boczny (M)</span>
+    </button>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>Wirtualny Spacer</h2>
+            <button class="control-btn" id="closeSidebar" style="width: 40px; height: 40px;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <div class="floor-select-container">
+                <select class="floor-select" id="floorSelect">
+                    <option value="basement">Piwnica</option>
+                    <option value="ground" selected>Parter</option>
+                    <option value="first">Piętro</option>
+                </select>
+                <i class="fas fa-chevron-down floor-select-arrow"></i>
+            </div>
+
+            <div class="minimap-container">
+                <canvas class="minimap-canvas" id="minimapCanvas"></canvas>
+                <div class="minimap-tooltip" id="minimapTooltip"></div>
+            </div>
+
+            <div class="info-panel">
+                <h3><i class="fas fa-info-circle"></i> Informacje</h3>
+                <p id="locationInfo">Wybierz punkt widokowy na mapie.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="panorama-container" id="panoramaContainer">
+        <div class="panorama" id="panorama"></div>
+
+        <!-- Wskaźnik rotacji na urządzeniach dotykowych -->
+        <div class="rotation-control left" id="rotateLeftControl">
+            <div class="rotation-arrow">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+        </div>
+        <div class="rotation-control right" id="rotateRightControl">
+            <div class="rotation-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+
+        <!-- Wskaźnik piętra -->
+        <div class="floor-indicator" id="floorIndicator">
+            <i class="fas fa-layer-group"></i>
+            <span>Parter</span>
+        </div>
+
+        <!-- Wskazówki nawigacyjne -->
+        <div class="nav-hint forward hidden" id="moveForward">
+            <i class="fas fa-arrow-up"></i>
+            <span class="tooltip">Idź do przodu (W)</span>
+        </div>
+        <div class="nav-hint backward hidden" id="moveBackward">
+            <i class="fas fa-arrow-down"></i>
+            <span class="tooltip">Idź do tyłu (S)</span>
+        </div>
+        <div class="nav-hint left hidden" id="moveLeft">
+            <i class="fas fa-arrow-left"></i>
+            <span class="tooltip">Idź w lewo</span>
+        </div>
+        <div class="nav-hint right hidden" id="moveRight">
+            <i class="fas fa-arrow-right"></i>
+            <span class="tooltip">Idź w prawo</span>
+        </div>
+        <div class="nav-hint stairs-up hidden" id="moveUpStairs">
+            <i class="fas fa-level-up-alt"></i>
+            <span class="tooltip">Wejdź po schodach</span>
+        </div>
+        <div class="nav-hint stairs-down hidden" id="moveDownStairs">
+            <i class="fas fa-level-down-alt"></i>
+            <span class="tooltip">Zejdź po schodach</span>
+        </div>
+
+        <!-- Auto Tour Button -->
+        <div class="auto-tour-container">
+            <button class="auto-tour-btn" id="autoTourBtn">
+                <i class="fas fa-play"></i> Automatyczny spacer
+            </button>
+        </div>
+
+        <!-- Panel kontrolny -->
+        <div class="control-panel">
+            <button class="control-btn" id="helpBtn" title="Pomoc">
+                <i class="fas fa-question"></i>
+                <span class="tooltip">Pomoc (H)</span>
+            </button>
+            <button class="control-btn" id="fullscreenBtn" title="Pełny ekran">
+                <i class="fas fa-expand" id="fullscreenIcon"></i>
+                <span class="tooltip">Pełny ekran (F)</span>
+            </button>
+        </div>
+
+        <!-- Podpowiedź o sposobie poruszania się -->
+        <div class="help-overlay" id="helpOverlay">
+            <i class="fas fa-lightbulb"></i>
+            <span>Przeciągnij lub kliknij, aby się rozglądać. Kliknij strzałki, aby się poruszać.</span>
+        </div>
+    </div>
+
+    <!-- Ciemny overlay dla mobilnej wersji -->
+    <div class="dark-overlay" id="darkOverlay"></div>
+
+    <!-- Panel pomocy -->
+    <div class="help-panel" id="helpPanel">
+        <h3>Jak korzystać z wirtualnego spaceru</h3>
+
+        <div class="help-section">
+            <h4><i class="fas fa-walking"></i> Poruszanie się</h4>
+            <ul>
+                <li>Kliknij strzałki widoczne na ekranie, aby poruszać się między pomieszczeniami.</li>
+                <li>Użyj klawiszy <span class="keyboard-shortcut">W</span>, <span class="keyboard-shortcut">S</span> do poruszania się do przodu i do tyłu.</li>
+                <li>Jeśli widzisz schody, możesz zmienić piętro klikając na odpowiednią ikonę.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4><i class="fas fa-eye"></i> Rozglądanie się</h4>
+            <ul>
+                <li>Kliknij i przeciągnij panoramę, aby się rozejrzeć.</li>
+                <li>Kliknij na lewą lub prawą stronę ekranu, aby obrócić widok.</li>
+                <li>Użyj klawiszy <span class="keyboard-shortcut">A</span>, <span class="keyboard-shortcut">D</span> lub strzałek <span class="keyboard-shortcut">←</span>, <span class="keyboard-shortcut">→</span> do obracania się.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4><i class="fas fa-map-marked-alt"></i> Minimapa</h4>
+            <ul>
+                <li>Na minimapie widoczny jest aktualny punkt oraz kierunek patrzenia.</li>
+                <li>Możesz kliknąć na dowolny punkt na minimapie, aby przenieść się bezpośrednio tam.</li>
+                <li>Punkty niebieskie to zwykłe lokalizacje, czerwone oznaczają schody.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4><i class="fas fa-keyboard"></i> Skróty klawiaturowe</h4>
+            <ul>
+                <li><span class="keyboard-shortcut">W</span> lub <span class="keyboard-shortcut">↑</span> - Idź do przodu</li>
+                <li><span class="keyboard-shortcut">S</span> lub <span class="keyboard-shortcut">↓</span> - Idź do tyłu</li>
+                <li><span class="keyboard-shortcut">A</span> lub <span class="keyboard-shortcut">←</span> - Obróć w lewo</li>
+                <li><span class="keyboard-shortcut">D</span> lub <span class="keyboard-shortcut">→</span> - Obróć w prawo</li>
+                <li><span class="keyboard-shortcut">M</span> - Przełącz panel boczny</li>
+                <li><span class="keyboard-shortcut">F</span> - Przełącz tryb pełnoekranowy</li>
+                <li><span class="keyboard-shortcut">H</span> - Pokaż/ukryj pomoc</li>
+                <li><span class="keyboard-shortcut">Space</span> - Włącz/wyłącz automatyczny spacer</li>
+            </ul>
+        </div>
+
+        <button class="close-btn" id="closeHelpBtn">Zamknij</button>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <i class="fas fa-info-circle info" id="notificationIcon"></i>
+        <span id="notificationText">To jest powiadomienie</span>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Ładowanie wirtualnego spaceru...</div>
+    <div class="loading-progress">
+        <div class="loading-progress-bar" id="loadingProgressBar"></div>
+    </div>
+</div>
+
+<script>
+    // Model danych dla układu domu
+    const houseLayout = {
+        basement: { points: {} },
+        ground: { points: {} },
+        first: { points: {} }
+    };
+
+    // Aktualny stan widoku
+    let currentState = {
+        floor: 'ground',
+        pointId: '1',
+        direction: 'north', // north, east, south, west
+        sidebarVisible: true, // Stan widoczności panelu bocznego
+        isDragging: false, // Do śledzenia przeciągania panoramy
+        startX: 0, // Początkowa pozycja X przy przeciąganiu
+        startY: 0, // Początkowa pozycja Y do efektu tilt
+        autoTour: false, // Stan automatycznego spaceru
+        autoTourInterval: null, // Interwał do automatycznego spaceru
+        minimapHoveredPoint: null // Aktualnie najechany punkt na minimapie
+    };
+
+    // Cache dla punktów minimapy (używane do wykrywania kliknięć)
+    let minimapPointsCache = [];
+
+    // Referencje do elementów DOM
+    const containerEl = document.getElementById('container');
+    const panoramaEl = document.getElementById('panorama');
+    const sidebarEl = document.getElementById('sidebar');
+    const panoramaContainerEl = document.getElementById('panoramaContainer');
+    const floorSelectEl = document.getElementById('floorSelect');
+    const minimapEl = document.querySelector('.minimap-container');
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapTooltip = document.getElementById('minimapTooltip');
+    const locationInfoEl = document.getElementById('locationInfo');
+    const floorIndicatorEl = document.getElementById('floorIndicator');
+    const loadingOverlayEl = document.getElementById('loadingOverlay');
+    const loadingProgressBar = document.getElementById('loadingProgressBar');
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    const closeSidebarBtn = document.getElementById('closeSidebar');
+    const darkOverlayEl = document.getElementById('darkOverlay');
+    const helpOverlayEl = document.getElementById('helpOverlay');
+    const helpBtn = document.getElementById('helpBtn');
+    const helpPanelEl = document.getElementById('helpPanel');
+    const closeHelpBtn = document.getElementById('closeHelpBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
+    const rotateLeftControlEl = document.getElementById('rotateLeftControl');
+    const rotateRightControlEl = document.getElementById('rotateRightControl');
+    const autoTourBtn = document.getElementById('autoTourBtn');
+    const notificationEl = document.getElementById('notification');
+    const notificationIcon = document.getElementById('notificationIcon');
+    const notificationText = document.getElementById('notificationText');
+
+    // Przyciski kontrolne
+    const moveForwardBtn = document.getElementById('moveForward');
+    const moveBackwardBtn = document.getElementById('moveBackward');
+    const moveLeftBtn = document.getElementById('moveLeft');
+    const moveRightBtn = document.getElementById('moveRight');
+    const moveUpStairsBtn = document.getElementById('moveUpStairs');
+    const moveDownStairsBtn = document.getElementById('moveDownStairs');
+
+    // Context minimapy
+    const ctx = minimapCanvas.getContext('2d');
+
+    // Flaga pełnego ekranu
+    let isFullscreen = false;
+
+    // Obsługa zdarzeń
+    floorSelectEl.addEventListener('change', handleFloorChange);
+    moveForwardBtn.addEventListener('click', () => move('forward'));
+    moveBackwardBtn.addEventListener('click', () => move('backward'));
+    moveLeftBtn.addEventListener('click', () => move('left'));
+    moveRightBtn.addEventListener('click', () => move('right'));
+    moveUpStairsBtn.addEventListener('click', moveUpStairs);
+    moveDownStairsBtn.addEventListener('click', moveDownStairs);
+
+    // Obsługa minimapy - dodanie funkcjonalności klikania w punkty
+    minimapCanvas.addEventListener('click', handleMinimapClick);
+    minimapCanvas.addEventListener('mousemove', handleMinimapHover);
+    minimapCanvas.addEventListener('mouseout', () => {
+        minimapTooltip.style.opacity = 0;
+        currentState.minimapHoveredPoint = null;
+    });
+
+    // Obsługa przełącznika panelu bocznego
+    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    closeSidebarBtn.addEventListener('click', closeSidebar);
+    darkOverlayEl.addEventListener('click', closeSidebar);
+
+    // Obsługa przycisków pomocy
+    helpBtn.addEventListener('click', toggleHelpPanel);
+    closeHelpBtn.addEventListener('click', toggleHelpPanel);
+
+    // Obsługa automatycznego spaceru
+    autoTourBtn.addEventListener('click', toggleAutoTour);
+
+    // Obsługa pełnego ekranu
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    // Obracanie przez kliknięcie lewej/prawej strony ekranu
+    rotateLeftControlEl.addEventListener('click', () => rotate('left'));
+    rotateRightControlEl.addEventListener('click', () => rotate('right'));
+
+    // Obsługa przeciągania panoramy
+    panoramaEl.addEventListener('mousedown', startDrag);
+    panoramaEl.addEventListener('touchstart', handleTouchStart, { passive: true });
+
+    // Efekt tilt - przechylanie panoramy
+    panoramaEl.addEventListener('mousemove', handleTiltEffect);
+
+    // Obsługa efektu tilt na urządzeniach mobilnych
+    if (window.DeviceOrientationEvent) {
+        window.addEventListener('deviceorientation', handleDeviceOrientation);
+    }
+
+    // Obsługa klawiatury
+    document.addEventListener('keydown', handleKeyPress);
+
+    // Inicjalizacja
+    window.addEventListener('load', initialize);
+    window.addEventListener('resize', handleResize);
+
+    // Obsługa zdarzeń związanych z fullscreen API
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+    function initialize() {
+        // Symulacja postępu ładowania
+        simulateLoading();
+
+        // Dostosowanie układu na podstawie rozmiaru ekranu
+        handleResize();
+
+        // Próba wczytania układu z serwera
+        loadHouseLayoutFromServer();
+
+        // Pokaż wskazówkę o sposobie sterowania na początku
+        setTimeout(function() {
+            helpOverlayEl.classList.add('visible');
+            setTimeout(function() {
+                helpOverlayEl.classList.remove('visible');
+            }, 8000);
+        }, 1000);
+    }
+
+    function simulateLoading() {
+        const progressBar = document.getElementById('loadingProgressBar');
+        let progress = 0;
+
+        const interval = setInterval(() => {
+            progress += 5;
+            if (progress > 90) {
+                clearInterval(interval);
+            }
+            progressBar.style.width = `${progress}%`;
+        }, 100);
+    }
+
+    function finishLoading() {
+        const progressBar = document.getElementById('loadingProgressBar');
+        progressBar.style.width = '100%';
+
+        setTimeout(() => {
+            loadingOverlayEl.style.opacity = '0';
+            setTimeout(() => {
+                loadingOverlayEl.style.display = 'none';
+            }, 500);
+        }, 200);
+    }
+
+    function handleResize() {
+        // Ukryj panel boczny na małych ekranach
+        if (window.innerWidth <= 768 && currentState.sidebarVisible) {
+            closeSidebar();
+        }
+
+        // Zaktualizuj minimapę
+        drawMinimap();
+    }
+
+    function toggleSidebar() {
+        if (currentState.sidebarVisible) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    }
+
+    function openSidebar() {
+        currentState.sidebarVisible = true;
+        sidebarEl.classList.remove('collapsed');
+
+        if (window.innerWidth <= 768) {
+            sidebarEl.style.transform = 'translateX(0)';
+            darkOverlayEl.classList.add('visible');
+        } else {
+            panoramaContainerEl.style.marginLeft = '0';
+        }
+
+        toggleSidebarBtn.innerHTML = '<i class="fas fa-bars"></i><span class="tooltip">Przełącz panel boczny (M)</span>';
+
+        // Po zmianie stanu panelu bocznego, odśwież minimapę
+        setTimeout(drawMinimap, 300);
+    }
+
+    function closeSidebar() {
+        currentState.sidebarVisible = false;
+
+        if (window.innerWidth <= 768) {
+            sidebarEl.style.transform = 'translateX(-100%)';
+            darkOverlayEl.classList.remove('visible');
+        } else {
+            sidebarEl.classList.add('collapsed');
+            panoramaContainerEl.style.marginLeft = `-${sidebarEl.offsetWidth}px`;
+        }
+
+        toggleSidebarBtn.innerHTML = '<i class="fas fa-bars"></i><span class="tooltip">Przełącz panel boczny (M)</span>';
+
+        // Po zmianie stanu panelu bocznego, odśwież minimapę
+        setTimeout(drawMinimap, 300);
+    }
+
+    function toggleHelpPanel() {
+        helpPanelEl.classList.toggle('visible');
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            if (containerEl.requestFullscreen) {
+                containerEl.requestFullscreen();
+            } else if (containerEl.webkitRequestFullscreen) {
+                containerEl.webkitRequestFullscreen();
+            } else if (containerEl.msRequestFullscreen) {
+                containerEl.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+
+    function updateFullscreenButton() {
+        isFullscreen = !!document.fullscreenElement;
+        fullscreenIcon.className = isFullscreen ? 'fas fa-compress' : 'fas fa-expand';
+    }
+
+    function toggleAutoTour() {
+        currentState.autoTour = !currentState.autoTour;
+
+        if (currentState.autoTour) {
+            autoTourBtn.classList.add('active');
+            autoTourBtn.innerHTML = '<i class="fas fa-pause"></i> Zatrzymaj spacer';
+            startAutoTour();
+            showNotification('Automatyczny spacer rozpoczęty', 'info');
+        } else {
+            autoTourBtn.classList.remove('active');
+            autoTourBtn.innerHTML = '<i class="fas fa-play"></i> Automatyczny spacer';
+            stopAutoTour();
+            showNotification('Automatyczny spacer zatrzymany', 'info');
+        }
+    }
+
+    function startAutoTour() {
+        if (currentState.autoTourInterval) {
+            clearInterval(currentState.autoTourInterval);
+        }
+
+        currentState.autoTourInterval = setInterval(() => {
+            // Ustal dostępne kierunki ruchu
+            const floor = currentState.floor;
+            const pointId = currentState.pointId;
+            const direction = currentState.direction;
+
+            const point = houseLayout[floor].points[pointId];
+            if (!point) return;
+
+            // Zbierz wszystkie możliwe ruchy
+            const possibleMoves = [];
+
+            if (point.connections.north) possibleMoves.push({ type: 'move', dir: 'north' });
+            if (point.connections.east) possibleMoves.push({ type: 'move', dir: 'east' });
+            if (point.connections.south) possibleMoves.push({ type: 'move', dir: 'south' });
+            if (point.connections.west) possibleMoves.push({ type: 'move', dir: 'west' });
+
+            if (point.isStairs && point.stairsTo) {
+                possibleMoves.push({ type: 'stairs', destination: point.stairsTo });
+            }
+
+            if (possibleMoves.length === 0) {
+                // Nie ma dostępnych ruchów, obróć się
+                rotate(Math.random() > 0.5 ? 'left' : 'right');
+                return;
+            }
+
+            // Wybierz losowy ruch
+            const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+
+            if (randomMove.type === 'move') {
+                // Obróć się w odpowiednim kierunku jeśli to konieczne
+                if (direction !== randomMove.dir) {
+                    const directions = ['north', 'east', 'south', 'west'];
+                    const currentIdx = directions.indexOf(direction);
+                    const targetIdx = directions.indexOf(randomMove.dir);
+
+                    // Wybierz najkrótszą drogę do obrócenia się
+                    const diff = (targetIdx - currentIdx + 4) % 4;
+                    if (diff === 1) rotate('right');
+                    else if (diff === 3) rotate('left');
+                    else if (diff === 2) {
+                        rotate('right');
+                        setTimeout(() => rotate('right'), 1000);
+                    }
+
+                    // Poczekaj z ruchem do następnego interwału
+                    return;
+                }
+
+                // Jeśli już patrzymy w dobrym kierunku, ruszamy się
+                move('forward');
+            } else if (randomMove.type === 'stairs') {
+                // Użyj schodów
+                const [stairsFloor, stairsPoint] = randomMove.destination.split(':');
+                if (getFloorLevel(stairsFloor) > getFloorLevel(floor)) {
+                    moveUpStairs();
+                } else {
+                    moveDownStairs();
+                }
+            }
+        }, 3000); // Co 3 sekundy
+    }
+
+    function stopAutoTour() {
+        if (currentState.autoTourInterval) {
+            clearInterval(currentState.autoTourInterval);
+            currentState.autoTourInterval = null;
+        }
+    }
+
+    // Obsługa przechylania panoramy za kursorem myszy
+    function handleTiltEffect(e) {
+        if (currentState.isDragging) return;
+
+        const centerX = panoramaEl.offsetWidth / 2;
+        const centerY = panoramaEl.offsetHeight / 2;
+
+        const deltaX = e.clientX - centerX;
+        const deltaY = e.clientY - centerY;
+
+        // Normalizacja do zakresu -1 do 1
+        const tiltX = deltaY / centerY * 5; // Max 5 stopni
+        const tiltY = -deltaX / centerX * 5; // Max 5 stopni
+
+        panoramaEl.classList.add('tilt-effect');
+        panoramaEl.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+    }
+
+    // Obsługa orientacji urządzenia dla efektu gyro na mobilnych
+    function handleDeviceOrientation(e) {
+        if (!e.beta || !e.gamma) return;
+
+        const beta = Math.min(Math.max(e.beta, -30), 30); // Ograniczenie do zakresu -30 do 30 stopni
+        const gamma = Math.min(Math.max(e.gamma, -30), 30); // Ograniczenie do zakresu -30 do 30 stopni
+
+        // Normalizacja do mniejszego zakresu dla subtelniejszego efektu
+        const tiltX = -beta / 6;
+        const tiltY = gamma / 6;
+
+        panoramaEl.classList.add('tilt-effect');
+        panoramaEl.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+    }
+
+    // Powrót panoramy do pozycji neutralnej po opuszczeniu myszą
+    panoramaEl.addEventListener('mouseleave', resetTilt);
+
+    function resetTilt() {
+        panoramaEl.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+    }
+
+    // Obsługa przeciągania panoramy
+    function startDrag(e) {
+        e.preventDefault();
+        currentState.isDragging = true;
+        currentState.startX = e.clientX;
+        resetTilt();
+
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDrag);
+    }
+
+    function drag(e) {
+        if (!currentState.isDragging) return;
+
+        const deltaX = e.clientX - currentState.startX;
+        if (deltaX > 80) {
+            rotate('right');
+            currentState.startX = e.clientX;
+        } else if (deltaX < -80) {
+            rotate('left');
+            currentState.startX = e.clientX;
+        }
+    }
+
+    function stopDrag() {
+        currentState.isDragging = false;
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', stopDrag);
+    }
+
+    // Obsługa dotykowa
+    function handleTouchStart(e) {
+        if (e.touches.length !== 1) return;
+
+        const touch = e.touches[0];
+        currentState.startX = touch.clientX;
+        resetTilt();
+
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd);
+    }
+
+    function handleTouchMove(e) {
+        if (e.touches.length !== 1) return;
+
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - currentState.startX;
+
+        if (deltaX > 50) {
+            rotate('right');
+            currentState.startX = touch.clientX;
+        } else if (deltaX < -50) {
+            rotate('left');
+            currentState.startX = touch.clientX;
+        }
+    }
+
+    function handleTouchEnd() {
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+    }
+
+    // Nowa funkcja do obsługi kliknięć na minimapę
+    function handleMinimapClick(e) {
+        const rect = minimapCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        // Sprawdź, czy kliknięto w punkt
+        for (const point of minimapPointsCache) {
+            const distance = Math.sqrt(
+                Math.pow(clickX - point.screenX, 2) +
+                Math.pow(clickY - point.screenY, 2)
+            );
+
+            if (distance <= 15) { // Promień wykrywania kliknięcia (nieco większy niż sam punkt)
+                // Przenieś się do klikniętego punktu
+                if (currentState.floor === point.floor) {
+                    // Jeśli jesteśmy na tym samym piętrze, po prostu przenieś się do punktu
+                    currentState.pointId = point.id;
+                    updateView();
+                    showNotification(`Przeniesiono do punktu ${point.id}`, 'success');
+                    return;
+                } else {
+                    // Jeśli kliknięto punkt na innym piętrze, najpierw zmień piętro
+                    currentState.floor = point.floor;
+                    currentState.pointId = point.id;
+                    updateView();
+                    showNotification(`Przeniesiono na ${getFloorName(point.floor)}, punkt ${point.id}`, 'success');
+                    return;
+                }
+            }
+        }
+    }
+
+    // Obsługa najechania kursorem na minimapę
+    function handleMinimapHover(e) {
+        const rect = minimapCanvas.getBoundingClientRect();
+        const hoverX = e.clientX - rect.left;
+        const hoverY = e.clientY - rect.top;
+
+        let hoveredPoint = null;
+
+        // Sprawdź, czy kursor jest nad punktem
+        for (const point of minimapPointsCache) {
+            const distance = Math.sqrt(
+                Math.pow(hoverX - point.screenX, 2) +
+                Math.pow(hoverY - point.screenY, 2)
+            );
+
+            if (distance <= 10) { // Promień wykrywania najechania
+                hoveredPoint = point;
+                break;
+            }
+        }
+
+        if (hoveredPoint) {
+            // Pokaż tooltip
+            minimapTooltip.textContent = `Punkt ${hoveredPoint.id} (${getFloorName(hoveredPoint.floor)})`;
+            minimapTooltip.style.left = (hoverX + 15) + 'px';
+            minimapTooltip.style.top = (hoverY + 15) + 'px';
+            minimapTooltip.style.opacity = 1;
+
+            // Zapamiętaj aktualnie najechany punkt
+            currentState.minimapHoveredPoint = hoveredPoint;
+
+            // Zmiana kursora
+            minimapCanvas.style.cursor = 'pointer';
+        } else {
+            // Ukryj tooltip
+            minimapTooltip.style.opacity = 0;
+            currentState.minimapHoveredPoint = null;
+
+            // Przywróć domyślny kursor
+            minimapCanvas.style.cursor = 'default';
+        }
+    }
+
+    // Obsługa klawiatury
+    function handleKeyPress(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return; // Ignoruj zdarzenia klawiatury gdy fokus jest na polach formularza
+        }
+
+        switch(e.key) {
+            case 'ArrowLeft':
+                rotate('left');
+                break;
+            case 'ArrowRight':
+                rotate('right');
+                break;
+            case 'ArrowUp':
+                move('forward');
+                break;
+            case 'ArrowDown':
+                move('backward');
+                break;
+            case 'w':
+            case 'W':
+                move('forward');
+                break;
+            case 's':
+            case 'S':
+                move('backward');
+                break;
+            case 'a':
+            case 'A':
+                rotate('left');
+                break;
+            case 'd':
+            case 'D':
+                rotate('right');
+                break;
+            case 'h':
+            case 'H':
+                toggleHelpPanel();
+                break;
+            case 'f':
+            case 'F':
+                toggleFullscreen();
+                break;
+            case 'm':
+            case 'M':
+                toggleSidebar();
+                break;
+            case ' ': // Spacja
+                toggleAutoTour();
+                break;
+            case 'Escape':
+                if (helpPanelEl.classList.contains('visible')) {
+                    toggleHelpPanel();
+                } else if (window.innerWidth <= 768 && currentState.sidebarVisible) {
+                    closeSidebar();
+                }
+                break;
+        }
+    }
+
+    function loadHouseLayoutFromServer() {
+        fetch('house_layout.csv')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Nie udało się wczytać pliku house_layout.csv');
+                }
+                return response.text();
+            })
+            .then(csvText => {
+                parseCSVLayout(csvText);
+
+                // Reset current state to first point on ground floor
+                const groundPoints = houseLayout.ground.points;
+                if (Object.keys(groundPoints).length > 0) {
+                    currentState.floor = 'ground';
+                    currentState.pointId = Object.keys(groundPoints)[0];
+                    currentState.direction = 'north';
+                }
+
+                updateView();
+                finishLoading();
+            })
+            .catch(error => {
+                console.error('Błąd wczytywania layoutu:', error);
+                finishLoading();
+
+                // Pokazanie przyjaznego komunikatu o błędzie
+                showNotification('Nie udało się wczytać pliku house_layout.csv. Upewnij się, że plik CSV znajduje się w tym samym katalogu co strona HTML.', 'error');
+            });
+    }
+
+    function parseCSVLayout(csvText) {
+        // Resetowanie układu
+        houseLayout.basement.points = {};
+        houseLayout.ground.points = {};
+        houseLayout.first.points = {};
+
+        // Podział na linie
+        const lines = csvText.trim().split('\n');
+
+        // Pominięcie nagłówka
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const values = line.split(',');
+
+            const floor = values[0];
+            const id = values[1];
+            const x = parseInt(values[2]);
+            const y = parseInt(values[3]);
+            const northImg = values[4];
+            const eastImg = values[5];
+            const southImg = values[6];
+            const westImg = values[7];
+            const northConnection = values[8];
+            const eastConnection = values[9];
+            const southConnection = values[10];
+            const westConnection = values[11];
+            const isStairs = values[12] === 'true';
+            const stairsTo = values[13];
+
+            houseLayout[floor].points[id] = {
+                id,
+                x, y,
+                images: {
+                    north: northImg,
+                    east: eastImg,
+                    south: southImg,
+                    west: westImg
+                },
+                connections: {
+                    north: northConnection !== '0' ? northConnection : null,
+                    east: eastConnection !== '0' ? eastConnection : null,
+                    south: southConnection !== '0' ? southConnection : null,
+                    west: westConnection !== '0' ? westConnection : null
+                },
+                isStairs,
+                stairsTo: stairsTo ? stairsTo : null
+            };
+        }
+    }
+
+    function updateView() {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+        const direction = currentState.direction;
+
+        const point = houseLayout[floor].points[pointId];
+        if (!point) {
+            console.error(`Punkt ${pointId} na piętrze ${floor} nie istnieje`);
+            return;
+        }
+
+        // Aktualizacja obrazka panoramy z animacją przejścia
+        panoramaEl.style.opacity = '0.7';
+        setTimeout(() => {
+            const imageUrl = point.images[direction];
+            panoramaEl.style.backgroundImage = `url(${imageUrl})`;
+            panoramaEl.style.opacity = '1';
+        }, 200);
+
+        // Aktualizacja informacji o lokalizacji
+        locationInfoEl.innerHTML = `
+            <strong>Piętro:</strong> ${getFloorName(floor)}<br>
+            <strong>Punkt:</strong> ${pointId}<br>
+            <strong>Kierunek:</strong> ${getDirectionName(direction)}
+        `;
+
+        // Aktualizacja wskaźnika piętra
+        floorIndicatorEl.innerHTML = `
+            <i class="fas fa-layer-group"></i>
+            <span>${getFloorName(floor)}</span>
+        `;
+
+        // Aktualizacja selektora piętra
+        floorSelectEl.value = floor;
+
+        // Aktualizacja wskazówek nawigacyjnych
+        updateNavHints();
+
+        // Rysowanie minimapki z aktualną pozycją
+        drawMinimap();
+    }
+
+    function updateNavHints() {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+        const direction = currentState.direction;
+
+        const point = houseLayout[floor].points[pointId];
+
+        // Dostępność poruszania się w różnych kierunkach
+        let forwardConnection = null;
+        let backwardConnection = null;
+        let leftConnection = null;
+        let rightConnection = null;
+
+        // Określenie dostępnych kierunków ruchu
+        switch(direction) {
+            case 'north':
+                forwardConnection = point.connections.north;
+                backwardConnection = point.connections.south;
+                leftConnection = point.connections.west;
+                rightConnection = point.connections.east;
+                break;
+            case 'east':
+                forwardConnection = point.connections.east;
+                backwardConnection = point.connections.west;
+                leftConnection = point.connections.north;
+                rightConnection = point.connections.south;
+                break;
+            case 'south':
+                forwardConnection = point.connections.south;
+                backwardConnection = point.connections.north;
+                leftConnection = point.connections.east;
+                rightConnection = point.connections.west;
+                break;
+            case 'west':
+                forwardConnection = point.connections.west;
+                backwardConnection = point.connections.east;
+                leftConnection = point.connections.south;
+                rightConnection = point.connections.north;
+                break;
+        }
+
+        // Aktualizacja widoczności wskazówek nawigacyjnych z animacją
+        animateNavHint(moveForwardBtn, forwardConnection);
+        animateNavHint(moveBackwardBtn, backwardConnection);
+        animateNavHint(moveLeftBtn, leftConnection);
+        animateNavHint(moveRightBtn, rightConnection);
+
+        // Wskazówki dla schodów
+        moveUpStairsBtn.classList.add('hidden');
+        moveDownStairsBtn.classList.add('hidden');
+
+        if (point.isStairs && point.stairsTo) {
+            const [stairsFloor, stairsPoint] = point.stairsTo.split(':');
+
+            if (getFloorLevel(stairsFloor) > getFloorLevel(floor)) {
+                moveUpStairsBtn.classList.remove('hidden');
+                setTimeout(() => {
+                    moveUpStairsBtn.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        moveUpStairsBtn.style.transform = 'scale(1)';
+                    }, 300);
+                }, 100);
+            } else {
+                moveDownStairsBtn.classList.remove('hidden');
+                setTimeout(() => {
+                    moveDownStairsBtn.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        moveDownStairsBtn.style.transform = 'scale(1)';
+                    }, 300);
+                }, 100);
+            }
+        }
+    }
+
+    // Funkcja animująca pojawienie się wskazówki nawigacyjnej
+    function animateNavHint(element, connection) {
+        if (connection) {
+            element.classList.remove('hidden');
+            // Dodaj małą animację dla lepszej widoczności
+            setTimeout(() => {
+                if (element.classList.contains('forward')) {
+                    element.style.transform = 'translate(-50%, -150px) scale(1.1)';
+                } else if (element.classList.contains('backward')) {
+                    element.style.transform = 'translateX(-50%) scale(1.1)';
+                } else if (element.classList.contains('left')) {
+                    element.style.transform = 'translateY(-50%) scale(1.1)';
+                } else if (element.classList.contains('right')) {
+                    element.style.transform = 'translateY(-50%) scale(1.1)';
+                }
+
+                setTimeout(() => {
+                    if (element.classList.contains('forward')) {
+                        element.style.transform = 'translate(-50%, -150px)';
+                    } else if (element.classList.contains('backward')) {
+                        element.style.transform = 'translateX(-50%)';
+                    } else if (element.classList.contains('left')) {
+                        element.style.transform = 'translateY(-50%)';
+                    } else if (element.classList.contains('right')) {
+                        element.style.transform = 'translateY(-50%)';
+                    }
+                }, 300);
+            }, 100);
+        } else {
+            element.classList.add('hidden');
+        }
+    }
+
+    function drawMinimap() {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+
+        // Dostosowanie rozmiaru canvas do kontenera
+        minimapCanvas.width = minimapEl.clientWidth;
+        minimapCanvas.height = minimapEl.clientHeight;
+
+        // Wyczyszczenie canvas
+        ctx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+        // Rysowanie tła z gradientem
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, minimapCanvas.height);
+        bgGradient.addColorStop(0, '#2c3e50');
+        bgGradient.addColorStop(1, '#1a2533');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+        // Rysowanie siatki
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+
+        const gridSize = 20;
+        for (let x = 0; x < minimapCanvas.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, minimapCanvas.height);
+            ctx.stroke();
+        }
+
+        for (let y = 0; y < minimapCanvas.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(minimapCanvas.width, y);
+            ctx.stroke();
+        }
+
+        // Reset cache punktów
+        minimapPointsCache = [];
+
+        // Rysowanie punktów
+        const points = houseLayout[floor].points;
+
+        // Znajdź min/max współrzędne, aby obliczyć skalę
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        Object.values(points).forEach(point => {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        });
+
+        // Margines
+        const margin = 30;
+
+        // Obliczenie skali
+        const scaleX = (minimapCanvas.width - 2 * margin) / (maxX - minX || 1);
+        const scaleY = (minimapCanvas.height - 2 * margin) / (maxY - minY || 1);
+        const scale = Math.min(scaleX, scaleY);
+
+        // Rysowanie połączeń z efektem gradient i cień
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.lineCap = 'round';
+
+        Object.values(points).forEach(point => {
+            const x1 = margin + (point.x - minX) * scale;
+            const y1 = margin + (point.y - minY) * scale;
+
+            // Rysowanie połączeń
+            ['north', 'east', 'south', 'west'].forEach(dir => {
+                const connId = point.connections[dir];
+                if (connId && points[connId]) {
+                    const connPoint = points[connId];
+                    const x2 = margin + (connPoint.x - minX) * scale;
+                    const y2 = margin + (connPoint.y - minY) * scale;
+
+                    // Gradient dla połączenia
+                    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                    gradient.addColorStop(0, 'rgba(52, 152, 219, 0.6)');
+                    gradient.addColorStop(1, 'rgba(52, 152, 219, 0.2)');
+
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+            });
+        });
+
+        // Reset cienia przed rysowaniem punktów
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Rysowanie punktów
+        Object.values(points).forEach(point => {
+            const x = margin + (point.x - minX) * scale;
+            const y = margin + (point.y - minY) * scale;
+
+            // Zachowaj informacje o punkcie do użycia przy kliknięciach
+            minimapPointsCache.push({
+                id: point.id,
+                floor: floor,
+                screenX: x,
+                screenY: y,
+                isStairs: point.isStairs
+            });
+
+            // Efekt glow dla wszyskich punktów
+            ctx.shadowColor = point.isStairs ? 'rgba(231, 76, 60, 0.5)' : 'rgba(52, 152, 219, 0.5)';
+            ctx.shadowBlur = 10;
+
+            // Wypełnienie dla punktów z efektem gradientu
+            if (point.isStairs) {
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
+                gradient.addColorStop(0, '#e74c3c');
+                gradient.addColorStop(1, '#c0392b');
+                ctx.fillStyle = gradient;
+            } else {
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
+                gradient.addColorStop(0, '#3498db');
+                gradient.addColorStop(1, '#2980b9');
+                ctx.fillStyle = gradient;
+            }
+
+            // Rysowanie punktu z efektem "pulsowania" dla aktualnego punktu
+            const isCurrentPoint = (point.id === pointId);
+            const radius = isCurrentPoint ? 8 + Math.sin(Date.now() / 300) : 6;
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Etykieta punktu - wyczyść cień
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+
+            // Dodaj obramowanie dla punktów
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = isCurrentPoint ? 2 : 1;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Sprawdź czy punkt jest aktualnie najechany
+            let isHovered = currentState.minimapHoveredPoint &&
+                currentState.minimapHoveredPoint.id === point.id &&
+                currentState.minimapHoveredPoint.floor === floor;
+
+            // Dodaj efekt dla najechanych punktów
+            if (isHovered) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Etykieta punktu z tłem dla lepszej czytelności
+            if (isCurrentPoint || isHovered) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                const labelWidth = 22;
+                const labelHeight = 18;
+                ctx.fillRect(x - labelWidth/2, y - labelHeight/2 - 20, labelWidth, labelHeight);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(point.id, x, y - 20);
+            }
+        });
+
+        // Zaznaczenie aktualnego punktu
+        if (points[pointId]) {
+            const point = points[pointId];
+            const x = margin + (point.x - minX) * scale;
+            const y = margin + (point.y - minY) * scale;
+
+            // Animowany pierścień z efektem pulsowania
+            ctx.strokeStyle = '#2ecc71';
+            ctx.lineWidth = 2;
+
+            // Pulsujący efekt - zmiana promienia w czasie
+            const pulseRadius = 12 + Math.sin(Date.now() / 200) * 2;
+
+            ctx.beginPath();
+            ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Efekt glow wokół aktualnego punktu
+            ctx.shadowColor = '#2ecc71';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(x, y, pulseRadius + 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+
+            // Narysowanie strzałki wskazującej kierunek z efektem gradientu
+            const arrowGradient = ctx.createLinearGradient(
+                x, y,
+                x + Math.cos(getDirectionAngle(currentState.direction)) * 25,
+                y + Math.sin(getDirectionAngle(currentState.direction)) * 25
+            );
+            arrowGradient.addColorStop(0, '#2ecc71');
+            arrowGradient.addColorStop(1, '#27ae60');
+            ctx.fillStyle = arrowGradient;
+
+            // Obliczenie współrzędnych dla strzałki w zależności od kierunku
+            const angle = getDirectionAngle(currentState.direction);
+            const arrowLength = 20;
+            const arrowWidth = 10;
+
+            const tipX = x + Math.cos(angle) * arrowLength;
+            const tipY = y + Math.sin(angle) * arrowLength;
+
+            const leftX = x + Math.cos(angle - Math.PI * 0.8) * arrowWidth;
+            const leftY = y + Math.sin(angle - Math.PI * 0.8) * arrowWidth;
+
+            const rightX = x + Math.cos(angle + Math.PI * 0.8) * arrowWidth;
+            const rightY = y + Math.sin(angle + Math.PI * 0.8) * arrowWidth;
+
+            // Rysowanie trójkąta strzałki
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Dodanie efektu cienia dla strzałki
+            ctx.shadowColor = 'rgba(46, 204, 113, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.stroke();
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+        }
+
+        // Dodanie legendy
+        drawMinimapLegend();
+    }
+
+    function drawMinimapLegend() {
+        // Tło legendy z gradientem
+        const legendGradient = ctx.createLinearGradient(10, minimapCanvas.height - 80, 10, minimapCanvas.height - 10);
+        legendGradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+        legendGradient.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+
+        ctx.fillStyle = legendGradient;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+
+        // Zaokrąglone rogi dla legendy
+        roundRect(ctx, 10, minimapCanvas.height - 80, 160, 70, 5, true, true);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('Legenda:', 20, minimapCanvas.height - 65);
+
+        // Zwykły punkt
+        const gradientNormal = ctx.createRadialGradient(30, minimapCanvas.height - 45, 0, 30, minimapCanvas.height - 45, 6);
+        gradientNormal.addColorStop(0, '#3498db');
+        gradientNormal.addColorStop(1, '#2980b9');
+        ctx.fillStyle = gradientNormal;
+        ctx.beginPath();
+        ctx.arc(30, minimapCanvas.height - 45, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Obramowanie punktu
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(30, minimapCanvas.height - 45, 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText('Punkt widokowy', 45, minimapCanvas.height - 42);
+
+        // Schody
+        const gradientStairs = ctx.createRadialGradient(30, minimapCanvas.height - 25, 0, 30, minimapCanvas.height - 25, 6);
+        gradientStairs.addColorStop(0, '#e74c3c');
+        gradientStairs.addColorStop(1, '#c0392b');
+        ctx.fillStyle = gradientStairs;
+        ctx.beginPath();
+        ctx.arc(30, minimapCanvas.height - 25, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Obramowanie punktu schodów
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(30, minimapCanvas.height - 25, 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText('Schody', 45, minimapCanvas.height - 22);
+    }
+
+    // Funkcja pomocnicza do rysowania zaokrąglonych prostokątów
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) {
+            ctx.fill();
+        }
+        if (stroke) {
+            ctx.stroke();
+        }
+    }
+
+    // Funkcja pomocnicza do obliczania kąta dla kierunku
+    function getDirectionAngle(direction) {
+        switch(direction) {
+            case 'north': return -Math.PI/2; // -90 stopni
+            case 'east': return 0; // 0 stopni
+            case 'south': return Math.PI/2; // 90 stopni
+            case 'west': return Math.PI; // 180 stopni
+            default: return 0;
+        }
+    }
+
+    function move(moveDirection) {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+        const direction = currentState.direction;
+
+        const point = houseLayout[floor].points[pointId];
+        if (!point) return;
+
+        let targetPointId = null;
+
+        // Określenie docelowego punktu na podstawie kierunku ruchu
+        switch(moveDirection) {
+            case 'forward':
+                targetPointId = point.connections[direction];
+                break;
+            case 'backward':
+                targetPointId = point.connections[getOppositeDirection(direction)];
+                break;
+            case 'left':
+                targetPointId = point.connections[getLeftDirection(direction)];
+                break;
+            case 'right':
+                targetPointId = point.connections[getRightDirection(direction)];
+                break;
+        }
+
+        // Jeśli istnieje połączenie, przejście do nowego punktu z animacją
+        if (targetPointId) {
+            // Animacja przejścia - fade out
+            panoramaEl.style.transition = 'opacity 0.3s, transform 0.3s';
+
+            // Efekt ruchu w zależności od kierunku
+            switch(moveDirection) {
+                case 'forward':
+                    panoramaEl.style.transform = 'scale(1.05) translateZ(10px)';
+                    break;
+                case 'backward':
+                    panoramaEl.style.transform = 'scale(0.95) translateZ(-10px)';
+                    break;
+                case 'left':
+                    panoramaEl.style.transform = 'translateX(20px)';
+                    break;
+                case 'right':
+                    panoramaEl.style.transform = 'translateX(-20px)';
+                    break;
+            }
+
+            panoramaEl.style.opacity = '0.5';
+
+            setTimeout(() => {
+                // Zmiana punktu
+                currentState.pointId = targetPointId;
+                updateView();
+
+                // Fade in z przywróceniem pozycji
+                setTimeout(() => {
+                    panoramaEl.style.transition = 'opacity 0.3s, transform 0.3s';
+                    panoramaEl.style.transform = 'scale(1) translateZ(0) translateX(0)';
+                    panoramaEl.style.opacity = '1';
+                }, 100);
+            }, 300);
+        }
+    }
+
+    function rotate(rotateDirection) {
+        const directions = ['north', 'east', 'south', 'west'];
+        const currentIndex = directions.indexOf(currentState.direction);
+
+        // Animacja obrotu - fade out
+        panoramaEl.style.transition = 'opacity 0.2s, transform 0.3s';
+
+// Efekt przesunięcia podczas obrotu
+        if (rotateDirection === 'left') {
+            panoramaEl.style.transform = 'translateX(50px)';
+        } else {
+            panoramaEl.style.transform = 'translateX(-50px)';
+        }
+
+        panoramaEl.style.opacity = '0.7';
+
+        setTimeout(() => {
+            if (rotateDirection === 'left') {
+                currentState.direction = directions[(currentIndex + 3) % 4]; // -1 + 4 = 3 (w modulo)
+            } else {
+                currentState.direction = directions[(currentIndex + 1) % 4];
+            }
+
+            updateView();
+
+            // Fade in z przywróceniem pozycji
+            setTimeout(() => {
+                panoramaEl.style.transform = 'translateX(0)';
+                panoramaEl.style.opacity = '1';
+            }, 100);
+        }, 200);
+    }
+
+    function moveUpStairs() {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+
+        const point = houseLayout[floor].points[pointId];
+        if (!point || !point.isStairs || !point.stairsTo) return;
+
+        const [stairsFloor, stairsPoint] = point.stairsTo.split(':');
+
+        // Sprawdzenie, czy schody prowadzą w górę
+        if (getFloorLevel(stairsFloor) > getFloorLevel(floor)) {
+            // Animacja przejścia
+            panoramaEl.style.transition = 'transform 0.5s, opacity 0.5s';
+            panoramaEl.style.transform = 'translateY(-50px) scale(0.95)';
+            panoramaEl.style.opacity = '0';
+
+            setTimeout(() => {
+                currentState.floor = stairsFloor;
+                currentState.pointId = stairsPoint;
+
+                updateView();
+
+                // Przywrócenie widoku z animacją
+                setTimeout(() => {
+                    panoramaEl.style.transform = 'translateY(0) scale(1)';
+                    panoramaEl.style.opacity = '1';
+                }, 100);
+
+                showNotification('Wchodzisz na ' + getFloorName(stairsFloor), 'info');
+            }, 500);
+        }
+    }
+
+    function moveDownStairs() {
+        const floor = currentState.floor;
+        const pointId = currentState.pointId;
+
+        const point = houseLayout[floor].points[pointId];
+        if (!point || !point.isStairs || !point.stairsTo) return;
+
+        const [stairsFloor, stairsPoint] = point.stairsTo.split(':');
+
+        // Sprawdzenie, czy schody prowadzą w dół
+        if (getFloorLevel(stairsFloor) < getFloorLevel(floor)) {
+            // Animacja przejścia
+            panoramaEl.style.transition = 'transform 0.5s, opacity 0.5s';
+            panoramaEl.style.transform = 'translateY(50px) scale(0.95)';
+            panoramaEl.style.opacity = '0';
+
+            setTimeout(() => {
+                currentState.floor = stairsFloor;
+                currentState.pointId = stairsPoint;
+
+                updateView();
+
+                // Przywrócenie widoku z animacją
+                setTimeout(() => {
+                    panoramaEl.style.transform = 'translateY(0) scale(1)';
+                    panoramaEl.style.opacity = '1';
+                }, 100);
+
+                showNotification('Schodzisz na ' + getFloorName(stairsFloor), 'info');
+            }, 500);
+        }
+    }
+
+    function handleFloorChange() {
+        const newFloor = floorSelectEl.value;
+
+        // Animacja przejścia między piętrami
+        panoramaEl.style.transition = 'transform 0.5s, opacity 0.5s';
+
+        const currentFloorLevel = getFloorLevel(currentState.floor);
+        const newFloorLevel = getFloorLevel(newFloor);
+
+        if (newFloorLevel > currentFloorLevel) {
+            // Animacja w górę
+            panoramaEl.style.transform = 'translateY(-50px) scale(0.95)';
+        } else {
+            // Animacja w dół
+            panoramaEl.style.transform = 'translateY(50px) scale(0.95)';
+        }
+
+        panoramaEl.style.opacity = '0';
+
+        // Znajdź pierwszy punkt na wybranym piętrze
+        const points = houseLayout[newFloor].points;
+        if (Object.keys(points).length > 0) {
+            setTimeout(() => {
+                currentState.floor = newFloor;
+                currentState.pointId = Object.keys(points)[0];
+
+                updateView();
+
+                // Przywrócenie widoku z animacją
+                setTimeout(() => {
+                    panoramaEl.style.transform = 'translateY(0) scale(1)';
+                    panoramaEl.style.opacity = '1';
+                }, 100);
+
+                showNotification('Przeniesiono na ' + getFloorName(newFloor), 'info');
+            }, 500);
+        }
+    }
+
+    // Funkcja do wyświetlania powiadomień
+    function showNotification(message, type = 'info') {
+        // Ustaw ikonę i tekst
+        notificationText.textContent = message;
+
+        notificationIcon.className = '';
+        notificationEl.className = 'notification';
+
+        switch(type) {
+            case 'success':
+                notificationIcon.className = 'fas fa-check-circle success';
+                notificationEl.classList.add('success');
+                break;
+            case 'error':
+                notificationIcon.className = 'fas fa-exclamation-circle error';
+                notificationEl.classList.add('error');
+                break;
+            case 'info':
+            default:
+                notificationIcon.className = 'fas fa-info-circle info';
+                notificationEl.classList.add('info');
+                break;
+        }
+
+        // Pokaż powiadomienie
+        notificationEl.classList.add('visible');
+
+        // Ukryj po 3 sekundach
+        setTimeout(() => {
+            notificationEl.classList.remove('visible');
+        }, 3000);
+    }
+
+    function getOppositeDirection(direction) {
+        switch(direction) {
+            case 'north': return 'south';
+            case 'east': return 'west';
+            case 'south': return 'north';
+            case 'west': return 'east';
+            default: return direction;
+        }
+    }
+
+    function getLeftDirection(direction) {
+        switch(direction) {
+            case 'north': return 'west';
+            case 'east': return 'north';
+            case 'south': return 'east';
+            case 'west': return 'south';
+            default: return direction;
+        }
+    }
+
+    function getRightDirection(direction) {
+        switch(direction) {
+            case 'north': return 'east';
+            case 'east': return 'south';
+            case 'south': return 'west';
+            case 'west': return 'north';
+            default: return direction;
+        }
+    }
+
+    function getFloorName(floor) {
+        switch(floor) {
+            case 'basement': return 'Piwnica';
+            case 'ground': return 'Parter';
+            case 'first': return 'Piętro';
+            default: return floor;
+        }
+    }
+
+    function getDirectionName(direction) {
+        switch(direction) {
+            case 'north': return 'Północ';
+            case 'east': return 'Wschód';
+            case 'south': return 'Południe';
+            case 'west': return 'Zachód';
+            default: return direction;
+        }
+    }
+
+    function getFloorLevel(floor) {
+        switch(floor) {
+            case 'basement': return 0;
+            case 'ground': return 1;
+            case 'first': return 2;
+            default: return 1;
+        }
+    }
+</script>
+</body>
+</html>
