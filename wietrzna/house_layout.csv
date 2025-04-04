@@ -3,7 +3,7 @@ basement,1,100,150,basement_1_north.png,basement_1_east.png,basement_1_south.png
 basement,2,150,150,basement_2_north.png,basement_2_east.png,basement_2_south.png,basement_2_west.png,0,3,0,1,false,
 basement,3,200,150,basement_3_north.png,basement_3_east.png,basement_3_south.png,basement_3_west.png,0,4,0,2,false,
 basement,4,250,150,basement_4_north.png,basement_4_east.png,basement_4_south.png,basement_4_west.png,5,0,0,3,false,
-basement,5,250,100,basement_5_north.png,basement_5_east.png,basement_5_south.png,basement_5_west.png,0,0,4,0,true,ground:1
+basement,5,250,100,basement_5_north.png,basement_5_east.png,basement_5_south.png,basement_5_west.png,0,0,4,0,true,ground:12
 ground,1,100,100,ground_1_north.jpeg,ground_1_east.png,ground_1_south.png,ground_1_west.png,2,8,0,0,false,
 ground,2,100,50,ground_2_north.png,ground_2_east.png,ground_2_south.png,ground_2_west.png,3,0,1,0,false,
 ground,3,100,20,ground_3_north.png,ground_3_east.png,ground_3_south.png,ground_3_west.png,0,4,2,0,false,
