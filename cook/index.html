@@ -383,9 +383,18 @@
             margin-bottom: 0.5rem;
         }
 
-        .search-result-item p {
-            color: var(--light-text);
+        .match-info {
             font-size: 0.9rem;
+            margin-top: 0.5rem;
+            color: var(--light-text);
+        }
+
+        .highlighted-match {
+            background-color: rgba(230, 126, 34, 0.2);
+            color: var(--accent-color);
+            padding: 0 3px;
+            border-radius: 3px;
+            font-weight: bold;
         }
 
         /* Icons */
@@ -640,7 +649,7 @@
         }
     });
 
-    // Poprawiona funkcja wyszukiwania - wymaga dopasowania znaczących słów
+    // Poprawiona funkcja wyszukiwania - pokazuje częściowe dopasowania dla każdego słowa
     function performSearch(query) {
         if (query.length < 2) return { exact: [], partial: [] };
 
@@ -649,69 +658,163 @@
         // Dzielimy zapytanie na słowa
         const searchWords = queryLower.split(/\s+/).filter(word => word.length > 0);
 
-        // Dzielimy słowa na znaczące (długie) i mniej znaczące (jednoznakowe)
-        const significantWords = searchWords.filter(word => word.length > 1);
-        const minorWords = searchWords.filter(word => word.length === 1);
-
         // Przygotowanie wyników
-        const exactMatches = [];
-        const partialMatches = [];
+        const exactMatches = []; // Dokładne dopasowania - wszystkie słowa
+        const partialMatches = []; // Częściowe dopasowania - przynajmniej jedno słowo
 
         recipes.forEach(recipe => {
             const titleLower = recipe.title.toLowerCase();
             const categoryLower = recipe.category.toLowerCase();
-            const ingredientText = recipe.ingredients.map(i => i.name.toLowerCase()).join(' ');
-            const allText = titleLower + ' ' + categoryLower + ' ' + ingredientText;
 
-            // Rozbijamy tekst na słowa dla dokładnego dopasowania
-            const allTextWords = allText.split(/\s+/);
+            // Struktura do przechowywania informacji o dopasowaniach
+            const matchInfo = {
+                matchedTitle: false,
+                matchedCategory: false,
+                matchedWords: [], // wszystkie dopasowane słowa
+                matchedIngredients: [],
+                matchedInstructions: []
+            };
 
-            // 1. Sprawdzamy, czy pełna fraza zawiera się w przepisie
-            if (allText.includes(queryLower)) {
+            // 1. Sprawdzamy dokładne dopasowanie całej frazy
+
+            // Sprawdzanie pełnego zapytania w tytule lub kategorii
+            if (titleLower.includes(queryLower) || categoryLower.includes(queryLower)) {
+                matchInfo.matchedTitle = titleLower.includes(queryLower);
+                matchInfo.matchedCategory = categoryLower.includes(queryLower);
+                matchInfo.matchedWords = [...searchWords]; // wszystkie słowa dopasowane
+
                 exactMatches.push({
                     recipe,
-                    relevance: 1.0
+                    relevance: 1.0,
+                    matchInfo
                 });
                 return; // Przeskakujemy do następnego przepisu
             }
 
-            // 2. Sprawdzamy każde słowo z zapytania
-            const matchedSignificant = [];
-            const matchedMinor = [];
+            // 2. Sprawdzamy dopasowanie każdego słowa w całym przepisie
+            const matchedWords = [];
 
-            // Sprawdzamy znaczące słowa - muszą być dokładnie dopasowane jako całe słowa
-            for (const word of significantWords) {
-                if (allTextWords.includes(word)) {
-                    matchedSignificant.push(word);
+            // Dzielimy tekst na słowa dla dokładnego dopasowania
+            const titleWords = titleLower.split(/\s+/);
+            const categoryWords = categoryLower.split(/\s+/);
+
+            // Wszystkie słowa ze składników
+            const ingredientWords = [];
+            recipe.ingredients.forEach(ingredient => {
+                const words = ingredient.name.toLowerCase().split(/\s+/);
+                words.forEach(word => {
+                    ingredientWords.push({
+                        word,
+                        ingredient: ingredient.name
+                    });
+                });
+            });
+
+            // Wszystkie słowa z instrukcji
+            const instructionWords = [];
+            if (recipe.instructions) {
+                recipe.instructions.forEach((instruction, index) => {
+                    const words = instruction.toLowerCase().split(/\s+/);
+                    words.forEach(word => {
+                        instructionWords.push({
+                            word,
+                            instruction,
+                            index
+                        });
+                    });
+                });
+            }
+
+            // Sprawdzamy każde słowo z zapytania
+            for (const searchWord of searchWords) {
+                let wordMatched = false;
+
+                // Sprawdzanie w tytule
+                for (const titleWord of titleWords) {
+                    if (titleWord === searchWord || titleWord.startsWith(searchWord)) {
+                        matchedWords.push(searchWord);
+                        matchInfo.matchedTitle = true;
+                        wordMatched = true;
+                        break;
+                    }
+                }
+
+                if (wordMatched) continue; // Jeśli słowo już dopasowane, przechodzimy do następnego
+
+                // Sprawdzanie w kategorii
+                for (const categoryWord of categoryWords) {
+                    if (categoryWord === searchWord || categoryWord.startsWith(searchWord)) {
+                        matchedWords.push(searchWord);
+                        matchInfo.matchedCategory = true;
+                        wordMatched = true;
+                        break;
+                    }
+                }
+
+                if (wordMatched) continue;
+
+                // Sprawdzanie w składnikach
+                for (const { word, ingredient } of ingredientWords) {
+                    if (word === searchWord || word.startsWith(searchWord)) {
+                        matchedWords.push(searchWord);
+                        matchInfo.matchedIngredients.push({
+                            ingredient,
+                            searchWord,
+                            matchedWord: word
+                        });
+                        wordMatched = true;
+                        break;
+                    }
+                }
+
+                if (wordMatched) continue;
+
+                // Sprawdzanie w instrukcjach
+                for (const { word, instruction, index } of instructionWords) {
+                    if (word === searchWord || word.startsWith(searchWord)) {
+                        matchedWords.push(searchWord);
+                        matchInfo.matchedInstructions.push({
+                            instructionIndex: index,
+                            instruction,
+                            searchWord,
+                            matchedWord: word
+                        });
+                        wordMatched = true;
+                        break;
+                    }
                 }
             }
 
-            // Sprawdzamy jednoznakowe słowa - mogą być dopasowane jako prefiksy
-            for (const word of minorWords) {
-                if (allTextWords.some(textWord => textWord.startsWith(word))) {
-                    matchedMinor.push(word);
-                }
-            }
+            // Zapisujemy wszystkie dopasowane słowa
+            matchInfo.matchedWords = matchedWords;
 
             // 3. Klasyfikacja wyników
-            // Dokładne dopasowanie: wszystkie znaczące słowa + wszystkie jednoznakowe
-            if (matchedSignificant.length === significantWords.length &&
-                matchedMinor.length === minorWords.length) {
+
+            // Sprawdzamy, czy wszystkie słowa zostały dopasowane
+            if (matchedWords.length === searchWords.length) {
+                // Obliczamy trafność - wyższa dla dopasowań w tytule/kategorii
+                let relevanceScore = 0.7; // Podstawowa wartość dla pełnego dopasowania
+
+                if (matchInfo.matchedTitle) relevanceScore += 0.2;
+                if (matchInfo.matchedCategory) relevanceScore += 0.1;
 
                 exactMatches.push({
                     recipe,
-                    relevance: 1.0
+                    relevance: Math.min(1.0, relevanceScore),
+                    matchInfo
                 });
             }
-            // Częściowe dopasowanie: co najmniej jedno znaczące słowo jest dopasowane
-            else if (matchedSignificant.length > 0) {
-                const relevanceScore = (matchedSignificant.length + matchedMinor.length) / searchWords.length;
+            // Jeśli dopasowano choć 1 słowo, ale nie wszystkie
+            else if (matchedWords.length > 0) {
+                // Obliczamy trafność na podstawie liczby dopasowanych słów
+                const relevanceScore = 0.3 + (matchedWords.length / searchWords.length * 0.5);
+
                 partialMatches.push({
                     recipe,
-                    relevance: relevanceScore
+                    relevance: relevanceScore,
+                    matchInfo
                 });
             }
-            // Jeśli nie ma dopasowania znaczących słów, to przepis nie pasuje wcale
         });
 
         // Sortujemy wyniki według trafności
@@ -719,12 +822,12 @@
         partialMatches.sort((a, b) => b.relevance - a.relevance);
 
         return {
-            exact: exactMatches.map(item => item.recipe),
-            partial: partialMatches.map(item => item.recipe)
+            exact: exactMatches,
+            partial: partialMatches
         };
     }
 
-    // Display search results
+    // Funkcja wyświetlająca wyniki wyszukiwania
     function displaySearchResults(results, query) {
         // Show search results section
         welcomeScreen.style.display = 'none';
@@ -766,8 +869,8 @@
             exactTitle.textContent = 'Najlepsze dopasowania';
             exactSection.appendChild(exactTitle);
 
-            exact.forEach(recipe => {
-                const div = createResultItem(recipe);
+            exact.forEach(match => {
+                const div = createResultItem(match.recipe, match.matchInfo);
                 exactSection.appendChild(div);
             });
 
@@ -786,11 +889,11 @@
 
             const partialDescription = document.createElement('p');
             partialDescription.className = 'results-section-description';
-            partialDescription.textContent = 'Te przepisy zawierają tylko niektóre z wyszukiwanych słów kluczowych.';
+            partialDescription.textContent = 'Te przepisy zawierają wyszukiwane słowa w składnikach lub instrukcjach.';
             partialSection.appendChild(partialDescription);
 
-            partial.forEach(recipe => {
-                const div = createResultItem(recipe);
+            partial.forEach(match => {
+                const div = createResultItem(match.recipe, match.matchInfo);
                 partialSection.appendChild(div);
             });
 
@@ -799,16 +902,65 @@
     }
 
     // Funkcja pomocnicza do tworzenia elementu wyniku
-    function createResultItem(recipe) {
+    function createResultItem(recipe, matchInfo) {
         const div = document.createElement('div');
         div.className = 'search-result-item';
-        div.innerHTML = `
-                <h4>${recipe.title}</h4>
-                <p>Kategoria: ${recipe.category}</p>
-            `;
+
+        // Podstawowe informacje o przepisie
+        const header = document.createElement('h4');
+        header.textContent = recipe.title;
+        div.appendChild(header);
+
+        const category = document.createElement('p');
+        category.textContent = `Kategoria: ${recipe.category}`;
+        div.appendChild(category);
+
+        // Jeśli mamy informacje o dopasowaniu, dodajemy je
+        if (matchInfo) {
+            // Podsumowanie dopasowanych słów
+            if (matchInfo.matchedWords.length > 0) {
+                const matchedWordsElement = document.createElement('p');
+                matchedWordsElement.className = 'match-info';
+                matchedWordsElement.innerHTML = '<strong>Dopasowane słowa:</strong> ' +
+                    matchInfo.matchedWords.map(word =>
+                        `<span class="highlighted-match">${word}</span>`
+                    ).join(', ');
+                div.appendChild(matchedWordsElement);
+            }
+
+            // Dopasowane składniki
+            if (matchInfo.matchedIngredients.length > 0) {
+                const ingredientsMatch = document.createElement('p');
+                ingredientsMatch.className = 'match-info';
+                ingredientsMatch.innerHTML = '<strong>Znaleziono w składnikach:</strong> ' +
+                    matchInfo.matchedIngredients.map(match =>
+                        `<span class="highlighted-match">${match.matchedWord}</span> (${match.ingredient})`
+                    ).join(', ');
+                div.appendChild(ingredientsMatch);
+            }
+
+            // Dopasowane instrukcje (pierwsza, jeśli jest kilka)
+            if (matchInfo.matchedInstructions.length > 0) {
+                const instructionsMatch = document.createElement('p');
+                instructionsMatch.className = 'match-info';
+                instructionsMatch.innerHTML = '<strong>Znaleziono w instrukcjach:</strong> ' +
+                    matchInfo.matchedInstructions.slice(0, 1).map(match =>
+                        `<span class="highlighted-match">${match.matchedWord}</span> (krok ${match.instructionIndex + 1})`
+                    ).join(', ');
+
+                // Jeśli jest więcej niż jedno dopasowanie w instrukcjach
+                if (matchInfo.matchedInstructions.length > 1) {
+                    instructionsMatch.innerHTML += ' i inne...';
+                }
+
+                div.appendChild(instructionsMatch);
+            }
+        }
+
         div.addEventListener('click', () => {
             displayRecipeDetail(recipe);
         });
+
         return div;
     }
 
