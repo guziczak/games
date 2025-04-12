@@ -344,6 +344,25 @@
             margin-bottom: 1.5rem;
         }
 
+        .search-results-section {
+            margin-bottom: 2rem;
+        }
+
+        .results-section-title {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--secondary-color);
+        }
+
+        .results-section-description {
+            font-size: 0.9rem;
+            color: var(--light-text);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
         .search-result-item {
             padding: 1rem;
             margin-bottom: 1rem;
@@ -473,9 +492,6 @@
     let recipes = [];
     let searchIndex = [];
 
-    // Extract unique categories from recipes
-    const categories = [...new Set(recipes.map(recipe => recipe.category))];
-
     // DOM Elements
     const categoryList = document.getElementById('categoryList');
     const recipeList = document.getElementById('recipeList');
@@ -490,30 +506,39 @@
     const overlay = document.getElementById('overlay');
     const startBrowsing = document.getElementById('startBrowsing');
 
-    // Populate categories
-    categories.forEach(category => {
-        const li = document.createElement('li');
-        li.textContent = category;
-        li.addEventListener('click', () => {
-            // Set active category
-            document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
-            li.classList.add('active');
+    // Populate categories (zostanie zaktualizowane po załadowaniu danych)
+    function updateCategoriesUI() {
+        // Extract unique categories from recipes
+        const categories = [...new Set(recipes.map(recipe => recipe.category))];
 
-            // Filter recipes by category
-            displayRecipesByCategory(category);
+        // Clear current categories
+        categoryList.innerHTML = '';
 
-            // Hide welcome screen and search results
-            welcomeScreen.style.display = 'none';
-            searchResults.style.display = 'none';
+        // Populate categories
+        categories.forEach(category => {
+            const li = document.createElement('li');
+            li.textContent = category;
+            li.addEventListener('click', () => {
+                // Set active category
+                document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
+                li.classList.add('active');
 
-            // On mobile, close sidebar
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('active');
-                overlay.style.display = 'none';
-            }
+                // Filter recipes by category
+                displayRecipesByCategory(category);
+
+                // Hide welcome screen and search results
+                welcomeScreen.style.display = 'none';
+                searchResults.style.display = 'none';
+
+                // On mobile, close sidebar
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.style.display = 'none';
+                }
+            });
+            categoryList.appendChild(li);
         });
-        categoryList.appendChild(li);
-    });
+    }
 
     // Display recipes by category
     function displayRecipesByCategory(category) {
@@ -601,34 +626,8 @@
         const query = searchInput.value.toLowerCase().trim();
 
         if (query.length >= 2) {
-            // Search for matching words in search index
-            const searchWords = query.split(' ');
-            let matchingRecipeIds = [];
-
-            searchWords.forEach(word => {
-                const matches = searchIndex.filter(item =>
-                    item.word.includes(word) || word.includes(item.word)
-                );
-
-                if (matches.length > 0) {
-                    // Get all matching recipe IDs
-                    const ids = matches.flatMap(match => match.recipeIds);
-
-                    // If it's the first word, initialize matchingRecipeIds
-                    if (matchingRecipeIds.length === 0) {
-                        matchingRecipeIds = ids;
-                    } else {
-                        // Find recipes that match all words
-                        matchingRecipeIds = matchingRecipeIds.filter(id => ids.includes(id));
-                    }
-                }
-            });
-
-            // Get matching recipes
-            const searchResults = matchingRecipeIds.map(id =>
-                recipes.find(recipe => recipe.id === id)
-            );
-
+            // Wyszukiwanie przepisów na podstawie zapytania
+            const searchResults = performSearch(query);
             displaySearchResults(searchResults, query);
         } else if (query.length === 0) {
             // Hide search results if search cleared
@@ -641,6 +640,90 @@
         }
     });
 
+    // Poprawiona funkcja wyszukiwania - wymaga dopasowania znaczących słów
+    function performSearch(query) {
+        if (query.length < 2) return { exact: [], partial: [] };
+
+        const queryLower = query.toLowerCase().trim();
+
+        // Dzielimy zapytanie na słowa
+        const searchWords = queryLower.split(/\s+/).filter(word => word.length > 0);
+
+        // Dzielimy słowa na znaczące (długie) i mniej znaczące (jednoznakowe)
+        const significantWords = searchWords.filter(word => word.length > 1);
+        const minorWords = searchWords.filter(word => word.length === 1);
+
+        // Przygotowanie wyników
+        const exactMatches = [];
+        const partialMatches = [];
+
+        recipes.forEach(recipe => {
+            const titleLower = recipe.title.toLowerCase();
+            const categoryLower = recipe.category.toLowerCase();
+            const ingredientText = recipe.ingredients.map(i => i.name.toLowerCase()).join(' ');
+            const allText = titleLower + ' ' + categoryLower + ' ' + ingredientText;
+
+            // Rozbijamy tekst na słowa dla dokładnego dopasowania
+            const allTextWords = allText.split(/\s+/);
+
+            // 1. Sprawdzamy, czy pełna fraza zawiera się w przepisie
+            if (allText.includes(queryLower)) {
+                exactMatches.push({
+                    recipe,
+                    relevance: 1.0
+                });
+                return; // Przeskakujemy do następnego przepisu
+            }
+
+            // 2. Sprawdzamy każde słowo z zapytania
+            const matchedSignificant = [];
+            const matchedMinor = [];
+
+            // Sprawdzamy znaczące słowa - muszą być dokładnie dopasowane jako całe słowa
+            for (const word of significantWords) {
+                if (allTextWords.includes(word)) {
+                    matchedSignificant.push(word);
+                }
+            }
+
+            // Sprawdzamy jednoznakowe słowa - mogą być dopasowane jako prefiksy
+            for (const word of minorWords) {
+                if (allTextWords.some(textWord => textWord.startsWith(word))) {
+                    matchedMinor.push(word);
+                }
+            }
+
+            // 3. Klasyfikacja wyników
+            // Dokładne dopasowanie: wszystkie znaczące słowa + wszystkie jednoznakowe
+            if (matchedSignificant.length === significantWords.length &&
+                matchedMinor.length === minorWords.length) {
+
+                exactMatches.push({
+                    recipe,
+                    relevance: 1.0
+                });
+            }
+            // Częściowe dopasowanie: co najmniej jedno znaczące słowo jest dopasowane
+            else if (matchedSignificant.length > 0) {
+                const relevanceScore = (matchedSignificant.length + matchedMinor.length) / searchWords.length;
+                partialMatches.push({
+                    recipe,
+                    relevance: relevanceScore
+                });
+            }
+            // Jeśli nie ma dopasowania znaczących słów, to przepis nie pasuje wcale
+        });
+
+        // Sortujemy wyniki według trafności
+        exactMatches.sort((a, b) => b.relevance - a.relevance);
+        partialMatches.sort((a, b) => b.relevance - a.relevance);
+
+        return {
+            exact: exactMatches.map(item => item.recipe),
+            partial: partialMatches.map(item => item.recipe)
+        };
+    }
+
     // Display search results
     function displaySearchResults(results, query) {
         // Show search results section
@@ -648,29 +731,85 @@
         recipeDetail.style.display = 'none';
         searchResults.style.display = 'block';
 
-        // Update result count
-        resultCount.textContent = `Znaleziono ${results.length} przepisów dla "${query}"`;
-
         // Clear current results
         searchResultsList.innerHTML = '';
 
-        // Populate results
-        if (results.length > 0) {
-            results.forEach(recipe => {
-                const div = document.createElement('div');
-                div.className = 'search-result-item';
-                div.innerHTML = `
-                        <h4>${recipe.title}</h4>
-                        <p>Kategoria: ${recipe.category}</p>
-                    `;
-                div.addEventListener('click', () => {
-                    displayRecipeDetail(recipe);
-                });
-                searchResultsList.appendChild(div);
-            });
+        // Pobieramy dokładne i częściowe dopasowania
+        const { exact, partial } = results;
+
+        // Aktualizujemy licznik wyników
+        const totalResults = exact.length + partial.length;
+        let resultText = "Znaleziono ";
+        if (totalResults === 1) {
+            resultText += "1 przepis";
+        } else if (totalResults > 1 && totalResults < 5) {
+            resultText += totalResults + " przepisy";
         } else {
-            searchResultsList.innerHTML = '<p>Nie znaleziono przepisów. Spróbuj innych słów kluczowych.</p>';
+            resultText += totalResults + " przepisów";
         }
+        resultText += ` dla "${query}"`;
+        resultCount.textContent = resultText;
+
+        // Jeśli nie ma żadnych wyników
+        if (totalResults === 0) {
+            searchResultsList.innerHTML = '<p>Nie znaleziono przepisów. Spróbuj innych słów kluczowych.</p>';
+            return;
+        }
+
+        // Wyświetlamy dokładne dopasowania
+        if (exact.length > 0) {
+            const exactSection = document.createElement('div');
+            exactSection.className = 'search-results-section';
+
+            const exactTitle = document.createElement('h4');
+            exactTitle.className = 'results-section-title';
+            exactTitle.textContent = 'Najlepsze dopasowania';
+            exactSection.appendChild(exactTitle);
+
+            exact.forEach(recipe => {
+                const div = createResultItem(recipe);
+                exactSection.appendChild(div);
+            });
+
+            searchResultsList.appendChild(exactSection);
+        }
+
+        // Wyświetlamy częściowe dopasowania
+        if (partial.length > 0) {
+            const partialSection = document.createElement('div');
+            partialSection.className = 'search-results-section';
+
+            const partialTitle = document.createElement('h4');
+            partialTitle.className = 'results-section-title';
+            partialTitle.textContent = 'Podobne przepisy';
+            partialSection.appendChild(partialTitle);
+
+            const partialDescription = document.createElement('p');
+            partialDescription.className = 'results-section-description';
+            partialDescription.textContent = 'Te przepisy zawierają tylko niektóre z wyszukiwanych słów kluczowych.';
+            partialSection.appendChild(partialDescription);
+
+            partial.forEach(recipe => {
+                const div = createResultItem(recipe);
+                partialSection.appendChild(div);
+            });
+
+            searchResultsList.appendChild(partialSection);
+        }
+    }
+
+    // Funkcja pomocnicza do tworzenia elementu wyniku
+    function createResultItem(recipe) {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+                <h4>${recipe.title}</h4>
+                <p>Kategoria: ${recipe.category}</p>
+            `;
+        div.addEventListener('click', () => {
+            displayRecipeDetail(recipe);
+        });
+        return div;
     }
 
     // Mobile menu toggle
@@ -688,7 +827,7 @@
     // Start browsing button
     startBrowsing.addEventListener('click', (e) => {
         e.preventDefault();
-        if (categories.length > 0) {
+        if (recipes.length > 0 && document.querySelector('.category-list li')) {
             // Simulate click on first category
             document.querySelector('.category-list li').click();
         }
@@ -743,6 +882,10 @@
             });
 
             console.log("Załadowano przepisy:", recipes);
+
+            // Generowanie indeksu wyszukiwania na podstawie załadowanych przepisów
+            generateSearchIndex();
+
             return recipes;
         } catch (error) {
             console.error('Błąd podczas ładowania przepisów:', error);
@@ -753,38 +896,53 @@
         }
     }
 
-    // Ładowanie indeksu wyszukiwania z pliku CSV
-    async function loadSearchIndexFromCSV() {
-        try {
-            console.log("Ładowanie indeksu wyszukiwania z CSV...");
+    // Generowanie indeksu wyszukiwania na podstawie przepisów
+    function generateSearchIndex() {
+        console.log("Generowanie indeksu wyszukiwania...");
 
-            // Pobieranie pliku search_index.csv z tego samego katalogu
-            const response = await fetch('search_index.csv');
-            const csvData = await response.text();
+        // Tworzymy nowy indeks
+        searchIndex = [];
+        const wordMap = new Map();
 
-            // Parsowanie CSV przy użyciu Papa Parse
-            const result = Papa.parse(csvData, {
-                header: true,
-                skipEmptyLines: true
+        // Przetwarzamy każdy przepis
+        recipes.forEach(recipe => {
+            // Dodajemy słowa z tytułu
+            const titleWords = recipe.title.toLowerCase().split(/\s+/);
+            titleWords.forEach(word => {
+                if (word.length < 2) return; // Pomijamy zbyt krótkie słowa
+
+                if (!wordMap.has(word)) {
+                    wordMap.set(word, new Set());
+                }
+                wordMap.get(word).add(recipe.id);
             });
 
-            // Transformacja danych z CSV do formatu potrzebnego w aplikacji
-            searchIndex = result.data.map(row => {
-                return {
-                    word: row.word.toLowerCase(),
-                    recipeIds: row.recipeIds.split(',').map(id => parseInt(id.trim()))
-                };
+            // Dodajemy kategorię
+            const category = recipe.category.toLowerCase();
+            if (!wordMap.has(category)) {
+                wordMap.set(category, new Set());
+            }
+            wordMap.get(category).add(recipe.id);
+
+            // Dodajemy słowa kluczowe ze składników
+            recipe.ingredients.forEach(ingredient => {
+                const name = ingredient.name.toLowerCase();
+                if (!wordMap.has(name)) {
+                    wordMap.set(name, new Set());
+                }
+                wordMap.get(name).add(recipe.id);
             });
+        });
 
-            console.log("Załadowano indeks wyszukiwania:", searchIndex);
-            return searchIndex;
-        } catch (error) {
-            console.error('Błąd podczas ładowania indeksu wyszukiwania:', error);
+        // Konwertujemy mapę na tablicę obiektów
+        searchIndex = Array.from(wordMap.entries()).map(([word, recipeIdsSet]) => {
+            return {
+                word: word,
+                recipeIds: Array.from(recipeIdsSet)
+            };
+        });
 
-            // W przypadku błędu, możemy pokazać komunikat użytkownikowi
-            alert('Nie udało się załadować indeksu wyszukiwania. Wyszukiwarka może nie działać poprawnie.');
-            return [];
-        }
+        console.log("Wygenerowano indeks wyszukiwania:", searchIndex);
     }
 
     // Inicjalizacja aplikacji
@@ -792,7 +950,7 @@
         try {
             // Ładowanie danych z plików CSV
             await loadRecipesFromCSV();
-            await loadSearchIndexFromCSV();
+            // Indeks jest już generowany w loadRecipesFromCSV
 
             // Aktualizacja interfejsu po załadowaniu danych
             updateCategoriesUI();
@@ -808,40 +966,6 @@
             console.error('Błąd podczas inicjalizacji aplikacji:', error);
             alert('Wystąpił błąd podczas ładowania aplikacji. Spróbuj odświeżyć stronę.');
         }
-    }
-
-    // Aktualizuje interfejs kategorii po załadowaniu danych
-    function updateCategoriesUI() {
-        // Extract unique categories from recipes
-        const categories = [...new Set(recipes.map(recipe => recipe.category))];
-
-        // Clear current categories
-        categoryList.innerHTML = '';
-
-        // Populate categories
-        categories.forEach(category => {
-            const li = document.createElement('li');
-            li.textContent = category;
-            li.addEventListener('click', () => {
-                // Set active category
-                document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
-                li.classList.add('active');
-
-                // Filter recipes by category
-                displayRecipesByCategory(category);
-
-                // Hide welcome screen and search results
-                welcomeScreen.style.display = 'none';
-                searchResults.style.display = 'none';
-
-                // On mobile, close sidebar
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('active');
-                    overlay.style.display = 'none';
-                }
-            });
-            categoryList.appendChild(li);
-        });
     }
 
     // Run initialization when Papa Parse jest załadowany
