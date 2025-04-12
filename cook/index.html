@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moja Książka Kucharska</title>
+    <style>
+        :root {
+            --primary-color: #5a3921;
+            --secondary-color: #f0e6d2;
+            --accent-color: #e67e22;
+            --text-color: #333;
+            --light-text: #666;
+            --white: #fff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f9f5f0;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 2rem 1rem;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+            position: relative;
+            transition: var(--transition);
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: var(--secondary-color);
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--white);
+            font-size: 0.9rem;
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .categories h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--secondary-color);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .category-list {
+            list-style: none;
+        }
+
+        .category-list li {
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 0.5rem;
+            border-radius: var(--border-radius);
+        }
+
+        .category-list li:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .category-list li.active {
+            background-color: var(--accent-color);
+        }
+
+        .recipe-list {
+            margin-top: 1.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .recipe-list h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+        }
+
+        .recipe-item {
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border-radius: var(--border-radius);
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+
+        .recipe-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .recipe-item.active {
+            background-color: var(--accent-color);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .welcome-screen {
+            text-align: center;
+            margin-top: 5rem;
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .welcome-screen h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .welcome-screen p {
+            font-size: 1.1rem;
+            color: var(--light-text);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .welcome-screen .cta-button {
+            display: inline-block;
+            margin-top: 2rem;
+            padding: 0.8rem 1.5rem;
+            background-color: var(--accent-color);
+            color: var(--white);
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: bold;
+            transition: var(--transition);
+        }
+
+        .welcome-screen .cta-button:hover {
+            background-color: #d35400;
+            transform: translateY(-2px);
+        }
+
+        /* Recipe Detail */
+        .recipe-detail {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .recipe-detail h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .recipe-meta {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            color: var(--light-text);
+        }
+
+        .recipe-meta div {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ingredients-section, .instructions-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ingredients-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.8rem;
+        }
+
+        .ingredient-item {
+            background-color: var(--secondary-color);
+            padding: 0.8rem;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .instructions-list {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .instruction-step {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .instruction-step::before {
+            counter-increment: step-counter;
+            content: counter(step-counter);
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            background-color: var(--accent-color);
+            color: var(--white);
+            width: 1.8rem;
+            height: 1.8rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                width: 80%;
+                max-width: 300px;
+                height: 100%;
+                left: -300px;
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 20;
+                background-color: var(--primary-color);
+                color: var(--white);
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: var(--shadow);
+            }
+
+            .main-content {
+                padding-top: 4rem;
+            }
+
+            .recipe-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .ingredients-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Search Results */
+        .search-results {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .search-results h3 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .result-count {
+            color: var(--light-text);
+            margin-bottom: 1.5rem;
+        }
+
+        .search-result-item {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .search-result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-result-item h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .search-result-item p {
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+
+        /* Icons */
+        .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .icon-search {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='rgba(255, 255, 255, 0.6)' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+        }
+
+        .icon-menu {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'/%3E%3C/svg%3E");
+        }
+
+        .icon-time {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23666' viewBox='0 0 24 24'%3E%3Cpath d='M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/%3E%3C/svg%3E");
+        }
+
+        .icon-servings {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23666' viewBox='0 0 24 24'%3E%3Cpath d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'/%3E%3C/svg%3E");
+        }
+
+        .icon-ingredients {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z'/%3E%3C/svg%3E");
+        }
+
+        .icon-instructions {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z'/%3E%3C/svg%3E");
+        }
+
+        .icon-check {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+        }
+
+        /* Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+<div class="overlay" id="overlay"></div>
+<div class="menu-toggle" id="menuToggle">
+    <span class="icon icon-menu"></span>
+</div>
+<div class="container">
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">Moja Książka Kucharska</div>
+        <div class="search-box">
+            <span class="icon icon-search"></span>
+            <input type="text" id="searchInput" placeholder="Szukaj przepisu...">
+        </div>
+        <div class="categories">
+            <h3>Kategorie</h3>
+            <ul class="category-list" id="categoryList">
+                <!-- Categories will be populated by JavaScript -->
+            </ul>
+        </div>
+        <div class="recipe-list" id="recipeList">
+            <h4>Przepisy</h4>
+            <!-- Recipes will be populated by JavaScript -->
+        </div>
+    </aside>
+    <main class="main-content">
+        <div class="welcome-screen" id="welcomeScreen">
+            <h1>Witaj w mojej książce kucharskiej!</h1>
+            <p>Znajdź inspirację kulinarną w mojej kolekcji sprawdzonych przepisów.
+                Użyj wyszukiwarki lub przeglądaj według kategorii.</p>
+            <a href="#" class="cta-button" id="startBrowsing">Przeglądaj przepisy</a>
+        </div>
+        <div class="recipe-detail" id="recipeDetail">
+            <!-- Recipe details will be populated by JavaScript -->
+        </div>
+        <div class="search-results" id="searchResults">
+            <h3>Wyniki wyszukiwania</h3>
+            <div class="result-count" id="resultCount"></div>
+            <div class="search-results-list" id="searchResultsList">
+                <!-- Search results will be populated by JavaScript -->
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    // Zaimportowanie biblioteki Papa Parse do parsowania CSV
+    const papaParseScript = document.createElement('script');
+    papaParseScript.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js";
+    document.head.appendChild(papaParseScript);
+
+    // Będą przechowywać dane załadowane z CSV
+    let recipes = [];
+    let searchIndex = [];
+
+    // Extract unique categories from recipes
+    const categories = [...new Set(recipes.map(recipe => recipe.category))];
+
+    // DOM Elements
+    const categoryList = document.getElementById('categoryList');
+    const recipeList = document.getElementById('recipeList');
+    const recipeDetail = document.getElementById('recipeDetail');
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const searchResultsList = document.getElementById('searchResultsList');
+    const resultCount = document.getElementById('resultCount');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const startBrowsing = document.getElementById('startBrowsing');
+
+    // Populate categories
+    categories.forEach(category => {
+        const li = document.createElement('li');
+        li.textContent = category;
+        li.addEventListener('click', () => {
+            // Set active category
+            document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
+            li.classList.add('active');
+
+            // Filter recipes by category
+            displayRecipesByCategory(category);
+
+            // Hide welcome screen and search results
+            welcomeScreen.style.display = 'none';
+            searchResults.style.display = 'none';
+
+            // On mobile, close sidebar
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                overlay.style.display = 'none';
+            }
+        });
+        categoryList.appendChild(li);
+    });
+
+    // Display recipes by category
+    function displayRecipesByCategory(category) {
+        // Clear current recipe list
+        while (recipeList.children.length > 1) {
+            recipeList.removeChild(recipeList.lastChild);
+        }
+
+        // Filter recipes by selected category
+        const filteredRecipes = recipes.filter(recipe => recipe.category === category);
+
+        // Populate recipe list
+        filteredRecipes.forEach(recipe => {
+            const div = document.createElement('div');
+            div.className = 'recipe-item';
+            div.textContent = recipe.title;
+            div.addEventListener('click', () => {
+                // Set active recipe
+                document.querySelectorAll('.recipe-item').forEach(el => el.classList.remove('active'));
+                div.classList.add('active');
+
+                // Display recipe detail
+                displayRecipeDetail(recipe);
+
+                // On mobile, close sidebar
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.style.display = 'none';
+                }
+            });
+            recipeList.appendChild(div);
+        });
+    }
+
+    // Display recipe detail
+    function displayRecipeDetail(recipe) {
+        // Show recipe detail section
+        welcomeScreen.style.display = 'none';
+        searchResults.style.display = 'none';
+        recipeDetail.style.display = 'block';
+
+        // Populate recipe detail
+        recipeDetail.innerHTML = `
+                <h2>${recipe.title}</h2>
+                <div class="recipe-meta">
+                    <div>
+                        <span class="icon icon-time"></span>
+                        Czas przygotowania: ${recipe.prepTime} minut
+                    </div>
+                    <div>
+                        <span class="icon icon-servings"></span>
+                        Porcje: ${recipe.servings}
+                    </div>
+                </div>
+                <div class="ingredients-section">
+                    <h3 class="section-title">
+                        <span class="icon icon-ingredients"></span>
+                        Składniki
+                    </h3>
+                    <ul class="ingredients-list">
+                        ${recipe.ingredients.map(ingredient => `
+                            <li class="ingredient-item">
+                                <span class="icon icon-check"></span>
+                                <span>${ingredient.amount} ${ingredient.name}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="instructions-section">
+                    <h3 class="section-title">
+                        <span class="icon icon-instructions"></span>
+                        Sposób przygotowania
+                    </h3>
+                    <ol class="instructions-list">
+                        ${recipe.instructions.map(instruction => `
+                            <li class="instruction-step">${instruction}</li>
+                        `).join('')}
+                    </ol>
+                </div>
+            `;
+    }
+
+    // Search functionality
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+
+        if (query.length >= 2) {
+            // Search for matching words in search index
+            const searchWords = query.split(' ');
+            let matchingRecipeIds = [];
+
+            searchWords.forEach(word => {
+                const matches = searchIndex.filter(item =>
+                    item.word.includes(word) || word.includes(item.word)
+                );
+
+                if (matches.length > 0) {
+                    // Get all matching recipe IDs
+                    const ids = matches.flatMap(match => match.recipeIds);
+
+                    // If it's the first word, initialize matchingRecipeIds
+                    if (matchingRecipeIds.length === 0) {
+                        matchingRecipeIds = ids;
+                    } else {
+                        // Find recipes that match all words
+                        matchingRecipeIds = matchingRecipeIds.filter(id => ids.includes(id));
+                    }
+                }
+            });
+
+            // Get matching recipes
+            const searchResults = matchingRecipeIds.map(id =>
+                recipes.find(recipe => recipe.id === id)
+            );
+
+            displaySearchResults(searchResults, query);
+        } else if (query.length === 0) {
+            // Hide search results if search cleared
+            searchResults.style.display = 'none';
+
+            // Show welcome screen if no recipe was selected
+            if (recipeDetail.style.display !== 'block') {
+                welcomeScreen.style.display = 'block';
+            }
+        }
+    });
+
+    // Display search results
+    function displaySearchResults(results, query) {
+        // Show search results section
+        welcomeScreen.style.display = 'none';
+        recipeDetail.style.display = 'none';
+        searchResults.style.display = 'block';
+
+        // Update result count
+        resultCount.textContent = `Znaleziono ${results.length} przepisów dla "${query}"`;
+
+        // Clear current results
+        searchResultsList.innerHTML = '';
+
+        // Populate results
+        if (results.length > 0) {
+            results.forEach(recipe => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.innerHTML = `
+                        <h4>${recipe.title}</h4>
+                        <p>Kategoria: ${recipe.category}</p>
+                    `;
+                div.addEventListener('click', () => {
+                    displayRecipeDetail(recipe);
+                });
+                searchResultsList.appendChild(div);
+            });
+        } else {
+            searchResultsList.innerHTML = '<p>Nie znaleziono przepisów. Spróbuj innych słów kluczowych.</p>';
+        }
+    }
+
+    // Mobile menu toggle
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+    });
+
+    // Close sidebar when overlay is clicked
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        overlay.style.display = 'none';
+    });
+
+    // Start browsing button
+    startBrowsing.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (categories.length > 0) {
+            // Simulate click on first category
+            document.querySelector('.category-list li').click();
+        }
+    });
+
+    // Ładowanie przepisów z pliku CSV
+    async function loadRecipesFromCSV() {
+        try {
+            console.log("Ładowanie przepisów z CSV...");
+
+            // Pobieranie pliku recipes.csv z tego samego katalogu
+            const response = await fetch('recipes.csv');
+            const csvData = await response.text();
+
+            // Parsowanie CSV przy użyciu Papa Parse
+            const result = Papa.parse(csvData, {
+                header: true,
+                skipEmptyLines: true
+            });
+
+            // Transformacja danych z CSV do formatu potrzebnego w aplikacji
+            recipes = result.data.map(row => {
+                // Zamiana rozdzielonych średnikiem list na tablice obiektów
+                const ingredients = row.ingredientsList.split(';').map(item => {
+                    const trimmedItem = item.trim();
+                    const lastSpaceIndex = trimmedItem.lastIndexOf(' ');
+                    let amount = trimmedItem.substring(0, lastSpaceIndex).trim();
+                    let name = trimmedItem.substring(lastSpaceIndex + 1).trim();
+
+                    // Obsługa przypadków, gdzie można mieć więcej niż jedno słowo w nazwie
+                    // np. "proszek do pieczenia"
+                    if (name === "do" || name === "cukru" || name === "mąki" || name === "proszku") {
+                        const secondLastSpaceIndex = amount.lastIndexOf(' ');
+                        name = amount.substring(secondLastSpaceIndex + 1).trim() + " " + name;
+                        amount = amount.substring(0, secondLastSpaceIndex).trim();
+                    }
+
+                    return { amount, name };
+                });
+
+                const instructions = row.instructionsList.split(';').map(item => item.trim());
+
+                return {
+                    id: parseInt(row.id),
+                    title: row.title,
+                    category: row.category,
+                    prepTime: parseInt(row.prepTime),
+                    servings: parseInt(row.servings),
+                    ingredients,
+                    instructions
+                };
+            });
+
+            console.log("Załadowano przepisy:", recipes);
+            return recipes;
+        } catch (error) {
+            console.error('Błąd podczas ładowania przepisów:', error);
+
+            // W przypadku błędu, możemy pokazać komunikat użytkownikowi
+            alert('Nie udało się załadować przepisów. Spróbuj odświeżyć stronę.');
+            return [];
+        }
+    }
+
+    // Ładowanie indeksu wyszukiwania z pliku CSV
+    async function loadSearchIndexFromCSV() {
+        try {
+            console.log("Ładowanie indeksu wyszukiwania z CSV...");
+
+            // Pobieranie pliku search_index.csv z tego samego katalogu
+            const response = await fetch('search_index.csv');
+            const csvData = await response.text();
+
+            // Parsowanie CSV przy użyciu Papa Parse
+            const result = Papa.parse(csvData, {
+                header: true,
+                skipEmptyLines: true
+            });
+
+            // Transformacja danych z CSV do formatu potrzebnego w aplikacji
+            searchIndex = result.data.map(row => {
+                return {
+                    word: row.word.toLowerCase(),
+                    recipeIds: row.recipeIds.split(',').map(id => parseInt(id.trim()))
+                };
+            });
+
+            console.log("Załadowano indeks wyszukiwania:", searchIndex);
+            return searchIndex;
+        } catch (error) {
+            console.error('Błąd podczas ładowania indeksu wyszukiwania:', error);
+
+            // W przypadku błędu, możemy pokazać komunikat użytkownikowi
+            alert('Nie udało się załadować indeksu wyszukiwania. Wyszukiwarka może nie działać poprawnie.');
+            return [];
+        }
+    }
+
+    // Inicjalizacja aplikacji
+    async function initialize() {
+        try {
+            // Ładowanie danych z plików CSV
+            await loadRecipesFromCSV();
+            await loadSearchIndexFromCSV();
+
+            // Aktualizacja interfejsu po załadowaniu danych
+            updateCategoriesUI();
+
+            // Responsive adjustments
+            if (window.innerWidth > 768) {
+                sidebar.classList.add('active');
+            }
+
+            // Wyświetlenie ekranu powitalnego
+            welcomeScreen.style.display = 'block';
+        } catch (error) {
+            console.error('Błąd podczas inicjalizacji aplikacji:', error);
+            alert('Wystąpił błąd podczas ładowania aplikacji. Spróbuj odświeżyć stronę.');
+        }
+    }
+
+    // Aktualizuje interfejs kategorii po załadowaniu danych
+    function updateCategoriesUI() {
+        // Extract unique categories from recipes
+        const categories = [...new Set(recipes.map(recipe => recipe.category))];
+
+        // Clear current categories
+        categoryList.innerHTML = '';
+
+        // Populate categories
+        categories.forEach(category => {
+            const li = document.createElement('li');
+            li.textContent = category;
+            li.addEventListener('click', () => {
+                // Set active category
+                document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
+                li.classList.add('active');
+
+                // Filter recipes by category
+                displayRecipesByCategory(category);
+
+                // Hide welcome screen and search results
+                welcomeScreen.style.display = 'none';
+                searchResults.style.display = 'none';
+
+                // On mobile, close sidebar
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.style.display = 'none';
+                }
+            });
+            categoryList.appendChild(li);
+        });
+    }
+
+    // Run initialization when Papa Parse jest załadowany
+    papaParseScript.onload = function() {
+        initialize();
+    };
+</script>
+</body>
+</html>
