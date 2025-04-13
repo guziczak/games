@@ -410,6 +410,24 @@
             margin-bottom: 3rem;
         }
 
+        .welcome-image {
+            width: 120px;
+            height: 120px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .welcome-image:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-strong);
+        }
+
         .welcome-screen h1 {
             font-size: 2.5rem;
             color: var(--primary-color);
@@ -862,13 +880,13 @@
         .recipe-progress {
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 10;
             margin: 0 0 1.5rem 0;
             padding: 1rem;
             background-color: var(--white);
             border-radius: var(--border-radius);
-            box-shadow: var(--shadow-strong);
-            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            transition: top 0.3s ease;
         }
 
         .progress-title {
@@ -1781,80 +1799,6 @@
                 transform: translateY(100%);
             }
         }
-
-        /* Modal popup dla wyszukiwania na urządzeniach mobilnych */
-        .search-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--white);
-            padding: 1rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            z-index: 200;
-            display: none;
-            animation: slideDown 0.3s ease;
-        }
-
-        @keyframes slideDown {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
-        }
-
-        .search-modal-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .search-modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            cursor: pointer;
-            margin-right: 1rem;
-        }
-
-        .search-modal-input {
-            flex: 1;
-            padding: 0.8rem 1rem;
-            border: 1px solid var(--secondary-color);
-            border-radius: var(--border-radius);
-            font-size: 1rem;
-        }
-
-        .search-modal-input:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2);
-        }
-
-        .search-suggestions {
-            list-style: none;
-            margin-top: 1rem;
-        }
-
-        .search-suggestion-item {
-            padding: 0.8rem;
-            border-bottom: 1px solid var(--secondary-color);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-        }
-
-        .search-suggestion-item:last-child {
-            border-bottom: none;
-        }
-
-        .search-suggestion-item:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .search-suggestion-icon {
-            color: var(--accent-color);
-        }
     </style>
 </head>
 <body>
@@ -1905,6 +1849,9 @@
 
         <div class="welcome-screen" id="welcomeScreen">
             <div class="welcome-header">
+                <div class="welcome-image">
+                    <span class="icon icon-list" style="width: 60px; height: 60px;"></span>
+                </div>
                 <h1>Witaj w mojej książce kucharskiej!</h1>
                 <p>Znajdź inspirację kulinarną w mojej kolekcji sprawdzonych przepisów.
                     Użyj wyszukiwarki lub przeglądaj według kategorii.</p>
@@ -1963,17 +1910,6 @@
     </a>
 </nav>
 
-<!-- Mobile search modal -->
-<div class="search-modal" id="searchModal">
-    <div class="search-modal-header">
-        <button class="search-modal-close" id="searchModalClose">×</button>
-        <input type="text" class="search-modal-input" id="searchModalInput" placeholder="Szukaj przepisu...">
-    </div>
-    <ul class="search-suggestions" id="searchSuggestions">
-        <!-- Search suggestions will be populated by JavaScript -->
-    </ul>
-</div>
-
 <script>
     // Zaimportowanie biblioteki Papa Parse do parsowania CSV
     const papaParseScript = document.createElement('script');
@@ -2019,12 +1955,6 @@
     const mobileHome = document.getElementById('mobileHome');
     const mobileCategory = document.getElementById('mobileCategory');
     const mobileSearch = document.getElementById('mobileSearch');
-
-    // Mobile search modal
-    const searchModal = document.getElementById('searchModal');
-    const searchModalInput = document.getElementById('searchModalInput');
-    const searchModalClose = document.getElementById('searchModalClose');
-    const searchSuggestions = document.getElementById('searchSuggestions');
 
     // State management
     let appState = {
@@ -2314,58 +2244,6 @@
 
         // Initial population of featured recipes
         populateFeaturedRecipes(categories);
-
-        // Populate mobile search suggestions
-        updateSearchSuggestions('');
-    }
-
-    // Update search suggestions for mobile search
-    function updateSearchSuggestions(query) {
-        searchSuggestions.innerHTML = '';
-
-        // Najpierw dodajemy wszystkie kategorie jako sugestie
-        const categories = [...new Set(recipes.map(recipe => recipe.category))];
-        categories.forEach(category => {
-            if (query && !category.toLowerCase().includes(query.toLowerCase())) return;
-
-            const li = document.createElement('li');
-            li.className = 'search-suggestion-item';
-            li.innerHTML = `
-                <span class="search-suggestion-icon icon icon-category"></span>
-                <span>Kategoria: ${category}</span>
-            `;
-            li.addEventListener('click', () => {
-                displayRecipesByCategory(category, true);
-                searchModal.style.display = 'none';
-            });
-            searchSuggestions.appendChild(li);
-        });
-
-        // Dodajemy najpopularniejsze przepisy jako sugestie
-        const topRecipes = recipes.slice(0, 5);
-        topRecipes.forEach(recipe => {
-            if (query && !recipe.title.toLowerCase().includes(query.toLowerCase())) return;
-
-            const li = document.createElement('li');
-            li.className = 'search-suggestion-item';
-            li.innerHTML = `
-                <span class="search-suggestion-icon">${recipe.title.charAt(0).toUpperCase()}</span>
-                <span>${recipe.title}</span>
-            `;
-            li.addEventListener('click', () => {
-                displayRecipeDetail(recipe);
-                searchModal.style.display = 'none';
-            });
-            searchSuggestions.appendChild(li);
-        });
-
-        // Jeśli nie ma wyników dopasowanych do zapytania, pokazujemy informację
-        if (query && searchSuggestions.children.length === 0) {
-            const li = document.createElement('li');
-            li.className = 'search-suggestion-item';
-            li.innerHTML = `<span>Brak dopasowań dla "${query}"</span>`;
-            searchSuggestions.appendChild(li);
-        }
     }
 
     // Populate featured recipes on welcome screen
@@ -2383,27 +2261,27 @@
             const card = document.createElement('div');
             card.className = 'featured-card';
             card.innerHTML = `
-                    <div class="featured-image">
-                        <span class="icon icon-category" style="width: 40px; height: 40px;"></span>
+                <div class="featured-image">
+                    <span class="icon icon-category" style="width: 40px; height: 40px;"></span>
+                </div>
+                <div class="featured-content">
+                    <div class="featured-title">${recipe.title}</div>
+                    <div class="featured-category">
+                        <span class="icon icon-category"></span>
+                        ${recipe.category}
                     </div>
-                    <div class="featured-content">
-                        <div class="featured-title">${recipe.title}</div>
-                        <div class="featured-category">
-                            <span class="icon icon-category"></span>
-                            ${recipe.category}
+                    <div class="featured-meta">
+                        <div>
+                            <span class="icon icon-time"></span>
+                            ${recipe.prepTime} min
                         </div>
-                        <div class="featured-meta">
-                            <div>
-                                <span class="icon icon-time"></span>
-                                ${recipe.prepTime} min
-                            </div>
-                            <div>
-                                <span class="icon icon-servings"></span>
-                                ${recipe.servings} porcji
-                            </div>
+                        <div>
+                            <span class="icon icon-servings"></span>
+                            ${recipe.servings} porcji
                         </div>
                     </div>
-                `;
+                </div>
+            `;
 
             card.addEventListener('click', () => {
                 displayRecipeDetail(recipe);
@@ -2695,7 +2573,7 @@
                 <span>${firstLetter}</span>
             </div>
 
-            <div class="recipe-progress" id="recipeProgress">
+            <div class="recipe-progress" id="recipeProgress" style="position: sticky; top: 0; z-index: 10; margin-top: 0;">
                 <div class="progress-title">
                     <span class="icon icon-progress"></span>
                     Postęp przepisu
@@ -3024,26 +2902,6 @@
                     sidebar.classList.remove('active');
                     overlay.style.display = 'none';
                 }
-            }
-        }
-    });
-
-    // Mobile search modal input event
-    searchModalInput.addEventListener('input', (e) => {
-        const query = e.target.value.trim();
-        updateSearchSuggestions(query);
-    });
-
-    // Mobile search modal enter key
-    searchModalInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const query = e.target.value.trim();
-            if (query.length >= 2) {
-                // Save search query and show results
-                appState.lastSearch = query;
-                const searchResults = performSearch(query);
-                displaySearchResults(searchResults, query);
-                searchModal.style.display = 'none';
             }
         }
     });
@@ -3484,27 +3342,23 @@
         showCategoriesScreen();
     });
 
-    // Mobile search functionality - open modal
     mobileSearch.addEventListener('click', (e) => {
         e.preventDefault();
-        searchModal.style.display = 'block';
-        searchModalInput.focus();
-        searchModalInput.value = '';
-        updateSearchSuggestions('');
-    });
 
-    // Close mobile search modal
-    searchModalClose.addEventListener('click', () => {
-        searchModal.style.display = 'none';
+        // Focus the search input
+        searchInput.focus();
+
+        // If we already have search results, show them
+        if (searchInput.value.trim().length >= 2) {
+            setAppState({ view: 'search' });
+        }
     });
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         // Escape key - close sidebar or go back
         if (e.key === 'Escape') {
-            if (searchModal.style.display === 'block') {
-                searchModal.style.display = 'none';
-            } else if (sidebar.classList.contains('active')) {
+            if (sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
                 overlay.style.display = 'none';
             } else if (navigationHistory.length > 0) {
@@ -3520,12 +3374,7 @@
         // Ctrl+F - Focus search
         if (e.ctrlKey && e.key === 'f') {
             e.preventDefault();
-            if (window.innerWidth <= 768) {
-                searchModal.style.display = 'block';
-                searchModalInput.focus();
-            } else {
-                searchInput.focus();
-            }
+            searchInput.focus();
         }
 
         // Ctrl+Home - Go to welcome screen
