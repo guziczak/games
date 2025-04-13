@@ -7,23 +7,13 @@
     <style>
         :root {
             --primary-color: #5a3921;
-            --primary-light: #7a583e;
-            --primary-dark: #402914;
             --secondary-color: #f0e6d2;
             --accent-color: #e67e22;
-            --accent-light: #f39c12;
-            --accent-dark: #d35400;
-            --success-color: #27ae60;
-            --info-color: #3498db;
-            --warning-color: #f1c40f;
-            --danger-color: #e74c3c;
             --text-color: #333;
             --light-text: #666;
             --white: #fff;
             --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --shadow-strong: 0 6px 12px rgba(0, 0, 0, 0.15);
             --border-radius: 8px;
-            --border-radius-sm: 4px;
             --transition: all 0.3s ease;
         }
 
@@ -46,51 +36,6 @@
             min-height: 100vh;
         }
 
-        /* Breadcrumbs */
-        .breadcrumbs {
-            padding: 0.8rem 1.2rem;
-            background-color: var(--secondary-color);
-            border-radius: var(--border-radius-sm);
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            box-shadow: var(--shadow);
-        }
-
-        .breadcrumb-item {
-            color: var(--primary-color);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            font-size: 0.9rem;
-            font-weight: 500;
-            padding: 0.4rem 0.6rem;
-            border-radius: var(--border-radius-sm);
-            background-color: rgba(255, 255, 255, 0.5);
-            transition: var(--transition);
-        }
-
-        .breadcrumb-item:not(:last-child)::after {
-            content: "›";
-            margin-left: 0.8rem;
-            color: var(--primary-color);
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-
-        .breadcrumb-item:hover {
-            background-color: rgba(255, 255, 255, 0.8);
-            transform: translateY(-2px);
-        }
-
-        .breadcrumb-home {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
         /* Sidebar */
         .sidebar {
             background-color: var(--primary-color);
@@ -109,15 +54,6 @@
             margin-bottom: 2rem;
             text-align: center;
             color: var(--secondary-color);
-            cursor: pointer;
-            transition: var(--transition);
-            padding: 0.8rem;
-            border-radius: var(--border-radius);
-        }
-
-        .logo:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            transform: scale(1.03);
         }
 
         .search-box {
@@ -133,13 +69,6 @@
             background-color: rgba(255, 255, 255, 0.1);
             color: var(--white);
             font-size: 0.9rem;
-            transition: var(--transition);
-        }
-
-        .search-box input:focus {
-            background-color: rgba(255, 255, 255, 0.2);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
         }
 
         .search-box input::placeholder {
@@ -154,278 +83,78 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        .search-clear {
-            position: absolute;
-            right: 0.8rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.6);
-            cursor: pointer;
-            display: none;
-            width: 20px;
-            height: 20px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: var(--transition);
-        }
-
-        .search-clear:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
         .categories h3 {
             font-size: 1.1rem;
             margin-bottom: 1rem;
             color: var(--secondary-color);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .category-list {
             list-style: none;
-            max-height: 300px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-light) var(--primary-dark);
-        }
-
-        .category-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .category-list::-webkit-scrollbar-track {
-            background: var(--primary-dark);
-            border-radius: 10px;
-        }
-
-        .category-list::-webkit-scrollbar-thumb {
-            background-color: var(--primary-light);
-            border-radius: 10px;
         }
 
         .category-list li {
             margin-bottom: 0.5rem;
             cursor: pointer;
             transition: var(--transition);
-            padding: 0.8rem;
+            padding: 0.5rem;
             border-radius: var(--border-radius);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .category-list li::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background-color: var(--accent-color);
-            transition: var(--transition);
         }
 
         .category-list li:hover {
             background-color: rgba(255, 255, 255, 0.1);
         }
 
-        .category-list li:hover::after {
-            width: 100%;
-        }
-
         .category-list li.active {
             background-color: var(--accent-color);
-        }
-
-        .category-list li.active::after {
-            width: 100%;
-            height: 2px;
-            background-color: var(--white);
         }
 
         .recipe-list {
             margin-top: 1.5rem;
             max-height: 300px;
             overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-light) var(--primary-dark);
-        }
-
-        .recipe-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .recipe-list::-webkit-scrollbar-track {
-            background: var(--primary-dark);
-            border-radius: 10px;
-        }
-
-        .recipe-list::-webkit-scrollbar-thumb {
-            background-color: var(--primary-light);
-            border-radius: 10px;
         }
 
         .recipe-list h4 {
             font-size: 1rem;
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
             color: var(--secondary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .recipe-count {
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.6);
-            margin-left: auto;
-            background-color: var(--primary-dark);
-            padding: 0.2rem 0.5rem;
-            border-radius: 10px;
         }
 
         .recipe-item {
-            padding: 0.8rem;
+            padding: 0.5rem;
             cursor: pointer;
             transition: var(--transition);
             border-radius: var(--border-radius);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
             font-size: 0.9rem;
-            position: relative;
-            display: flex;
-            align-items: center;
         }
 
         .recipe-item:hover {
             background-color: rgba(255, 255, 255, 0.1);
-            transform: translateX(5px);
         }
 
         .recipe-item.active {
             background-color: var(--accent-color);
         }
 
-        .recipe-image-placeholder {
-            width: 24px;
-            height: 24px;
-            background-color: var(--secondary-color);
-            border-radius: var(--border-radius-sm);
-            margin-right: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: var(--primary-color);
-            transition: var(--transition);
-        }
-
-        .recipe-item:hover .recipe-image-placeholder {
-            transform: scale(1.1);
-        }
-
         /* Main Content */
         .main-content {
             padding: 2rem;
             overflow-y: auto;
-            position: relative;
-        }
-
-        .main-actions {
-            position: absolute;
-            top: 2rem;
-            right: 2rem;
-            display: flex;
-            gap: 0.5rem;
-            z-index: 5;
-        }
-
-        .action-button {
-            background-color: var(--white);
-            border: none;
-            border-radius: var(--border-radius-sm);
-            color: var(--primary-color);
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .action-button:hover {
-            background-color: var(--secondary-color);
-            box-shadow: var(--shadow-strong);
-            transform: translateY(-2px);
-        }
-
-        .action-button::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: -30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: var(--primary-dark);
-            color: var(--white);
-            padding: 0.3rem 0.6rem;
-            border-radius: var(--border-radius-sm);
-            font-size: 0.8rem;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: var(--transition);
-            z-index: 100;
-        }
-
-        .action-button:hover::after {
-            opacity: 1;
-            visibility: visible;
         }
 
         .welcome-screen {
             text-align: center;
-            padding-top: 2rem;
+            margin-top: 5rem;
             animation: fadeIn 1s ease;
         }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        .welcome-header {
-            position: relative;
-            margin-bottom: 3rem;
-        }
-
-        .welcome-image {
-            width: 120px;
-            height: 120px;
-            background-color: var(--secondary-color);
-            border-radius: 50%;
-            margin: 0 auto 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .welcome-image:hover {
-            transform: scale(1.05);
-            box-shadow: var(--shadow-strong);
         }
 
         .welcome-screen h1 {
@@ -438,11 +167,12 @@
             font-size: 1.1rem;
             color: var(--light-text);
             max-width: 600px;
-            margin: 0 auto 2rem;
+            margin: 0 auto;
         }
 
         .welcome-screen .cta-button {
             display: inline-block;
+            margin-top: 2rem;
             padding: 0.8rem 1.5rem;
             background-color: var(--accent-color);
             color: var(--white);
@@ -450,181 +180,17 @@
             text-decoration: none;
             font-weight: bold;
             transition: var(--transition);
-            border: none;
-            cursor: pointer;
         }
 
         .welcome-screen .cta-button:hover {
-            background-color: var(--accent-dark);
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-strong);
-        }
-
-        .welcome-screen .cta-button:active {
-            transform: translateY(-1px);
-        }
-
-        .categories-preview {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin: 2rem 0;
-            flex-wrap: wrap;
-        }
-
-        .category-pill {
-            background-color: var(--secondary-color);
-            color: var(--primary-color);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: var(--transition);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            box-shadow: var(--shadow);
-        }
-
-        .category-pill:hover {
-            background-color: var(--primary-color);
-            color: var(--white);
+            background-color: #d35400;
             transform: translateY(-2px);
-            box-shadow: var(--shadow-strong);
-        }
-
-        .featured-recipes {
-            margin-top: 3rem;
-            text-align: left;
-        }
-
-        .featured-recipes h2 {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            margin-bottom: 1.5rem;
-            text-align: center;
-            position: relative;
-            padding-bottom: 0.5rem;
-        }
-
-        .featured-recipes h2::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 3px;
-            background-color: var(--accent-color);
-            border-radius: 3px;
-        }
-
-        .featured-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .featured-card {
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-            cursor: pointer;
-            position: relative;
-        }
-
-        .featured-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-strong);
-        }
-
-        .featured-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background-color: var(--accent-color);
-            transform: scaleX(0);
-            transition: var(--transition);
-        }
-
-        .featured-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .featured-image {
-            height: 160px;
-            background-color: var(--secondary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-color);
-            font-size: 2rem;
-            transition: var(--transition);
-        }
-
-        .featured-card:hover .featured-image {
-            background-color: var(--primary-light);
-            color: var(--white);
-        }
-
-        .featured-content {
-            padding: 1.2rem;
-        }
-
-        .featured-title {
-            font-size: 1.1rem;
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
-            transition: var(--transition);
-        }
-
-        .featured-card:hover .featured-title {
-            color: var(--accent-color);
-        }
-
-        .featured-category {
-            font-size: 0.8rem;
-            color: var(--light-text);
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .featured-meta {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            color: var(--light-text);
-            background-color: rgba(240, 230, 210, 0.3);
-            padding: 0.5rem;
-            border-radius: var(--border-radius-sm);
-        }
-
-        .featured-meta div {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
         }
 
         /* Recipe Detail */
         .recipe-detail {
             display: none;
             animation: fadeIn 0.5s ease;
-            padding-bottom: 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .recipe-header {
-            position: relative;
-            margin-bottom: 2rem;
         }
 
         .recipe-detail h2 {
@@ -633,12 +199,10 @@
             margin-bottom: 1rem;
             border-bottom: 2px solid var(--secondary-color);
             padding-bottom: 0.5rem;
-            padding-right: 6rem; /* Space for action buttons */
         }
 
         .recipe-meta {
             display: flex;
-            flex-wrap: wrap;
             align-items: center;
             gap: 2rem;
             margin-bottom: 2rem;
@@ -649,62 +213,10 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            background-color: var(--secondary-color);
-            padding: 0.5rem 0.8rem;
-            border-radius: var(--border-radius);
-            transition: var(--transition);
-        }
-
-        .recipe-meta div:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow);
-        }
-
-        .recipe-image {
-            width: 100%;
-            height: 280px;
-            background-color: var(--secondary-color);
-            border-radius: var(--border-radius);
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-color);
-            font-size: 3rem;
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .recipe-image::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(rgba(255,255,255,0), rgba(0,0,0,0.1));
-            pointer-events: none;
-        }
-
-        .recipe-content {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 2rem;
-            align-items: start;
         }
 
         .ingredients-section, .instructions-section {
-            padding: 1.5rem;
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .ingredients-section:hover, .instructions-section:hover {
-            box-shadow: var(--shadow-strong);
-            transform: translateY(-3px);
+            margin-bottom: 2rem;
         }
 
         .section-title {
@@ -714,81 +226,22 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            border-bottom: 1px solid var(--secondary-color);
-            padding-bottom: 0.5rem;
         }
 
         .ingredients-list {
             list-style: none;
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 0.8rem;
         }
 
         .ingredient-item {
+            background-color: var(--secondary-color);
+            padding: 0.8rem;
+            border-radius: var(--border-radius);
             display: flex;
             align-items: center;
-            gap: 0.8rem;
-            transition: var(--transition);
-            padding: 0.8rem;
-            border-radius: var(--border-radius-sm);
-            background-color: rgba(240, 230, 210, 0.2);
-            cursor: pointer;
-        }
-
-        .ingredient-item:hover {
-            background-color: var(--secondary-color);
-            transform: translateX(5px);
-        }
-
-        .ingredient-checkbox {
-            appearance: none;
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
-            border: 2px solid var(--primary-color);
-            border-radius: 4px;
-            outline: none;
-            cursor: pointer;
-            position: relative;
-            transition: var(--transition);
-        }
-
-        .ingredient-checkbox:hover {
-            border-color: var(--accent-color);
-            background-color: rgba(230, 126, 34, 0.1);
-        }
-
-        .ingredient-checkbox:checked {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-        }
-
-        .ingredient-checkbox:checked::after {
-            content: "✓";
-            position: absolute;
-            font-size: 16px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: var(--white);
-        }
-
-        .ingredient-checked {
-            opacity: 0.6;
-        }
-
-        .ingredient-checked .ingredient-text {
-            text-decoration: line-through;
-            color: var(--light-text);
-        }
-
-        .ingredient-amount {
-            font-weight: bold;
-            color: var(--primary-color);
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 0.2rem 0.4rem;
-            border-radius: 3px;
+            gap: 0.5rem;
         }
 
         .instructions-list {
@@ -797,19 +250,13 @@
         }
 
         .instruction-step {
-            margin-bottom: 1.2rem;
-            padding: 1.2rem 1.2rem 1.2rem 3rem;
-            background-color: rgba(240, 230, 210, 0.2);
-            border: 1px solid var(--secondary-color);
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: var(--white);
             border-radius: var(--border-radius);
-            position: relative;
-            transition: var(--transition);
-        }
-
-        .instruction-step:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-3px);
             box-shadow: var(--shadow);
+            position: relative;
+            padding-left: 3rem;
         }
 
         .instruction-step::before {
@@ -827,136 +274,57 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            transition: var(--transition);
         }
 
-        .instruction-step:hover::before {
-            transform: scale(1.1);
-        }
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
 
-        .instruction-step.completed::before {
-            content: "✓";
-            background-color: var(--success-color);
-        }
+            .sidebar {
+                position: fixed;
+                width: 80%;
+                max-width: 300px;
+                height: 100%;
+                left: -300px;
+            }
 
-        .instruction-step.completed {
-            opacity: 0.7;
-            border-color: var(--success-color);
-        }
+            .sidebar.active {
+                left: 0;
+            }
 
-        .instruction-step-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
+            .menu-toggle {
+                display: block;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 20;
+                background-color: var(--primary-color);
+                color: var(--white);
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: var(--shadow);
+            }
 
-        .instruction-toggle {
-            background-color: transparent;
-            border: none;
-            color: var(--primary-color);
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: bold;
-            padding: 0.4rem 0.8rem;
-            border-radius: var(--border-radius-sm);
-            transition: var(--transition);
-        }
+            .main-content {
+                padding-top: 4rem;
+            }
 
-        .instruction-toggle:hover {
-            background-color: var(--primary-color);
-            color: var(--white);
-        }
+            .recipe-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
 
-        .instruction-toggle.completed {
-            color: var(--success-color);
-        }
-
-        .instruction-toggle.completed:hover {
-            background-color: var(--success-color);
-            color: var(--white);
-        }
-
-        .recipe-progress {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            margin: 0 0 1.5rem 0;
-            padding: 1rem;
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            transition: top 0.3s ease;
-        }
-
-        .progress-title {
-            font-size: 1rem;
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .progress-bar {
-            height: 10px;
-            background-color: var(--secondary-color);
-            border-radius: 5px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background-color: var(--accent-color);
-            width: 0%;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            margin-top: 0.5rem;
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--light-text);
-        }
-
-        .recipe-actions {
-            margin-top: 2rem;
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .recipe-action-btn {
-            padding: 0.8rem 1.5rem;
-            background-color: var(--white);
-            color: var(--primary-color);
-            border: 1px solid var(--primary-color);
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: var(--transition);
-            font-weight: bold;
-        }
-
-        .recipe-action-btn:hover {
-            background-color: var(--primary-color);
-            color: var(--white);
-            transform: translateY(-3px);
-            box-shadow: var(--shadow);
-        }
-
-        .recipe-action-btn.primary {
-            background-color: var(--accent-color);
-            color: var(--white);
-            border-color: var(--accent-color);
-        }
-
-        .recipe-action-btn.primary:hover {
-            background-color: var(--accent-dark);
+            .ingredients-list {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* Search Results */
@@ -969,33 +337,15 @@
             font-size: 1.5rem;
             color: var(--primary-color);
             margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .result-count {
             color: var(--light-text);
             margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            background-color: var(--secondary-color);
-            padding: 0.5rem 1rem;
-            border-radius: var(--border-radius);
-            display: inline-block;
         }
 
         .search-results-section {
             margin-bottom: 2rem;
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .search-results-section:hover {
-            box-shadow: var(--shadow-strong);
-            transform: translateY(-3px);
         }
 
         .results-section-title {
@@ -1004,9 +354,6 @@
             margin-bottom: 0.5rem;
             padding-bottom: 0.5rem;
             border-bottom: 1px solid var(--secondary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .results-section-description {
@@ -1019,93 +366,27 @@
         .search-result-item {
             padding: 1rem;
             margin-bottom: 1rem;
-            background-color: var(--secondary-color);
+            background-color: var(--white);
             border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
             cursor: pointer;
             transition: var(--transition);
-            display: grid;
-            grid-template-columns: 50px 1fr;
-            gap: 1rem;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .search-result-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 3px;
-            background-color: var(--accent-color);
-            transform: scaleY(0);
-            transition: transform 0.3s ease;
-            transform-origin: bottom;
         }
 
         .search-result-item:hover {
-            transform: translateY(-3px) translateX(3px);
-            box-shadow: var(--shadow-strong);
-        }
-
-        .search-result-item:hover::before {
-            transform: scaleY(1);
-        }
-
-        .search-result-icon {
-            width: 50px;
-            height: 50px;
-            background-color: var(--primary-light);
-            border-radius: var(--border-radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--white);
-            font-size: 1.5rem;
-            transition: var(--transition);
-        }
-
-        .search-result-item:hover .search-result-icon {
-            transform: scale(1.1);
-            background-color: var(--accent-color);
-        }
-
-        .search-result-content {
-            overflow: hidden;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
         }
 
         .search-result-item h4 {
             color: var(--primary-color);
-            margin-bottom: 0.3rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: var(--transition);
-        }
-
-        .search-result-item:hover h4 {
-            color: var(--accent-dark);
-        }
-
-        .search-result-category {
-            font-size: 0.8rem;
-            color: var(--primary-dark);
             margin-bottom: 0.5rem;
-            display: inline-block;
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 0.2rem 0.5rem;
-            border-radius: 10px;
         }
 
         .match-info {
-            font-size: 0.85rem;
-            color: var(--light-text);
-            line-height: 1.4;
-            background-color: rgba(255, 255, 255, 0.3);
-            padding: 0.5rem;
-            border-radius: var(--border-radius-sm);
+            font-size: 0.9rem;
             margin-top: 0.5rem;
+            color: var(--light-text);
         }
 
         .highlighted-match {
@@ -1114,560 +395,6 @@
             padding: 0 3px;
             border-radius: 3px;
             font-weight: bold;
-            display: inline-block;
-            margin: 0 2px;
-        }
-
-        /* No results */
-        .no-results {
-            text-align: center;
-            padding: 3rem 1rem;
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            animation: fadeIn 0.5s ease;
-        }
-
-        .no-results-icon {
-            font-size: 3rem;
-            color: var(--light-text);
-            margin-bottom: 1rem;
-        }
-
-        .no-results h4 {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-        }
-
-        .no-results p {
-            color: var(--light-text);
-            margin-bottom: 1.5rem;
-        }
-
-        .suggestions {
-            display: inline-block;
-            text-align: left;
-            margin: 0 auto;
-            background-color: var(--secondary-color);
-            padding: 1rem;
-            border-radius: var(--border-radius);
-        }
-
-        .suggestions li {
-            margin-bottom: 0.8rem;
-            color: var(--primary-color);
-            position: relative;
-            padding-left: 1.5rem;
-        }
-
-        .suggestions li::before {
-            content: '•';
-            position: absolute;
-            left: 0.5rem;
-            color: var(--accent-color);
-            font-weight: bold;
-        }
-
-        .suggestions li:last-child {
-            margin-bottom: 0;
-        }
-
-        /* Loading states */
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            display: none;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid var(--secondary-color);
-            border-top: 5px solid var(--accent-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Toast notification */
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .toast {
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            border-radius: var(--border-radius);
-            background-color: var(--white);
-            color: var(--text-color);
-            box-shadow: var(--shadow-strong);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transform: translateX(120%);
-            transition: transform 0.3s ease;
-            max-width: 300px;
-        }
-
-        .toast.visible {
-            transform: translateX(0);
-        }
-
-        .toast-success {
-            border-left: 5px solid var(--success-color);
-        }
-
-        .toast-info {
-            border-left: 5px solid var(--info-color);
-        }
-
-        .toast-warning {
-            border-left: 5px solid var(--warning-color);
-        }
-
-        .toast-error {
-            border-left: 5px solid var(--danger-color);
-        }
-
-        .toast-icon {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-weight: bold;
-        }
-
-        .toast-success .toast-icon {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .toast-info .toast-icon {
-            background-color: var(--info-color);
-            color: white;
-        }
-
-        .toast-warning .toast-icon {
-            background-color: var(--warning-color);
-            color: white;
-        }
-
-        .toast-error .toast-icon {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: bold;
-            margin-bottom: 0.2rem;
-        }
-
-        .toast-message {
-            font-size: 0.9rem;
-            color: var(--light-text);
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: var(--light-text);
-            cursor: pointer;
-            font-size: 1.2rem;
-            padding: 0;
-            transition: color 0.2s ease;
-        }
-
-        .toast-close:hover {
-            color: var(--text-color);
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-
-            .sidebar {
-                position: fixed;
-                width: 85%;
-                max-width: 300px;
-                height: 100%;
-                left: -300px;
-                z-index: 20;
-            }
-
-            .sidebar.active {
-                left: 0;
-                box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
-            }
-
-            .menu-toggle {
-                display: block;
-                position: fixed;
-                top: 1rem;
-                left: 1rem;
-                z-index: 30;
-                background-color: var(--primary-color);
-                color: var(--white);
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                box-shadow: var(--shadow);
-                transition: var(--transition);
-            }
-
-            .menu-toggle:active {
-                transform: scale(0.95);
-            }
-
-            .main-content {
-                padding: 4rem 1rem 1rem;
-            }
-
-            .recipe-meta {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-
-            .recipe-content {
-                grid-template-columns: 1fr;
-            }
-
-            .ingredients-section {
-                margin-bottom: 2rem;
-            }
-
-            .main-actions {
-                top: 1rem;
-                right: 1rem;
-            }
-
-            .action-button {
-                width: 36px;
-                height: 36px;
-            }
-
-            .action-button::after {
-                display: none;
-            }
-
-            .featured-grid {
-                grid-template-columns: 1fr;
-            }
-
-            /* Mobile bottom navigation */
-            .mobile-nav {
-                display: flex;
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background-color: var(--white);
-                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-                z-index: 100;
-                transition: var(--transition);
-                transform: translateY(0);
-            }
-
-            .mobile-nav.hidden {
-                transform: translateY(100%);
-            }
-
-            .mobile-nav-item {
-                flex: 1;
-                padding: 0.8rem 0;
-                text-align: center;
-                color: var(--primary-color);
-                text-decoration: none;
-                font-size: 0.8rem;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 0.3rem;
-                transition: var(--transition);
-            }
-
-            .mobile-nav-item.active {
-                color: var(--accent-color);
-                background-color: rgba(230, 126, 34, 0.1);
-            }
-
-            .mobile-nav-item:active {
-                transform: scale(0.95);
-            }
-
-            .mobile-nav-icon {
-                font-size: 1.2rem;
-            }
-
-            /* Back to top button for mobile */
-            .back-to-top {
-                position: fixed;
-                bottom: 70px;
-                right: 20px;
-                width: 40px;
-                height: 40px;
-                background-color: var(--accent-color);
-                color: var(--white);
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                box-shadow: var(--shadow);
-                opacity: 0;
-                visibility: hidden;
-                transition: var(--transition);
-                z-index: 90;
-            }
-
-            .back-to-top.visible {
-                opacity: 1;
-                visibility: visible;
-            }
-
-            .back-to-top:active {
-                transform: scale(0.95);
-            }
-
-            /* Adjust padding for mobile bottom nav */
-            body {
-                padding-bottom: 60px;
-            }
-
-            /* Improved touch targets for mobile */
-            .instruction-toggle,
-            .recipe-action-btn,
-            .category-list li,
-            .recipe-item {
-                padding: 10px 15px;
-            }
-
-            .ingredient-checkbox {
-                width: 24px;
-                height: 24px;
-            }
-
-            /* Mobile swipe indicator */
-            .swipe-indicator {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 0.5rem;
-                font-size: 0.8rem;
-                color: var(--light-text);
-                margin-top: 1rem;
-            }
-
-            .swipe-indicator::before,
-            .swipe-indicator::after {
-                content: '';
-                height: 1px;
-                width: 30px;
-                background-color: var(--light-text);
-                margin: 0 0.5rem;
-            }
-
-            /* Dostosowanie paska postępu dla urządzeń mobilnych */
-            .recipe-progress {
-                top: 60px;
-            }
-        }
-
-        /* Overlay */
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 15;
-            backdrop-filter: blur(2px);
-            transition: var(--transition);
-        }
-
-        /* Print styles */
-        @media print {
-            .sidebar, .overlay, .menu-toggle, .breadcrumbs, .recipe-actions, .mobile-nav,
-            .main-actions, .back-to-top, .toast-container {
-                display: none !important;
-            }
-
-            .container {
-                display: block;
-            }
-
-            .main-content {
-                padding: 0;
-            }
-
-            .recipe-detail {
-                display: block !important;
-            }
-
-            .welcome-screen, .search-results {
-                display: none !important;
-            }
-
-            .ingredient-checkbox, .instruction-toggle, .recipe-progress {
-                display: none;
-            }
-
-            .recipe-content {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .ingredients-section, .instructions-section {
-                box-shadow: none !important;
-                transform: none !important;
-            }
-
-            .instruction-step {
-                break-inside: avoid;
-            }
-
-            .instruction-step::before {
-                background-color: #999 !important;
-                color: white !important;
-            }
-
-            a {
-                text-decoration: none;
-                color: inherit;
-            }
-
-            .recipe-detail h2 {
-                font-size: 24pt;
-                text-align: center;
-                margin-bottom: 10pt;
-            }
-
-            .recipe-image {
-                height: 200px;
-                margin-bottom: 15pt;
-            }
-
-            .section-title {
-                font-size: 16pt;
-                margin-bottom: 8pt;
-            }
-
-            body {
-                background-color: white !important;
-                color: black !important;
-                font-size: 12pt;
-            }
-        }
-
-        /* Dark mode */
-        .dark-mode {
-            --primary-color: #8a5f3c;
-            --primary-light: #a37a55;
-            --primary-dark: #6d4c30;
-            --secondary-color: #2d2418;
-            --text-color: #e0e0e0;
-            --light-text: #aaa;
-            --white: #222;
-            background-color: #181818;
-        }
-
-        .dark-mode .search-result-item,
-        .dark-mode .instruction-step,
-        .dark-mode .ingredient-item:hover,
-        .dark-mode .featured-image,
-        .dark-mode .recipe-image {
-            background-color: #333;
-        }
-
-        .dark-mode .welcome-image {
-            background-color: #444;
-        }
-
-        .dark-mode .featured-card,
-        .dark-mode .ingredients-section,
-        .dark-mode .instructions-section,
-        .dark-mode .search-results-section,
-        .dark-mode .mobile-nav,
-        .dark-mode .no-results,
-        .dark-mode .toast,
-        .dark-mode .recipe-progress {
-            background-color: #272727;
-            color: #e0e0e0;
-        }
-
-        .dark-mode .breadcrumbs {
-            background-color: #333;
-        }
-
-        .dark-mode .breadcrumb-item {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .dark-mode .ingredient-amount {
-            background-color: rgba(0, 0, 0, 0.3);
-        }
-
-        .dark-mode .recipe-meta div {
-            background-color: #333;
-        }
-
-        .dark-mode .search-result-category,
-        .dark-mode .category-pill {
-            background-color: rgba(0, 0, 0, 0.3);
-            color: #ccc;
-        }
-
-        .dark-mode .featured-meta {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .dark-mode .action-button,
-        .dark-mode .back-to-top {
-            background-color: #333;
-        }
-
-        .dark-mode ::-webkit-scrollbar-track {
-            background: #333;
-        }
-
-        .dark-mode ::-webkit-scrollbar-thumb {
-            background-color: #555;
-        }
-
-        /* Transition effects */
-        .fade-transition {
-            transition: opacity 0.3s ease;
-        }
-
-        .fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .fade-in {
-            opacity: 1;
         }
 
         /* Icons */
@@ -1708,96 +435,16 @@
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
         }
 
-        .icon-home {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'/%3E%3C/svg%3E");
-        }
-
-        .icon-category {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23f0e6d2' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l-5.5 9h11z'/%3E%3Ccircle cx='17.5' cy='17.5' r='4.5'/%3E%3Cpath d='M3 13.5h8v8H3z'/%3E%3C/svg%3E");
-        }
-
-        .icon-list {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23f0e6d2' viewBox='0 0 24 24'%3E%3Cpath d='M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z'/%3E%3C/svg%3E");
-        }
-
-        .icon-print {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z'/%3E%3C/svg%3E");
-        }
-
-        .icon-favorite {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z'/%3E%3C/svg%3E");
-        }
-
-        .icon-favorite-filled {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23e67e22' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
-        }
-
-        .icon-share {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z'/%3E%3C/svg%3E");
-        }
-
-        .icon-back {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'/%3E%3C/svg%3E");
-        }
-
-        .icon-dark-mode {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z'/%3E%3C/svg%3E");
-        }
-
-        .icon-up {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z'/%3E%3C/svg%3E");
-        }
-
-        .icon-progress {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%235a3921' viewBox='0 0 24 24'%3E%3Cpath d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E");
-        }
-
-        /* Style dla nowych widoków */
-        .categories-view, .recipes-view {
-            animation: fadeIn 0.5s ease;
-            padding-bottom: 2rem;
-        }
-
-        /* Style dla siatki kategorii */
-        .categories-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        /* Style dla siatki przepisów */
-        .recipes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-
-        /* Poprawiamy wygląd elementu składnika, aby wskazywał że jest klikalny */
-        .ingredient-item {
-            cursor: pointer; /* Dodajemy wskaźnik kursora, aby wskazać, że element jest klikalny */
-        }
-
-        .ingredient-text {
-            flex: 1;
-            cursor: pointer;
-        }
-
-        /* Dodatkowe poprawki dla trybu ciemnego */
-        .dark-mode .categories-view,
-        .dark-mode .recipes-view {
-            color: var(--text-color);
-        }
-
-        /* Naprawiony błąd zbyt małego paddingu w widoku przepisów */
-        @media (max-width: 768px) {
-            .categories-view, .recipes-view {
-                padding: 0 0.5rem 2rem;
-            }
-
-            /* Schowanie paska nawigacji podczas przewijania w dół */
-            .mobile-nav-hidden .mobile-nav {
-                transform: translateY(100%);
-            }
+        /* Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 5;
         }
     </style>
 </head>
@@ -1808,74 +455,34 @@
 </div>
 <div class="container">
     <aside class="sidebar" id="sidebar">
-        <div class="logo" id="logo">Moja Książka Kucharska</div>
+        <div class="logo">Moja Książka Kucharska</div>
         <div class="search-box">
             <span class="icon icon-search"></span>
             <input type="text" id="searchInput" placeholder="Szukaj przepisu...">
-            <button class="search-clear" id="searchClear">×</button>
         </div>
         <div class="categories">
-            <h3><span class="icon icon-category"></span> Kategorie</h3>
+            <h3>Kategorie</h3>
             <ul class="category-list" id="categoryList">
                 <!-- Categories will be populated by JavaScript -->
             </ul>
         </div>
         <div class="recipe-list" id="recipeList">
-            <h4><span class="icon icon-list"></span> Przepisy <span class="recipe-count" id="recipeCount"></span></h4>
+            <h4>Przepisy</h4>
             <!-- Recipes will be populated by JavaScript -->
         </div>
     </aside>
     <main class="main-content">
-        <div class="breadcrumbs" id="breadcrumbs">
-            <a href="#" class="breadcrumb-item breadcrumb-home" id="homeLink">
-                <span class="icon icon-home"></span>
-            </a>
-            <!-- Breadcrumbs will be populated by JavaScript -->
-        </div>
-
-        <div class="main-actions" id="mainActions">
-            <button class="action-button toggle-dark-mode" id="darkModeToggle" data-tooltip="Tryb ciemny/jasny">
-                <span class="icon icon-dark-mode"></span>
-            </button>
-            <button class="action-button back-button" id="backButton" data-tooltip="Powrót">
-                <span class="icon icon-back"></span>
-            </button>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="loading-spinner"></div>
-            <p>Ładowanie przepisów...</p>
-        </div>
-
         <div class="welcome-screen" id="welcomeScreen">
-            <div class="welcome-header">
-                <div class="welcome-image">
-                    <span class="icon icon-list" style="width: 60px; height: 60px;"></span>
-                </div>
-                <h1>Witaj w mojej książce kucharskiej!</h1>
-                <p>Znajdź inspirację kulinarną w mojej kolekcji sprawdzonych przepisów.
-                    Użyj wyszukiwarki lub przeglądaj według kategorii.</p>
-                <a href="#" class="cta-button" id="startBrowsing">Przeglądaj przepisy</a>
-            </div>
-
-            <div class="categories-preview" id="categoriesPreview">
-                <!-- Quick category access will be populated by JavaScript -->
-            </div>
-
-            <div class="featured-recipes" id="featuredRecipes">
-                <h2>Polecane przepisy</h2>
-                <div class="featured-grid" id="featuredGrid">
-                    <!-- Featured recipes will be populated by JavaScript -->
-                </div>
-            </div>
+            <h1>Witaj w mojej książce kucharskiej!</h1>
+            <p>Znajdź inspirację kulinarną w mojej kolekcji sprawdzonych przepisów.
+                Użyj wyszukiwarki lub przeglądaj według kategorii.</p>
+            <a href="#" class="cta-button" id="startBrowsing">Przeglądaj przepisy</a>
         </div>
-
         <div class="recipe-detail" id="recipeDetail">
             <!-- Recipe details will be populated by JavaScript -->
         </div>
-
         <div class="search-results" id="searchResults">
-            <h3><span class="icon icon-search"></span> Wyniki wyszukiwania</h3>
+            <h3>Wyniki wyszukiwania</h3>
             <div class="result-count" id="resultCount"></div>
             <div class="search-results-list" id="searchResultsList">
                 <!-- Search results will be populated by JavaScript -->
@@ -1883,32 +490,6 @@
         </div>
     </main>
 </div>
-
-<!-- Toast container -->
-<div class="toast-container" id="toastContainer">
-    <!-- Toasts will be added dynamically -->
-</div>
-
-<!-- Back to Top button (mobile only) -->
-<div class="back-to-top" id="backToTop">
-    <span class="icon icon-up"></span>
-</div>
-
-<!-- Mobile bottom navigation -->
-<nav class="mobile-nav" id="mobileNav">
-    <a href="#" class="mobile-nav-item active" id="mobileHome">
-        <span class="icon icon-home"></span>
-        <span>Home</span>
-    </a>
-    <a href="#" class="mobile-nav-item" id="mobileCategory">
-        <span class="icon icon-category"></span>
-        <span>Kategorie</span>
-    </a>
-    <a href="#" class="mobile-nav-item" id="mobileSearch">
-        <span class="icon icon-search"></span>
-        <span>Szukaj</span>
-    </a>
-</nav>
 
 <script>
     // Zaimportowanie biblioteki Papa Parse do parsowania CSV
@@ -1919,19 +500,13 @@
     // Będą przechowywać dane załadowane z CSV
     let recipes = [];
     let searchIndex = [];
-    let favorites = JSON.parse(localStorage.getItem('favoriteRecipes') || '[]');
-    let currentCategory = null;
-    let currentRecipe = null;
-    let navigationHistory = [];
 
     // DOM Elements
     const categoryList = document.getElementById('categoryList');
     const recipeList = document.getElementById('recipeList');
-    const recipeCount = document.getElementById('recipeCount');
     const recipeDetail = document.getElementById('recipeDetail');
     const welcomeScreen = document.getElementById('welcomeScreen');
     const searchInput = document.getElementById('searchInput');
-    const searchClear = document.getElementById('searchClear');
     const searchResults = document.getElementById('searchResults');
     const searchResultsList = document.getElementById('searchResultsList');
     const resultCount = document.getElementById('resultCount');
@@ -1939,267 +514,6 @@
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
     const startBrowsing = document.getElementById('startBrowsing');
-    const loading = document.getElementById('loading');
-    const breadcrumbs = document.getElementById('breadcrumbs');
-    const featuredGrid = document.getElementById('featuredGrid');
-    const homeLink = document.getElementById('homeLink');
-    const logo = document.getElementById('logo');
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const backButton = document.getElementById('backButton');
-    const categoriesPreview = document.getElementById('categoriesPreview');
-    const toastContainer = document.getElementById('toastContainer');
-    const backToTop = document.getElementById('backToTop');
-
-    // Mobile navigation
-    const mobileNav = document.getElementById('mobileNav');
-    const mobileHome = document.getElementById('mobileHome');
-    const mobileCategory = document.getElementById('mobileCategory');
-    const mobileSearch = document.getElementById('mobileSearch');
-
-    // State management
-    let appState = {
-        view: 'welcome',  // 'welcome', 'categories', 'category', 'recipe', 'search'
-        lastCategory: null,
-        lastSearch: '',
-        darkMode: localStorage.getItem('darkMode') === 'true'
-    };
-
-    // Set initial dark mode
-    if (appState.darkMode) {
-        document.body.classList.add('dark-mode');
-    }
-
-    // Initialize breadcrumbs
-    function updateBreadcrumbs() {
-        // Clear current breadcrumbs except home
-        while (breadcrumbs.children.length > 1) {
-            breadcrumbs.removeChild(breadcrumbs.lastChild);
-        }
-
-        // Hide breadcrumbs on welcome screen
-        if (appState.view === 'welcome') {
-            breadcrumbs.style.display = 'none';
-            return;
-        }
-
-        breadcrumbs.style.display = 'flex';
-
-        // Add 'categories' if we're in categories view
-        if (appState.view === 'categories') {
-            const categoriesItem = document.createElement('a');
-            categoriesItem.href = '#';
-            categoriesItem.className = 'breadcrumb-item';
-            categoriesItem.textContent = 'Wszystkie kategorie';
-            breadcrumbs.appendChild(categoriesItem);
-        }
-
-        // Add category if we have one
-        if (currentCategory && (appState.view === 'category' || appState.view === 'recipe')) {
-            const categoryItem = document.createElement('a');
-            categoryItem.href = '#';
-            categoryItem.className = 'breadcrumb-item';
-            categoryItem.textContent = currentCategory;
-            categoryItem.addEventListener('click', (e) => {
-                e.preventDefault();
-                displayRecipesByCategory(currentCategory, true);
-            });
-            breadcrumbs.appendChild(categoryItem);
-        }
-
-        // Add recipe if we have one
-        if (currentRecipe && appState.view === 'recipe') {
-            const recipeItem = document.createElement('a');
-            recipeItem.href = '#';
-            recipeItem.className = 'breadcrumb-item';
-            recipeItem.textContent = currentRecipe.title;
-            breadcrumbs.appendChild(recipeItem);
-        }
-
-        // Add search if in search view
-        if (appState.view === 'search') {
-            const searchItem = document.createElement('a');
-            searchItem.href = '#';
-            searchItem.className = 'breadcrumb-item';
-            searchItem.textContent = `Szukanie: "${searchInput.value}"`;
-            breadcrumbs.appendChild(searchItem);
-        }
-    }
-
-    // Update app state and track history
-    function setAppState(newState) {
-        // Save current state to history before updating
-        if (appState.view !== newState.view) {
-            navigationHistory.push({...appState});
-
-            // Limit history size
-            if (navigationHistory.length > 10) {
-                navigationHistory.shift();
-            }
-        }
-
-        Object.assign(appState, newState);
-
-        // Update UI based on state
-        welcomeScreen.style.display = appState.view === 'welcome' ? 'block' : 'none';
-        recipeDetail.style.display = appState.view === 'recipe' ? 'block' : 'none';
-        searchResults.style.display = appState.view === 'search' ? 'block' : 'none';
-
-        // Obsługa widoków kategorii i przepisów
-        const categoriesView = document.getElementById('categoriesView');
-        const recipesView = document.getElementById('recipesView');
-
-        if (categoriesView) {
-            categoriesView.style.display = appState.view === 'categories' ? 'block' : 'none';
-        }
-
-        if (recipesView) {
-            recipesView.style.display = appState.view === 'category' && appState.lastCategory ? 'block' : 'none';
-        }
-
-        // Show/hide back button
-        backButton.style.display = navigationHistory.length > 0 ? 'flex' : 'none';
-
-        // Update breadcrumbs
-        updateBreadcrumbs();
-
-        // Update mobile nav
-        document.querySelectorAll('.mobile-nav-item').forEach(item => item.classList.remove('active'));
-        if (appState.view === 'welcome') {
-            mobileHome.classList.add('active');
-        } else if (appState.view === 'search') {
-            mobileSearch.classList.add('active');
-        } else {
-            mobileCategory.classList.add('active');
-        }
-    }
-
-    // Go back to previous state
-    function goBack() {
-        if (navigationHistory.length === 0) return;
-
-        const previousState = navigationHistory.pop();
-
-        // Usuń widoki kategorii i przepisów, jeśli istnieją
-        const categoriesView = document.getElementById('categoriesView');
-        if (categoriesView) {
-            categoriesView.parentNode.removeChild(categoriesView);
-        }
-
-        const recipesView = document.getElementById('recipesView');
-        if (recipesView) {
-            recipesView.parentNode.removeChild(recipesView);
-        }
-
-        // Handle different state transitions
-        switch (previousState.view) {
-            case 'welcome':
-                showWelcomeScreen();
-                break;
-            case 'categories':
-                showCategoriesScreen();
-                break;
-            case 'category':
-                if (previousState.lastCategory) {
-                    displayRecipesByCategory(previousState.lastCategory, true);
-                } else {
-                    showCategoriesScreen();
-                }
-                break;
-            case 'search':
-                if (previousState.lastSearch) {
-                    searchInput.value = previousState.lastSearch;
-                    const searchResults = performSearch(previousState.lastSearch);
-                    displaySearchResults(searchResults, previousState.lastSearch);
-                } else {
-                    showWelcomeScreen();
-                }
-                break;
-            default:
-                showWelcomeScreen();
-        }
-    }
-
-    // Toast notification system
-    function showToast(type, title, message, duration = 3000) {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-
-        toast.innerHTML = `
-            <div class="toast-icon">${type === 'success' ? '✓' : type === 'info' ? 'i' : type === 'warning' ? '!' : '×'}</div>
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close">×</button>
-        `;
-
-        toastContainer.appendChild(toast);
-
-        // Show toast with animation
-        setTimeout(() => {
-            toast.classList.add('visible');
-        }, 10);
-
-        // Close button
-        toast.querySelector('.toast-close').addEventListener('click', () => {
-            toast.classList.remove('visible');
-            setTimeout(() => {
-                toastContainer.removeChild(toast);
-            }, 300);
-        });
-
-        // Auto close
-        if (duration) {
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.classList.remove('visible');
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toastContainer.removeChild(toast);
-                        }
-                    }, 300);
-                }
-            }, duration);
-        }
-    }
-
-    // Zmienne do śledzenia przewijania strony
-    let lastScrollTop = 0;
-    let scrollThreshold = 50;  // Minimalna odległość przewijania, aby ukryć pasek
-
-    // Back to top functionality i ukrywanie paska nawigacji na mobilnych
-    function handleScroll() {
-        const currentScrollTop = window.scrollY;
-
-        // Obsługa przycisku "Back to top"
-        if (currentScrollTop > 300) {
-            backToTop.classList.add('visible');
-        } else {
-            backToTop.classList.remove('visible');
-        }
-
-        // Ukrywanie paska nawigacji podczas przewijania w dół na mobilnych
-        if (window.innerWidth <= 768) {
-            if (currentScrollTop > lastScrollTop && currentScrollTop > scrollThreshold) {
-                // Przewijanie w dół - ukryj pasek
-                document.body.classList.add('mobile-nav-hidden');
-            } else if (currentScrollTop < lastScrollTop) {
-                // Przewijanie w górę - pokaż pasek
-                document.body.classList.remove('mobile-nav-hidden');
-            }
-        }
-
-        lastScrollTop = currentScrollTop;
-    }
-
-    window.addEventListener('scroll', handleScroll);
-
-    backToTop.addEventListener('click', () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    });
 
     // Populate categories (zostanie zaktualizowane po załadowaniu danych)
     function updateCategoriesUI() {
@@ -2212,14 +526,18 @@
         // Populate categories
         categories.forEach(category => {
             const li = document.createElement('li');
-            li.innerHTML = `<span class="icon icon-category"></span> ${category}`;
+            li.textContent = category;
             li.addEventListener('click', () => {
                 // Set active category
                 document.querySelectorAll('.category-list li').forEach(el => el.classList.remove('active'));
                 li.classList.add('active');
 
                 // Filter recipes by category
-                displayRecipesByCategory(category, true);  // Dodano true, aby pokazywać w głównej zawartości
+                displayRecipesByCategory(category);
+
+                // Hide welcome screen and search results
+                welcomeScreen.style.display = 'none';
+                searchResults.style.display = 'none';
 
                 // On mobile, close sidebar
                 if (window.innerWidth <= 768) {
@@ -2229,163 +547,10 @@
             });
             categoryList.appendChild(li);
         });
-
-        // Create category preview pills
-        categoriesPreview.innerHTML = '';
-        categories.slice(0, 5).forEach(category => {
-            const pill = document.createElement('div');
-            pill.className = 'category-pill';
-            pill.innerHTML = `<span class="icon icon-category"></span> ${category}`;
-            pill.addEventListener('click', () => {
-                displayRecipesByCategory(category, true);  // Dodano true, aby pokazywać w głównej zawartości
-            });
-            categoriesPreview.appendChild(pill);
-        });
-
-        // Initial population of featured recipes
-        populateFeaturedRecipes(categories);
-    }
-
-    // Populate featured recipes on welcome screen
-    function populateFeaturedRecipes(categories) {
-        featuredGrid.innerHTML = '';
-
-        // Display one recipe from each category (up to 4)
-        const featuredCategories = categories.slice(0, 4);
-
-        featuredCategories.forEach(category => {
-            // Get first recipe from this category
-            const recipe = recipes.find(r => r.category === category);
-            if (!recipe) return;
-
-            const card = document.createElement('div');
-            card.className = 'featured-card';
-            card.innerHTML = `
-                <div class="featured-image">
-                    <span class="icon icon-category" style="width: 40px; height: 40px;"></span>
-                </div>
-                <div class="featured-content">
-                    <div class="featured-title">${recipe.title}</div>
-                    <div class="featured-category">
-                        <span class="icon icon-category"></span>
-                        ${recipe.category}
-                    </div>
-                    <div class="featured-meta">
-                        <div>
-                            <span class="icon icon-time"></span>
-                            ${recipe.prepTime} min
-                        </div>
-                        <div>
-                            <span class="icon icon-servings"></span>
-                            ${recipe.servings} porcji
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            card.addEventListener('click', () => {
-                displayRecipeDetail(recipe);
-            });
-
-            featuredGrid.appendChild(card);
-        });
-    }
-
-    // Nowa funkcja do wyświetlania wszystkich kategorii w głównej zawartości
-    function showCategoriesScreen() {
-        currentCategory = null;
-
-        // Set app state
-        setAppState({
-            view: 'categories',
-            lastCategory: null
-        });
-
-        // Usuń istniejące widoki, jeśli istnieją
-        const existingCategoriesView = document.getElementById('categoriesView');
-        if (existingCategoriesView) {
-            existingCategoriesView.parentNode.removeChild(existingCategoriesView);
-        }
-
-        const existingRecipesView = document.getElementById('recipesView');
-        if (existingRecipesView) {
-            existingRecipesView.parentNode.removeChild(existingRecipesView);
-        }
-
-        // Pobierz unikalne kategorie
-        const categories = [...new Set(recipes.map(recipe => recipe.category))];
-
-        // Wyczyść główną zawartość
-        welcomeScreen.style.display = 'none';
-        recipeDetail.style.display = 'none';
-        searchResults.style.display = 'none';
-
-        // Stwórz widok kategorii
-        const categoriesView = document.createElement('div');
-        categoriesView.id = 'categoriesView';
-        categoriesView.className = 'categories-view';
-        categoriesView.style.display = 'block';
-        categoriesView.style.animation = 'fadeIn 0.5s ease';
-
-        // Dodaj nagłówek
-        categoriesView.innerHTML = `
-            <h2 style="margin-bottom: 2rem; color: var(--primary-color); text-align: center;">
-                Wszystkie kategorie przepisów
-            </h2>
-            <div class="categories-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem;">
-            </div>
-        `;
-
-        // Dodaj categoriesView przed recipeDetail
-        recipeDetail.parentNode.insertBefore(categoriesView, recipeDetail);
-
-        // Pobierz grid do wypełnienia
-        const categoriesGrid = categoriesView.querySelector('.categories-grid');
-
-        // Wypełnij wszystkimi kategoriami
-        categories.forEach(category => {
-            // Policz przepisy w danej kategorii
-            const recipeCount = recipes.filter(r => r.category === category).length;
-
-            const categoryCard = document.createElement('div');
-            categoryCard.className = 'featured-card';
-            categoryCard.innerHTML = `
-                <div class="featured-image">
-                    <span class="icon icon-category" style="width: 40px; height: 40px;"></span>
-                </div>
-                <div class="featured-content">
-                    <div class="featured-title">${category}</div>
-                    <div class="featured-meta">
-                        <div>
-                            <span class="icon icon-list"></span>
-                            ${recipeCount} ${recipeCount === 1 ? 'przepis' : recipeCount < 5 ? 'przepisy' : 'przepisów'}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            categoryCard.addEventListener('click', () => {
-                // Wyświetl przepisy z tej kategorii
-                displayRecipesByCategory(category, true);
-            });
-
-            categoriesGrid.appendChild(categoryCard);
-        });
-
-        // Aktualizuj okruszki
-        updateBreadcrumbs();
     }
 
     // Display recipes by category
-    function displayRecipesByCategory(category, showInMainContent = false) {
-        currentCategory = category;
-
-        // Set app state
-        setAppState({
-            view: 'category',
-            lastCategory: category
-        });
-
+    function displayRecipesByCategory(category) {
         // Clear current recipe list
         while (recipeList.children.length > 1) {
             recipeList.removeChild(recipeList.lastChild);
@@ -2394,35 +559,11 @@
         // Filter recipes by selected category
         const filteredRecipes = recipes.filter(recipe => recipe.category === category);
 
-        // Update recipe count
-        recipeCount.textContent = `(${filteredRecipes.length})`;
-
-        // Highlight active category in sidebar
-        document.querySelectorAll('.category-list li').forEach(li => {
-            if (li.textContent.includes(category)) {
-                li.classList.add('active');
-            } else {
-                li.classList.remove('active');
-            }
-        });
-
-        // Populate recipe list in sidebar
+        // Populate recipe list
         filteredRecipes.forEach(recipe => {
             const div = document.createElement('div');
             div.className = 'recipe-item';
-
-            // Check if recipe is a favorite
-            const isFavorite = favorites.includes(recipe.id);
-
-            // Create first letter icon
-            const firstLetter = recipe.title.charAt(0).toUpperCase();
-
-            div.innerHTML = `
-                <div class="recipe-image-placeholder">${firstLetter}</div>
-                ${recipe.title}
-                ${isFavorite ? '<span class="icon icon-favorite-filled" style="margin-left: auto;"></span>' : ''}
-            `;
-
+            div.textContent = recipe.title;
             div.addEventListener('click', () => {
                 // Set active recipe
                 document.querySelectorAll('.recipe-item').forEach(el => el.classList.remove('active'));
@@ -2439,119 +580,17 @@
             });
             recipeList.appendChild(div);
         });
-
-        // Wyświetl przepisy w głównej zawartości, jeśli flaga jest ustawiona
-        if (showInMainContent) {
-            // Usuń widok kategorii, jeśli istnieje
-            const categoriesView = document.getElementById('categoriesView');
-            if (categoriesView) {
-                categoriesView.parentNode.removeChild(categoriesView);
-            }
-
-            // Usuń widok przepisów, jeśli istnieje
-            const existingRecipesView = document.getElementById('recipesView');
-            if (existingRecipesView) {
-                existingRecipesView.parentNode.removeChild(existingRecipesView);
-            }
-
-            // Ukryj inne widoki
-            welcomeScreen.style.display = 'none';
-            recipeDetail.style.display = 'none';
-            searchResults.style.display = 'none';
-
-            // Stwórz widok przepisów
-            const recipesView = document.createElement('div');
-            recipesView.id = 'recipesView';
-            recipesView.className = 'recipes-view';
-            recipesView.style.display = 'block';
-            recipesView.style.animation = 'fadeIn 0.5s ease';
-
-            // Dodaj nagłówek
-            recipesView.innerHTML = `
-                <h2 style="margin-bottom: 2rem; color: var(--primary-color);">
-                    <span class="icon icon-category"></span> ${category}
-                </h2>
-                <div class="result-count" style="margin-bottom: 2rem;">
-                    Znaleziono ${filteredRecipes.length} ${filteredRecipes.length === 1 ? 'przepis' : filteredRecipes.length < 5 ? 'przepisy' : 'przepisów'}
-                </div>
-                <div class="recipes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
-                </div>
-            `;
-
-            // Dodaj recipesView przed recipeDetail
-            recipeDetail.parentNode.insertBefore(recipesView, recipeDetail);
-
-            // Pobierz grid do wypełnienia
-            const recipesGrid = recipesView.querySelector('.recipes-grid');
-
-            // Wypełnij wszystkimi przepisami
-            filteredRecipes.forEach(recipe => {
-                const isFavorite = favorites.includes(recipe.id);
-                const firstLetter = recipe.title.charAt(0).toUpperCase();
-
-                const recipeCard = document.createElement('div');
-                recipeCard.className = 'featured-card';
-                recipeCard.innerHTML = `
-                    <div class="featured-image">
-                        <span>${firstLetter}</span>
-                    </div>
-                    <div class="featured-content">
-                        <div class="featured-title">${recipe.title}</div>
-                        <div class="featured-category">
-                            <span class="icon icon-category"></span>
-                            ${recipe.category}
-                        </div>
-                        <div class="featured-meta">
-                            <div>
-                                <span class="icon icon-time"></span>
-                                ${recipe.prepTime} min
-                            </div>
-                            <div>
-                                <span class="icon icon-servings"></span>
-                                ${recipe.servings} porcji
-                            </div>
-                            ${isFavorite ? '<div><span class="icon icon-favorite-filled"></span></div>' : ''}
-                        </div>
-                    </div>
-                `;
-
-                recipeCard.addEventListener('click', () => {
-                    displayRecipeDetail(recipe);
-                });
-
-                recipesGrid.appendChild(recipeCard);
-            });
-        }
     }
 
     // Display recipe detail
     function displayRecipeDetail(recipe) {
-        currentRecipe = recipe;
-
-        // Set app state
-        setAppState({ view: 'recipe' });
-
-        // Usuń widoki kategorii i przepisów, jeśli istnieją
-        const categoriesView = document.getElementById('categoriesView');
-        if (categoriesView) {
-            categoriesView.parentNode.removeChild(categoriesView);
-        }
-
-        const recipesView = document.getElementById('recipesView');
-        if (recipesView) {
-            recipesView.parentNode.removeChild(recipesView);
-        }
-
-        // Check if recipe is a favorite
-        const isFavorite = favorites.includes(recipe.id);
-        const favoriteIconClass = isFavorite ? 'icon-favorite-filled' : 'icon-favorite';
-
-        // Generate a recipe image placeholder with first letter
-        const firstLetter = recipe.title.charAt(0).toUpperCase();
+        // Show recipe detail section
+        welcomeScreen.style.display = 'none';
+        searchResults.style.display = 'none';
+        recipeDetail.style.display = 'block';
 
         // Populate recipe detail
         recipeDetail.innerHTML = `
-            <div class="recipe-header">
                 <h2>${recipe.title}</h2>
                 <div class="recipe-meta">
                     <div>
@@ -2562,29 +601,7 @@
                         <span class="icon icon-servings"></span>
                         Porcje: ${recipe.servings}
                     </div>
-                    <div>
-                        <span class="icon icon-category"></span>
-                        Kategoria: ${recipe.category}
-                    </div>
                 </div>
-            </div>
-
-            <div class="recipe-image">
-                <span>${firstLetter}</span>
-            </div>
-
-            <div class="recipe-progress" id="recipeProgress" style="position: sticky; top: 0; z-index: 10; margin-top: 0;">
-                <div class="progress-title">
-                    <span class="icon icon-progress"></span>
-                    Postęp przepisu
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div class="progress-text" id="progressText">0% ukończono</div>
-            </div>
-
-            <div class="recipe-content">
                 <div class="ingredients-section">
                     <h3 class="section-title">
                         <span class="icon icon-ingredients"></span>
@@ -2593,10 +610,8 @@
                     <ul class="ingredients-list">
                         ${recipe.ingredients.map(ingredient => `
                             <li class="ingredient-item">
-                                <input type="checkbox" class="ingredient-checkbox">
-                                <div class="ingredient-text">
-                                    <span class="ingredient-amount">${ingredient.amount}</span> ${ingredient.name}
-                                </div>
+                                <span class="icon icon-check"></span>
+                                <span>${ingredient.amount} ${ingredient.name}</span>
                             </li>
                         `).join('')}
                     </ul>
@@ -2607,269 +622,17 @@
                         Sposób przygotowania
                     </h3>
                     <ol class="instructions-list">
-                        ${recipe.instructions.map((instruction, index) => `
-                            <li class="instruction-step" data-step="${index + 1}">
-                                <div class="instruction-step-header">
-                                    <button class="instruction-toggle">Oznacz jako wykonane</button>
-                                </div>
-                                ${instruction}
-                            </li>
+                        ${recipe.instructions.map(instruction => `
+                            <li class="instruction-step">${instruction}</li>
                         `).join('')}
                     </ol>
                 </div>
-            </div>
-
-            <div class="recipe-actions">
-                <button class="recipe-action-btn toggle-favorite" id="favoriteButton">
-                    <span class="icon ${favoriteIconClass}"></span>
-                    ${isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
-                </button>
-                <button class="recipe-action-btn" id="printButton">
-                    <span class="icon icon-print"></span>
-                    Drukuj przepis
-                </button>
-                <button class="recipe-action-btn primary" id="backToCategory">
-                    <span class="icon icon-back"></span>
-                    Powrót do kategorii
-                </button>
-            </div>
-
-            ${window.innerWidth <= 768 ? `
-            <div class="swipe-indicator">Przesuń w lewo lub prawo, aby zmienić przepis</div>
-            ` : ''}
-        `;
-
-        // Możliwość kliknięcia całego klocka składnika (nie tylko na checkboxie)
-        document.querySelectorAll('.ingredient-item').forEach(item => {
-            const checkbox = item.querySelector('.ingredient-checkbox');
-
-            // Nasłuchuj kliknięć na całym elemencie
-            item.addEventListener('click', function(e) {
-                // Jeśli kliknięto bezpośrednio na checkbox, nie rób nic (obsłuży to event checkboxa)
-                if (e.target === checkbox) return;
-
-                // Symuluj kliknięcie na checkbox
-                checkbox.checked = !checkbox.checked;
-
-                // Wywołaj event change na checkboxie
-                const changeEvent = new Event('change', { bubbles: true });
-                checkbox.dispatchEvent(changeEvent);
-            });
-        });
-
-        // Add event listeners for ingredient checkboxes
-        document.querySelectorAll('.ingredient-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const item = this.closest('.ingredient-item');
-                if (this.checked) {
-                    item.classList.add('ingredient-checked');
-                } else {
-                    item.classList.remove('ingredient-checked');
-                }
-                updateRecipeProgress();
-            });
-        });
-
-        // Add event listeners for instruction steps
-        document.querySelectorAll('.instruction-toggle').forEach(button => {
-            button.addEventListener('click', function() {
-                const step = this.closest('.instruction-step');
-                step.classList.toggle('completed');
-                this.textContent = step.classList.contains('completed') ?
-                    'Oznacz jako niewykonane' : 'Oznacz jako wykonane';
-                this.classList.toggle('completed');
-                updateRecipeProgress();
-            });
-        });
-
-        // Favorite button functionality
-        const favoriteButton = document.getElementById('favoriteButton');
-        favoriteButton.addEventListener('click', function() {
-            const wasAlreadyFavorite = favorites.includes(recipe.id);
-            toggleFavorite(recipe.id);
-
-            // Update button appearance
-            const isFav = favorites.includes(recipe.id);
-            this.innerHTML = `
-                <span class="icon ${isFav ? 'icon-favorite-filled' : 'icon-favorite'}"></span>
-                ${isFav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
             `;
-
-            // Show toast
-            if (isFav) {
-                showToast('success', 'Dodano do ulubionych', `"${recipe.title}" został dodany do ulubionych przepisów.`);
-            } else {
-                showToast('info', 'Usunięto z ulubionych', `"${recipe.title}" został usunięty z ulubionych przepisów.`);
-            }
-        });
-
-        // Print button functionality
-        const printButton = document.getElementById('printButton');
-        printButton.addEventListener('click', function() {
-            window.print();
-        });
-
-        // Back button functionality
-        const backButton = document.getElementById('backToCategory');
-        backButton.addEventListener('click', function() {
-            if (currentCategory) {
-                displayRecipesByCategory(currentCategory, true); // Dodano true, aby pokazać przepisy w głównej zawartości
-            } else if (appState.lastCategory) {
-                displayRecipesByCategory(appState.lastCategory, true); // Dodano true, aby pokazać przepisy w głównej zawartości
-            } else {
-                showWelcomeScreen();
-            }
-        });
-
-        // Initial progress update
-        updateRecipeProgress();
-
-        // Add swipe gestures for mobile
-        if (window.innerWidth <= 768) {
-            addSwipeGestures();
-        }
-
-        // Dostosuj położenie paska postępu dla urządzeń mobilnych
-        const recipeProgress = document.getElementById('recipeProgress');
-        if (recipeProgress) {
-            if (window.innerWidth <= 768) {
-                recipeProgress.style.top = '60px'; // więcej miejsca na mobilnym ekranie
-            } else {
-                recipeProgress.style.top = '0';
-            }
-        }
-    }
-
-    // Update recipe progress
-    function updateRecipeProgress() {
-        const ingredientCheckboxes = document.querySelectorAll('.ingredient-checkbox');
-        const instructionSteps = document.querySelectorAll('.instruction-step');
-
-        let checkedIngredients = 0;
-        let completedSteps = 0;
-
-        // Count checked ingredients
-        ingredientCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) checkedIngredients++;
-        });
-
-        // Count completed steps
-        instructionSteps.forEach(step => {
-            if (step.classList.contains('completed')) completedSteps++;
-        });
-
-        // Calculate progress
-        const totalItems = ingredientCheckboxes.length + instructionSteps.length;
-        const completedItems = checkedIngredients + completedSteps;
-        const progressPercentage = Math.round((completedItems / totalItems) * 100);
-
-        // Update progress bar and text
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-
-        progressFill.style.width = `${progressPercentage}%`;
-        progressText.textContent = `${progressPercentage}% ukończono`;
-
-        // Change progress bar color based on percentage
-        if (progressPercentage < 25) {
-            progressFill.style.backgroundColor = 'var(--primary-light)';
-        } else if (progressPercentage < 75) {
-            progressFill.style.backgroundColor = 'var(--accent-color)';
-        } else {
-            progressFill.style.backgroundColor = 'var(--success-color)';
-        }
-
-        // Show congrats message if completed
-        if (progressPercentage === 100 && !document.querySelector('.recipe-completed-message')) {
-            const completedMessage = document.createElement('div');
-            completedMessage.className = 'recipe-completed-message';
-            completedMessage.style.backgroundColor = 'var(--success-color)';
-            completedMessage.style.color = 'white';
-            completedMessage.style.padding = '1rem';
-            completedMessage.style.borderRadius = 'var(--border-radius)';
-            completedMessage.style.marginTop = '1rem';
-            completedMessage.style.textAlign = 'center';
-            completedMessage.style.animation = 'fadeIn 0.5s ease';
-            completedMessage.innerHTML = `
-                <h3>Gratulacje!</h3>
-                <p>Ukończyłeś wszystkie kroki przepisu. Smacznego!</p>
-            `;
-
-            document.querySelector('.recipe-progress').after(completedMessage);
-
-            // Show toast
-            showToast('success', 'Przepis ukończony!', 'Gratulacje! Ukończyłeś wszystkie kroki przepisu.');
-        }
-    }
-
-    // Add swipe gestures for mobile
-    function addSwipeGestures() {
-        const recipeDetailElement = document.getElementById('recipeDetail');
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        recipeDetailElement.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
-        }, false);
-
-        recipeDetailElement.addEventListener('touchend', e => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, false);
-
-        function handleSwipe() {
-            // Minimum distance for swipe
-            const minSwipeDistance = 50;
-            const swipeDistance = touchEndX - touchStartX;
-
-            if (Math.abs(swipeDistance) < minSwipeDistance) return;
-
-            // Get current category recipes
-            const categoryRecipes = recipes.filter(r => r.category === currentCategory);
-            if (categoryRecipes.length <= 1) return;
-
-            // Find current recipe index
-            const currentIndex = categoryRecipes.findIndex(r => r.id === currentRecipe.id);
-            let nextIndex;
-
-            if (swipeDistance > 0) {
-                // Swipe right (previous recipe)
-                nextIndex = currentIndex === 0 ? categoryRecipes.length - 1 : currentIndex - 1;
-            } else {
-                // Swipe left (next recipe)
-                nextIndex = currentIndex === categoryRecipes.length - 1 ? 0 : currentIndex + 1;
-            }
-
-            // Show animation
-            recipeDetail.classList.add('fade-out');
-
-            // Change recipe after animation
-            setTimeout(() => {
-                displayRecipeDetail(categoryRecipes[nextIndex]);
-                recipeDetail.classList.remove('fade-out');
-            }, 300);
-        }
-    }
-
-    // Toggle favorite recipe
-    function toggleFavorite(recipeId) {
-        const index = favorites.indexOf(recipeId);
-        if (index === -1) {
-            favorites.push(recipeId);
-        } else {
-            favorites.splice(index, 1);
-        }
-
-        // Save to localStorage
-        localStorage.setItem('favoriteRecipes', JSON.stringify(favorites));
     }
 
     // Search functionality
     searchInput.addEventListener('input', () => {
         const query = searchInput.value.toLowerCase().trim();
-
-        // Show/hide clear button
-        searchClear.style.display = query.length > 0 ? 'block' : 'none';
 
         if (query.length >= 2) {
             // Wyszukiwanie przepisów na podstawie zapytania
@@ -2877,71 +640,14 @@
             displaySearchResults(searchResults, query);
         } else if (query.length === 0) {
             // Hide search results if search cleared
-            if (appState.view === 'search') {
-                if (appState.lastCategory) {
-                    displayRecipesByCategory(appState.lastCategory, true);
-                } else {
-                    showWelcomeScreen();
-                }
+            searchResults.style.display = 'none';
+
+            // Show welcome screen if no recipe was selected
+            if (recipeDetail.style.display !== 'block') {
+                welcomeScreen.style.display = 'block';
             }
         }
     });
-
-    // Add search on Enter key
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const query = searchInput.value.trim();
-            if (query.length >= 2) {
-                // Save search query and show results
-                appState.lastSearch = query;
-                const searchResults = performSearch(query);
-                displaySearchResults(searchResults, query);
-
-                // Close sidebar on mobile
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('active');
-                    overlay.style.display = 'none';
-                }
-            }
-        }
-    });
-
-    // Clear search button
-    searchClear.addEventListener('click', () => {
-        searchInput.value = '';
-        searchClear.style.display = 'none';
-        searchInput.focus();
-
-        if (appState.view === 'search') {
-            if (appState.lastCategory) {
-                displayRecipesByCategory(appState.lastCategory, true);
-            } else {
-                showWelcomeScreen();
-            }
-        }
-    });
-
-    // Show welcome screen
-    function showWelcomeScreen() {
-        currentCategory = null;
-        currentRecipe = null;
-        setAppState({ view: 'welcome' });
-
-        // Usuń widoki kategorii i przepisów, jeśli istnieją
-        const categoriesView = document.getElementById('categoriesView');
-        if (categoriesView) {
-            categoriesView.parentNode.removeChild(categoriesView);
-        }
-
-        const recipesView = document.getElementById('recipesView');
-        if (recipesView) {
-            recipesView.parentNode.removeChild(recipesView);
-        }
-
-        // Refresh featured recipes
-        const categories = [...new Set(recipes.map(recipe => recipe.category))];
-        populateFeaturedRecipes(categories);
-    }
 
     // Poprawiona funkcja wyszukiwania - pokazuje częściowe dopasowania dla każdego słowa
     function performSearch(query) {
@@ -3123,22 +829,10 @@
 
     // Funkcja wyświetlająca wyniki wyszukiwania
     function displaySearchResults(results, query) {
-        // Set app state
-        setAppState({
-            view: 'search',
-            lastSearch: query
-        });
-
-        // Usuń widoki kategorii i przepisów, jeśli istnieją
-        const categoriesView = document.getElementById('categoriesView');
-        if (categoriesView) {
-            categoriesView.parentNode.removeChild(categoriesView);
-        }
-
-        const recipesView = document.getElementById('recipesView');
-        if (recipesView) {
-            recipesView.parentNode.removeChild(recipesView);
-        }
+        // Show search results section
+        welcomeScreen.style.display = 'none';
+        recipeDetail.style.display = 'none';
+        searchResults.style.display = 'block';
 
         // Clear current results
         searchResultsList.innerHTML = '';
@@ -3161,23 +855,7 @@
 
         // Jeśli nie ma żadnych wyników
         if (totalResults === 0) {
-            const noResults = document.createElement('div');
-            noResults.className = 'no-results';
-            noResults.innerHTML = `
-                <div class="no-results-icon">😕</div>
-                <h4>Brak wyników</h4>
-                <p>Nie znaleziono przepisów pasujących do zapytania "${query}".</p>
-                <div class="suggestions">
-                    <p>Spróbuj:</p>
-                    <ul>
-                        <li>Sprawdzić pisownię</li>
-                        <li>Użyć innych słów kluczowych</li>
-                        <li>Wyszukać konkretnych składników</li>
-                        <li>Przeglądać według kategorii</li>
-                    </ul>
-                </div>
-            `;
-            searchResultsList.appendChild(noResults);
+            searchResultsList.innerHTML = '<p>Nie znaleziono przepisów. Spróbuj innych słów kluczowych.</p>';
             return;
         }
 
@@ -3188,7 +866,7 @@
 
             const exactTitle = document.createElement('h4');
             exactTitle.className = 'results-section-title';
-            exactTitle.innerHTML = '<span class="icon icon-check"></span> Najlepsze dopasowania';
+            exactTitle.textContent = 'Najlepsze dopasowania';
             exactSection.appendChild(exactTitle);
 
             exact.forEach(match => {
@@ -3206,7 +884,7 @@
 
             const partialTitle = document.createElement('h4');
             partialTitle.className = 'results-section-title';
-            partialTitle.innerHTML = '<span class="icon icon-list"></span> Podobne przepisy';
+            partialTitle.textContent = 'Podobne przepisy';
             partialSection.appendChild(partialTitle);
 
             const partialDescription = document.createElement('p');
@@ -3228,49 +906,56 @@
         const div = document.createElement('div');
         div.className = 'search-result-item';
 
-        // First letter for icon
-        const firstLetter = recipe.title.charAt(0).toUpperCase();
+        // Podstawowe informacje o przepisie
+        const header = document.createElement('h4');
+        header.textContent = recipe.title;
+        div.appendChild(header);
 
-        // Check if recipe is a favorite
-        const isFavorite = favorites.includes(recipe.id);
+        const category = document.createElement('p');
+        category.textContent = `Kategoria: ${recipe.category}`;
+        div.appendChild(category);
 
-        // Struktura wyniku
-        div.innerHTML = `
-            <div class="search-result-icon">${firstLetter}</div>
-            <div class="search-result-content">
-                <h4>${recipe.title} ${isFavorite ? '<span class="icon icon-favorite-filled" style="font-size: 0.8rem; margin-left: 5px;"></span>' : ''}</h4>
-                <div class="search-result-category">${recipe.category}</div>
+        // Jeśli mamy informacje o dopasowaniu, dodajemy je
+        if (matchInfo) {
+            // Podsumowanie dopasowanych słów
+            if (matchInfo.matchedWords.length > 0) {
+                const matchedWordsElement = document.createElement('p');
+                matchedWordsElement.className = 'match-info';
+                matchedWordsElement.innerHTML = '<strong>Dopasowane słowa:</strong> ' +
+                    matchInfo.matchedWords.map(word =>
+                        `<span class="highlighted-match">${word}</span>`
+                    ).join(', ');
+                div.appendChild(matchedWordsElement);
+            }
 
-                ${matchInfo.matchedWords.length > 0 ? `
-                    <p class="match-info">
-                        <strong>Dopasowane słowa:</strong>
-                        ${matchInfo.matchedWords.map(word =>
-            `<span class="highlighted-match">${word}</span>`
-        ).join(', ')}
-                    </p>
-                ` : ''}
+            // Dopasowane składniki
+            if (matchInfo.matchedIngredients.length > 0) {
+                const ingredientsMatch = document.createElement('p');
+                ingredientsMatch.className = 'match-info';
+                ingredientsMatch.innerHTML = '<strong>Znaleziono w składnikach:</strong> ' +
+                    matchInfo.matchedIngredients.map(match =>
+                        `<span class="highlighted-match">${match.matchedWord}</span> (${match.ingredient})`
+                    ).join(', ');
+                div.appendChild(ingredientsMatch);
+            }
 
-                ${matchInfo.matchedIngredients.length > 0 ? `
-                    <p class="match-info">
-                        <strong>Znaleziono w składnikach:</strong>
-                        ${matchInfo.matchedIngredients.slice(0, 2).map(match =>
-            `<span class="highlighted-match">${match.matchedWord}</span>`
-        ).join(', ')}
-                        ${matchInfo.matchedIngredients.length > 2 ? '...' : ''}
-                    </p>
-                ` : ''}
+            // Dopasowane instrukcje (pierwsza, jeśli jest kilka)
+            if (matchInfo.matchedInstructions.length > 0) {
+                const instructionsMatch = document.createElement('p');
+                instructionsMatch.className = 'match-info';
+                instructionsMatch.innerHTML = '<strong>Znaleziono w instrukcjach:</strong> ' +
+                    matchInfo.matchedInstructions.slice(0, 1).map(match =>
+                        `<span class="highlighted-match">${match.matchedWord}</span> (krok ${match.instructionIndex + 1})`
+                    ).join(', ');
 
-                ${matchInfo.matchedInstructions.length > 0 ? `
-                    <p class="match-info">
-                        <strong>Znaleziono w instrukcjach:</strong>
-                        ${matchInfo.matchedInstructions.slice(0, 1).map(match =>
-            `<span class="highlighted-match">${match.matchedWord}</span> (krok ${match.instructionIndex + 1})`
-        ).join(', ')}
-                        ${matchInfo.matchedInstructions.length > 1 ? ' i inne...' : ''}
-                    </p>
-                ` : ''}
-            </div>
-        `;
+                // Jeśli jest więcej niż jedno dopasowanie w instrukcjach
+                if (matchInfo.matchedInstructions.length > 1) {
+                    instructionsMatch.innerHTML += ' i inne...';
+                }
+
+                div.appendChild(instructionsMatch);
+            }
+        }
 
         div.addEventListener('click', () => {
             displayRecipeDetail(recipe);
@@ -3291,134 +976,18 @@
         overlay.style.display = 'none';
     });
 
-    // Home link (logo and breadcrumb home)
-    homeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showWelcomeScreen();
-    });
-
-    logo.addEventListener('click', () => {
-        showWelcomeScreen();
-
-        // Close sidebar on mobile
-        if (window.innerWidth <= 768) {
-            sidebar.classList.remove('active');
-            overlay.style.display = 'none';
-        }
-    });
-
     // Start browsing button
     startBrowsing.addEventListener('click', (e) => {
         e.preventDefault();
-        // Zamiast klikać tylko pierwszą kategorię, pokaż ekran z kategoriami
-        showCategoriesScreen();
-    });
-
-    // Dark mode toggle
-    darkModeToggle.addEventListener('click', () => {
-        appState.darkMode = !appState.darkMode;
-        document.body.classList.toggle('dark-mode', appState.darkMode);
-        localStorage.setItem('darkMode', appState.darkMode);
-
-        // Show toast
-        showToast('info',
-            appState.darkMode ? 'Tryb ciemny włączony' : 'Tryb jasny włączony',
-            appState.darkMode ? 'Przełączono na tryb ciemny.' : 'Przełączono na tryb jasny.');
-    });
-
-    // Back button functionality
-    backButton.addEventListener('click', goBack);
-
-    // Mobile navigation
-    mobileHome.addEventListener('click', (e) => {
-        e.preventDefault();
-        showWelcomeScreen();
-    });
-
-    mobileCategory.addEventListener('click', (e) => {
-        e.preventDefault();
-
-        // Pokaż ekran wszystkich kategorii zamiast otwierać pasek boczny
-        showCategoriesScreen();
-    });
-
-    mobileSearch.addEventListener('click', (e) => {
-        e.preventDefault();
-
-        // Focus the search input
-        searchInput.focus();
-
-        // If we already have search results, show them
-        if (searchInput.value.trim().length >= 2) {
-            setAppState({ view: 'search' });
+        if (recipes.length > 0 && document.querySelector('.category-list li')) {
+            // Simulate click on first category
+            document.querySelector('.category-list li').click();
         }
     });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        // Escape key - close sidebar or go back
-        if (e.key === 'Escape') {
-            if (sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-                overlay.style.display = 'none';
-            } else if (navigationHistory.length > 0) {
-                goBack();
-            }
-        }
-
-        // Alt+Left - Go back
-        if (e.altKey && e.key === 'ArrowLeft' && navigationHistory.length > 0) {
-            goBack();
-        }
-
-        // Ctrl+F - Focus search
-        if (e.ctrlKey && e.key === 'f') {
-            e.preventDefault();
-            searchInput.focus();
-        }
-
-        // Ctrl+Home - Go to welcome screen
-        if (e.ctrlKey && e.key === 'Home') {
-            e.preventDefault();
-            showWelcomeScreen();
-        }
-    });
-
-    // Funkcja do obsługi zmian rozmiaru okna
-    function handleWindowResize() {
-        if (window.innerWidth <= 768) {
-            // Na małych ekranach zawsze zamykaj sidebar
-            sidebar.classList.remove('active');
-            overlay.style.display = 'none';
-
-            // Dodaj swipe gestures dla aktualnie wyświetlanego przepisu
-            if (appState.view === 'recipe' && currentRecipe) {
-                addSwipeGestures();
-            }
-        }
-
-        // Aktualizacja pozycji sticky paska postępu
-        if (appState.view === 'recipe') {
-            const recipeProgress = document.getElementById('recipeProgress');
-            if (recipeProgress) {
-                if (window.innerWidth <= 768) {
-                    recipeProgress.style.top = '60px'; // więcej miejsca na mobilnym ekranie
-                } else {
-                    recipeProgress.style.top = '0';
-                }
-            }
-        }
-    }
-
-    // Dodaj nasłuchiwanie na zmianę rozmiaru okna
-    window.addEventListener('resize', handleWindowResize);
 
     // Ładowanie przepisów z pliku CSV
     async function loadRecipesFromCSV() {
         try {
-            // Show loading indicator
-            loading.style.display = 'block';
-
             console.log("Ładowanie przepisów z CSV...");
 
             // Pobieranie pliku recipes.csv z tego samego katalogu
@@ -3428,8 +997,7 @@
             // Parsowanie CSV przy użyciu Papa Parse
             const result = Papa.parse(csvData, {
                 header: true,
-                skipEmptyLines: true,
-                dynamicTyping: true
+                skipEmptyLines: true
             });
 
             // Transformacja danych z CSV do formatu potrzebnego w aplikacji
@@ -3442,6 +1010,7 @@
                     let name = trimmedItem.substring(lastSpaceIndex + 1).trim();
 
                     // Obsługa przypadków, gdzie można mieć więcej niż jedno słowo w nazwie
+                    // np. "proszek do pieczenia"
                     if (name === "do" || name === "cukru" || name === "mąki" || name === "proszku") {
                         const secondLastSpaceIndex = amount.lastIndexOf(' ');
                         name = amount.substring(secondLastSpaceIndex + 1).trim() + " " + name;
@@ -3460,41 +1029,21 @@
                     prepTime: parseInt(row.prepTime),
                     servings: parseInt(row.servings),
                     ingredients,
-                    instructions,
-                    // Dodatkowe pomocne pola
-                    dateAdded: new Date().toISOString() // Symulacja daty dodania
+                    instructions
                 };
             });
 
             console.log("Załadowano przepisy:", recipes);
 
-            // Hide loading indicator
-            loading.style.display = 'none';
-
             // Generowanie indeksu wyszukiwania na podstawie załadowanych przepisów
             generateSearchIndex();
-
-            // Pokaż toast z informacją o załadowanych przepisach
-            showToast('success', 'Przepisy załadowane', `Załadowano ${recipes.length} przepisów kuchennych.`);
 
             return recipes;
         } catch (error) {
             console.error('Błąd podczas ładowania przepisów:', error);
 
-            // Hide loading indicator and show error
-            loading.style.display = 'none';
-            welcomeScreen.innerHTML = `
-                <div class="no-results">
-                    <div class="no-results-icon">❌</div>
-                    <h4>Błąd ładowania</h4>
-                    <p>Nie udało się załadować przepisów. Sprawdź połączenie z internetem i odśwież stronę.</p>
-                    <button class="cta-button" onclick="window.location.reload()">Odśwież stronę</button>
-                </div>
-            `;
-
-            // Pokaż toast z błędem
-            showToast('error', 'Błąd ładowania', 'Nie udało się załadować przepisów. Spróbuj odświeżyć stronę.');
-
+            // W przypadku błędu, możemy pokazać komunikat użytkownikowi
+            alert('Nie udało się załadować przepisów. Spróbuj odświeżyć stronę.');
             return [];
         }
     }
@@ -3530,16 +1079,10 @@
             // Dodajemy słowa kluczowe ze składników
             recipe.ingredients.forEach(ingredient => {
                 const name = ingredient.name.toLowerCase();
-                const words = name.split(/\s+/);
-
-                words.forEach(word => {
-                    if (word.length < 2) return; // Pomijamy zbyt krótkie słowa
-
-                    if (!wordMap.has(word)) {
-                        wordMap.set(word, new Set());
-                    }
-                    wordMap.get(word).add(recipe.id);
-                });
+                if (!wordMap.has(name)) {
+                    wordMap.set(name, new Set());
+                }
+                wordMap.get(name).add(recipe.id);
             });
         });
 
@@ -3557,12 +1100,6 @@
     // Inicjalizacja aplikacji
     async function initialize() {
         try {
-            // Show loading indicator initially
-            loading.style.display = 'block';
-
-            // Hide back button initially
-            backButton.style.display = 'none';
-
             // Ładowanie danych z plików CSV
             await loadRecipesFromCSV();
             // Indeks jest już generowany w loadRecipesFromCSV
@@ -3570,39 +1107,16 @@
             // Aktualizacja interfejsu po załadowaniu danych
             updateCategoriesUI();
 
-            // Hide breadcrumbs initially
-            breadcrumbs.style.display = 'none';
-
             // Responsive adjustments
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('active');
+            if (window.innerWidth > 768) {
+                sidebar.classList.add('active');
             }
 
-            // Hide loading indicator
-            loading.style.display = 'none';
-
-            // Set initial app state
-            setAppState({ view: 'welcome' });
-
-            // Add fade class to main elements for transitions
-            welcomeScreen.classList.add('fade-transition');
-            recipeDetail.classList.add('fade-transition');
-            searchResults.classList.add('fade-transition');
+            // Wyświetlenie ekranu powitalnego
+            welcomeScreen.style.display = 'block';
         } catch (error) {
             console.error('Błąd podczas inicjalizacji aplikacji:', error);
-            loading.style.display = 'none';
-
-            welcomeScreen.innerHTML = `
-                <div class="no-results">
-                    <div class="no-results-icon">❌</div>
-                    <h4>Błąd ładowania</h4>
-                    <p>Wystąpił błąd podczas inicjalizacji aplikacji. Spróbuj odświeżyć stronę.</p>
-                    <button class="cta-button" onclick="window.location.reload()">Odśwież stronę</button>
-                </div>
-            `;
-
-            // Pokaż toast z błędem
-            showToast('error', 'Błąd inicjalizacji', 'Wystąpił błąd podczas uruchamiania aplikacji.');
+            alert('Wystąpił błąd podczas ładowania aplikacji. Spróbuj odświeżyć stronę.');
         }
     }
 
