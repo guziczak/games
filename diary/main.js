@@ -745,10 +745,11 @@ class StoryGame {
         // Dodaj przycisk do zwijania/rozwijania
         const toggleButton = document.createElement('div');
         toggleButton.className = 'toggle-indicator';
-        toggleButton.innerHTML = '×';
 
-        // Zmienna do śledzenia stanu
-        let isCollapsed = false;
+        // ZMIANA: Domyślnie zwinięte - ustawienie początkowego stanu
+        let isCollapsed = true;
+        toggleButton.innerHTML = '❤';
+        indicator.classList.add('collapsed');
 
         // Obsługa kliknięcia
         toggleButton.addEventListener('click', () => {
