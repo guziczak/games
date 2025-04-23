@@ -1,0 +1,45 @@
+# Katalogi IntelliJ IDEA
+.idea/
+out/
+target/
+
+# Pliki konfiguracyjne IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# Pliki kompilacji
+*.class
+*.jar
+
+# Logi
+*.log
+
+# Pliki tymczasowe
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# Foldery lokalne
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Pliki Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Pliki Gradle
+.gradle/
+build/
