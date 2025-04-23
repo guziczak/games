@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drzewko Wyborów - Odcienie Uczuć</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #fff;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .main-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #374151;
+        }
+
+        .controls {
+            padding: 10px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: #4b5563;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #374151;
+        }
+
+        button.active {
+            background: #1f2937;
+        }
+
+        .layout-options {
+            display: flex;
+            padding: 10px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .layout-option {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .layout-option:hover {
+            background: #f3f4f6;
+        }
+
+        .layout-option.active {
+            background: #e5e7eb;
+            font-weight: bold;
+        }
+
+        .search-box {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .scene-info {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .scene-info h3 {
+            margin-top: 0;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+
+        .quote {
+            font-style: italic;
+            color: #6b7280;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f3f4f6;
+            border-left: 4px solid #9ca3af;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .choices {
+            margin-top: 20px;
+        }
+
+        .choice-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid #9ca3af;
+        }
+
+        .choice-item:hover {
+            background: #e5e7eb;
+        }
+
+        .statistics {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.9rem;
+        }
+
+        .statistics h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: #374151;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        /* Stylowanie grafu */
+        #visualization {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+        }
+
+        .node circle {
+            stroke-width: 2px;
+        }
+
+        .link {
+            fill: none;
+            stroke-width: 1.5px;
+            stroke: #d1d5db;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .tooltip-quote {
+            font-style: italic;
+            color: #6b7280;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .mode-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        /* Etykiety węzłów */
+        .node text {
+            font-size: 10px;
+            font-family: Arial, sans-serif;
+            fill: #4b5563;
+            text-anchor: middle;
+            pointer-events: none;
+            dominant-baseline: middle;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px;
+        }
+
+        .label-background {
+            fill: rgba(255, 255, 255, 0.8);
+            rx: 3;
+            ry: 3;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <div class="header">
+            <h1>Drzewko Wyborów - Odcienie Uczuć</h1>
+        </div>
+
+        <div class="controls">
+            <button id="zoomIn">Powiększ</button>
+            <button id="zoomOut">Pomniejsz</button>
+            <button id="resetView">Reset widoku</button>
+            <button id="focusIntro">Początek</button>
+        </div>
+
+        <div class="layout-options">
+            <div class="layout-option active" data-layout="tree">Drzewo</div>
+            <div class="layout-option" data-layout="cluster">Klaster</div>
+            <div class="layout-option" data-layout="radial">Radialny</div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Szukaj sceny...">
+        </div>
+
+        <div class="scene-info">
+            <h3>Wybierz scenę, aby zobaczyć szczegóły</h3>
+            <p>Kliknij węzeł na grafie, aby wyświetlić informacje o danej scenie.</p>
+        </div>
+
+        <div class="statistics">
+            <h3>Statystyki</h3>
+            <div class="stat-item">
+                <span>Łączna liczba scen:</span>
+                <span id="totalScenes">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Liczba wyborów:</span>
+                <span id="totalChoices">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Sceny końcowe:</span>
+                <span id="endScenes">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="visualization"></div>
+        <div class="tooltip" id="tooltip">
+            <div class="tooltip-title"></div>
+            <div class="tooltip-quote"></div>
+        </div>
+        <div class="mode-indicator">Tryb: Drzewo</div>
+    </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<!-- Definiujemy scenesData jeśli plik scenes.js nie zostanie załadowany -->
+<script>
+    // Definiujemy podstawowe dane scenesData jeśli nie zostały załadowane
+    if (typeof scenesData === 'undefined') {
+        console.log("Tworzenie tymczasowych danych scenesData...");
+        window.scenesData = {
+            "intro": {
+                "text": "<p>Budzisz się w swoim pokoju, promienie słońca nieśmiało zaglądają przez żaluzje.</p>",
+                "quote": "Czasem myślę, że życie to zbiór małych momentów...",
+                "choices": [
+                    {
+                        "text": "Otwórz pamiętnik i przeczytaj dawne zapiski",
+                        "nextScene": "pamietnik"
+                    },
+                    {
+                        "text": "Wyjdź na balkon i poczuj świeże powietrze",
+                        "nextScene": "balkon"
+                    }
+                ]
+            },
+            "pamietnik": {
+                "text": "<p>Siadasz na łóżku i otwierasz zakurzony pamiętnik.</p>",
+                "quote": "Miłość nie ginie, tylko zmienia kształt...",
+                "choices": [
+                    {
+                        "text": "Wspominaj dobre chwile",
+                        "nextScene": "dobre_wspomnienia"
+                    }
+                ]
+            },
+            "balkon": {
+                "text": "<p>Wychodzisz na balkon i głęboko oddychasz.</p>",
+                "quote": "Najpiękniejsze chwile przychodzą niespodziewanie...",
+                "choices": [
+                    {
+                        "text": "Postanów, że poznasz nowego sąsiada",
+                        "nextScene": "nowy_sasiad"
+                    }
+                ]
+            },
+            "dobre_wspomnienia": {
+                "text": "<p>Wspominasz dobre chwile z przeszłości...</p>",
+                "quote": "Wszystko, co kochaliśmy, staje się częścią nas...",
+                "choices": [
+                    {
+                        "text": "Rozpocznij historię od nowa",
+                        "nextScene": "intro"
+                    }
+                ]
+            },
+            "nowy_sasiad": {
+                "text": "<p>Poznajesz nowego sąsiada...</p>",
+                "quote": "Czasem wystarczy jedno spotkanie...",
+                "choices": [
+                    {
+                        "text": "Rozpocznij historię od nowa",
+                        "nextScene": "intro"
+                    }
+                ]
+            }
+        };
+    }
+</script>
+<!-- Próbujemy załadować scenes.js, ale mamy już fallback -->
+<script src="scenes.js"></script>
+<script>
+    // Zmienne globalne
+    let svg, g;
+    let zoom;
+    let root;
+    let width, height;
+    let nodeRadius = 8;
+    let tooltip;
+    let currentLayout = 'tree';
+    let labelMode = 'tooltip'; // 'tooltip', 'visible', 'hover'
+
+    // Kolory dla różnych typów węzłów
+    const nodeColors = {
+        'start': '#ef4444',  // czerwony
+        'normal': '#3b82f6', // niebieski
+        'end': '#22c55e'     // zielony
+    };
+
+    // Inicjalizacja wizualizacji
+    function initVisualization() {
+        const container = document.getElementById('visualization');
+        width = container.clientWidth;
+        height = container.clientHeight;
+
+        // Inicjalizacja tooltip
+        tooltip = d3.select("#tooltip");
+
+        // Inicjalizacja zoom
+        zoom = d3.zoom()
+            .scaleExtent([0.1, 3])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        // Tworzymy SVG
+        svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .call(zoom);
+
+        // Grupa do której będziemy dodawać elementy
+        g = svg.append("g");
+
+        // Tworzymy hierarchię danych
+        root = processData('tree');
+
+        // Obliczamy statystyki
+        calculateStatistics(root);
+
+        // Renderujemy drzewo
+        renderGraph();
+
+        // Dodajemy obsługę przycisków i innych interakcji
+        setupInteractions();
+
+        // Ustawiamy początkowy widok
+        resetView();
+
+        // Wyświetlamy informacje o scenie początkowej
+        displaySceneInfo('intro');
+    }
+
+    // Przetwarzanie danych do formatu hierarchicznego
+    function processData(layoutType) {
+        // Tworzymy funkcję do identyfikacji węzłów
+        const stratify = d3.stratify()
+            .id(d => d.id)
+            .parentId(d => d.parentId);
+
+        // Przygotowujemy dane
+        const flatData = [];
+        const processedNodes = new Set();
+        const processedEdges = new Set();
+
+        // Funkcja pomocnicza do przetwarzania scen
+        function processScene(sceneId, parentId = null, depth = 0) {
+            // Sprawdzamy, czy scena istnieje
+            if (!scenesData[sceneId]) {
+                console.warn(`Scena nie znaleziona: ${sceneId}`);
+                return;
+            }
+
+            const scene = scenesData[sceneId];
+
+            // Określamy typ sceny
+            let nodeType = 'normal';
+            if (sceneId === 'intro') {
+                nodeType = 'start';
+            } else if (!scene.choices || scene.choices.length === 0 ||
+                (scene.choices.length === 1 && scene.choices[0].nextScene === 'intro')) {
+                nodeType = 'end';
+            }
+
+            // Tworzymy unikalny identyfikator krawędzi
+            const edgeId = parentId ? `${parentId}->${sceneId}` : null;
+
+            // Sprawdzamy, czy ta krawędź już została przetworzona
+            if (parentId && processedEdges.has(edgeId)) {
+                return;
+            }
+
+            // Zaznaczamy krawędź jako przetworzoną
+            if (edgeId) {
+                processedEdges.add(edgeId);
+            }
+
+            // Jeśli scena już istnieje i ma rodzica, tylko dodajemy wirtualny węzeł
+            if (processedNodes.has(sceneId) && parentId) {
+                const virtualNodeId = `virtual-${parentId}-${sceneId}`;
+                flatData.push({
+                    id: virtualNodeId,
+                    parentId: parentId,
+                    name: sceneId,
+                    isVirtual: true,
+                    targetScene: sceneId,
+                    nodeType
+                });
+                return;
+            }
+
+            // Dodajemy scenę do przetworzonych
+            processedNodes.add(sceneId);
+
+            // Dodajemy węzeł do danych
+            flatData.push({
+                id: sceneId,
+                parentId: parentId,
+                name: sceneId,
+                scene: scene,
+                nodeType,
+                depth
+            });
+
+            // Przetwarzamy wszystkie wybory
+            if (scene.choices && scene.choices.length > 0) {
+                scene.choices.forEach((choice, i) => {
+                    const nextSceneId = choice.nextScene;
+                    // Zapisujemy tekst wyboru
+                    flatData.find(d => d.id === sceneId).choices =
+                        flatData.find(d => d.id === sceneId).choices || [];
+                    flatData.find(d => d.id === sceneId).choices[i] = choice.text;
+
+                    // Przetwarzamy następną scenę
+                    processScene(nextSceneId, sceneId, depth + 1);
+                });
+            }
+        }
+
+        // Zaczynamy od sceny "intro"
+        processScene('intro');
+
+        // Tworzymy hierarchię
+        const hierarchy = stratify(flatData);
+
+        // Wybieramy odpowiedni layout
+        let layout;
+        switch (layoutType) {
+            case 'tree':
+                layout = d3.tree().size([height - 80, width - 100]);
+                break;
+            case 'cluster':
+                layout = d3.cluster().size([height - 80, width - 100]);
+                break;
+            case 'radial':
+                // Dla układu radialnego używamy mniejszy promień, aby zmieścić graf
+                const radius = Math.min(width, height) / 2 - 80;
+                layout = d3.cluster()
+                    .size([2 * Math.PI, radius])
+                    .separation((a, b) => (a.parent == b.parent ? 1 : 2) / a.depth);
+                break;
+            default:
+                layout = d3.tree().size([height - 80, width - 100]);
+        }
+
+        // Aplikujemy układ do hierarchii
+        return layout(hierarchy);
+    }
+
+    // Renderowanie grafu
+    function renderGraph() {
+        // Najpierw czyścimy poprzedni graf
+        g.selectAll("*").remove();
+
+        // Ustawiamy odpowiednie transformacje dla różnych layoutów
+        if (currentLayout === 'radial') {
+            g.attr("transform", `translate(${width/2},${height/2})`);
+        } else {
+            g.attr("transform", `translate(50,40)`);
+        }
+
+        // Funkcja link generator zależna od typu layoutu
+        let linkGenerator;
+        if (currentLayout === 'radial') {
+            linkGenerator = d3.linkRadial()
+                .angle(d => d.x)
+                .radius(d => d.y);
+        } else {
+            linkGenerator = d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x);
+        }
+
+        // Rysujemy krawędzie
+        g.selectAll(".link")
+            .data(root.links())
+            .enter()
+            .append("path")
+            .attr("class", "link")
+            .attr("d", linkGenerator);
+
+        // Rysujemy węzły
+        const nodes = g.selectAll(".node")
+            .data(root.descendants())
+            .enter()
+            .append("g")
+            .attr("class", "node")
+            .attr("transform", d => {
+                if (currentLayout === 'radial') {
+                    const x = Math.sin(d.x) * d.y;
+                    const y = -Math.cos(d.x) * d.y;
+                    return `translate(${x},${y})`;
+                } else {
+                    return `translate(${d.y},${d.x})`;
+                }
+            })
+            .on("click", function(event, d) {
+                const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                displaySceneInfo(sceneId);
+
+                // Podświetlamy wybrany węzeł
+                d3.selectAll(".node circle").attr("stroke", "#d1d5db");
+                d3.select(this).select("circle").attr("stroke", "#000").attr("stroke-width", 3);
+            })
+            .on("mouseover", function(event, d) {
+                const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                const scene = scenesData[sceneId];
+
+                // Podświetlamy węzeł
+                d3.select(this).select("circle")
+                    .transition().duration(200)
+                    .attr("r", nodeRadius * 1.2);
+
+                // Pokazujemy tooltip
+                if (scene) {
+                    tooltip.select(".tooltip-title").text(sceneId);
+
+                    if (scene.quote) {
+                        tooltip.select(".tooltip-quote").text(`"${scene.quote}"`).style("display", "block");
+                    } else {
+                        tooltip.select(".tooltip-quote").style("display", "none");
+                    }
+
+                    tooltip.style("opacity", 1)
+                        .style("left", (event.pageX + 15) + "px")
+                        .style("top", (event.pageY - 30) + "px");
+                }
+
+                // Jeśli etykiety są w trybie "hover", pokazujemy etykietę
+                if (labelMode === 'hover') {
+                    d3.select(this).select("text").style("opacity", 1);
+                }
+            })
+            .on("mouseout", function() {
+                // Przywracamy normalny rozmiar węzła
+                d3.select(this).select("circle")
+                    .transition().duration(200)
+                    .attr("r", nodeRadius);
+
+                // Ukrywamy tooltip
+                tooltip.style("opacity", 0);
+
+                // Jeśli etykiety są w trybie "hover", ukrywamy etykietę
+                if (labelMode === 'hover') {
+                    d3.select(this).select("text").style("opacity", 0);
+                }
+            });
+
+        // Dodajemy kółka reprezentujące węzły
+        nodes.append("circle")
+            .attr("r", nodeRadius)
+            .attr("fill", d => {
+                const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                const nodeType = d.data.nodeType;
+                return nodeColors[nodeType];
+            })
+            .attr("stroke", "#d1d5db")
+            .attr("stroke-width", 2);
+
+        // Dodajemy tło dla etykiet (dla lepszej czytelności)
+        nodes.append("rect")
+            .attr("class", "label-background")
+            .attr("x", -25)
+            .attr("y", -25)
+            .attr("width", 50)
+            .attr("height", 20)
+            .attr("opacity", 0);  // Domyślnie niewidoczne
+
+        // Dodajemy etykiety węzłów
+        nodes.append("text")
+            .attr("dy", -15)
+            .attr("x", 0)
+            .text(d => {
+                const name = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                return name.length > 10 ? name.substring(0, 8) + '..' : name;
+            })
+            .style("opacity", labelMode === 'visible' ? 1 : 0);  // Widoczne tylko w trybie "visible"
+
+        // Aktualizujemy wskaźnik trybu
+        document.querySelector('.mode-indicator').textContent = `Tryb: ${
+            currentLayout.charAt(0).toUpperCase() + currentLayout.slice(1)
+        }`;
+    }
+
+    // Wyświetlanie informacji o scenie
+    function displaySceneInfo(sceneId) {
+        const scene = scenesData[sceneId];
+        if (!scene) return;
+
+        const infoPanel = document.querySelector('.scene-info');
+
+        let html = `<h3>Scena: ${sceneId}</h3>`;
+
+        if (scene.quote) {
+            html += `<div class="quote">"${scene.quote}"</div>`;
+        }
+
+        if (scene.text) {
+            // Usuwamy tagi HTML
+            const textWithoutTags = scene.text.replace(/<\/?[^>]+(>|$)/g, "");
+            html += `<div class="text">${textWithoutTags.substring(0, 200)}${textWithoutTags.length > 200 ? '...' : ''}</div>`;
+        }
+
+        if (scene.choices && scene.choices.length > 0) {
+            html += `<div class="choices"><h4>Wybory:</h4>`;
+            scene.choices.forEach(choice => {
+                html += `<div class="choice-item" data-scene="${choice.nextScene}">${choice.text}</div>`;
+            });
+            html += `</div>`;
+        } else {
+            html += `<div><em>Scena końcowa lub powrót do początku</em></div>`;
+        }
+
+        infoPanel.innerHTML = html;
+
+        // Obsługa kliknięcia na wybory
+        document.querySelectorAll('.choice-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const nextSceneId = this.getAttribute('data-scene');
+                focusOnScene(nextSceneId);
+                displaySceneInfo(nextSceneId);
+            });
+        });
+    }
+
+    // Fokusowanie na konkretnej scenie
+    function focusOnScene(sceneId) {
+        const node = root.descendants().find(d => d.data.id === sceneId);
+        if (node) {
+            let transform;
+
+            if (currentLayout === 'radial') {
+                // Dla układu radialnego
+                const x = Math.sin(node.x) * node.y;
+                const y = -Math.cos(node.x) * node.y;
+                transform = d3.zoomIdentity
+                    .translate(width/2 - x, height/2 - y)
+                    .scale(1.2);
+            } else {
+                // Dla układu drzewa i klastra
+                transform = d3.zoomIdentity
+                    .translate(width/2 - node.y, height/2 - node.x)
+                    .scale(1.2);
+            }
+
+            svg.transition().duration(750).call(zoom.transform, transform);
+
+            // Podświetlamy wybrany węzeł
+            d3.selectAll(".node circle").attr("stroke", "#d1d5db");
+            d3.selectAll(".node").filter(d => d.data.id === sceneId)
+                .select("circle").attr("stroke", "#000").attr("stroke-width", 3);
+        }
+    }
+
+    // Obliczanie statystyk
+    function calculateStatistics(hierarchyData) {
+        // Unikalne sceny (bez wirtualnych)
+        const uniqueScenes = new Set();
+        hierarchyData.descendants().forEach(d => {
+            if (!d.data.isVirtual) {
+                uniqueScenes.add(d.data.id);
+            }
+        });
+
+        const totalScenes = uniqueScenes.size;
+
+        // Liczba wyborów
+        let totalChoices = 0;
+        Object.values(scenesData).forEach(scene => {
+            if (scene.choices) {
+                totalChoices += scene.choices.length;
+            }
+        });
+
+        // Liczba scen końcowych
+        const endScenes = hierarchyData.descendants()
+            .filter(d => !d.data.isVirtual && d.data.nodeType === 'end')
+            .length;
+
+        // Aktualizujemy statystyki w interfejsie
+        document.getElementById('totalScenes').textContent = totalScenes;
+        document.getElementById('totalChoices').textContent = totalChoices;
+        document.getElementById('endScenes').textContent = endScenes;
+    }
+
+    // Konfiguracja interakcji
+    function setupInteractions() {
+        // Przycisk powiększania
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+        });
+
+        // Przycisk pomniejszania
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+        });
+
+        // Przycisk resetowania widoku
+        document.getElementById('resetView').addEventListener('click', resetView);
+
+        // Przycisk powrotu do początku
+        document.getElementById('focusIntro').addEventListener('click', () => {
+            focusOnScene('intro');
+            displaySceneInfo('intro');
+        });
+
+        // Obsługa wyszukiwania
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            if (query.length < 2) {
+                // Przywracamy normalny widok
+                d3.selectAll(".node circle")
+                    .attr("r", nodeRadius)
+                    .attr("opacity", 1);
+                return;
+            }
+
+            // Wyszukujemy pasujące węzły
+            const nodes = d3.selectAll(".node");
+            nodes.each(function(d) {
+                const sceneName = d.data.id.toLowerCase();
+                const isMatch = sceneName.includes(query);
+
+                // Podświetlamy pasujące węzły
+                d3.select(this).select("circle")
+                    .transition()
+                    .duration(300)
+                    .attr("r", isMatch ? nodeRadius * 1.5 : nodeRadius)
+                    .attr("opacity", isMatch ? 1 : 0.3);
+            });
+
+            // Znajdujemy pierwszy pasujący węzeł
+            const matchingNode = root.descendants().find(d =>
+                d.data.id.toLowerCase().includes(query)
+            );
+
+            if (matchingNode) {
+                focusOnScene(matchingNode.data.id);
+            }
+        });
+
+        // Obsługa zmiany layoutu
+        document.querySelectorAll('.layout-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Usuwamy klasę active z wszystkich opcji
+                document.querySelectorAll('.layout-option').forEach(o => {
+                    o.classList.remove('active');
+                });
+
+                // Dodajemy klasę active do wybranej opcji
+                this.classList.add('active');
+
+                // Zmieniamy layout
+                currentLayout = this.getAttribute('data-layout');
+
+                // Przetwarzamy dane na nowo z nowym layoutem
+                root = processData(currentLayout);
+
+                // Renderujemy graf na nowo
+                renderGraph();
+
+                // Resetujemy widok
+                resetView();
+            });
+        });
+
+        // Obsługa podwójnego kliknięcia na węzeł (przełączanie etykiet)
+        svg.on("dblclick", function(event) {
+            // Zatrzymujemy domyślne zachowanie (zoom)
+            if (event) event.preventDefault();
+
+            // Zmieniamy tryb etykiet
+            if (labelMode === 'tooltip') {
+                labelMode = 'visible';
+                d3.selectAll(".node text").style("opacity", 1);
+                d3.selectAll(".label-background").style("opacity", 0.7);
+            } else if (labelMode === 'visible') {
+                labelMode = 'hover';
+                d3.selectAll(".node text").style("opacity", 0);
+                d3.selectAll(".label-background").style("opacity", 0);
+            } else {
+                labelMode = 'tooltip';
+                d3.selectAll(".node text").style("opacity", 0);
+                d3.selectAll(".label-background").style("opacity", 0);
+            }
+        });
+    }
+
+    // Resetowanie widoku
+    function resetView() {
+        if (currentLayout === 'radial') {
+            // Dla układu radialnego, centrujemy graf
+            svg.transition()
+                .duration(750)
+                .call(zoom.transform, d3.zoomIdentity
+                    .translate(width/2, height/2)
+                    .scale(0.9));
+        } else {
+            // Dla innych układów
+            const bounds = g.node().getBBox();
+            const fullWidth = bounds.width + 100;
+            const fullHeight = bounds.height + 80;
+
+            const scale = 0.9 / Math.max(fullWidth / width, fullHeight / height);
+            const translateX = width / 2 - scale * (bounds.x + fullWidth / 2);
+            const translateY = height / 2 - scale * (bounds.y + fullHeight / 2);
+
+            svg.transition()
+                .duration(750)
+                .call(zoom.transform, d3.zoomIdentity
+                    .translate(translateX, translateY)
+                    .scale(scale));
+        }
+    }
+
+    // Inicjalizacja po załadowaniu strony
+    window.addEventListener('DOMContentLoaded', () => {
+        // Dodatkowe sprawdzenie czy scenesData zostało załadowane
+        setTimeout(() => {
+            if (window.scenesData) {
+                console.log("Inicjalizacja wizualizacji z dostępnymi danymi...");
+                initVisualization();
+            } else {
+                console.error("Dane scen (scenesData) nie są dostępne!");
+                document.getElementById('visualization').innerHTML =
+                    "<div style='text-align:center; padding:50px;'>Błąd: Nie znaleziono danych scen</div>";
+            }
+        }, 100); // Krótkie opóźnienie, aby upewnić się, że skrypt scenes.js został załadowany
+    });
+</script>
+</body>
+</html>
