@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odcienie Uczuć - Interaktywna Opowieść</title>
+    <style>
+        /* Globalne style */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500&display=swap');
+        
+        :root {
+            --main-bg-color: #f9f5f6;
+            --accent-color: #e6c0d0;
+            --text-color: #5d5154;
+            --header-color: #b58ea6;
+            --light-accent: #fdf2f6;
+            --dark-accent: #94718a;
+            --highlight: #f8e7ee;
+            --soft-pink: #fde2ed;
+            --flower-pink: #ffcce0;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: var(--main-bg-color);
+            background-image: linear-gradient(135deg, var(--main-bg-color) 0%, var(--light-accent) 100%);
+            color: var(--text-color);
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.8;
+            background-attachment: fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffdcef' fill-opacity='0.25' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='1.5'/%3E%3Ccircle cx='13' cy='13' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+        
+        /* Nagłówek */
+        .game-header {
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 0.5rem;
+            width: 100%;
+        }
+        
+        .game-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            color: var(--header-color);
+            text-align: center;
+            margin-bottom: 0.3rem;
+            letter-spacing: 1px;
+            font-weight: 400;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 0.8rem;
+            color: var(--dark-accent);
+            font-style: italic;
+            opacity: 0.9;
+        }
+        
+        /* Elementy gry */
+        .game-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--light-accent);
+        }
+        
+        .game-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .game-container::-webkit-scrollbar-track {
+            background: var(--light-accent);
+        }
+        
+        .game-container::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+        }
+        
+        .game-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--flower-pink), transparent);
+        }
+        
+        /* Ekran startowy */
+        .start-screen {
+            text-align: center;
+            padding: 1.5rem 0.5rem;
+        }
+        
+        .start-description {
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+        
+        .start-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 0.7rem 2rem;
+            font-size: 1.1rem;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .start-btn:hover {
+            background-color: var(--dark-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .start-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Scena gry */
+        .scene {
+            display: none;
+        }
+        
+        .scene-text {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            font-family: 'Montserrat', sans-serif;
+            color: var(--text-color);
+        }
+        
+        .scene-image-container {
+            text-align: center;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+        }
+        
+        .scene-image {
+            max-width: 100%;
+            border-radius: 8px;
+            transition: transform 0.5s ease;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .scene-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--soft-pink);
+            border: 1px dashed var(--accent-color);
+            border-radius: 8px;
+            color: var(--dark-accent);
+            padding: 1.2rem 1rem;
+            text-align: center;
+            font-style: italic;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        
+        .image-placeholder:hover {
+            background-color: var(--highlight);
+            opacity: 1;
+        }
+        
+        /* Wybory */
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+            margin-top: 1.2rem;
+        }
+        
+        .choice-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--dark-accent);
+            border-radius: 25px;
+            padding: 0.7rem 1rem;
+            font-size: 0.95rem;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            text-align: left;
+            line-height: 1.4;
+        }
+        
+        .choice-btn:hover {
+            background-color: var(--highlight);
+            border-color: var(--dark-accent);
+            transform: translateX(5px);
+        }
+        
+        .choice-btn:active {
+            transform: translateX(2px);
+            background-color: var(--soft-pink);
+        }
+        
+        /* Panel dźwięku */
+        .sound-panel {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        
+        .sound-panel:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .sound-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--dark-accent);
+        }
+        
+        /* Pamiętnik / Zapisane cytaty */
+        .diary-btn {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        
+        .diary-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .diary-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--dark-accent);
+        }
+        
+        .diary-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .diary-content {
+            background-color: var(--main-bg-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 90%;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--light-accent);
+        }
+        
+        .diary-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .diary-content::-webkit-scrollbar-track {
+            background: var(--light-accent);
+        }
+        
+        .diary-content::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+        }
+        
+        .diary-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            color: var(--header-color);
+            margin-bottom: 1.2rem;
+            text-align: center;
+        }
+        
+        .diary-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark-accent);
+            line-height: 1;
+        }
+        
+        .quotes-list {
+            list-style: none;
+        }
+        
+        .quote-item {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--accent-color);
+            position: relative;
+        }
+        
+        .quote-item:last-child {
+            border-bottom: none;
+        }
+        
+        .quote-text {
+            font-style: italic;
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        
+        .quote-date {
+            font-size: 0.75rem;
+            color: var(--dark-accent);
+            text-align: right;
+        }
+        
+        .save-quote-btn {
+            background: none;
+            border: none;
+            color: var(--dark-accent);
+            font-size: 1.2rem;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            bottom: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .save-quote-btn:hover {
+            color: var(--accent-color);
+            transform: scale(1.1);
+        }
+        
+        .no-quotes {
+            text-align: center;
+            font-style: italic;
+            color: var(--dark-accent);
+            padding: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+        
+        /* Animacje */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes floatIn {
+            0% { opacity: 0; transform: translateY(5px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .poetic-text {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: var(--dark-accent);
+            line-height: 1.6;
+            margin: 1rem 0;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            background-color: var(--soft-pink);
+            font-size: 0.95rem;
+            position: relative;
+            animation: floatIn 0.8s ease-out;
+        }
+        
+        .poetic-text::before {
+            content: '"';
+            font-size: 1.8rem;
+            position: absolute;
+            left: 8px;
+            top: 0;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+        
+        .poetic-text::after {
+            content: '"';
+            font-size: 1.8rem;
+            position: absolute;
+            right: 8px;
+            bottom: -5px;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+        
+        /* Dekoracje */
+        .flower-decoration {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.2;
+            z-index: -1;
+        }
+        
+        .flower-top-left {
+            top: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,20 C60,10 75,15 80,25 C85,35 80,50 70,55 C80,60 85,75 80,85 C75,95 60,100 50,90 C40,100 25,95 20,85 C15,75 20,60 30,55 C20,50 15,35 20,25 C25,15 40,10 50,20 Z' fill='%23ffb7d5'/%3E%3C/svg%3E");
+            transform: rotate(30deg);
+        }
+        
+        .flower-bottom-right {
+            bottom: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,20 C60,10 75,15 80,25 C85,35 80,50 70,55 C80,60 85,75 80,85 C75,95 60,100 50,90 C40,100 25,95 20,85 C15,75 20,60 30,55 C20,50 15,35 20,25 C25,15 40,10 50,20 Z' fill='%23ffb7d5'/%3E%3C/svg%3E");
+            transform: rotate(-15deg);
+        }
+        
+        /* Responsywność */
+        @media screen and (max-width: 480px) {
+            .container {
+                padding: 0.8rem;
+            }
+            
+            .game-title {
+                font-size: 1.8rem;
+            }
+            
+            .subtitle {
+                font-size: 0.9rem;
+            }
+            
+            .game-container {
+                padding: 1.2rem;
+            }
+            
+            .scene-text {
+                font-size: 0.9rem;
+            }
+            
+            .poetic-text {
+                font-size: 0.9rem;
+                padding: 0.7rem 1rem;
+            }
+            
+            .choice-btn {
+                font-size: 0.9rem;
+                padding: 0.6rem 0.9rem;
+            }
+        }
+        
+        /* Animacje przejścia między scenami */
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dekoracje tła -->
+    <div class="flower-decoration flower-top-left"></div>
+    <div class="flower-decoration flower-bottom-right"></div>
+    
+    <div class="container">
+        <div class="game-header">
+            <h1 class="game-title">Odcienie Uczuć</h1>
+            <p class="subtitle">Interaktywna opowieść o miłości, tęsknocie i nadziei</p>
+        </div>
+        
+        <div class="game-container">
+            <!-- Ekran startowy -->
+            <div class="start-screen">
+                <p class="start-description">
+                    Zapraszam Cię do świata delikatnych uczuć i nieoczywistych wyborów. 
+                    W tej interaktywnej opowieści to Ty decydujesz o przebiegu historii, 
+                    która rozgrywa się na granicy rzeczywistości i poetyckiej wrażliwości.
+                </p>
+                <p class="poetic-text">
+                    Każdy dzień to nowa strona w księdze naszego życia. 
+                    Niektóre zapisujemy starannym pismem, 
+                    inne zostawiamy niemal puste, 
+                    a są i takie, które zlepiamy łzami...
+                </p>
+                <button class="start-btn" id="startBtn">Zacznij historię</button>
+            </div>
+            
+            <!-- Tutaj będą dynamicznie dodawane sceny -->
+            <div id="gameContent"></div>
+        </div>
+    </div>
+    
+    <!-- Panel dźwięku -->
+    <div class="sound-panel" id="soundToggle">
+        <svg class="sound-icon" id="soundIcon" viewBox="0 0 24 24">
+            <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+            <path d="M19 8a9 9 0 0 1 0 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+            <path d="M16 10.5a5 5 0 0 1 0 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+        </svg>
+    </div>
+    
+    <!-- Przycisk pamiętnika -->
+    <div class="diary-btn" id="diaryBtn">
+        <svg class="diary-icon" viewBox="0 0 24 24">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"></path>
+        </svg>
+    </div>
+    
+    <!-- Panel pamiętnika -->
+    <div class="diary-panel" id="diaryPanel">
+        <div class="diary-content">
+            <h2 class="diary-title">Mój pamiętnik</h2>
+            <button class="diary-close" id="diaryClose">&times;</button>
+            <div id="quotesContainer">
+                <p class="no-quotes">Twój pamiętnik jest jeszcze pusty. Zapisz swoje ulubione cytaty podczas gry.</p>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="backgroundMusic" loop>
+        <source src="https://soundimage.org/wp-content/uploads/2016/03/Autumn-Reverie_Looping.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+// Pobierz dane scen z JSON
+const scenesData = {
+    // Scena wprowadzająca
+    "intro": {
+        "text": "<p>Budzisz się w swoim pokoju, promienie słońca nieśmiało zaglądają przez żaluzje. Na biurku leży stary pamiętnik, którego dawno nie otwierałeś/aś. Twoje myśli dryfują pomiędzy przeszłością a teraźniejszością.</p><p>Przez uchylone okno słychać śpiew ptaków i szum miasta, które powoli budzi się do życia. Czujesz, że ten dzień może przynieść coś ważnego.</p>",
+        "image": "swiatlo.png",
+        "quote": "Czasem myślę, że życie to zbiór małych momentów, które tylko udają przypadek...",
+        "choices": [
+            {
+                "text": "Otwórz pamiętnik i przeczytaj dawne zapiski",
+                "nextScene": "pamietnik",
+                "effects": {
+                    "emotions.melancholy": "+1"
+                }
+            },
+            {
+                "text": "Wyjdź na balkon i poczuj świeże powietrze",
+                "nextScene": "balkon",
+                "effects": {
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Włącz muzykę, która przypomina Ci o kimś ważnym",
+                "nextScene": "muzyka",
+                "effects": {
+                    "emotions.love": "+1"
+                }
+            }
+        ]
+    },
+    
+    // Scena z pamiętnikiem
+    "pamietnik": {
+        "text": "<p>Siadasz na łóżku i otwierasz zakurzony pamiętnik. Kartki szeleścą pod twoimi palcami, a dawno zapomniane wspomnienia powracają z każdym zdaniem. Zatrzymujesz się na jednym z wpisów sprzed kilku lat.</p><p>To był wpis o osobie, która była kiedyś dla Ciebie wyjątkowa. O tym, jak się spotkaliście, jak spędzaliście razem czas i jak nagle ta relacja się zakończyła.</p>",
+        "image": "ksiazka.png",
+        "quote": "Miłość nie ginie, tylko zmienia kształt – jak woda, która może być falą, deszczem czy łzą...",
+        "choices": [
+            {
+                "text": "Wspominaj dobre chwile i uśmiechnij się do tych myśli",
+                "nextScene": "dobre_wspomnienia",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.melancholy": "+1"
+                }
+            },
+            {
+                "text": "Zamknij pamiętnik, niektóre rzeczy powinny zostać w przeszłości",
+                "nextScene": "zamkniecie",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "variables.let_go": true
+                }
+            },
+            {
+                "text": "Zastanów się, co by było, gdybyś podjął/ęła inne decyzje",
+                "nextScene": "alternatywna_historia",
+                "effects": {
+                    "emotions.melancholy": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Scena na balkonie
+    "balkon": {
+        "text": "<p>Wychodzisz na balkon i głęboko oddychasz. Miasto poniżej tętni życiem, a delikatny wiatr przynosi zapach kwiatów z pobliskiego parku. Rozglądasz się dookoła i dostrzegasz, że sąsiedni balkon, zawsze pusty, dziś ma na sobie doniczki z kwiatami.</p><p>Ktoś nowy się wprowadził? Zastanawiasz się, jaka historia kryje się za tymi kwiatami, za tą nową obecnością.</p>",
+        "image": "park.png",
+        "quote": "Najpiękniejsze chwile przychodzą niespodziewanie, jak pierwszy promień słońca po długiej burzy...",
+        "choices": [
+            {
+                "text": "Postanów, że poznasz nowego sąsiada/sąsiadkę",
+                "nextScene": "nowy_sasiad",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zdecyduj się na spacer do parku",
+                "nextScene": "park",
+                "effects": {
+                    "emotions.melancholy": "+1",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zostań na balkonie i podziwiaj widoki, rozmyślając",
+                "nextScene": "kontemplacja",
+                "effects": {
+                    "emotions.melancholy": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Scena z muzyką
+    "muzyka": {
+        "text": "<p>Włączasz swoją ulubioną melodię. Dźwięki fortepianu wypełniają pokój, przynosząc wspomnienia osoby, która kiedyś pokazała Ci tę muzykę. Zamykasz oczy i pozwalasz myślom płynąć wraz z melodią.</p><p>Muzyka zawsze miała dla Ciebie specjalne znaczenie - była mostem między ludźmi, wspomnieniami, uczuciami. Każdy akord tego utworu przypomina Ci moment, który przeżyliście razem.</p>",
+        "image": "muzyka.png",
+        "quote": "Muzyka dotyka duszy w miejscach, których słowa nie potrafią dosięgnąć...",
+        "choices": [
+            {
+                "text": "Zatańcz samotnie z duchem wspomnień",
+                "nextScene": "taniec",
+                "effects": {
+                    "emotions.melancholy": "+2",
+                    "emotions.love": "+1"
+                }
+            },
+            {
+                "text": "Napisz wiadomość do osoby, o której myślisz",
+                "nextScene": "wiadomosc",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.love": "+1"
+                }
+            },
+            {
+                "text": "Zmień muzykę na coś bardziej energicznego i optymistycznego",
+                "nextScene": "nowa_muzyka",
+                "effects": {
+                    "emotions.hope": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Sceny dla pamiętnika
+    "dobre_wspomnienia": {
+        "text": "<p>Wpatrujesz się w zapisane strony, a na twoich ustach pojawia się delikatny uśmiech. Wspomnienia wracają jak fale: spacery o zachodzie słońca, wspólny śmiech nad absurdalnymi żartami, drobne gesty, które znaczyły tak wiele.</p><p>Zdajesz sobie sprawę, że mimo iż ta relacja się zakończyła, to zostało w tobie coś cennego - lekcje i doświadczenia, które ukształtowały cię takim/taką, jakim/jaką jesteś dzisiaj.</p>",
+        "image": "zdjecie.png",
+        "quote": "Wszystko, co kiedykolwiek kochaliśmy, staje się częścią nas – niewidoczną, ale zawsze obecną...",
+        "choices": [
+            {
+                "text": "Postanów odnowić kontakt z tą osobą",
+                "nextScene": "odnowienie",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zapisz nowy wpis w pamiętniku - o wdzięczności za te wspomnienia",
+                "nextScene": "wdziecznosc",
+                "effects": {
+                    "emotions.love": "+1",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Zastanów się, czy jesteś gotowy/a na nową relację w swoim życiu",
+                "nextScene": "nowa_szansa",
+                "effects": {
+                    "emotions.courage": "+1",
+                    "emotions.hope": "+1"
+                }
+            }
+        ]
+    },
+    
+    "zamkniecie": {
+        "text": "<p>Delikatnie zamykasz pamiętnik i odkładasz go z powrotem na półkę. Niektóre rozdziały naszego życia powinny zostać zamknięte, by nowe mogły się rozpocząć. Czujesz spokój i pewność tej decyzji.</p><p>Przeszłość jest ważna, ale to teraźniejszość kształtuje twoją przyszłość. Podchodzisz do okna i patrzysz na ulicę pełną ludzi idących w swoich kierunkach, każdy z własną historią.</p>",
+        "image": "drzwi.png",
+        "quote": "Zamknięte drzwi nie są końcem wędrówki, a jedynie zaproszeniem, by poszukać nowej ścieżki...",
+        "choices": [
+            {
+                "text": "Zdecyduj się na niespodziewaną wycieczkę w nieznane miejsce",
+                "nextScene": "przygoda",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zadzwoń do przyjaciela/przyjaciółki, którego/której dawno nie widziałeś/aś",
+                "nextScene": "przyjaciel",
+                "effects": {
+                    "emotions.love": "+2"
+                }
+            },
+            {
+                "text": "Zacznij pisać własną opowieść - może to początek książki?",
+                "nextScene": "tworczosc",
+                "effects": {
+                    "emotions.courage": "+1",
+                    "emotions.hope": "+2"
+                }
+            }
+        ]
+    },
+    
+    "alternatywna_historia": {
+        "text": "<p>Siadasz głębiej na łóżku, a twoje myśli zaczynają kreślić alternatywne scenariusze. Co by było, gdybyś wtedy powiedział/a coś innego? Gdybyś został/a zamiast odejść? Gdybyś zaryzykował/a bardziej?</p><p>Alternatywne ścieżki życia rozgałęziają się w twojej wyobraźni jak labirynt możliwości. Niektóre prowadzą do szczęścia, inne do jeszcze większego bólu. Czy naprawdę możemy wiedzieć, która decyzja byłaby tą właściwą?</p>",
+        "image": "rozstanie.png",
+        "quote": "W równoległych światach naszej wyobraźni przeżywamy wszystkie życia, których nigdy nie doświadczymy...",
+        "choices": [
+            {
+                "text": "Zrozum, że żałowanie przeszłości nie zmieni teraźniejszości",
+                "nextScene": "akceptacja",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Napisz list do swojego przeszłego ja z radami na przyszłość",
+                "nextScene": "list_do_siebie",
+                "effects": {
+                    "emotions.love": "+1",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zastanów się, czy wciąż możesz naprawić to, co zostało zniszczone",
+                "nextScene": "naprawa",
+                "effects": {
+                    "emotions.melancholy": "+1",
+                    "emotions.love": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Dodatkowe sceny - kontynuacje
+    "nowy_sasiad": {
+        "text": "<p>Zbierasz się na odwagę i postanawiasz poznać nowego sąsiada. Przygotowujesz szybko domowe ciasteczka jako prezent powitalny i pukasz do drzwi.</p><p>Drzwi otwiera osoba w Twoim wieku, z ciepłym uśmiechem i zaskoczeniem w oczach. \"Nie spodziewałem/am się gości tak szybko\" - mówi, zapraszając Cię do środka. Mieszkanie pachnie świeżą farbą i herbatą.</p>",
+        "image": "spotkanie.png",
+        "quote": "Czasem wystarczy jedno spotkanie, by przeczuć, że oto rozpoczyna się coś ważnego...",
+        "choices": [
+            {
+                "text": "Opowiedz o sobie i o tym, jak długo tu mieszkasz",
+                "nextScene": "rozmowa_sasiedzka",
+                "effects": {
+                    "emotions.courage": "+1",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Zapytaj o zainteresowania i pasje nowego sąsiada",
+                "nextScene": "wspolne_pasje",
+                "effects": {
+                    "emotions.love": "+1",
+                    "emotions.hope": "+1"
+                }
+            },
+            {
+                "text": "Zaproponuj pokazanie okolicy i ulubionych miejsc w najbliższy weekend",
+                "nextScene": "weekend_razem",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.hope": "+1"
+                }
+            }
+        ]
+    },
+    
+    "rozmowa_sasiedzka": {
+        "text": "<p>Rozpoczynasz rozmowę, opowiadając o tym, jak długo mieszkasz w tej okolicy i jakie są twoje doświadczenia. Twój sąsiad słucha z uwagą, co jakiś czas dopytując o szczegóły.</p><p>Z każdą minutą atmosfera staje się coraz bardziej swobodna. Okazuje się, że oboje macie podobne doświadczenia życiowe, choć pochodzicie z różnych miejsc. Czujesz, że to może być początek wartościowej znajomości.</p>",
+        "quote": "W każdym nowym spotkaniu kryje się potencjał - przyjaźni, miłości, nauki, albo po prostu dobrej historii do opowiedzenia...",
+        "choices": [
+            {
+                "text": "Zaproponuj wymianę numerów telefonów i kolejne spotkanie",
+                "nextScene": "poczatek_przyjazni",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.courage": "+1"
+                }
+            },
+            {
+                "text": "Podziękuj za miłe przyjęcie i wróć do swojego mieszkania",
+                "nextScene": "refleksje_po_spotkaniu",
+                "effects": {
+                    "emotions.melancholy": "+1",
+                    "emotions.hope": "+1"
+                }
+            }
+        ]
+    },
+    
+    "poczatek_przyjazni": {
+        "text": "<p>Wymieniacie się numerami telefonów, obiecując sobie kolejne spotkanie. Kiedy wracasz do swojego mieszkania, czujesz przypływ energii i nadziei. To małe, spontaniczne spotkanie przypomniało Ci, jak ważne jest otwieranie się na nowych ludzi i doświadczenia.</p><p>W nadchodzących tygodniach Wasza znajomość rozwija się, przeradza w przyjaźń, która sprawia, że każdy dzień staje się pełniejszy. Czasem najpiękniejsze relacje zaczynają się od najprostszych gestów.</p>",
+        "image": "spotkanie.png",
+        "quote": "Życie to zbiór małych momentów odwagi, które zmieniają wszystko, choć początkowo wydają się nic nie znaczyć...",
+        "choices": [
+            {
+                "text": "Zakończ historię i zastanów się nad jej przesłaniem",
+                "nextScene": "zakonczenie_przyjazn",
+                "effects": {
+                    "emotions.hope": "+3"
+                }
+            }
+        ]
+    },
+    
+    "wspolne_pasje": {
+        "text": "<p>Pytasz o zainteresowania i pasje, a twarz nowego sąsiada natychmiast się rozjaśnia. Okazuje się, że dzielicie miłość do poezji i fotografii. \"Rzadko spotykam kogoś, kto rozumie to tak jak ja\" - mówi, pokazując Ci swoje zdjęcia na ścianie.</p><p>Rozmowa płynie wartko, odkrywając kolejne wspólne zainteresowania. Ta nieoczekiwana bliskość duchowa z kimś, kogo dopiero poznałeś/aś, daje Ci uczucie, jakbyście znali się od lat.</p>",
+        "quote": "W morzu obcych twarzy czasem odnajdujemy oczy, które zdają się pamiętać nas z dawnych snów...",
+        "choices": [
+            {
+                "text": "Zaproponuj wspólny projekt fotograficzny w mieście",
+                "nextScene": "wspolny_projekt",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.courage": "+2"
+                }
+            },
+            {
+                "text": "Pożegnaj się, obiecując wspólne spotkanie przy kawie wkrótce",
+                "nextScene": "obietnica_kawy",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.love": "+1"
+                }
+            }
+        ]
+    },
+    
+    "weekend_razem": {
+        "text": "<p>Proponujesz pokazanie okolicy w najbliższy weekend, a twój nowy sąsiad przyjmuje zaproszenie z entuzjazmem. \"Będę wdzięczny/a za przewodnika, czuję się tu trochę zagubiony/a\" - odpowiada z uśmiechem, który sprawia, że twoje serce bije nieco szybciej.</p><p>Już wyobrażasz sobie wspólny spacer, odkrywanie ukrytych miejsc, którymi chcesz się podzielić. Ta perspektywa sprawia, że patrzysz na swoje miasto nowymi oczami - przez pryzmat możliwości, jakie niesie ze sobą ta nowa relacja.</p>",
+        "quote": "To, co znamy na pamięć, staje się na nowo magiczne, gdy możemy pokazać to komuś po raz pierwszy...",
+        "choices": [
+            {
+                "text": "Zakończ wizytę, planując szczegóły weekendowego spotkania",
+                "nextScene": "plany_weekendowe",
+                "effects": {
+                    "emotions.hope": "+3"
+                }
+            }
+        ]
+    },
+    
+    // Sceny z pamiętnika kontynuacje
+    "odnowienie": {
+        "text": "<p>Postanawiasz odnowić kontakt z osobą, o której myślałeś/aś. Twoje serce bije szybciej, gdy znajdujesz jej numer w telefonie. Z każdą sekundą wątpliwości narastają, ale coś w głębi duszy podpowiada, że to właściwa decyzja.</p><p>Piszesz prostą wiadomość: \"Myślałem/am o Tobie dzisiaj. Jak się masz?\". Naciskasz wyślij, zanim strach zdąży Cię powstrzymać. Czekanie na odpowiedź wydaje się wiecznością.</p>",
+        "image": "list.png",
+        "quote": "Czasem jedna wiadomość potrafi przerzucić most nad przepaścią lat milczenia...",
+        "choices": [
+            {
+                "text": "Otrzymujesz ciepłą odpowiedź i propozycję spotkania",
+                "nextScene": "ponowne_spotkanie",
+                "effects": {
+                    "emotions.hope": "+3",
+                    "emotions.love": "+2"
+                }
+            },
+            {
+                "text": "Nie otrzymujesz odpowiedzi przez długi czas",
+                "nextScene": "oczekiwanie",
+                "effects": {
+                    "emotions.melancholy": "+2"
+                }
+            }
+        ]
+    },
+    
+    "wdziecznosc": {
+        "text": "<p>Bierzesz długopis i otwierasz pamiętnik na nowej, czystej stronie. Przez chwilę patrzysz na biel kartki, zastanawiając się, jak ubrać w słowa uczucie wdzięczności, które wypełnia twoje serce.</p><p>Zaczynasz pisać: \"Dziękuję za wszystko, co było - za radość i za ból, za lekcje i doświadczenia. Każda chwila sprawiła, że jestem tym, kim jestem dzisiaj.\" Słowa płyną coraz łatwiej, jakby czekały na moment, by wreszcie zostać wypowiedziane.</p>",
+        "quote": "Wdzięczność to pamięć serca, która rozświetla nawet najciemniejsze wspomnienia...",
+        "choices": [
+            {
+                "text": "Zamknij pamiętnik i wyjdź na spacer z lżejszym sercem",
+                "nextScene": "lekki_spacer",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.courage": "+1"
+                }
+            },
+            {
+                "text": "Zastanów się, komu jeszcze powinieneś/powinnaś podziękować w swoim życiu",
+                "nextScene": "inne_podziekowania",
+                "effects": {
+                    "emotions.love": "+3"
+                }
+            }
+        ]
+    },
+    
+    "nowa_szansa": {
+        "text": "<p>Zamykasz pamiętnik i wpatrujesz się w przestrzeń przed sobą. Czy jesteś gotowy/a na nową relację? Czy twoje serce zdążyło się zagoić po poprzednich doświadczeniach?</p><p>Zastanawiasz się, jak by to było otworzyć się na kogoś nowego. Nie szukać w nim odbicia przeszłości, ale nowej historii, nieobciążonej bagażem dawnych wspomnień. Może właśnie tego potrzebujesz?</p>",
+        "quote": "Serce nie jest naczyniem, które się wypełnia, ale ogniem, który się rozpala...",
+        "choices": [
+            {
+                "text": "Postanów otworzyć się na nowe możliwości",
+                "nextScene": "otwarcie",
+                "effects": {
+                    "emotions.hope": "+3",
+                    "emotions.courage": "+2"
+                }
+            },
+            {
+                "text": "Uznaj, że potrzebujesz jeszcze czasu dla siebie",
+                "nextScene": "czas_dla_siebie",
+                "effects": {
+                    "emotions.courage": "+1",
+                    "emotions.melancholy": "+1"
+                }
+            }
+        ]
+    },
+    
+    // Sceny zamknięcia pamiętnika - kontynuacje
+    "przygoda": {
+        "text": "<p>Podejmujesz spontaniczną decyzję - pakujesz mały plecak, wkładasz do niego aparat, notes i butelkę wody. Nie masz konkretnego planu, chcesz po prostu wyruszyć gdzieś, gdzie jeszcze nigdy nie byłeś/aś.</p><p>Wsiadasz do autobusu jadącego w nieznanym kierunku. Przez okno obserwujesz jak krajobraz powoli się zmienia. Z każdym kilometrem czujesz, jak uwalniasz się od przeszłości, od oczekiwań, od wszystkiego, co Cię ograniczało.</p>",
+        "image": "park.png",
+        "quote": "Czasem musimy zgubić się fizycznie, by odnaleźć się duchowo...",
+        "choices": [
+            {
+                "text": "Wysiądź w małym, nieznanym miasteczku",
+                "nextScene": "male_miasteczko",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.courage": "+2"
+                }
+            },
+            {
+                "text": "Jedź aż do końcowej stacji",
+                "nextScene": "koniec_linii",
+                "effects": {
+                    "emotions.courage": "+3",
+                    "emotions.melancholy": "+1"
+                }
+            }
+        ]
+    },
+    
+    "przyjaciel": {
+        "text": "<p>Przeglądasz listę kontaktów i zatrzymujesz się na nazwisku przyjaciela/przyjaciółki, z którym/ą nie rozmawiałeś/aś od miesięcy. Tyle się wydarzyło, tyle chciałbyś/chciałabyś opowiedzieć.</p><p>Naciskasz przycisk połączenia. Po kilku sygnałach słyszysz znajomy głos, pełen radości na dźwięk twojego imienia. \"Właśnie o tobie myślałem/am!\" - mówi, jakby wasza telepatia nigdy nie przestała działać, mimo upływu czasu.</p>",
+        "quote": "Prawdziwa przyjaźń to ten rodzaj relacji, gdzie nieważne, ile czasu minęło od ostatniej rozmowy - zawsze zaczyna się od środka zdania...",
+        "choices": [
+            {
+                "text": "Umówcie się na spotkanie jeszcze tego wieczoru",
+                "nextScene": "spotkanie_przyjaciel",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.love": "+2"
+                }
+            },
+            {
+                "text": "Rozmawiajcie długo przez telefon o wszystkim, co się wydarzyło",
+                "nextScene": "długa_rozmowa",
+                "effects": {
+                    "emotions.love": "+3"
+                }
+            }
+        ]
+    },
+    
+    "tworczosc": {
+        "text": "<p>Przynosisz z półki nowy, pusty notatnik. Jego czyste strony wydają się jednocześnie onieśmielające i pełne możliwości. Przez chwilę bawisz się długopisem, zastanawiając się od czego zacząć.</p><p>Postanawiasz, że to będzie opowieść o nowych początkach, o drobnych cudach codzienności, o miłości, która przychodzi nieoczekiwanie. Piszesz pierwsze zdanie: \"Są takie dni, które zmieniają wszystko, choć rano wydają się zupełnie zwyczajne\".</p>",
+        "image": "ksiazka.png",
+        "quote": "Pisanie to podróż, którą odbywamy najpierw we własnym sercu, zanim zapiszemy ją na papierze...",
+        "choices": [
+            {
+                "text": "Kontynuuj pisanie, dając się ponieść inspiracji",
+                "nextScene": "natchnienie",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.courage": "+2"
+                }
+            },
+            {
+                "text": "Zrób sobie herbatę i zastanów się nad głównym bohaterem",
+                "nextScene": "planowanie_postaci",
+                "effects": {
+                    "emotions.melancholy": "+1",
+                    "emotions.hope": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Kontynuacje alternatywnej historii
+    "akceptacja": {
+        "text": "<p>Powoli dociera do Ciebie prawda - żadna ilość rozważań i żałowania nie zmieni tego, co już się wydarzyło. Przeszłość jest zamknięta, nieosiągalna, istnieje tylko w naszych wspomnieniach.</p><p>To, co możesz zmienić, to sposób, w jaki patrzysz na te wspomnienia. Nie jako na ciąg błędów i straconych szans, ale jako doświadczenia, które doprowadziły Cię do miejsca, w którym jesteś teraz.</p>",
+        "quote": "Akceptacja nie oznacza rezygnacji - to odwaga, by spojrzeć prawdzie w oczy i iść dalej...",
+        "choices": [
+            {
+                "text": "Zamknij pamiętnik i skup się na teraźniejszości",
+                "nextScene": "terazniejszosc",
+                "effects": {
+                    "emotions.courage": "+3",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Zapisz swoje refleksje jako lekcję na przyszłość",
+                "nextScene": "lekcja",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.love": "+1"
+                }
+            }
+        ]
+    },
+    
+    "list_do_siebie": {
+        "text": "<p>Bierzesz czystą kartkę i zaczynsz pisać list do młodszej wersji siebie. Co chciałbyś/chciałabyś jej powiedzieć? Przed czym ostrzec? Co pochwalić?</p><p>Słowa płyną swobodnie, pełne czułości i wyrozumiałości. \"Kochany/a...\" - zaczynasz, i nagle uświadamiasz sobie, jak rzadko zwracasz się do siebie z taką łagodnością.</p>",
+        "image": "list.png",
+        "quote": "By prawdziwie kochać innych, musimy najpierw nauczyć się kochać siebie - z wszystkimi błędami i niedoskonałościami...",
+        "choices": [
+            {
+                "text": "Dokończ list pełen miłości i przebaczenia",
+                "nextScene": "przebaczenie",
+                "effects": {
+                    "emotions.love": "+3",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Dopisz, czego nauczyły Cię trudne doświadczenia",
+                "nextScene": "nauki",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.melancholy": "+1"
+                }
+            }
+        ]
+    },
+    
+    "naprawa": {
+        "text": "<p>Zastanawiasz się, czy jeszcze można naprawić to, co zostało zniszczone. Czy most, który spłonął, da się odbudować? Czy zaufanie, które pękło, można skleić?</p><p>Może nie wszystko stracone? Może po drugiej stronie ktoś również myśli, wspomina, zastanawia się \"co by było gdyby\". Może czasem wystarczy pierwszy krok, gest, słowo?</p>",
+        "quote": "Naprawa nie oznacza powrotu do przeszłości - to budowanie czegoś nowego na fundamentach tego, czego się nauczyliśmy...",
+        "choices": [
+            {
+                "text": "Napisz wiadomość z propozycją rozmowy",
+                "nextScene": "propozycja",
+                "effects": {
+                    "emotions.courage": "+3",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Zastanów się, czy na pewno tego chcesz",
+                "nextScene": "rozwazania",
+                "effects": {
+                    "emotions.melancholy": "+2",
+                    "emotions.courage": "+1"
+                }
+            }
+        ]
+    },
+    
+    // Muzyka - kontynuacje
+    "taniec": {
+        "text": "<p>Zamykasz oczy i pozwalasz, by muzyka całkowicie Cię pochłonęła. Twoje ciało zaczyna poruszać się w rytm melodii - najpierw delikatnie, potem coraz bardziej swobodnie.</p><p>W tym prywatnym tańcu odnajdujesz wspomnienia, emocje, tęsknoty. Czujesz obecność osoby, o której myślisz, jakby tańczyła obok. Ten taniec to rozmowa, której słowa nigdy nie zostały wypowiedziane.</p>",
+        "quote": "Taniec to sekretny język duszy, wypowiadający to, co niemożliwe do wyrażenia słowami...",
+        "choices": [
+            {
+                "text": "Zatańcz aż do wyczerpania, uwalniając wszystkie emocje",
+                "nextScene": "katharsis",
+                "effects": {
+                    "emotions.melancholy": "+2",
+                    "emotions.hope": "+2"
+                }
+            },
+            {
+                "text": "Zakończ taniec, czując dziwny spokój",
+                "nextScene": "wewnetrzny_spokoj",
+                "effects": {
+                    "emotions.hope": "+3"
+                }
+            }
+        ]
+    },
+    
+    "wiadomosc": {
+        "text": "<p>Z bijącym sercem sięgasz po telefon. Palce drżą lekko, gdy piszesz wiadomość do osoby, która przez cały ten czas była obecna w Twoich myślach.</p><p>\"Słucham właśnie naszej piosenki i pomyślałem/am o Tobie. Jak się masz?\" - piszesz, starając się, by brzmiało to naturalnie, choć każde słowo wybierasz z ogromną starannością.</p>",
+        "quote": "Czasem najodważniejszym gestem jest wysłanie prostej wiadomości, która mówi: wciąż tu jestem, wciąż pamiętam...",
+        "choices": [
+            {
+                "text": "Wyślij wiadomość i czekaj na odpowiedź",
+                "nextScene": "oczekiwanie_odpowiedzi",
+                "effects": {
+                    "emotions.courage": "+2",
+                    "emotions.love": "+2"
+                }
+            },
+            {
+                "text": "Zrezygnuj w ostatniej chwili i usuń napisaną wiadomość",
+                "nextScene": "rezygnacja",
+                "effects": {
+                    "emotions.melancholy": "+2",
+                    "emotions.courage": "-1"
+                }
+            }
+        ]
+    },
+    
+    "nowa_muzyka": {
+        "text": "<p>Zmieniasz muzykę na coś bardziej energicznego i optymistycznego. Rytmiczne dźwięki wypełniają pokój, zmieniając atmosferę, rozjaśniając cienie przeszłości.</p><p>Czujesz, jak stopniowo Twój nastrój się zmienia. Może to właśnie jest klucz - nie zaprzeczać temu, co było, ale świadomie wybierać to, co jest teraz i co może być w przyszłości?</p>",
+        "quote": "Czasem wystarczy zmienić melodię, by całe życie zabrzmiało inaczej...",
+        "choices": [
+            {
+                "text": "Zrób sobie dzień tylko dla siebie, pełen przyjemności",
+                "nextScene": "dzien_dla_siebie",
+                "effects": {
+                    "emotions.hope": "+3",
+                    "emotions.courage": "+1"
+                }
+            },
+            {
+                "text": "Zadzwoń do przyjaciół i zaproponuj spontaniczne wyjście",
+                "nextScene": "spontaniczne_wyjscie",
+                "effects": {
+                    "emotions.hope": "+2",
+                    "emotions.love": "+2"
+                }
+            }
+        ]
+    },
+    
+    // Zakończenia dla nowych ścieżek
+    "natchnienie": {
+        "text": "<p>Poddajesz się fali natchnienia, która niesie Cię jak morska fala. Słowa płyną swobodnie, jedna scena rodzi kolejną, postacie ożywają pod Twoimi palcami, prowadząc własne życie na kartach zeszytu.</p><p>Dopiero gdy za oknem zaczyna świtać, uświadamiasz sobie, ile czasu spędziłeś/aś, pisząc. Czytasz to, co stworzyłeś/aś i dostrzegasz w tym zalążek czegoś prawdziwego, autentycznego, Twojego.</p>",
+        "quote": "Opowieści, które piszemy, to rozmowy z najgłębszą częścią nas samych...",
+        "choices": [
+            {
+                "text": "Zakończ opowieść i przemyśl jej znaczenie",
+                "nextScene": "zakonczenie_ksiazka",
+                "effects": {
+                    "emotions.hope": "+3",
+                    "emotions.courage": "+2"
+                }
+            }
+        ]
+    },
+    
+    "zakonczenie_ksiazka": {
+        "text": "<p>Ta noc pisania otworzyła w Tobie coś nowego - drzwi do świata kreatywności, które długo pozostawały zamknięte. Odkryłeś/aś, że Twoje doświadczenia, uczucia, refleksje mogą stać się czymś uniwersalnym, co przemawia również do innych.</p><p>Może to jest Twoje powołanie? Może właśnie tak miało być - musieliśmy przejść przez wszystko, co nas ukształtowało, by móc teraz tworzyć, nadawać znaczenie, dzielić się.</p><p>Patrzysz na zapisane kartki z poczuciem spełnienia. To dopiero początek, ale czujesz, że stoją przed Tobą otworem drzwi pełne możliwości.</p>",
+        "quote": "Czasem musimy stracić jedną historię, by móc napisać następną - piękniejszą, głębszą, bardziej prawdziwą...",
+        "choices": [
+            {
+                "text": "Rozpocznij historię od nowa",
+                "nextScene": "intro"
+            }
+        ]
+    },
+    
+    "male_miasteczko": {
+        "text": "<p>Wysiadasz na przystanku w małym, nieznanym miasteczku. Główna ulica jest cicha, kilka osób spaceruje powoli, nikt się nie spieszy. Odnajdujesz dziwny spokój w tej anonimowości, w byciu kimś nowym w miejscu, gdzie nikt nie zna Twojej historii.</p><p>W małej kawiarni zamawiasz herbatę i rozmawiasz z miłą kelnerką. Opowiada Ci o lokalnych atrakcjach, historii miasteczka. Z każdą chwilą czujesz się coraz bardziej jak część tego miejsca, choć jesteś tu pierwszy raz.</p>",
+        "quote": "Czasem musimy znaleźć się w zupełnie nowym miejscu, by odkryć nieznane części siebie...",
+        "choices": [
+            {
+                "text": "Zakończ historię i przemyśl swoje doświadczenie",
+                "nextScene": "zakonczenie_wycieczka",
+                "effects": {
+                    "emotions.hope": "+3",
+                    "emotions.courage": "+2"
+                }
+            }
+        ]
+    },
+    
+    "zakonczenie_wycieczka": {
+        "text": "<p>Ta spontaniczna podróż okazała się podróżą nie tylko fizyczną, ale przede wszystkim duchową. Czasem musimy wyrwać się z codziennej rutyny, z znajomych miejsc i twarzy, by spojrzeć na swoje życie z innej perspektywy.</p><p>W drodze powrotnej czujesz się odmieniony/a. To samo miasto, te same ulice, ale Ty patrzysz na nie innymi oczami. Dostrzegasz piękno w szczegółach, których wcześniej nie zauważałeś/aś.</p><p>I choć wracasz do tego samego mieszkania, to czujesz, że coś w Tobie zostało poruszone, obudzone, odmienione. Może to początek czegoś nowego?</p>",
+        "quote": "Prawdziwa podróż odkrywcza nie polega na szukaniu nowych krajobrazów, ale na patrzeniu nowymi oczami...",
+        "choices": [
+            {
+                "text": "Rozpocznij historię od nowa",
+                "nextScene": "intro"
+            }
+        ]
+    },
+    
+    "spotkanie_przyjaciel": {
+        "text": "<p>Siedzicie w małej kawiarni, gdzie zawsze lubiliście się spotykać. Znajome miejsce, znajoma twarz, ale tyle nowych historii do opowiedzenia. Śmiejecie się, wspominacie, nadrabiacie stracony czas.</p><p>W pewnym momencie twój przyjaciel/przyjaciółka mówi: \"Tak się cieszę, że zadzwoniłeś/aś. Ostatnio często o tobie myślałem/am\". Te słowa trafiają prosto do twojego serca, przypominając, jak ważne są relacje, które przetrwały próbę czasu.</p>",
+        "quote": "Prawdziwa przyjaźń nie polega na byciu nierozłącznymi, ale na możliwości rozdzielenia się i nic się nie zmienia...",
+        "choices": [
+            {
+                "text": "Zakończ historię i przemyśl wartość przyjaźni",
+                "nextScene": "zakonczenie_przyjazn_stara",
+                "effects": {
+                    "emotions.love": "+3",
+                    "emotions.hope": "+2"
+                }
+            }
+        ]
+    },
+    
+    "zakonczenie_przyjazn_stara": {
+        "text": "<p>To spotkanie przypomniało Ci, jak cenne są więzi, które przetrwały próbę czasu. Przyjaźń to nie tylko bycie obok w codzienności, ale też możliwość powrotu do siebie po długiej nieobecności i odnalezienia tej samej bliskości.</p><p>Wracając do domu, czujesz głęboką wdzięczność za wszystkie osoby, które są częścią Twojego życia - zarówno te obecne na co dzień, jak i te, z którymi łączą Cię niewidoczne nici wspomnień i doświadczeń.</p><p>Może to jest klucz do szczęścia - docenianie tego, co mamy, zamiast rozpamiętywania tego, co straciliśmy?</p>",
+        "quote": "Najcenniejsze rzeczy w życiu to nie te, które można kupić, ale te, których nie można stracić - wspomnienia, miłość, przyjaźń...",
+        "choices": [
+            {
+                "text": "Rozpocznij historię od nowa",
+                "nextScene": "intro"
+            }
+        ]
+    },
+    
+    "zakonczenie_przyjazn": {
+        "text": "<p>Nie sposób przewidzieć, jak małe decyzje mogą zmienić bieg naszego życia. Twoja spontaniczna decyzja, by poznać nowego sąsiada, otworzyła rozdział pełen ciepłych chwil, szczerych rozmów i wzajemnego wsparcia.</p><p>Ta historia przypomina, że nawet w najmniej oczekiwanych momentach warto otworzyć się na nowe relacje i możliwości. Życie składa się z takich właśnie chwil odwagi, które początkowo wydają się małe, ale mogą zmienić wszystko.</p><p>Czasem wystarczy zapukać do drzwi, by wpuścić do życia coś nowego, jasnego i pełnego nadziei.</p>",
+        "quote": "Każde zakończenie to tylko początek czegoś nowego - ptak musi opuścić gniazdo, by odkryć, że potrafi latać...",
+        "choices": [
+            {
+                "text": "Rozpocznij historię od nowa",
+                "nextScene": "intro"
+            }
+        ]
+    },
+    
+    "refleksje_po_spotkaniu": {
+        "text": "<p>Po powrocie do swojego mieszkania siadasz przy oknie i zastanawiasz się nad spotkaniem. Ta krótka rozmowa z nową osobą pobudziła Twoje myśli - o życiu, o tym, jak przypadkowe spotkania potrafią czasem rozświetlić nawet ponury dzień.</p><p>Patrzysz na miasto za oknem, na ludzi, którzy mijają się codziennie, często nie wiedząc, jak blisko siebie są ich historie i marzenia. Czujesz spokój i delikatną melancholię.</p>",
+        "image": "deszcz.png",
+        "quote": "Samotność nie zawsze oznacza bycie samemu. Czasem to wybór, by lepiej usłyszeć własne myśli wśród szumu świata...",
+        "choices": [
+            {
+                "text": "Zakończ historię i zastanów się nad jej przesłaniem",
+                "nextScene": "zakonczenie_refleksja",
+                "effects": {
+                    "emotions.melancholy": "+2",
+                    "emotions.hope": "+1"
+                }
+            }
+        ]
+    }
+};
+
+// Główna klasa obsługująca grę
+class StoryGame {
+            constructor() {
+                this.currentScene = null;
+                this.gameState = {
+                    emotions: {
+                        melancholy: 0,
+                        hope: 0,
+                        love: 0,
+                        courage: 0
+                    },
+                    variables: {},
+                    visitedScenes: []
+                };
+                this.savedQuotes = [];
+                this.imageData = [];
+                this.musicPlaying = false;
+                
+                // Elementy DOM
+                this.gameContent = document.getElementById('gameContent');
+                this.startBtn = document.getElementById('startBtn');
+                this.soundToggle = document.getElementById('soundToggle');
+                this.soundIcon = document.getElementById('soundIcon');
+                this.backgroundMusic = document.getElementById('backgroundMusic');
+                this.diaryBtn = document.getElementById('diaryBtn');
+                this.diaryPanel = document.getElementById('diaryPanel');
+                this.diaryClose = document.getElementById('diaryClose');
+                this.quotesContainer = document.getElementById('quotesContainer');
+                
+                // Inicjalizacja
+                this.init();
+            }
+            
+            init() {
+                // Załaduj dane obrazów z CSV
+                this.loadImageData();
+                
+                // Załaduj zapisane cytaty z localStorage
+                this.loadSavedQuotes();
+                
+                // Przypisanie zdarzeń do elementów
+                this.startBtn.addEventListener('click', () => this.startGame());
+                this.soundToggle.addEventListener('click', () => this.toggleMusic());
+                this.diaryBtn.addEventListener('click', () => this.openDiary());
+                this.diaryClose.addEventListener('click', () => this.closeDiary());
+                
+                // Obsługa klawiszy
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.diaryPanel.style.display === 'flex') {
+                        this.closeDiary();
+                    }
+                });
+            }
+            
+            // Metoda ładująca dane obrazów z CSV
+            async loadImageData() {
+                try {
+                    // Imitacja ładowania pliku CSV (w rzeczywistości byłoby to prawdziwe CSV)
+                    const csvData = `filename,width,height,description
+rozstanie.png,640,360,Kobieta stoi w deszczu patrząc na odchodzącego mężczyznę
+spotkanie.png,640,480,Dwoje ludzi spotyka się przypadkowo w kawiarni przy oknie z widokiem na park
+list.png,500,300,Stary list z poetyckim pismem odręcznym i zasuszonym kwiatem
+park.png,800,400,Jesienny park z kolorowymi liśćmi i pustą ławką
+drzwi.png,400,600,Uchylone stare drzwi z widoczną smugą światła
+zdjecie.png,500,400,Stare zdjęcie w sepii przedstawiające parę nad jeziorem
+deszcz.png,700,350,Widok przez okno na deszczowy dzień w mieście
+swiatlo.png,600,400,Promienie słońca przebijające się przez gałęzie drzew
+muzyka.png,450,450,Stary gramofon grający płytę winylową w nastrojowym świetle
+ksiazka.png,500,350,Otwarta książka z zakreślonym cytatem i filiżanką herbaty obok`;
+                    
+                    // Przetwarzanie danych CSV
+                    const lines = csvData.trim().split('\n');
+                    const headers = lines[0].split(',');
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].split(',');
+                        const data = {};
+                        
+                        // Specjalne traktowanie czwartej kolumny (opis), który może zawierać przecinki
+                        if (line.length > 4) {
+                            data[headers[0]] = line[0];
+                            data[headers[1]] = parseInt(line[1]);
+                            data[headers[2]] = parseInt(line[2]);
+                            // Łączymy resztę linii jako opis (może zawierać przecinki)
+                            data[headers[3]] = line.slice(3).join(',');
+                        } else {
+                            for (let j = 0; j < headers.length; j++) {
+                                if (j === 1 || j === 2) {
+                                    data[headers[j]] = parseInt(line[j]);
+                                } else {
+                                    data[headers[j]] = line[j];
+                                }
+                            }
+                        }
+                        
+                        this.imageData.push(data);
+                    }
+                    
+                    console.log('Załadowane dane obrazów:', this.imageData);
+                } catch (error) {
+                    console.error('Błąd podczas ładowania danych obrazów:', error);
+                }
+            }
+            
+            // Metoda uruchamiająca grę
+            startGame() {
+                document.querySelector('.start-screen').style.display = 'none';
+                this.loadScene('intro');
+            }
+            
+            // Metoda ładująca scenę
+            loadScene(sceneId) {
+                // Zapamiętaj odwiedzoną scenę
+                if (!this.gameState.visitedScenes.includes(sceneId)) {
+                    this.gameState.visitedScenes.push(sceneId);
+                }
+                
+                // Pobierz dane sceny
+                const scene = scenesData[sceneId];
+                if (!scene) {
+                    console.error(`Scena o ID ${sceneId} nie została znaleziona.`);
+                    return;
+                }
+                
+                // Ustaw aktualną scenę
+                this.currentScene = scene;
+                
+                // Wyczyść zawartość
+                this.gameContent.innerHTML = '';
+                
+                // Utwórz element sceny
+                const sceneElement = document.createElement('div');
+                sceneElement.className = 'scene fade-in';
+                sceneElement.style.display = 'block';
+                
+                // Dodaj tekst sceny
+                const text = document.createElement('div');
+                text.className = 'scene-text';
+                text.innerHTML = scene.text;
+                sceneElement.appendChild(text);
+                
+                // Dodaj obrazek (jeśli jest)
+                if (scene.image) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'scene-image-container';
+                    
+                    const imageData = this.getImageData(scene.image);
+                    
+                    const img = document.createElement('img');
+                    img.className = 'scene-image';
+                    img.src = `/img/${scene.image}`;
+                    
+                    if (imageData) {
+                        img.alt = imageData.description;
+                        img.width = imageData.width;
+                        img.height = imageData.height;
+                        img.style.objectFit = 'cover';
+                    }
+                    
+                    // Obsługa błędu ładowania obrazka
+                    img.onerror = () => {
+                        if (imageData) {
+                            // Utwórz placeholder
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'image-placeholder';
+                            placeholder.style.width = `${imageData.width}px`;
+                            placeholder.style.height = `${imageData.height}px`;
+                            placeholder.style.maxWidth = '100%';
+                            placeholder.innerHTML = `
+                                <div>
+                                    <p style="margin-bottom: 0.5rem;"><b>${scene.image}</b></p>
+                                    <p>${imageData.description}</p>
+                                </div>
+                            `;
+                            imageContainer.innerHTML = '';
+                            imageContainer.appendChild(placeholder);
+                        } else {
+                            imageContainer.innerHTML = `<div class="image-placeholder">Brak obrazka: ${scene.image}</div>`;
+                        }
+                    };
+                    
+                    imageContainer.appendChild(img);
+                    sceneElement.appendChild(imageContainer);
+                }
+                
+                // Dodaj cytat poetycki (jeśli scena ma cytat)
+                if (scene.quote) {
+                    const quoteContainer = document.createElement('div');
+                    quoteContainer.className = 'poetic-text';
+                    quoteContainer.textContent = scene.quote;
+                    
+                    const saveBtn = document.createElement('button');
+                    saveBtn.className = 'save-quote-btn';
+                    saveBtn.innerHTML = '❤';
+                    saveBtn.title = 'Zapisz do pamiętnika';
+                    saveBtn.addEventListener('click', () => this.saveQuote(scene.quote));
+                    
+                    quoteContainer.appendChild(saveBtn);
+                    sceneElement.appendChild(quoteContainer);
+                }
+                
+                // Dodaj wybory
+                if (scene.choices && scene.choices.length > 0) {
+                    const choicesContainer = document.createElement('div');
+                    choicesContainer.className = 'choices';
+                    
+                    scene.choices.forEach(choice => {
+                        // Sprawdź warunki wyboru (jeśli są)
+                        if (choice.condition && !this.checkCondition(choice.condition)) {
+                            return; // Pomiń wybór, który nie spełnia warunku
+                        }
+                        
+                        const button = document.createElement('button');
+                        button.className = 'choice-btn';
+                        button.textContent = choice.text;
+                        button.addEventListener('click', () => {
+                            // Zastosuj efekty wyboru
+                            if (choice.effects) {
+                                this.applyEffects(choice.effects);
+                            }
+                            // Załaduj następną scenę
+                            this.loadScene(choice.nextScene);
+                        });
+                        
+                        choicesContainer.appendChild(button);
+                    });
+                    
+                    sceneElement.appendChild(choicesContainer);
+                }
+                
+                // Dodaj scenę do kontenera
+                this.gameContent.appendChild(sceneElement);
+                
+                // Przewiń do góry (tylko na większych ekranach, na mobilnych zostawiamy jak jest)
+                if (window.innerWidth > 768) {
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+            
+            // Metoda pobierająca dane obrazu z CSV
+            getImageData(filename) {
+                return this.imageData.find(img => img.filename === filename);
+            }
+            
+            // Metoda sprawdzająca warunek
+            checkCondition(condition) {
+                // Przykład: "emotions.hope > 3"
+                try {
+                    const parts = condition.split(' ');
+                    const path = parts[0].split('.');
+                    const operator = parts[1];
+                    const value = parseFloat(parts[2]);
+                    
+                    let currentObj = this.gameState;
+                    for (const part of path) {
+                        currentObj = currentObj[part];
+                    }
+                    
+                    switch (operator) {
+                        case '>': return currentObj > value;
+                        case '<': return currentObj < value;
+                        case '>=': return currentObj >= value;
+                        case '<=': return currentObj <= value;
+                        case '==': return currentObj == value;
+                        case '!=': return currentObj != value;
+                        default: return false;
+                    }
+                } catch (error) {
+                    console.error('Błąd podczas sprawdzania warunku:', error);
+                    return false;
+                }
+            }
+            
+            // Metoda aplikująca efekty wyboru
+            applyEffects(effects) {
+                Object.entries(effects).forEach(([key, value]) => {
+                    const path = key.split('.');
+                    let currentObj = this.gameState;
+                    
+                    // Przechodzimy przez ścieżkę, aby dotrzeć do właściwości
+                    for (let i = 0; i < path.length - 1; i++) {
+                        const part = path[i];
+                        if (!currentObj[part]) {
+                            currentObj[part] = {};
+                        }
+                        currentObj = currentObj[part];
+                    }
+                    
+                    // Ustawiamy wartość
+                    const lastPart = path[path.length - 1];
+                    if (typeof value === 'string' && value.startsWith('+')) {
+                        // Dodanie wartości (np. "+1")
+                        currentObj[lastPart] += parseFloat(value.substring(1));
+                    } else if (typeof value === 'string' && value.startsWith('-')) {
+                        // Odjęcie wartości (np. "-1")
+                        currentObj[lastPart] -= parseFloat(value.substring(1));
+                    } else {
+                        // Przypisanie wartości
+                        currentObj[lastPart] = value;
+                    }
+                });
+                
+                console.log('Stan gry po efektach:', this.gameState);
+            }
+            
+            // Metoda zapisująca cytat
+            saveQuote(quote) {
+                const date = new Date().toLocaleDateString('pl-PL');
+                this.savedQuotes.push({ text: quote, date });
+                
+                localStorage.setItem('savedQuotes', JSON.stringify(this.savedQuotes));
+                
+                // Zamieniamy alert na delikatną animację/powiadomienie
+                const notification = document.createElement('div');
+                notification.style.position = 'fixed';
+                notification.style.bottom = '70px';
+                notification.style.left = '20px';
+                notification.style.backgroundColor = 'rgba(255,255,255,0.9)';
+                notification.style.color = 'var(--dark-accent)';
+                notification.style.padding = '10px 15px';
+                notification.style.borderRadius = '20px';
+                notification.style.boxShadow = '0 3px 10px rgba(0,0,0,0.1)';
+                notification.style.transition = 'all 0.3s ease';
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(20px)';
+                notification.style.zIndex = '150';
+                notification.innerHTML = 'Cytat został zapisany w pamiętniku ❤';
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.opacity = '1';
+                    notification.style.transform = 'translateY(0)';
+                }, 10);
+                
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 2000);
+                
+                this.updateQuotesDisplay();
+            }
+            
+            // Metoda ładująca zapisane cytaty
+            loadSavedQuotes() {
+                const saved = localStorage.getItem('savedQuotes');
+                if (saved) {
+                    this.savedQuotes = JSON.parse(saved);
+                    this.updateQuotesDisplay();
+                }
+            }
+            
+            // Metoda aktualizująca wyświetlanie cytatów
+            updateQuotesDisplay() {
+                if (this.savedQuotes.length === 0) {
+                    this.quotesContainer.innerHTML = '<p class="no-quotes">Twój pamiętnik jest jeszcze pusty. Zapisz swoje ulubione cytaty podczas gry.</p>';
+                    return;
+                }
+                
+                const list = document.createElement('ul');
+                list.className = 'quotes-list';
+                
+                this.savedQuotes.forEach((quote, index) => {
+                    const item = document.createElement('li');
+                    item.className = 'quote-item';
+                    
+                    item.innerHTML = `
+                        <p class="quote-text">${quote.text}</p>
+                        <p class="quote-date">${quote.date}</p>
+                    `;
+                    
+                    list.appendChild(item);
+                });
+                
+                this.quotesContainer.innerHTML = '';
+                this.quotesContainer.appendChild(list);
+            }
+            
+            // Metoda otwierająca pamiętnik
+            openDiary() {
+                this.diaryPanel.style.display = 'flex';
+                setTimeout(() => {
+                    this.diaryPanel.style.opacity = '1';
+                }, 10);
+            }
+            
+            // Metoda zamykająca pamiętnik
+            closeDiary() {
+                this.diaryPanel.style.opacity = '0';
+                setTimeout(() => {
+                    this.diaryPanel.style.display = 'none';
+                }, 300);
+            }
+            
+            // Metoda włączająca/wyłączająca muzykę
+            toggleMusic() {
+                if (this.musicPlaying) {
+                    this.backgroundMusic.pause();
+                    this.soundIcon.innerHTML = `
+                        <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+                        <path d="M19 8a9 9 0 0 1 0 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+                        <path d="M16 10.5a5 5 0 0 1 0 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+                    `;
+                } else {
+                    this.backgroundMusic.play().catch(error => {
+                        console.log('Odtwarzanie muzyki wymaga interakcji użytkownika:', error);
+                    });
+                    this.soundIcon.innerHTML = `
+                        <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+                        <path d="M19 8a9 9 0 0 1 0 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+                        <path d="M16 10.5a5 5 0 0 1 0 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+                    `;
+                }
+                
+                this.musicPlaying = !this.musicPlaying;
+            }
+        }
+        
+        // Inicjalizacja gry
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new StoryGame();
+        });
+    </script>
+</body>
+</html>
