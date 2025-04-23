@@ -38,6 +38,12 @@ class StoryGame {
         // Załaduj zapisane cytaty z localStorage
         this.loadSavedQuotes();
 
+        // Dodaj efekt płatków
+        this.addBackgroundPetals();
+
+        // Stwórz wskaźnik emocji
+        this.createEmotionIndicator();
+
         // Przypisanie zdarzeń do elementów
         this.startBtn.addEventListener('click', () => {
             this.startGame();
@@ -173,19 +179,23 @@ class StoryGame {
         // Ustaw aktualną scenę
         this.currentScene = scene;
 
-        // Wyczyść zawartość
-        this.gameContent.innerHTML = '';
+        // Płynnie przewiń do góry kontenera gry
+        const gameContainer = document.querySelector('.game-container');
+        gameContainer.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // Utwórz element sceny
-        const sceneElement = document.createElement('div');
-        sceneElement.className = 'scene fade-in';
-        sceneElement.style.display = 'block';
+        // Stwórz element nowej sceny, ale nie dodawaj go jeszcze
+        const newSceneElement = document.createElement('div');
+        newSceneElement.className = 'scene';
+        newSceneElement.style.display = 'block';
+        newSceneElement.style.opacity = '0';
+        newSceneElement.style.transform = 'translateY(20px)';
+        newSceneElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
 
         // Dodaj tekst sceny
         const text = document.createElement('div');
         text.className = 'scene-text';
         text.innerHTML = scene.text;
-        sceneElement.appendChild(text);
+        newSceneElement.appendChild(text);
 
         // Dodaj obrazek (jeśli jest)
         if (scene.image) {
@@ -228,7 +238,7 @@ class StoryGame {
             };
 
             imageContainer.appendChild(img);
-            sceneElement.appendChild(imageContainer);
+            newSceneElement.appendChild(imageContainer);
         }
 
         // Dodaj cytat poetycki (jeśli scena ma cytat)
@@ -244,7 +254,7 @@ class StoryGame {
             saveBtn.addEventListener('click', () => this.saveQuote(scene.quote));
 
             quoteContainer.appendChild(saveBtn);
-            sceneElement.appendChild(quoteContainer);
+            newSceneElement.appendChild(quoteContainer);
         }
 
         // Dodaj wybory
@@ -266,98 +276,51 @@ class StoryGame {
                     if (choice.effects) {
                         this.applyEffects(choice.effects);
                     }
-                    // Załaduj następną scenę
-                    this.loadScene(choice.nextScene);
 
                     // Dodaj efekt motyla po wyborze
                     this.addChoiceButterfly(button);
+
+                    // Załaduj następną scenę
+                    setTimeout(() => {
+                        this.loadScene(choice.nextScene);
+                    }, 300); // Małe opóźnienie by zobaczyć efekt motyla
                 });
 
                 choicesContainer.appendChild(button);
             });
 
-            sceneElement.appendChild(choicesContainer);
+            newSceneElement.appendChild(choicesContainer);
         }
 
-        // Dodaj scenę do kontenera
-        this.gameContent.appendChild(sceneElement);
+        // Jeśli jest już jakaś scena, wyciemnij ją najpierw
+        if (this.gameContent.children.length > 0) {
+            const oldScene = this.gameContent.children[0];
+            oldScene.style.opacity = '0';
+            oldScene.style.transform = 'translateY(-20px)';
 
-        // Przewiń do góry (tylko na większych ekranach, na mobilnych zostawiamy jak jest)
-        if (window.innerWidth > 768) {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+            // Po wygaśnięciu starej sceny, pokaż nową
+            setTimeout(() => {
+                this.gameContent.innerHTML = '';
+                this.gameContent.appendChild(newSceneElement);
+
+                // Pokaż nową scenę
+                setTimeout(() => {
+                    newSceneElement.style.opacity = '1';
+                    newSceneElement.style.transform = 'translateY(0)';
+                    newSceneElement.classList.add('fade-in');
+                }, 50);
+            }, 300);
+        } else {
+            // Nie ma istniejącej sceny, po prostu dodaj nową
+            this.gameContent.appendChild(newSceneElement);
+
+            // Pokaż nową scenę
+            setTimeout(() => {
+                newSceneElement.style.opacity = '1';
+                newSceneElement.style.transform = 'translateY(0)';
+                newSceneElement.classList.add('fade-in');
+            }, 50);
         }
-    }
-
-    // Dodaj efekt motyla po dokonaniu wyboru
-    addChoiceButterfly(buttonElement) {
-        // Stwórz motyla
-        const butterfly = document.createElement('div');
-        butterfly.className = 'choice-butterfly';
-
-        // Style dla motyla
-        const style = document.createElement('style');
-        style.textContent = `
-            .choice-butterfly {
-                position: absolute;
-                width: 30px;
-                height: 30px;
-                pointer-events: none;
-                z-index: 1000;
-            }
-            
-            @keyframes flyAway {
-                0% {
-                    opacity: 0;
-                    transform: translate(-50%, -50%) scale(0.2);
-                }
-                20% {
-                    opacity: 1;
-                    transform: translate(-50%, -50%) scale(1);
-                }
-                40% {
-                    transform: translate(${Math.random() > 0.5 ? '' : '-'}${20 + Math.random() * 30}px, -${30 + Math.random() * 40}px) scale(0.9) rotate(${Math.random() * 10 - 5}deg);
-                }
-                70% {
-                    transform: translate(${Math.random() > 0.5 ? '' : '-'}${40 + Math.random() * 60}px, -${60 + Math.random() * 80}px) scale(0.7) rotate(${Math.random() * 20 - 10}deg);
-                }
-                100% {
-                    opacity: 0;
-                    transform: translate(${Math.random() > 0.5 ? '' : '-'}${80 + Math.random() * 100}px, -${100 + Math.random() * 150}px) scale(0.2) rotate(${Math.random() * 30 - 15}deg);
-                }
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Pozycja motyla (na klikniętym przycisku)
-        const rect = buttonElement.getBoundingClientRect();
-        butterfly.style.left = `${rect.left + rect.width / 2}px`;
-        butterfly.style.top = `${rect.top + rect.height / 2}px`;
-
-        // Zawartość motyla - ulepszone SVG
-        butterfly.innerHTML = `
-            <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                <g class="wings" style="animation: flutterWings 0.2s alternate infinite ease-in-out;">
-                    <path d="M25,10 C30,5 40,0 45,15 C45,30 30,35 25,25 C20,35 5,30 5,15 C5,0 20,5 25,10 Z" fill="#ffb7d5" opacity="0.9"/>
-                    <path d="M25,25 C30,30 40,35 45,45 C45,50 30,55 25,45 C20,55 5,50 5,45 C5,35 20,30 25,25 Z" fill="#ffb7d5" opacity="0.7"/>
-                    <path d="M25,10 L25,45" stroke="#fff" stroke-width="0.8" stroke-dasharray="1,1"/>
-                    <ellipse cx="25" cy="25" rx="2" ry="4" fill="#fff" opacity="0.5"/>
-                </g>
-            </svg>
-        `;
-
-        // Animacja
-        butterfly.style.animation = 'flyAway 1.5s forwards';
-
-        // Dodaj do body
-        document.body.appendChild(butterfly);
-
-        // Usuń po zakończeniu animacji
-        setTimeout(() => {
-            document.body.removeChild(butterfly);
-        }, 1500);
     }
 
     // Metoda pobierająca dane obrazu z CSV
@@ -419,7 +382,7 @@ class StoryGame {
             const path = key.split('.');
             let currentObj = this.gameState;
 
-            // Przechodzimy przez ścieżkę, aby dotrzeć do właściwości
+            // Przejdź przez ścieżkę aby dostać się do właściwości
             for (let i = 0; i < path.length - 1; i++) {
                 const part = path[i];
                 if (!currentObj[part]) {
@@ -428,21 +391,437 @@ class StoryGame {
                 currentObj = currentObj[part];
             }
 
-            // Ustawiamy wartość
+            // Zaktualizuj wartość
             const lastPart = path[path.length - 1];
             if (typeof value === 'string' && value.startsWith('+')) {
-                // Dodanie wartości (np. "+1")
                 currentObj[lastPart] += parseFloat(value.substring(1));
+
+                // Pokaż animację dla zmian emocjonalnych
+                if (path[0] === 'emotions') {
+                    this.showEmotionEffect(lastPart, value);
+                }
             } else if (typeof value === 'string' && value.startsWith('-')) {
-                // Odjęcie wartości (np. "-1")
                 currentObj[lastPart] -= parseFloat(value.substring(1));
+
+                // Pokaż animację dla zmian emocjonalnych
+                if (path[0] === 'emotions') {
+                    this.showEmotionEffect(lastPart, value);
+                }
             } else {
-                // Przypisanie wartości
                 currentObj[lastPart] = value;
+
+                // Jeśli jest to bezpośrednie ustawienie emocji
+                if (path[0] === 'emotions' && typeof value === 'number') {
+                    this.showEmotionEffect(lastPart, value);
+                }
             }
         });
 
+        // Zaktualizuj wskaźnik emocji
+        this.updateEmotionIndicator();
+
         console.log('Stan gry po efektach:', this.gameState);
+    }
+
+    // Dodaj metodę do aktualizacji wskaźnika
+    updateEmotionIndicator() {
+        const indicator = document.getElementById('emotion-indicator');
+        if (!indicator) {
+            this.createEmotionIndicator();
+            return;
+        }
+
+        // Zaktualizuj wartości dla każdej emocji
+        ['melancholy', 'hope', 'love', 'courage'].forEach(emotion => {
+            const valueElement = document.getElementById(`emotion-value-${emotion}`);
+            const barElement = document.getElementById(`emotion-bar-${emotion}`);
+
+            if (valueElement && barElement) {
+                const value = this.gameState.emotions[emotion] || 0;
+                valueElement.textContent = value;
+
+                // Ustaw szerokość paska (maksymalnie 10)
+                const barWidth = Math.min(100, (value / 10) * 100);
+                barElement.style.width = `${barWidth}%`;
+
+                // Dodaj animację przy zmianie
+                barElement.style.transition = 'width 0.8s ease';
+                setTimeout(() => {
+                    barElement.style.transition = 'width 0.3s ease';
+                }, 800);
+            }
+        });
+    }
+
+    // Dodaj nową metodę showEmotionEffect
+    showEmotionEffect(emotionType, value) {
+        // Parsowanie wartości by obsłużyć format "+1" lub "-1"
+        const numValue = typeof value === 'string' ?
+            parseFloat(value.replace(/^(\+|\-)/, '')) :
+            value;
+        const isPositive = typeof value === 'string' ?
+            !value.startsWith('-') :
+            value >= 0;
+
+        // Zdefiniuj kolory i ikony dla różnych emocji
+        const emotions = {
+            'melancholy': { color: '#94718a', icon: '☁️', name: 'melancholia' },
+            'hope': { color: '#7fb1b3', icon: '✨', name: 'nadzieja' },
+            'love': { color: '#e6c0d0', icon: '❤️', name: 'miłość' },
+            'courage': { color: '#dfa75a', icon: '🦋', name: 'odwaga' }
+        };
+
+        const emotion = emotions[emotionType] || { color: '#b58ea6', icon: '✨', name: emotionType };
+
+        // Stwórz element efektu emocjonalnego
+        const effectElement = document.createElement('div');
+        effectElement.className = 'emotion-effect';
+        effectElement.innerHTML = `
+            <span class="emotion-icon">${emotion.icon}</span>
+            <span class="emotion-text">${isPositive ? '+' : '-'}${numValue} ${emotion.name}</span>
+        `;
+
+        // Dodaj style jeśli jeszcze nie istnieją
+        if (!document.getElementById('emotion-effect-styles')) {
+            const style = document.createElement('style');
+            style.id = 'emotion-effect-styles';
+            style.textContent = `
+                .emotion-effect {
+                    position: fixed;
+                    left: 50%;
+                    top: 50%;
+                    transform: translate(-50%, -50%);
+                    background-color: rgba(255, 255, 255, 0.9);
+                    border-radius: 20px;
+                    padding: 8px 15px;
+                    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+                    font-family: 'Playfair Display', serif;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    z-index: 1000;
+                    opacity: 0;
+                    pointer-events: none;
+                    animation: emotion-float 2s forwards;
+                }
+                
+                .emotion-icon {
+                    font-size: 1.2rem;
+                }
+                
+                .emotion-text {
+                    font-size: 1rem;
+                    color: var(--emotion-color);
+                    font-weight: 500;
+                }
+                
+                @keyframes emotion-float {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, 20px);
+                    }
+                    20% {
+                        opacity: 1;
+                        transform: translate(-50%, -10px);
+                    }
+                    80% {
+                        opacity: 1;
+                        transform: translate(-50%, -30px);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translate(-50%, -50px);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Ustaw kolor na podstawie emocji
+        effectElement.style.setProperty('--emotion-color', emotion.color);
+
+        // Dodaj do body
+        document.body.appendChild(effectElement);
+
+        // Usuń po zakończeniu animacji
+        setTimeout(() => {
+            document.body.removeChild(effectElement);
+        }, 2000);
+    }
+
+    // Dodaj metodę tworzącą wskaźnik emocji
+    createEmotionIndicator() {
+        // Jeśli wskaźnik już istnieje, usuń go
+        const existingIndicator = document.getElementById('emotion-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
+
+        // Stwórz kontener wskaźnika
+        const indicator = document.createElement('div');
+        indicator.id = 'emotion-indicator';
+        indicator.className = 'emotion-indicator';
+
+        // Dodaj style jeśli jeszcze nie istnieją
+        if (!document.getElementById('emotion-indicator-styles')) {
+            const style = document.createElement('style');
+            style.id = 'emotion-indicator-styles';
+            style.textContent = `
+                .emotion-indicator {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background-color: rgba(255, 255, 255, 0.9);
+                    border-radius: 12px;
+                    padding: 10px;
+                    box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+                    font-family: 'Montserrat', sans-serif;
+                    z-index: 100;
+                    transition: all 0.3s ease;
+                    opacity: 0;
+                    transform: translateY(-10px);
+                    max-width: 150px;
+                }
+                
+                .emotion-indicator:hover {
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+                    transform: translateY(0) scale(1.05);
+                }
+                
+                .emotion-indicator.visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                
+                .emotion-indicator h3 {
+                    font-family: 'Playfair Display', serif;
+                    color: var(--header-color);
+                    font-size: 1rem;
+                    margin: 0 0 8px 0;
+                    text-align: center;
+                    font-weight: normal;
+                }
+                
+                .emotion-item {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 5px;
+                    font-size: 0.85rem;
+                }
+                
+                .emotion-icon {
+                    width: 18px;
+                    margin-right: 8px;
+                    text-align: center;
+                }
+                
+                .emotion-name {
+                    flex-grow: 1;
+                    color: var(--dark-accent);
+                }
+                
+                .emotion-value {
+                    font-weight: 500;
+                    min-width: 25px;
+                    text-align: right;
+                }
+                
+                .emotion-bar-bg {
+                    position: relative;
+                    height: 3px;
+                    background-color: rgba(0,0,0,0.05);
+                    border-radius: 2px;
+                    margin-top: 3px;
+                    width: 100%;
+                    overflow: hidden;
+                }
+                
+                .emotion-bar {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    height: 100%;
+                    border-radius: 2px;
+                    transition: width 0.5s ease;
+                }
+                
+                .toggle-indicator {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background-color: var(--light-accent);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.7rem;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                
+                .toggle-indicator:hover {
+                    background-color: var(--accent-color);
+                    color: white;
+                }
+                
+                .emotion-indicator.collapsed {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    padding: 0;
+                    overflow: hidden;
+                }
+                
+                .emotion-indicator.collapsed .toggle-indicator {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 50%;
+                    top: 0;
+                    right: 0;
+                    font-size: 1.2rem;
+                }
+                
+                .emotion-indicator.collapsed h3,
+                .emotion-indicator.collapsed .emotion-item {
+                    display: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Dodaj tytuł
+        const title = document.createElement('h3');
+        title.textContent = 'Twoje emocje';
+        indicator.appendChild(title);
+
+        // Definicje emocji
+        const emotions = [
+            { name: 'melancholy', label: 'Melancholia', icon: '☁️', color: '#94718a' },
+            { name: 'hope', label: 'Nadzieja', icon: '✨', color: '#7fb1b3' },
+            { name: 'love', label: 'Miłość', icon: '❤️', color: '#e6c0d0' },
+            { name: 'courage', label: 'Odwaga', icon: '🦋', color: '#dfa75a' }
+        ];
+
+        // Dodaj wskaźniki dla każdej emocji
+        emotions.forEach(emotion => {
+            const emotionItem = document.createElement('div');
+            emotionItem.className = 'emotion-item';
+
+            const icon = document.createElement('span');
+            icon.className = 'emotion-icon';
+            icon.textContent = emotion.icon;
+
+            const name = document.createElement('span');
+            name.className = 'emotion-name';
+            name.textContent = emotion.label;
+
+            const value = document.createElement('span');
+            value.className = 'emotion-value';
+            value.id = `emotion-value-${emotion.name}`;
+            value.textContent = this.gameState.emotions[emotion.name] || 0;
+
+            const barBg = document.createElement('div');
+            barBg.className = 'emotion-bar-bg';
+
+            const bar = document.createElement('div');
+            bar.className = 'emotion-bar';
+            bar.id = `emotion-bar-${emotion.name}`;
+            bar.style.backgroundColor = emotion.color;
+            // Ustaw szerokość paska na podstawie wartości (maksymalnie 10)
+            const barWidth = Math.min(100, ((this.gameState.emotions[emotion.name] || 0) / 10) * 100);
+            bar.style.width = `${barWidth}%`;
+
+            barBg.appendChild(bar);
+            emotionItem.appendChild(icon);
+            emotionItem.appendChild(name);
+            emotionItem.appendChild(value);
+            emotionItem.appendChild(barBg);
+
+            indicator.appendChild(emotionItem);
+        });
+
+        // Dodaj przycisk do zwijania/rozwijania
+        const toggleButton = document.createElement('div');
+        toggleButton.className = 'toggle-indicator';
+        toggleButton.innerHTML = '×';
+
+        // Zmienna do śledzenia stanu
+        let isCollapsed = false;
+
+        // Obsługa kliknięcia
+        toggleButton.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) {
+                indicator.classList.add('collapsed');
+                toggleButton.innerHTML = '❤';
+            } else {
+                indicator.classList.remove('collapsed');
+                toggleButton.innerHTML = '×';
+            }
+        });
+
+        indicator.appendChild(toggleButton);
+        document.body.appendChild(indicator);
+
+        // Pokaż z opóźnieniem dla animacji
+        setTimeout(() => {
+            indicator.classList.add('visible');
+        }, 300);
+    }
+
+    // Dodaj metodę dodającą tło z płatkami kwiatów
+    addBackgroundPetals() {
+        // Stwórz kontener na płatki
+        const petalsContainer = document.createElement('div');
+        petalsContainer.className = 'background-petals';
+        document.body.appendChild(petalsContainer);
+
+        // Liczba płatków
+        const petalCount = 15;
+
+        // Kolory płatków
+        const petalColors = [
+            'rgba(255, 183, 213, 0.3)',
+            'rgba(255, 204, 224, 0.3)',
+            'rgba(255, 218, 233, 0.3)',
+            'rgba(255, 229, 241, 0.3)',
+            'rgba(230, 192, 208, 0.3)'
+        ];
+
+        // Stwórz płatki
+        for (let i = 0; i < petalCount; i++) {
+            const petal = document.createElement('div');
+            petal.className = 'petal';
+
+            // Losowy rozmiar
+            const size = 10 + Math.random() * 15;
+            petal.style.width = `${size}px`;
+            petal.style.height = `${size}px`;
+
+            // Losowa pozycja początkowa
+            const startPosX = Math.random() * window.innerWidth;
+            const startPosY = -50 - Math.random() * 100;
+            petal.style.left = `${startPosX}px`;
+            petal.style.top = `${startPosY}px`;
+
+            // Losowy kolor
+            petal.style.backgroundColor = petalColors[Math.floor(Math.random() * petalColors.length)];
+
+            // Losowe opóźnienie
+            petal.style.animationDelay = `${Math.random() * 10}s`;
+
+            // Losowa prędkość
+            const duration = 15 + Math.random() * 20;
+            petal.style.animationDuration = `${duration}s`;
+
+            // Losowy kierunek i rotacja
+            const direction = Math.random() > 0.5 ? 1 : -1;
+            petal.style.transform = `rotate(${Math.random() * 360}deg) scale(${0.8 + Math.random() * 0.5})`;
+
+            petalsContainer.appendChild(petal);
+        }
     }
 
     // Metoda zapisująca cytat
@@ -735,5 +1114,152 @@ class StoryGame {
         setTimeout(() => {
             soundPanel.removeChild(soundWave);
         }, 1000);
+    }
+
+    // Dodaj nową, rozszerzoną metodę dodającą motylki po wyborze
+    addChoiceButterfly(buttonElement) {
+        // Liczba motyli
+        const butterflyCount = 3 + Math.floor(Math.random() * 3); // 3-5 motyli
+
+        // Kolory motyli - pastelowe odcienie dopasowane do stylu aplikacji
+        const colors = [
+            '#ffb7d5', '#ffc2e2', '#ffcce0', '#ffd9e9',
+            '#ffe5f1', '#ffdca6', '#c5a3ff', '#b58ea6'
+        ];
+
+        // Dodaj style jeśli jeszcze nie istnieją
+        if (!document.getElementById('enhanced-butterfly-styles')) {
+            const style = document.createElement('style');
+            style.id = 'enhanced-butterfly-styles';
+            style.textContent = `
+                .choice-butterfly {
+                    position: absolute;
+                    pointer-events: none;
+                    z-index: 1000;
+                    opacity: 0;
+                }
+                
+                @keyframes flutterWings {
+                    0% { transform: scaleX(1); }
+                    50% { transform: scaleX(0.8); }
+                    100% { transform: scaleX(1); }
+                }
+                
+                @keyframes flyAwayEnhanced {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+                    }
+                    15% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1) rotate(5deg);
+                    }
+                    30% {
+                        transform: translate(var(--fly-x-30), var(--fly-y-30)) scale(0.9) rotate(var(--rotate-30));
+                    }
+                    60% {
+                        transform: translate(var(--fly-x-60), var(--fly-y-60)) scale(0.8) rotate(var(--rotate-60));
+                    }
+                    90% {
+                        opacity: 0.7;
+                        transform: translate(var(--fly-x-90), var(--fly-y-90)) scale(0.6) rotate(var(--rotate-90));
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translate(var(--fly-x-100), var(--fly-y-100)) scale(0.4) rotate(var(--rotate-100));
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Stwórz kilka motyli z różnymi ścieżkami lotu
+        for (let i = 0; i < butterflyCount; i++) {
+            // Stwórz motyla
+            const butterfly = document.createElement('div');
+            butterfly.className = 'choice-butterfly';
+
+            // Losowy rozmiar
+            const size = 25 + Math.random() * 15;
+            butterfly.style.width = `${size}px`;
+            butterfly.style.height = `${size}px`;
+
+            // Losowy kolor
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            // Pozycja początkowa (na przycisku)
+            const rect = buttonElement.getBoundingClientRect();
+            butterfly.style.left = `${rect.left + rect.width / 2}px`;
+            butterfly.style.top = `${rect.top + rect.height / 2}px`;
+
+            // Unikalna ścieżka lotu dla każdego motyla
+            // Generujemy losowe wartości dla każdego etapu animacji
+            const flyX30 = (Math.random() > 0.5 ? '' : '-') + (10 + Math.random() * 20) + 'px';
+            const flyY30 = '-' + (10 + Math.random() * 20) + 'px';
+            const rotate30 = (Math.random() * 20 - 10) + 'deg';
+
+            const flyX60 = (Math.random() > 0.5 ? '' : '-') + (30 + Math.random() * 40) + 'px';
+            const flyY60 = '-' + (30 + Math.random() * 50) + 'px';
+            const rotate60 = (Math.random() * 30 - 15) + 'deg';
+
+            const flyX90 = (Math.random() > 0.5 ? '' : '-') + (50 + Math.random() * 80) + 'px';
+            const flyY90 = '-' + (70 + Math.random() * 100) + 'px';
+            const rotate90 = (Math.random() * 40 - 20) + 'deg';
+
+            const flyX100 = (Math.random() > 0.5 ? '' : '-') + (80 + Math.random() * 120) + 'px';
+            const flyY100 = '-' + (100 + Math.random() * 150) + 'px';
+            const rotate100 = (Math.random() * 60 - 30) + 'deg';
+
+            // Ustaw niestandardowe właściwości CSS dla animacji
+            butterfly.style.setProperty('--fly-x-30', flyX30);
+            butterfly.style.setProperty('--fly-y-30', flyY30);
+            butterfly.style.setProperty('--rotate-30', rotate30);
+
+            butterfly.style.setProperty('--fly-x-60', flyX60);
+            butterfly.style.setProperty('--fly-y-60', flyY60);
+            butterfly.style.setProperty('--rotate-60', rotate60);
+
+            butterfly.style.setProperty('--fly-x-90', flyX90);
+            butterfly.style.setProperty('--fly-y-90', flyY90);
+            butterfly.style.setProperty('--rotate-90', rotate90);
+
+            butterfly.style.setProperty('--fly-x-100', flyX100);
+            butterfly.style.setProperty('--fly-y-100', flyY100);
+            butterfly.style.setProperty('--rotate-100', rotate100);
+
+            // Zawartość motyla - ulepszone SVG
+            butterfly.innerHTML = `
+                <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <radialGradient id="wing-gradient-${i}" cx="50%" cy="50%" r="70%" fx="30%" fy="30%">
+                            <stop offset="0%" stop-color="#fff" stop-opacity="0.9" />
+                            <stop offset="70%" stop-color="${color}" stop-opacity="0.9" />
+                            <stop offset="100%" stop-color="${color}" stop-opacity="0.7" />
+                        </radialGradient>
+                    </defs>
+                    <g class="wings" style="animation: flutterWings ${0.15 + Math.random() * 0.1}s alternate infinite ease-in-out;">
+                        <path d="M25,10 C30,5 40,0 45,15 C45,30 30,35 25,25 C20,35 5,30 5,15 C5,0 20,5 25,10 Z" fill="url(#wing-gradient-${i})" />
+                        <path d="M25,25 C30,30 40,35 45,45 C45,50 30,55 25,45 C20,55 5,50 5,45 C5,35 20,30 25,25 Z" fill="url(#wing-gradient-${i})" opacity="0.8" />
+                        <path d="M25,10 L25,45" stroke="#fff" stroke-width="0.8" stroke-dasharray="1,1" />
+                        <ellipse cx="25" cy="25" rx="2" ry="4" fill="#fff" opacity="0.7" />
+                    </g>
+                </svg>
+            `;
+
+            // Dodaj do body
+            document.body.appendChild(butterfly);
+
+            // Animacja z opóźnieniem dla każdego motyla
+            setTimeout(() => {
+                butterfly.style.animation = `flyAwayEnhanced ${1.5 + Math.random() * 0.5}s forwards`;
+            }, i * 100); // Opóźnienie zależne od indeksu
+
+            // Usuń po zakończeniu animacji
+            setTimeout(() => {
+                if (document.body.contains(butterfly)) {
+                    document.body.removeChild(butterfly);
+                }
+            }, 2000 + i * 100);
+        }
     }
 }

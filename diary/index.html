@@ -542,75 +542,252 @@
         .fade-in {
             animation: fadeIn 0.8s ease-out forwards;
         }
+
+        /* Ulepszone efekty dla elementów poetyckich */
+        .poetic-text {
+            position: relative;
+            background-image: linear-gradient(to right, var(--soft-pink) 0%, var(--highlight) 100%);
+            border-left: 3px solid var(--flower-pink);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            transform: translateY(0);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .poetic-text:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .poetic-text::before {
+            content: '"';
+            font-size: 2.3rem;
+            position: absolute;
+            left: 5px;
+            top: -5px;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+
+        .poetic-text::after {
+            content: '"';
+            font-size: 2.3rem;
+            position: absolute;
+            right: 5px;
+            bottom: -12px;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+
+        /* Ulepszone przyciski wyboru */
+        .choice-btn {
+            overflow: hidden;
+            position: relative;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--accent-color);
+            transition: all 0.3s ease;
+        }
+
+        .choice-btn:hover {
+            background-color: var(--highlight);
+            border-color: var(--dark-accent);
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+
+        .choice-btn:active {
+            transform: translateX(2px);
+            background-color: var(--soft-pink);
+        }
+
+        /* Efekt fali po kliknięciu na przycisk wyboru */
+        .choice-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%, -50%);
+            transform-origin: 50% 50%;
+        }
+
+        .choice-btn:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0) translate(-50%, -50%);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(30, 30) translate(-50%, -50%);
+                opacity: 0;
+            }
+        }
+
+        /* Ulepszony efekt pojawienia się sceny */
+        .fade-in {
+            animation: fadeInEnhanced 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeInEnhanced {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+                filter: blur(3px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+                filter: blur(0);
+            }
+        }
+
+        /* Dodatkowe dekoracyjne elementy tła */
+        .background-petals {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .petal {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: rgba(255, 183, 213, 0.3);
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+            animation: floatPetal 15s linear infinite;
+        }
+
+        @keyframes floatPetal {
+            0% {
+                transform: translate(-50px, -50px) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: translate(calc(100vw + 50px), calc(100vh + 50px)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Ulepszone efekty dla kontenera gry */
+        .game-container {
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        .game-container:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.07);
+            transform: translateY(-2px);
+        }
+
+        /* Lepsza wizualna prezentacja obrazów */
+        .scene-image {
+            transition: all 0.5s ease;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .scene-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        /* Animacja serca przy zapisywaniu cytatu */
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            25% { transform: scale(1.3); }
+            50% { transform: scale(1); }
+            75% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .save-quote-btn:hover {
+            animation: heartBeat 0.8s ease-in-out;
+            color: #e6305d;
+        }
     </style>
 </head>
 <body>
-    <!-- Dekoracje tła -->
-    <div class="flower-decoration flower-top-left"></div>
-    <div class="flower-decoration flower-bottom-right"></div>
+<!-- Dekoracje tła -->
+<div class="flower-decoration flower-top-left"></div>
+<div class="flower-decoration flower-bottom-right"></div>
 
-    <div class="container">
-        <div class="game-header">
-            <h1 class="game-title">Odcienie Uczuć</h1>
-            <p class="subtitle">Opowieść o miłości, tęsknocie i nadziei</p>
+<div class="container">
+    <div class="game-header">
+        <h1 class="game-title">Odcienie Uczuć</h1>
+        <p class="subtitle">Opowieść o miłości, tęsknocie i nadziei</p>
+    </div>
+
+    <div class="game-container">
+        <!-- Ekran startowy -->
+        <div class="start-screen">
+            <p class="start-description">
+                Zapraszam Cię do świata delikatnych uczuć i nieoczywistych wyborów.
+                W tej interaktywnej opowieści to Ty decydujesz o przebiegu historii,
+                która rozgrywa się na granicy rzeczywistości i poetyckiej wrażliwości.
+            </p>
+            <p class="poetic-text">
+                Każdy dzień to nowa strona w księdze naszego życia.
+                Niektóre zapisujemy starannym pismem,
+                inne zostawiamy niemal puste,
+                a są i takie, które zlepiamy łzami...
+            </p>
+            <button class="start-btn" id="startBtn">Zacznij historię</button>
         </div>
 
-        <div class="game-container">
-            <!-- Ekran startowy -->
-            <div class="start-screen">
-                <p class="start-description">
-                    Zapraszam Cię do świata delikatnych uczuć i nieoczywistych wyborów.
-                    W tej interaktywnej opowieści to Ty decydujesz o przebiegu historii,
-                    która rozgrywa się na granicy rzeczywistości i poetyckiej wrażliwości.
-                </p>
-                <p class="poetic-text">
-                    Każdy dzień to nowa strona w księdze naszego życia.
-                    Niektóre zapisujemy starannym pismem,
-                    inne zostawiamy niemal puste,
-                    a są i takie, które zlepiamy łzami...
-                </p>
-                <button class="start-btn" id="startBtn">Zacznij historię</button>
-            </div>
+        <!-- Tutaj będą dynamicznie dodawane sceny -->
+        <div id="gameContent"></div>
+    </div>
+</div>
 
-            <!-- Tutaj będą dynamicznie dodawane sceny -->
-            <div id="gameContent"></div>
+<!-- Panel dźwięku -->
+<div class="sound-panel" id="soundToggle">
+    <svg class="sound-icon" id="soundIcon" viewBox="0 0 24 24">
+        <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+        <line x1="17" y1="9" x2="21" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
+        <line x1="21" y1="9" x2="17" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
+    </svg>
+</div>
+
+<!-- Przycisk pamiętnika -->
+<div class="diary-btn" id="diaryBtn">
+    <svg class="diary-icon" viewBox="0 0 24 24">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"></path>
+    </svg>
+</div>
+
+<!-- Panel pamiętnika -->
+<div class="diary-panel" id="diaryPanel">
+    <div class="diary-content">
+        <h2 class="diary-title">Mój pamiętnik</h2>
+        <button class="diary-close" id="diaryClose">&times;</button>
+        <div id="quotesContainer">
+            <p class="no-quotes">Twój pamiętnik jest jeszcze pusty. Zapisz swoje ulubione cytaty podczas gry.</p>
         </div>
     </div>
+</div>
 
-    <!-- Panel dźwięku -->
-    <div class="sound-panel" id="soundToggle">
-        <svg class="sound-icon" id="soundIcon" viewBox="0 0 24 24">
-            <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
-            <line x1="17" y1="9" x2="21" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
-            <line x1="21" y1="9" x2="17" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
-        </svg>
-    </div>
+<audio id="backgroundMusic" loop>
+    <source src="https://incompetech.com/music/royalty-free/mp3-royaltyfree/Rains%20Will%20Fall.mp3" type="audio/mpeg">
+</audio>
 
-    <!-- Przycisk pamiętnika -->
-    <div class="diary-btn" id="diaryBtn">
-        <svg class="diary-icon" viewBox="0 0 24 24">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"></path>
-        </svg>
-    </div>
-
-    <!-- Panel pamiętnika -->
-    <div class="diary-panel" id="diaryPanel">
-        <div class="diary-content">
-            <h2 class="diary-title">Mój pamiętnik</h2>
-            <button class="diary-close" id="diaryClose">&times;</button>
-            <div id="quotesContainer">
-                <p class="no-quotes">Twój pamiętnik jest jeszcze pusty. Zapisz swoje ulubione cytaty podczas gry.</p>
-            </div>
-        </div>
-    </div>
-
-    <audio id="backgroundMusic" loop>
-        <source src="https://incompetech.com/music/royalty-free/mp3-royaltyfree/Rains%20Will%20Fall.mp3" type="audio/mpeg">
-    </audio>
-
-    <!-- Skrypty -->
-    <script src="scenes.js"></script>
-    <script src="loader.js"></script>
-    <script src="main.js"></script>
+<!-- Skrypty -->
+<script src="scenes.js"></script>
+<script src="loader.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
