@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odcienie Uczuć - Interaktywna Opowieść</title>
+    <style>
+        /* Globalne style */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500&display=swap');
+
+        :root {
+            --main-bg-color: #f9f5f6;
+            --accent-color: #e6c0d0;
+            --text-color: #5d5154;
+            --header-color: #b58ea6;
+            --light-accent: #fdf2f6;
+            --dark-accent: #94718a;
+            --highlight: #f8e7ee;
+            --soft-pink: #fde2ed;
+            --flower-pink: #ffcce0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--main-bg-color);
+            background-image: linear-gradient(135deg, var(--main-bg-color) 0%, var(--light-accent) 100%);
+            color: var(--text-color);
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.8;
+            background-attachment: fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffdcef' fill-opacity='0.25' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='1.5'/%3E%3Ccircle cx='13' cy='13' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+
+        /* Nagłówek */
+        .game-header {
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 0.5rem;
+            width: 100%;
+        }
+
+        .game-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            color: var(--header-color);
+            text-align: center;
+            margin-bottom: 0.3rem;
+            letter-spacing: 1px;
+            font-weight: 400;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 0.8rem;
+            color: var(--dark-accent);
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        /* Elementy gry */
+        .game-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--light-accent);
+        }
+
+        .game-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .game-container::-webkit-scrollbar-track {
+            background: var(--light-accent);
+        }
+
+        .game-container::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+        }
+
+        .game-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--flower-pink), transparent);
+        }
+
+        /* Ekran startowy */
+        .start-screen {
+            text-align: center;
+            padding: 1.5rem 0.5rem;
+        }
+
+        .start-description {
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .start-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 0.7rem 2rem;
+            font-size: 1.1rem;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-btn:hover {
+            background-color: var(--dark-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        .start-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Scena gry */
+        .scene {
+            display: none;
+        }
+
+        .scene-text {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            font-family: 'Montserrat', sans-serif;
+            color: var(--text-color);
+        }
+
+        .scene-image-container {
+            text-align: center;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+        }
+
+        .scene-image {
+            max-width: 100%;
+            border-radius: 8px;
+            transition: transform 0.5s ease;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .scene-image:hover {
+            transform: scale(1.02);
+        }
+
+        .image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--soft-pink);
+            border: 1px dashed var(--accent-color);
+            border-radius: 8px;
+            color: var(--dark-accent);
+            padding: 1.2rem 1rem;
+            text-align: center;
+            font-style: italic;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+        .image-placeholder:hover {
+            background-color: var(--highlight);
+            opacity: 1;
+        }
+
+        /* Wybory */
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+            margin-top: 1.2rem;
+        }
+
+        .choice-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--dark-accent);
+            border-radius: 25px;
+            padding: 0.7rem 1rem;
+            font-size: 0.95rem;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .choice-btn:hover {
+            background-color: var(--highlight);
+            border-color: var(--dark-accent);
+            transform: translateX(5px);
+        }
+
+        .choice-btn:active {
+            transform: translateX(2px);
+            background-color: var(--soft-pink);
+        }
+
+        /* Panel dźwięku */
+        .sound-panel {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .sound-panel:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .sound-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--dark-accent);
+        }
+
+        /* Pamiętnik / Zapisane cytaty */
+        .diary-btn {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .diary-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .diary-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--dark-accent);
+        }
+
+        .diary-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .diary-content {
+            background-color: var(--main-bg-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 90%;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--light-accent);
+        }
+
+        .diary-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .diary-content::-webkit-scrollbar-track {
+            background: var(--light-accent);
+        }
+
+        .diary-content::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+        }
+
+        .diary-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            color: var(--header-color);
+            margin-bottom: 1.2rem;
+            text-align: center;
+        }
+
+        .diary-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark-accent);
+            line-height: 1;
+        }
+
+        .quotes-list {
+            list-style: none;
+        }
+
+        .quote-item {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--accent-color);
+            position: relative;
+        }
+
+        .quote-item:last-child {
+            border-bottom: none;
+        }
+
+        .quote-text {
+            font-style: italic;
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .quote-date {
+            font-size: 0.75rem;
+            color: var(--dark-accent);
+            text-align: right;
+        }
+
+        .save-quote-btn {
+            background: none;
+            border: none;
+            color: var(--dark-accent);
+            font-size: 1.2rem;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .save-quote-btn:hover {
+            color: var(--accent-color);
+            transform: scale(1.1);
+        }
+
+        .no-quotes {
+            text-align: center;
+            font-style: italic;
+            color: var(--dark-accent);
+            padding: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        /* Animacje */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes floatIn {
+            0% { opacity: 0; transform: translateY(5px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .poetic-text {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: var(--dark-accent);
+            line-height: 1.6;
+            margin: 1rem 0;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            background-color: var(--soft-pink);
+            font-size: 0.95rem;
+            position: relative;
+            animation: floatIn 0.8s ease-out;
+        }
+
+        .poetic-text::before {
+            content: '"';
+            font-size: 1.8rem;
+            position: absolute;
+            left: 8px;
+            top: 0;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+
+        .poetic-text::after {
+            content: '"';
+            font-size: 1.8rem;
+            position: absolute;
+            right: 8px;
+            bottom: -5px;
+            color: var(--flower-pink);
+            opacity: 0.8;
+        }
+
+        /* Dekoracje */
+        .flower-decoration {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.2;
+            z-index: -1;
+        }
+
+        .flower-top-left {
+            top: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,20 C60,10 75,15 80,25 C85,35 80,50 70,55 C80,60 85,75 80,85 C75,95 60,100 50,90 C40,100 25,95 20,85 C15,75 20,60 30,55 C20,50 15,35 20,25 C25,15 40,10 50,20 Z' fill='%23ffb7d5'/%3E%3C/svg%3E");
+            transform: rotate(30deg);
+        }
+
+        .flower-bottom-right {
+            bottom: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,20 C60,10 75,15 80,25 C85,35 80,50 70,55 C80,60 85,75 80,85 C75,95 60,100 50,90 C40,100 25,95 20,85 C15,75 20,60 30,55 C20,50 15,35 20,25 C25,15 40,10 50,20 Z' fill='%23ffb7d5'/%3E%3C/svg%3E");
+            transform: rotate(-15deg);
+        }
+
+        /* Responsywność */
+        @media screen and (max-width: 480px) {
+            .container {
+                padding: 0.8rem;
+            }
+
+            .game-title {
+                font-size: 1.8rem;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .game-container {
+                padding: 1.2rem;
+            }
+
+            .scene-text {
+                font-size: 0.9rem;
+            }
+
+            .poetic-text {
+                font-size: 0.9rem;
+                padding: 0.7rem 1rem;
+            }
+
+            .choice-btn {
+                font-size: 0.9rem;
+                padding: 0.6rem 0.9rem;
+            }
+        }
+
+        /* Animacje przejścia między scenami */
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dekoracje tła -->
+    <div class="flower-decoration flower-top-left"></div>
+    <div class="flower-decoration flower-bottom-right"></div>
+
+    <div class="container">
+        <div class="game-header">
+            <h1 class="game-title">Odcienie Uczuć</h1>
+            <p class="subtitle">Opowieść o miłości, tęsknocie i nadziei</p>
+        </div>
+
+        <div class="game-container">
+            <!-- Ekran startowy -->
+            <div class="start-screen">
+                <p class="start-description">
+                    Zapraszam Cię do świata delikatnych uczuć i nieoczywistych wyborów.
+                    W tej interaktywnej opowieści to Ty decydujesz o przebiegu historii,
+                    która rozgrywa się na granicy rzeczywistości i poetyckiej wrażliwości.
+                </p>
+                <p class="poetic-text">
+                    Każdy dzień to nowa strona w księdze naszego życia.
+                    Niektóre zapisujemy starannym pismem,
+                    inne zostawiamy niemal puste,
+                    a są i takie, które zlepiamy łzami...
+                </p>
+                <button class="start-btn" id="startBtn">Zacznij historię</button>
+            </div>
+
+            <!-- Tutaj będą dynamicznie dodawane sceny -->
+            <div id="gameContent"></div>
+        </div>
+    </div>
+
+    <!-- Panel dźwięku -->
+    <div class="sound-panel" id="soundToggle">
+        <svg class="sound-icon" id="soundIcon" viewBox="0 0 24 24">
+            <path d="M12 5v14c-3.5-0.8-5-3-5-7s1.5-6.2 5-7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+            <line x1="17" y1="9" x2="21" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
+            <line x1="21" y1="9" x2="17" y2="13" stroke="currentColor" stroke-linecap="round" stroke-width="2"></line>
+        </svg>
+    </div>
+
+    <!-- Przycisk pamiętnika -->
+    <div class="diary-btn" id="diaryBtn">
+        <svg class="diary-icon" viewBox="0 0 24 24">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"></path>
+        </svg>
+    </div>
+
+    <!-- Panel pamiętnika -->
+    <div class="diary-panel" id="diaryPanel">
+        <div class="diary-content">
+            <h2 class="diary-title">Mój pamiętnik</h2>
+            <button class="diary-close" id="diaryClose">&times;</button>
+            <div id="quotesContainer">
+                <p class="no-quotes">Twój pamiętnik jest jeszcze pusty. Zapisz swoje ulubione cytaty podczas gry.</p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="backgroundMusic" loop>
+        <source src="https://incompetech.com/music/royalty-free/mp3-royaltyfree/Rains%20Will%20Fall.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Skrypty -->
+    <script src="scenes.js"></script>
+    <script src="loader.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
