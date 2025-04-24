@@ -1080,16 +1080,6 @@
       }
     ]
   },
-  "zakonczenie_katharsis": {
-    "text": "<p>Po tańcu opadasz na podłogę, czując błogie zmęczenie. Twoje ciało przypomina Ci, że jesteś czymś więcej niż tylko swoimi myślami i wspomnieniami - jesteś żywą istotą, tu i teraz.</p><p>Ten spontaniczny taniec staje się początkiem nowego rytuału. Odkrywasz, że ruch i muzyka potrafią uzdrawiać w sposób, którego słowa nigdy nie osiągną. W momentach smutku czy zagubienia, zamiast analizować i rozpamiętywać, zaczynasz tańczyć.</p><p>Z czasem zauważasz, że nie tylko emocje znajdują ujście w tańcu, ale także intuicja i kreatywność. Jakby ciało znało odpowiedzi, do których umysł nie ma dostępu.</p>",
-    "quote": "Uzdrowienie przychodzi nie wtedy, gdy zapominamy o bólu, ale gdy pozwalamy mu przepłynąć przez nas, aż naturalnie się rozpuści...",
-    "choices": [
-      {
-        "text": "Rozpocznij historię od nowa",
-        "nextScene": "intro"
-      }
-    ]
-  },
   "wewnetrzny_spokoj": {
     "text": "<p>Stopniowo zwalniasz tempo, aż Twoje ruchy stają się niemal medytacyjne. Czujesz, jak muzyka przepływa przez Ciebie, jak oddech się pogłębia, jak myśli się uspokajają.</p><p>Ten dziwny spokój, który Cię ogarnia, jest inny od wszystkiego, czego wcześniej doświadczałeś/aś. Nie jest to ani zapomnienie, ani wyparcie - to raczej głęboka akceptacja wszystkiego, co było, co jest i co będzie.</p>",
     "quote": "Prawdziwy spokój to nie brak burzy, ale zdolność dostrzeżenia ciszy w jej samym centrum...",
@@ -1403,16 +1393,6 @@
   "zakonczenie_wedrowka": {
     "text": "<p>Wyruszasz przed siebie, bez mapy, bez planu, kierując się tylko intuicją i ciekawością. Ścieżka prowadzi Cię przez pola, zagajniki, aż do małego jeziora, którego powierzchnia odbija niebo jak lustro.</p><p>Siadasz na brzegu i po prostu patrzysz, oddychasz, czujesz. Wszystkie myśli, które wydawały się tak ważne jeszcze rano, teraz rozpływają się w tej przestrzeni ciszy i piękna.</p><p>Gdy wieczorem wracasz do miasta ostatnim pociągiem, czujesz się odmieniony/a. Ta spontaniczna podróż do nieznanego miejsca stała się podróżą do własnego wnętrza. Odkryłeś/aś na nowo ciszę, prostotę, spokój - to, co zawsze było w Tobie, ale zagłuszały to miejskie hałasy i codzienne zmartwienia.</p>",
     "quote": "Prawdziwa wolność to nie możliwość robienia wszystkiego, ale odkrycie tego, co naprawdę ma dla nas znaczenie...",
-    "choices": [
-      {
-        "text": "Rozpocznij historię od nowa",
-        "nextScene": "intro"
-      }
-    ]
-  },
-  "zakonczenie_refleksja_rezygnacja": {
-    "text": "<p>Odkładasz telefon i zadajesz sobie pytanie - czego naprawdę szukałeś/aś w tym kontakcie? Odpowiedzi na niewyjaśnione pytania? Zapewnienia, że tamte chwile były ważne? A może po prostu tęsknisz za uczuciem, które tamta relacja w Tobie budziła?</p><p>Te pytania prowadzą Cię do głębszego zrozumienia siebie. Uświadamiasz sobie, że może to nie o tamtą osobę chodzi, ale o coś, czego w swoim obecnym życiu potrzebujesz.</p><p>Ta rezygnacja z wysłania wiadomości staje się początkiem nowej podróży - wewnętrznej eksploracji, która prowadzi Cię do lepszego zrozumienia swoich potrzeb, pragnień i tego, co naprawdę przyniesie Ci spełnienie.</p>",
-    "quote": "Najważniejsza podróż to ta, którą odbywamy do własnego wnętrza, by zrozumieć, czego naprawdę pragniemy...",
     "choices": [
       {
         "text": "Rozpocznij historię od nowa",
@@ -2110,4 +2090,5 @@
       }
     ]
   }
+
 }
