@@ -187,30 +187,34 @@
             stroke: #d1d5db;
         }
 
+        /* Custom tooltip styles */
         .tooltip {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.95);
+            position: fixed; /* Use fixed instead of absolute */
+            background: rgba(255, 255, 255, 0.98);
             border: 1px solid #d1d5db;
-            border-radius: 4px;
-            padding: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            max-width: 300px;
-            z-index: 100;
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+            width: 280px; /* Fixed width */
+            z-index: 9999;
             pointer-events: none;
+            box-sizing: border-box;
+            max-height: 200px;
+            overflow-y: auto;
             opacity: 0;
-            transition: opacity 0.3s;
         }
 
         .tooltip-title {
             font-weight: bold;
             margin-bottom: 5px;
+            font-size: 14px;
         }
 
         .tooltip-quote {
             font-style: italic;
             color: #6b7280;
             margin-top: 5px;
-            font-size: 0.9rem;
+            font-size: 13px;
         }
 
         .mode-indicator {
@@ -240,6 +244,46 @@
             fill: rgba(255, 255, 255, 0.8);
             rx: 3;
             ry: 3;
+        }
+
+        /* Dead end node styling */
+        .node.dead-end circle {
+            stroke: #ef4444;
+            stroke-width: 3px;
+            filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.6));
+        }
+
+        .node-x {
+            stroke: #ef4444;
+            stroke-width: 3px;
+        }
+
+        /* Pulsing animation for dead end nodes */
+        @keyframes pulse-deadend {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .node.dead-end circle {
+            animation: pulse-deadend 2s infinite ease-in-out;
+        }
+
+        /* Node selection styling */
+        .node.selected circle {
+            stroke: #000;
+            stroke-width: 3px;
+            filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));
+        }
+
+        /* Node hover styling */
+        .node.hover circle {
+            filter: drop-shadow(0 0 4px rgba(0,0,0,0.2));
+        }
+
+        /* Additional transition effects */
+        .node circle, .link {
+            transition: all 0.3s ease;
         }
     </style>
 </head>
@@ -285,6 +329,10 @@
             <div class="stat-item">
                 <span>Sceny końcowe:</span>
                 <span id="endScenes">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Martwe końce:</span>
+                <span id="deadEnds">0</span>
             </div>
         </div>
     </div>
@@ -375,12 +423,14 @@
     let tooltip;
     let currentLayout = 'tree';
     let labelMode = 'tooltip'; // 'tooltip', 'visible', 'hover'
+    let selectedNode = null;
 
     // Kolory dla różnych typów węzłów
     const nodeColors = {
         'start': '#ef4444',  // czerwony
         'normal': '#3b82f6', // niebieski
-        'end': '#22c55e'     // zielony
+        'end': '#22c55e',    // zielony
+        'deadEnd': '#f97316' // pomarańczowy dla martwych końców
     };
 
     // Inicjalizacja wizualizacji
@@ -412,6 +462,9 @@
         // Tworzymy hierarchię danych
         root = processData('tree');
 
+        // Wykrywamy martwe końce
+        detectDeadEnds(root);
+
         // Obliczamy statystyki
         calculateStatistics(root);
 
@@ -426,6 +479,9 @@
 
         // Wyświetlamy informacje o scenie początkowej
         displaySceneInfo('intro');
+
+        // Zaznaczamy węzeł początkowy jako wybrany
+        d3.selectAll(".node").filter(d => d.data.id === 'intro').classed("selected", true);
     }
 
     // Przetwarzanie danych do formatu hierarchicznego
@@ -445,6 +501,16 @@
             // Sprawdzamy, czy scena istnieje
             if (!scenesData[sceneId]) {
                 console.warn(`Scena nie znaleziona: ${sceneId}`);
+
+                // Dodajemy informację o martwym końcu
+                flatData.push({
+                    id: `deadend-${parentId}-${sceneId}`,
+                    parentId: parentId,
+                    name: sceneId,
+                    nodeType: 'deadEnd',
+                    depth,
+                    isDeadEnd: true
+                });
                 return;
             }
 
@@ -544,6 +610,47 @@
         return layout(hierarchy);
     }
 
+    // Wykrywanie martwych końców
+    function detectDeadEnds(root) {
+        let deadEnds = [];
+
+        root.eachAfter(node => {
+            if (node.data.isDeadEnd) {
+                node.data.nodeType = 'deadEnd';
+                deadEnds.push(node);
+
+                // Dodajemy dodatkową przestrzeń wokół martwych końców dla lepszej widoczności
+                if (node.parent && node.parent.children && node.parent.children.length > 1) {
+                    // Znajdujemy indeks bieżącego węzła w dzieciach rodzica
+                    const index = node.parent.children.indexOf(node);
+
+                    // Dodajemy małe przesunięcie dla sąsiednich węzłów dla lepszej widoczności
+                    if (index > 0) {
+                        // Przesuwamy poprzedni węzeł nieco w lewo
+                        const prevNode = node.parent.children[index - 1];
+                        if (currentLayout === 'radial') {
+                            prevNode.x -= 0.1; // Małe przesunięcie kątowe
+                        } else {
+                            prevNode.x -= 10; // Przesunięcie w pikselach
+                        }
+                    }
+
+                    if (index < node.parent.children.length - 1) {
+                        // Przesuwamy następny węzeł nieco w prawo
+                        const nextNode = node.parent.children[index + 1];
+                        if (currentLayout === 'radial') {
+                            nextNode.x += 0.1; // Małe przesunięcie kątowe
+                        } else {
+                            nextNode.x += 10; // Przesunięcie w pikselach
+                        }
+                    }
+                }
+            }
+        });
+
+        return deadEnds;
+    }
+
     // Renderowanie grafu
     function renderGraph() {
         // Najpierw czyścimy poprzedni graf
@@ -581,7 +688,11 @@
             .data(root.descendants())
             .enter()
             .append("g")
-            .attr("class", "node")
+            .attr("class", d => {
+                let classes = "node";
+                if (d.data.isDeadEnd) classes += " dead-end";
+                return classes;
+            })
             .attr("transform", d => {
                 if (currentLayout === 'radial') {
                     const x = Math.sin(d.x) * d.y;
@@ -592,36 +703,30 @@
                 }
             })
             .on("click", function(event, d) {
+                // Wyczyść poprzednie zaznaczenie
+                d3.selectAll(".node").classed("selected", false);
+
+                // Zaznacz bieżący węzeł
+                d3.select(this).classed("selected", true);
+                selectedNode = d;
+
                 const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
                 displaySceneInfo(sceneId);
-
-                // Podświetlamy wybrany węzeł
-                d3.selectAll(".node circle").attr("stroke", "#d1d5db");
-                d3.select(this).select("circle").attr("stroke", "#000").attr("stroke-width", 3);
             })
             .on("mouseover", function(event, d) {
-                const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
-                const scene = scenesData[sceneId];
+                // Zatrzymaj propagację wydarzeń, aby zapobiec błędnej detekcji
+                event.stopPropagation();
+
+                // Dodaj klasę hover
+                d3.select(this).classed("hover", true);
 
                 // Podświetlamy węzeł
                 d3.select(this).select("circle")
                     .transition().duration(200)
-                    .attr("r", nodeRadius * 1.2);
+                    .attr("r", nodeRadius * 1.3);
 
-                // Pokazujemy tooltip
-                if (scene) {
-                    tooltip.select(".tooltip-title").text(sceneId);
-
-                    if (scene.quote) {
-                        tooltip.select(".tooltip-quote").text(`"${scene.quote}"`).style("display", "block");
-                    } else {
-                        tooltip.select(".tooltip-quote").style("display", "none");
-                    }
-
-                    tooltip.style("opacity", 1)
-                        .style("left", (event.pageX + 15) + "px")
-                        .style("top", (event.pageY - 30) + "px");
-                }
+                // Pokazujemy tooltip bez opóźnienia
+                showTooltip(event, d);
 
                 // Jeśli etykiety są w trybie "hover", pokazujemy etykietę
                 if (labelMode === 'hover') {
@@ -629,12 +734,15 @@
                 }
             })
             .on("mouseout", function() {
+                // Usuń klasę hover
+                d3.select(this).classed("hover", false);
+
                 // Przywracamy normalny rozmiar węzła
                 d3.select(this).select("circle")
                     .transition().duration(200)
                     .attr("r", nodeRadius);
 
-                // Ukrywamy tooltip
+                // Ukrywamy tooltip natychmiast
                 tooltip.style("opacity", 0);
 
                 // Jeśli etykiety są w trybie "hover", ukrywamy etykietę
@@ -647,12 +755,51 @@
         nodes.append("circle")
             .attr("r", nodeRadius)
             .attr("fill", d => {
+                if (d.data.isDeadEnd) return nodeColors.deadEnd;
+
                 const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
                 const nodeType = d.data.nodeType;
                 return nodeColors[nodeType];
             })
-            .attr("stroke", "#d1d5db")
-            .attr("stroke-width", 2);
+            .attr("stroke", d => {
+                return d.data.isDeadEnd ? "#ef4444" : "#d1d5db";
+            })
+            .attr("stroke-width", d => {
+                return d.data.isDeadEnd ? 3 : 2;
+            });
+
+        // Dodajemy znak X dla martwych końców
+        nodes.filter(d => d.data.isDeadEnd)
+            .append("g")
+            .attr("class", "node-x")
+            .call(g => {
+                // Dodajemy ciemniejsze tło dla lepszego kontrastu
+                g.append("circle")
+                    .attr("r", nodeRadius * 0.9)
+                    .attr("fill", "#fff")
+                    .attr("stroke", "#ef4444")
+                    .attr("stroke-width", 1);
+
+                // Linia X - lewa góra do prawego dołu
+                g.append("line")
+                    .attr("x1", -nodeRadius/1.2)
+                    .attr("y1", -nodeRadius/1.2)
+                    .attr("x2", nodeRadius/1.2)
+                    .attr("y2", nodeRadius/1.2)
+                    .attr("stroke", "#ef4444")
+                    .attr("stroke-width", 3)
+                    .attr("stroke-linecap", "round");
+
+                // Linia X - prawa góra do lewego dołu
+                g.append("line")
+                    .attr("x1", nodeRadius/1.2)
+                    .attr("y1", -nodeRadius/1.2)
+                    .attr("x2", -nodeRadius/1.2)
+                    .attr("y2", nodeRadius/1.2)
+                    .attr("stroke", "#ef4444")
+                    .attr("stroke-width", 3)
+                    .attr("stroke-linecap", "round");
+            });
 
         // Dodajemy tło dla etykiet (dla lepszej czytelności)
         nodes.append("rect")
@@ -668,7 +815,12 @@
             .attr("dy", -15)
             .attr("x", 0)
             .text(d => {
-                const name = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                let name;
+                if (d.data.isDeadEnd) {
+                    return "Brak sceny!";
+                } else {
+                    name = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                }
                 return name.length > 10 ? name.substring(0, 8) + '..' : name;
             })
             .style("opacity", labelMode === 'visible' ? 1 : 0);  // Widoczne tylko w trybie "visible"
@@ -679,10 +831,82 @@
         }`;
     }
 
+    // Całkowicie przepisana funkcja wyświetlania tooltipa
+    function showTooltip(event, d) {
+        // Podstawowe informacje o scenie
+        const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
+        const scene = d.data.isDeadEnd ? null : scenesData[sceneId];
+
+        // Ustawienie treści tooltipa
+        let title = d.data.isDeadEnd ? "Brak sceny!" : sceneId;
+        tooltip.select(".tooltip-title").text(title);
+
+        if (d.data.isDeadEnd) {
+            tooltip.select(".tooltip-quote").text("Ta ścieżka prowadzi do nieistniejącej sceny.")
+                .style("display", "block")
+                .style("color", "#ef4444");
+        } else if (scene && scene.quote) {
+            tooltip.select(".tooltip-quote").text(`"${scene.quote}"`)
+                .style("display", "block")
+                .style("color", "#6b7280");
+        } else {
+            tooltip.select(".tooltip-quote").style("display", "none");
+        }
+
+        // Pobieramy pozycję kursora
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+
+        // Stała szerokość tooltipa
+        const tooltipWidth = 280;
+
+        // Granice widocznego obszaru okna
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Domyślne położenie - po prawej stronie kursora
+        let xPos = mouseX + 10;
+        let yPos = mouseY + 10;
+
+        // Sprawdzamy czy tooltip wyjdzie poza prawą krawędź
+        if (xPos + tooltipWidth > viewportWidth) {
+            xPos = Math.max(0, mouseX - tooltipWidth - 10); // umieść po lewej stronie kursora
+        }
+
+        // Sprawdzamy czy tooltip wyjdzie poza dolną krawędź
+        // Najpierw ustawiamy tooltip, aby poznać jego wysokość
+        tooltip.style("left", "0px").style("top", "0px").style("opacity", "0");
+        const tooltipHeight = tooltip.node().getBoundingClientRect().height;
+
+        if (yPos + tooltipHeight > viewportHeight) {
+            yPos = Math.max(0, mouseY - tooltipHeight - 10); // umieść nad kursorem
+        }
+
+        // Ustawiamy tooltip w finalnej pozycji
+        tooltip
+            .style("left", xPos + "px")
+            .style("top", yPos + "px")
+            .style("opacity", 1);
+    }
+
     // Wyświetlanie informacji o scenie
     function displaySceneInfo(sceneId) {
         const scene = scenesData[sceneId];
-        if (!scene) return;
+        if (!scene) {
+            // Obsługa martwego końca lub nieistniejącej sceny
+            const infoPanel = document.querySelector('.scene-info');
+            infoPanel.innerHTML = `
+                <h3 style="color: #ef4444;">⚠️ Brak sceny: ${sceneId}</h3>
+                <div class="quote" style="color: #ef4444; background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+                    "Ta scena nie istnieje w bazie danych. To martwy koniec w drzewie wyborów."
+                </div>
+                <div class="text" style="margin-top: 15px; padding: 10px; background-color: rgba(239, 68, 68, 0.05); border-radius: 4px;">
+                    <strong>Problem:</strong> Ta ścieżka prowadzi do nieistniejącej sceny.<br><br>
+                    <strong>Rozwiązanie:</strong> Należy dodać tę scenę do pliku scenes.js lub poprawić referencję do niej.
+                </div>
+            `;
+            return;
+        }
 
         const infoPanel = document.querySelector('.scene-info');
 
@@ -722,8 +946,31 @@
 
     // Fokusowanie na konkretnej scenie
     function focusOnScene(sceneId) {
-        const node = root.descendants().find(d => d.data.id === sceneId);
+        // Najpierw szukamy węzła bezpośrednio o danym id
+        let node = root.descendants().find(d => d.data.id === sceneId);
+
+        // Jeśli nie znaleziono bezpośrednio, szukamy wirtualnych węzłów wskazujących na tę scenę
+        if (!node) {
+            node = root.descendants().find(d =>
+                d.data.isVirtual && d.data.targetScene === sceneId
+            );
+        }
+
+        // Jeśli nadal nie znaleziono, szukamy martwych końców związanych z tą sceną
+        if (!node) {
+            node = root.descendants().find(d =>
+                d.data.isDeadEnd && d.data.name === sceneId
+            );
+        }
+
         if (node) {
+            // Usuń poprzednie zaznaczenie
+            d3.selectAll(".node").classed("selected", false);
+
+            // Zaznacz znaleziony węzeł
+            d3.selectAll(".node").filter(d => d === node).classed("selected", true);
+            selectedNode = node;
+
             let transform;
 
             if (currentLayout === 'radial') {
@@ -741,11 +988,6 @@
             }
 
             svg.transition().duration(750).call(zoom.transform, transform);
-
-            // Podświetlamy wybrany węzeł
-            d3.selectAll(".node circle").attr("stroke", "#d1d5db");
-            d3.selectAll(".node").filter(d => d.data.id === sceneId)
-                .select("circle").attr("stroke", "#000").attr("stroke-width", 3);
         }
     }
 
@@ -754,7 +996,7 @@
         // Unikalne sceny (bez wirtualnych)
         const uniqueScenes = new Set();
         hierarchyData.descendants().forEach(d => {
-            if (!d.data.isVirtual) {
+            if (!d.data.isVirtual && !d.data.isDeadEnd) {
                 uniqueScenes.add(d.data.id);
             }
         });
@@ -771,13 +1013,19 @@
 
         // Liczba scen końcowych
         const endScenes = hierarchyData.descendants()
-            .filter(d => !d.data.isVirtual && d.data.nodeType === 'end')
+            .filter(d => !d.data.isVirtual && !d.data.isDeadEnd && d.data.nodeType === 'end')
+            .length;
+
+        // Liczba martwych końców
+        const deadEnds = hierarchyData.descendants()
+            .filter(d => d.data.isDeadEnd)
             .length;
 
         // Aktualizujemy statystyki w interfejsie
         document.getElementById('totalScenes').textContent = totalScenes;
         document.getElementById('totalChoices').textContent = totalChoices;
         document.getElementById('endScenes').textContent = endScenes;
+        document.getElementById('deadEnds').textContent = deadEnds;
     }
 
     // Konfiguracja interakcji
@@ -853,6 +1101,9 @@
                 // Przetwarzamy dane na nowo z nowym layoutem
                 root = processData(currentLayout);
 
+                // Wykrywamy martwe końce
+                detectDeadEnds(root);
+
                 // Renderujemy graf na nowo
                 renderGraph();
 
@@ -879,6 +1130,57 @@
                 labelMode = 'tooltip';
                 d3.selectAll(".node text").style("opacity", 0);
                 d3.selectAll(".label-background").style("opacity", 0);
+            }
+        });
+
+        // Obsługa klawiatury - strzałki do nawigacji
+        document.addEventListener('keydown', function(event) {
+            if (!selectedNode) return;
+
+            let nextNode = null;
+
+            // Znajdź sąsiednie węzły
+            if (event.key === 'ArrowUp') {
+                // Znajdź poprzedni węzeł (rodzic)
+                nextNode = selectedNode.parent;
+            } else if (event.key === 'ArrowDown') {
+                // Znajdź pierwszy węzeł dziecko
+                nextNode = selectedNode.children ? selectedNode.children[0] : null;
+            } else if (event.key === 'ArrowLeft') {
+                // Znajdź poprzedni węzeł na tym samym poziomie
+                if (selectedNode.parent) {
+                    const siblings = selectedNode.parent.children;
+                    const currentIndex = siblings.indexOf(selectedNode);
+                    if (currentIndex > 0) {
+                        nextNode = siblings[currentIndex - 1];
+                    }
+                }
+            } else if (event.key === 'ArrowRight') {
+                // Znajdź następny węzeł na tym samym poziomie
+                if (selectedNode.parent) {
+                    const siblings = selectedNode.parent.children;
+                    const currentIndex = siblings.indexOf(selectedNode);
+                    if (currentIndex < siblings.length - 1) {
+                        nextNode = siblings[currentIndex + 1];
+                    }
+                }
+            }
+
+            if (nextNode) {
+                // Zaznacz nowy węzeł
+                d3.selectAll(".node").classed("selected", false);
+                d3.selectAll(".node").filter(d => d === nextNode).classed("selected", true);
+                selectedNode = nextNode;
+
+                // Pokaż informacje o scenie
+                const sceneId = nextNode.data.isVirtual ? nextNode.data.targetScene : nextNode.data.id;
+                displaySceneInfo(sceneId);
+
+                // Przewiń widok do nowego węzła
+                focusOnScene(sceneId);
+
+                // Zapobiegaj domyślnej akcji przeglądarki (przewijanie strony)
+                event.preventDefault();
             }
         });
     }
@@ -917,6 +1219,11 @@
             if (window.scenesData) {
                 console.log("Inicjalizacja wizualizacji z dostępnymi danymi...");
                 initVisualization();
+
+                // Dodajemy słuchacza zdarzeń resize dla poprawnego działania tooltipów
+                window.addEventListener('resize', function() {
+                    tooltip.style("opacity", 0);
+                });
             } else {
                 console.error("Dane scen (scenesData) nie są dostępne!");
                 document.getElementById('visualization').innerHTML =
