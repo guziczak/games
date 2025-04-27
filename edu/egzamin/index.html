@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egzamin Praktyczny z Protetyki</title>
+    <style>
+        /* Resetowanie stylów */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary: #1e40af;
+            --primary-light: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --success-light: #22c55e;
+            --success-dark: #15803d;
+            --neutral: #4b5563;
+            --neutral-light: #9ca3af;
+            --neutral-dark: #374151;
+            --bg-light: #f3f4f6;
+            --bg-gray: #e5e7eb;
+            --white: #ffffff;
+            --text-dark: #1f2937;
+            --border-light: #d1d5db;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --missing-tooth: #ff6b6b;
+            --treated-tooth: #4dabf7;
+            --border-radius: 0.5rem;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            min-height: 100vh;
+            padding: 1rem;
+            color: var(--text-dark);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 0.5rem;
+            }
+            .container {
+                padding: 0 0.5rem;
+            }
+        }
+
+        /* Komponenty UI */
+        .card {
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px var(--shadow);
+            overflow: hidden;
+            margin-bottom: 1rem;
+            transition: var(--transition);
+        }
+
+        .card-header {
+            background-color: var(--primary);
+            color: var(--white);
+            padding: 1.25rem;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-light);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-light);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: var(--white);
+        }
+
+        .btn-success:hover {
+            background-color: var(--success-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-gray {
+            background-color: var(--neutral);
+            color: var(--white);
+        }
+
+        .btn-gray:hover {
+            background-color: var(--neutral-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Nagłówki */
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        /* Siatka */
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid-cols-1 {
+            grid-template-columns: 1fr;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @media (max-width: 768px) {
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Formularze */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--border-light);
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-right: 0.75rem;
+            cursor: pointer;
+        }
+
+        /* Opcje leczenia */
+        .treatment-options-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .treatment-option {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .treatment-option:hover {
+            background-color: rgba(219, 234, 254, 0.3);
+        }
+
+        .treatment-option.selected {
+            background-color: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .treatment-option input {
+            margin-right: 0.75rem;
+        }
+
+        /* Diagramy zębowe */
+        .dental-diagram-container {
+            background-color: var(--bg-light);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .dental-diagram-wrapper {
+            min-width: 480px;
+            margin: 0 auto;
+        }
+
+        .dental-legend {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .tooth {
+            fill: var(--white);
+            stroke: #000000;
+            stroke-width: 1;
+            transition: var(--transition);
+        }
+
+        .tooth-missing {
+            fill: var(--missing-tooth);
+            opacity: 0.7;
+        }
+
+        .tooth-treated {
+            fill: var(--treated-tooth);
+        }
+
+        .tooth-number {
+            font-size: 8px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        /* Postęp */
+        .progress-container {
+            margin-top: 0.5rem;
+            background-color: var(--primary);
+            height: 0.5rem;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background-color: var(--white);
+            height: 100%;
+            transition: width 0.5s;
+        }
+
+        /* Feedback */
+        .feedback {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .feedback-success {
+            background-color: #dcfce7;
+            border-left: 4px solid var(--success);
+        }
+
+        .feedback-error {
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Flexbox utilities */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .justify-center {
+            justify-content: center;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .gap-4 {
+            gap: 1rem;
+        }
+
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+
+        .mt-4 {
+            margin-top: 1rem;
+        }
+
+        .mt-6 {
+            margin-top: 1.5rem;
+        }
+
+        .mt-8 {
+            margin-top: 2rem;
+        }
+
+        .mb-2 {
+            margin-bottom: 0.5rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+
+        .mb-8 {
+            margin-bottom: 2rem;
+        }
+
+        .ml-2 {
+            margin-left: 0.5rem;
+        }
+
+        .mr-2 {
+            margin-right: 0.5rem;
+        }
+
+        .p-2 {
+            padding: 0.5rem;
+        }
+
+        .p-4 {
+            padding: 1rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .text-lg {
+            font-size: 1.125rem;
+        }
+
+        .text-xl {
+            font-size: 1.25rem;
+        }
+
+        .text-2xl {
+            font-size: 1.5rem;
+        }
+
+        .text-white {
+            color: var(--white);
+        }
+
+        .text-primary {
+            color: var(--primary);
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .text-error {
+            color: #dc2626;
+        }
+
+        .bg-gray-100 {
+            background-color: var(--bg-light);
+        }
+
+        .rounded {
+            border-radius: 0.375rem;
+        }
+
+        .border {
+            border: 1px solid var(--border-light);
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .max-w-md {
+            max-width: 28rem;
+        }
+
+        .max-w-2xl {
+            max-width: 42rem;
+        }
+
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Tabela wyników */
+        .table-container {
+            overflow-x: auto;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-light);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        .table th, .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .table th {
+            background-color: var(--bg-light);
+            font-weight: 600;
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(243, 244, 246, 0.7);
+        }
+
+        .check-icon {
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .x-icon {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        /* Model gipsowy */
+        .model-container {
+            background-color: var(--bg-light);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            min-height: 10rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        /* Tab dla radiografii / diagramu */
+        .tabs {
+            display: flex;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .tab {
+            padding: 0.625rem 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Animacje */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: var(--neutral-dark);
+            color: var(--white);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Dental Chart Compact Mode */
+        .dental-chart-compact {
+            font-family: monospace;
+            background-color: var(--bg-light);
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+        }
+
+        .dental-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .dental-cell {
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            border: 1px solid var(--border-light);
+            margin: 0 1px;
+            transition: var(--transition);
+        }
+
+        .dental-cell-present {
+            background-color: var(--white);
+        }
+
+        .dental-cell-missing {
+            background-color: var(--missing-tooth);
+        }
+
+        .dental-cell-treated {
+            background-color: var(--treated-tooth);
+        }
+
+        .print-info {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background-color: var(--primary-light);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            font-size: 0.875rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .print-info:hover {
+            background-color: var(--primary-dark);
+        }
+
+        @media print {
+            .print-info {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Ekran powitalny -->
+    <div id="welcome-screen" class="card">
+        <div class="card-body">
+            <h1>Egzamin Praktyczny z Protetyki</h1>
+            <p class="text-lg mb-8 text-center max-w-2xl mx-auto">
+                Witaj w symulatorze egzaminu praktycznego z protetyki stomatologicznej.
+                Twoim zadaniem będzie analiza diagramów uzębienia, rozpoznanie klasy braków zębowych
+                oraz zaproponowanie odpowiedniego planu leczenia.
+            </p>
+
+            <div class="flex justify-center mb-8 gap-4">
+                <button id="start-exam-btn" class="btn btn-primary">
+                    Rozpocznij egzamin
+                </button>
+
+                <button id="show-settings-btn" class="btn btn-secondary">
+                    Ustawienia
+                </button>
+            </div>
+
+            <div id="settings-container" class="max-w-md mx-auto bg-gray-100 p-4 rounded hidden">
+                <h3 class="mb-4">Ustawienia egzaminu</h3>
+
+                <div class="form-group">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="show-correct-answer" class="form-checkbox" checked>
+                        <span>Pokazuj poprawne odpowiedzi</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Liczba przypadków w egzaminie:</label>
+                    <select id="cases-per-exam" class="form-select">
+                        <option value="3">3 przypadki</option>
+                        <option value="5" selected>5 przypadków</option>
+                        <option value="7">7 przypadków</option>
+                        <option value="10">10 przypadków</option>
+                        <option value="15">15 przypadków</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Poziom trudności:</label>
+                    <select id="difficulty-level" class="form-select">
+                        <option value="easy">Łatwy</option>
+                        <option value="medium" selected>Średni</option>
+                        <option value="hard">Trudny</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ekran egzaminu -->
+    <div id="exam-screen" class="card hidden">
+        <div id="exam-header" class="card-header">
+            <div class="flex justify-between items-center">
+                <h2 id="case-number">Przypadek 1/5</h2>
+                <div id="current-score" class="text-sm">
+                    Wynik: 0/0 pkt
+                </div>
+            </div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar" style="width: 20%"></div>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="tabs">
+                <div class="tab active" data-view="diagram">Diagram zębowy</div>
+                <div class="tab" data-view="description">Opis przypadku</div>
+                <div class="tab" data-view="compact">Widok kompaktowy</div>
+            </div>
+
+            <div id="dental-view">
+                <h3 class="mb-2">Diagram uzębienia pacjenta:</h3>
+                <div class="dental-diagram-container">
+                    <div class="dental-diagram-wrapper">
+                        <svg id="dental-diagram" width="480" height="220" viewBox="0 0 480 220">
+                            <!-- Diagram będzie generowany dynamicznie przez JavaScript -->
+                        </svg>
+                    </div>
+                    <div class="dental-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #ffffff; border: 1px solid #000000;"></div>
+                            <span>Ząb obecny</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                            <span>Ząb brakujący</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #4dabf7;"></div>
+                            <span>Ząb z wypełnieniem</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="description-view" class="hidden">
+                <h3 class="mb-2">Opis przypadku:</h3>
+                <div class="bg-gray-100 p-4 rounded">
+                    <p id="case-description" class="mb-4"></p>
+                </div>
+            </div>
+
+            <div id="compact-view" class="hidden">
+                <h3 class="mb-2">Kompaktowa reprezentacja uzębienia:</h3>
+                <div id="dental-chart-compact" class="dental-chart-compact">
+                    <!-- Dental chart będzie generowany dynamicznie przez JavaScript -->
+                </div>
+                <div class="mt-4 text-sm">
+                    <p>Legenda:</p>
+                    <ul class="ml-2 mt-1">
+                        <li>1 - Ząb obecny</li>
+                        <li>0 - Ząb brakujący</li>
+                        <li>2 - Ząb z wypełnieniem</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                    <h3 class="mb-2">Model gipsowy:</h3>
+                    <div id="model-container" class="model-container">
+                        <button id="show-model-btn" class="btn btn-primary">
+                            Pokaż opis modelu
+                        </button>
+                        <p id="model-description" class="text-sm p-4 hidden text-center"></p>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="mb-2">Klasyfikacja braków zębowych:</h3>
+                    <select id="kennedy-class" class="form-select mb-4">
+                        <option value="">Wybierz klasę Kennedy'ego</option>
+                        <option value="I">Klasa I</option>
+                        <option value="II">Klasa II</option>
+                        <option value="III">Klasa III</option>
+                        <option value="IV">Klasa IV</option>
+                        <option value="I modyfikacja 1">Klasa I modyfikacja 1</option>
+                        <option value="I modyfikacja 2">Klasa I modyfikacja 2</option>
+                        <option value="II modyfikacja 1">Klasa II modyfikacja 1</option>
+                        <option value="II modyfikacja 2">Klasa II modyfikacja 2</option>
+                        <option value="III modyfikacja 1">Klasa III modyfikacja 1</option>
+                        <option value="III modyfikacja 2">Klasa III modyfikacja 2</option>
+                        <option value="Bezzębie całkowite szczęki">Bezzębie całkowite szczęki</option>
+                        <option value="Bezzębie całkowite żuchwy">Bezzębie całkowite żuchwy</option>
+                        <option value="Bezzębie całkowite">Bezzębie całkowite</option>
+                    </select>
+
+                    <h3 class="mb-2">Braki zębowe:</h3>
+                    <p id="missing-teeth" class="mb-4 text-sm bg-gray-100 p-2 rounded"></p>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <h3 class="mb-2">Plan leczenia (wybierz odpowiednie opcje):</h3>
+                <div id="treatment-options" class="treatment-options-container">
+                    <!-- Opcje leczenia będą dodane dynamicznie -->
+                </div>
+            </div>
+
+            <div id="feedback" class="feedback hidden"></div>
+
+            <div class="mt-6 flex justify-between">
+                <button id="check-answer-btn" class="btn btn-primary" disabled>
+                    Sprawdź odpowiedź
+                </button>
+
+                <button id="next-case-btn" class="btn btn-success hidden pulse-animation">
+                    Następny przypadek
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ekran wyników -->
+    <div id="result-screen" class="card hidden">
+        <div class="card-header">
+            <h2 class="mb-2">Wyniki egzaminu</h2>
+            <p id="total-score" class="mb-2"></p>
+            <p id="grade" class="text-xl"></p>
+        </div>
+
+        <div class="card-body">
+            <h3 class="mb-4">Szczegółowe wyniki:</h3>
+
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Lp.</th>
+                        <th>Przypadek</th>
+                        <th>Klasyfikacja</th>
+                        <th>Plan leczenia</th>
+                        <th>Punkty</th>
+                    </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                    <!-- Wyniki będą dodane dynamicznie -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-8 flex justify-between gap-4">
+                <button id="back-to-menu-btn" class="btn btn-gray">
+                    Powrót do menu
+                </button>
+
+                <button id="restart-exam-btn" class="btn btn-primary">
+                    Rozpocznij ponownie
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-info" id="print-results" style="display:none">
+    Drukuj wyniki
+</div>
+
+<script>
+    // Dane przypadków klinicznych z kompaktową notacją
+    const CASES = [
+        {
+            id: 1,
+            description: 'Pacjent lat 45, zgłosił się w celu uzupełnienia braków zębowych. W wywiadzie podaje, że zęby trzonowe żuchwy zostały usunięte kilka lat temu z powodu zaawansowanej próchnicy.',
+            kennedyClass: 'I',
+            missingTeeth: '36, 37, 38, 46, 47, 48',
+            diagnosis: 'Braki zębowe w odcinku bocznym żuchwy (klasa Kennedy I)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa dolna z klamrami', correct: true },
+                { id: 'b', text: 'Mosty przyklejane', correct: false },
+                { id: 'c', text: 'Implantacja z odbudową protetyczną', correct: true },
+                { id: 'd', text: 'Proteza całkowita', correct: false },
+            ],
+            modelDescription: 'Model gipsowy przedstawiający braki zębowe klasy Kennedy I w żuchwie. Widoczny zanik wyrostka zębodołowego w miejscach brakujących zębów trzonowych.',
+            // 1=present, 0=missing, 2=treated
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0]
+            }
+        },
+        {
+            id: 2,
+            description: 'Pacjentka lat 52, zgłosiła się w celu uzupełnienia braków zębowych. Z wywiadu wynika, że zęby przedtrzonowe i trzonowe w szczęce oraz część zębów trzonowych w żuchwie zostały usunięte z powodu powikłań periodontologicznych.',
+            kennedyClass: 'II',
+            missingTeeth: '15, 16, 17, 25, 26, 27, 37, 36, 46, 47',
+            diagnosis: 'Braki skrzydłowe obuszczękowe (klasa Kennedy II)',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe z klamrami', correct: true },
+                { id: 'b', text: 'Mosty klasyczne', correct: false },
+                { id: 'c', text: 'Protezy częściowe osiadające', correct: true },
+                { id: 'd', text: 'Protezy nakładkowe', correct: false },
+            ],
+            modelDescription: 'Model gipsowy ukazujący braki skrzydłowe obuszczękowe. Widoczne zęby filarowe ze śladami preparacji pod elementy retencyjne protezy.',
+            dentalStatus: {
+                maxilla: [1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1],
+                mandible: [1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1]
+            }
+        },
+        {
+            id: 3,
+            description: 'Pacjent lat 32, zgłosił się w celu uzupełnienia braków zębowych. W wywiadzie podaje, że zęby przedtrzonowe w szczęce zostały usunięte z powodu próchnicy i powikłań endodontycznych.',
+            kennedyClass: 'III',
+            missingTeeth: '14, 15, 24, 25',
+            diagnosis: 'Braki zębowe międzyzębowe w szczęce (klasa Kennedy III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Mosty tradycyjne', correct: true },
+                { id: 'b', text: 'Implanty zębowe', correct: true },
+                { id: 'c', text: 'Proteza całkowita', correct: false },
+                { id: 'd', text: 'Proteza szkieletowa', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki z widocznymi brakami międzyzębowymi. Zęby filarowe wykazują dobry stan kliniczny, nadający się do wykorzystania jako podpory dla pracy protetycznej.',
+            dentalStatus: {
+                maxilla: [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 4,
+            description: 'Pacjentka lat 67, zgłosiła się w celu uzupełnienia braków zębowych. Z wywiadu wynika, że wszystkie zęby w szczęce zostały usunięte, a w żuchwie pozostały tylko zęby przednie.',
+            kennedyClass: 'Bezzębie całkowite szczęki',
+            missingTeeth: 'Całkowity brak zębów w szczęce, w żuchwie zachowane zęby: 33, 32, 31, 41, 42, 43',
+            diagnosis: 'Całkowite bezzębie szczęki z zachowaną żuchwą',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza całkowita górna', correct: true },
+                { id: 'b', text: 'Proteza całkowita dolna', correct: false },
+                { id: 'c', text: 'Implanty z protezą typu overdenture', correct: true },
+                { id: 'd', text: 'Mosty na implantach', correct: true },
+            ],
+            modelDescription: 'Model gipsowy ukazujący bezzębie całkowite szczęki. Wyraźny zanik wyrostka zębodołowego. W żuchwie widoczne zęby przednie w dobrym stanie.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 5,
+            description: 'Pacjent lat 28, zgłosił się w celu uzupełnienia braków zębowych po urazie. Z wywiadu wynika, że zęby sieczne w szczęce zostały utracone w wyniku wypadku komunikacyjnego.',
+            kennedyClass: 'IV',
+            missingTeeth: '11, 12, 21, 22',
+            diagnosis: 'Braki zębowe typu Kennedy IV w szczęce',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Most adhezyjny', correct: true },
+                { id: 'c', text: 'Implantacja z koronami protetycznymi', correct: true },
+                { id: 'd', text: 'Proteza szkieletowa z precyzyjnymi elementami retencyjnymi', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący brak zębów przednich. Widoczny zanik wyrostka w miejscu brakujących zębów, zęby filarowe w dobrym stanie.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 6,
+            description: 'Pacjentka lat 49, zgłosiła się w celu uzupełnienia braków zębowych. W wywiadzie podaje, że zęby przedtrzonowe zostały usunięte z powodu powikłań endodontycznych w ciągu ostatnich 5 lat.',
+            kennedyClass: 'III modyfikacja 2',
+            missingTeeth: '14, 15, 24, 25, 34, 35, 44, 45',
+            diagnosis: 'Braki mnogie międzyzębowe (klasa Kennedy III modyfikacja 2)',
+            treatmentOptions: [
+                { id: 'a', text: 'Mosty w odcinkach bocznych', correct: true },
+                { id: 'b', text: 'Protezy szkieletowe', correct: true },
+                { id: 'c', text: 'Kombinacja mostów i implantów', correct: true },
+                { id: 'd', text: 'Proteza całkowita', correct: false },
+            ],
+            modelDescription: 'Model gipsowy szczęki i żuchwy ukazujący mnogie braki międzyzębowe. Zęby filarowe wykazują zróżnicowany stan kliniczny.',
+            dentalStatus: {
+                maxilla: [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1],
+                mandible: [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1]
+            }
+        },
+        {
+            id: 7,
+            description: 'Pacjent lat 39, zgłosił się w celu uzupełnienia braków zębowych w żuchwie po stronie lewej. Zęby zostały utracone w wyniku procesu próchnicowego.',
+            kennedyClass: 'III',
+            missingTeeth: '35, 36',
+            diagnosis: 'Brak zębowy jednostronny ograniczony (klasa Kennedy III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Implanty z koronami', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: true },
+                { id: 'd', text: 'Proteza całkowita', correct: false },
+            ],
+            modelDescription: 'Model gipsowy żuchwy z widocznym brakiem zębowym ograniczonym w odcinku bocznym lewym. Zęby filarowe w dobrym stanie klinicznym.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1]
+            }
+        },
+        {
+            id: 8,
+            description: 'Pacjentka lat 58, zgłosiła się w celu uzupełnienia braków zębowych w szczęce. Z wywiadu wynika, że zęby w odcinkach bocznych szczęki zostały usunięte z powodu zaawansowanej choroby przyzębia.',
+            kennedyClass: 'II',
+            missingTeeth: '14, 15, 16, 17, 24, 25, 26, 27',
+            diagnosis: 'Braki zębowe obustronne w szczęce (klasa Kennedy II)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa', correct: true },
+                { id: 'b', text: 'Mosty tradycyjne rozległe', correct: false },
+                { id: 'c', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki prezentujący obustronne braki zębowe. Widoczny znaczny zanik wyrostka zębodołowego w miejscach braków.',
+            dentalStatus: {
+                maxilla: [1,0,0,0,0,1,1,1,1,1,1,0,0,0,0,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 9,
+            description: 'Pacjent lat 61, zgłosił się w celu uzupełnienia braków zębowych. W żuchwie zachowane jedynie zęby przednie, reszta została usunięta z powodu zaawansowanej próchnicy i chorób przyzębia.',
+            kennedyClass: 'I',
+            missingTeeth: 'W żuchwie brakujące zęby: 34, 35, 36, 37, 38, 44, 45, 46, 47, 48',
+            diagnosis: 'Uzębienie resztkowe w żuchwie (klasa Kennedy I)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa oparta na zębach przednich', correct: true },
+                { id: 'b', text: 'Ekstrakcja zębów przednich i proteza całkowita', correct: false },
+                { id: 'c', text: 'Implanty w odcinkach bocznych z koronami', correct: true },
+                { id: 'd', text: 'Proteza typu overdenture oparta na zębach przednich', correct: true },
+            ],
+            modelDescription: 'Model gipsowy żuchwy pokazujący uzębienie resztkowe w odcinku przednim. Wyraźny zanik wyrostka zębodołowego w odcinkach bocznych.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 10,
+            description: 'Pacjent lat 43, zgłosił się w celu uzupełnienia braków zębowych w szczęce i żuchwie. Z wywiadu wynika, że zęby zostały utracone w wyniku zaawansowanej próchnicy i powikłań endodontycznych.',
+            kennedyClass: 'Szczęka: klasa III, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: 14, 15, 24, 25; Żuchwa: 36, 37, 38, 46, 47, 48',
+            diagnosis: 'Mieszane braki zębowe w szczęce i żuchwie',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe w szczęce i żuchwie', correct: true },
+                { id: 'b', text: 'Mosty w szczęce, proteza szkieletowa w żuchwie', correct: true },
+                { id: 'c', text: 'Implanty z odbudową protetyczną w obu łukach', correct: true },
+                { id: 'd', text: 'Protezy całkowite', correct: false },
+            ],
+            modelDescription: 'Modele gipsowe szczęki i żuchwy ukazujące mieszane braki zębowe. W szczęce braki międzyzębowe, w żuchwie braki skrzydłowe.',
+            dentalStatus: {
+                maxilla: [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1],
+                mandible: [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0]
+            }
+        },
+        {
+            id: 11,
+            description: 'Pacjentka lat 72, zgłosiła się w celu uzupełnienia braków zębowych. Wszystkie zęby zostały utracone z powodu zaawansowanej choroby przyzębia i próchnicy.',
+            kennedyClass: 'Bezzębie całkowite',
+            missingTeeth: 'Brak wszystkich zębów w szczęce i żuchwie',
+            diagnosis: 'Bezzębie całkowite',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy całkowite górna i dolna', correct: true },
+                { id: 'b', text: 'Implanty z protezami typu overdenture', correct: true },
+                { id: 'c', text: 'Implanty z pełnymi łukami stałych uzupełnień', correct: true },
+                { id: 'd', text: 'Mosty tradycyjne', correct: false },
+            ],
+            modelDescription: 'Modele gipsowe szczęki i żuchwy ukazujące bezzębie całkowite. Widoczny znaczny zanik wyrostków zębodołowych, szczególnie w żuchwie.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                mandible: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+            }
+        },
+        {
+            id: 12,
+            description: 'Pacjent lat 57, zgłosił się w celu uzupełnienia braków zębowych. W wywiadzie podaje utratę zębów bocznych w szczęce po stronie prawej i zębów trzonowych w żuchwie obustronnie z powodu próchnicy.',
+            kennedyClass: 'Szczęka: klasa II, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: 14, 15, 16, 17, 18; Żuchwa: 36, 37, 38, 46, 47, 48',
+            diagnosis: 'Braki skrzydłowe w szczęce i braki obuboczne w żuchwie',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe górna i dolna', correct: true },
+                { id: 'b', text: 'Mosty w szczęce, proteza szkieletowa w żuchwie', correct: false },
+                { id: 'c', text: 'Implanty w szczęce i żuchwie', correct: true },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Modele gipsowe szczęki i żuchwy ukazujące braki skrzydłowe w szczęce po stronie prawej i braki obuboczne w żuchwie. Widoczny zanik wyrostka zębodołowego w miejscach braków.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0]
+            }
+        },
+        {
+            id: 13,
+            description: 'Pacjentka lat 41, zgłosiła się w celu uzupełnienia braków zębowych w żuchwie. W wywiadzie podaje utratę zęba trzonowego po stronie prawej i zębów przedtrzonowych po stronie lewej z powodu próchnicy i powikłań endodontycznych.',
+            kennedyClass: 'III modyfikacja 1',
+            missingTeeth: 'Żuchwa: 34, 35, 47',
+            diagnosis: 'Braki międzyzębowe w żuchwie (klasa Kennedy III modyfikacja 1)',
+            treatmentOptions: [
+                { id: 'a', text: 'Mosty tradycyjne', correct: true },
+                { id: 'b', text: 'Implanty z koronami', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: true },
+                { id: 'd', text: 'Proteza całkowita', correct: false },
+            ],
+            modelDescription: 'Model gipsowy żuchwy ukazujący braki międzyzębowe po obu stronach łuku. Zęby filarowe w dobrym stanie klinicznym, nadające się do wykorzystania jako podpory.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,0,1,1,1,1,1,1,1,1,0,0,1,1,1]
+            }
+        },
+        {
+            id: 14,
+            description: 'Pacjent lat 65, zgłosił się w celu uzupełnienia braków zębowych. W szczęce zachowane tylko cztery zęby przednie, w żuchwie uzębienie resztkowe w odcinku przednim.',
+            kennedyClass: 'Szczęka: klasa I modyfikacja 1, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: wszystkie zęby oprócz 12, 11, 21, 22; Żuchwa: wszystkie zęby oprócz 33, 32, 31, 41, 42, 43',
+            diagnosis: 'Uzębienie resztkowe w szczęce i żuchwie',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe z precyzyjnymi elementami retencyjnymi', correct: true },
+                { id: 'b', text: 'Ekstrakcje pozostałych zębów i protezy całkowite', correct: false },
+                { id: 'c', text: 'Implanty z protezami typu overdenture', correct: true },
+                { id: 'd', text: 'Protezy częściowe osiadające', correct: true },
+            ],
+            modelDescription: 'Modele gipsowe szczęki i żuchwy ukazujące uzębienie resztkowe w odcinkach przednich. Znaczny zanik wyrostków zębodołowych w miejscach braków.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 15,
+            description: 'Pacjentka lat 35, zgłosiła się w celu uzupełnienia braków zębowych. W wywiadzie podaje utratę zębów siecznych bocznych i kłów w szczęce z powodu urazu.',
+            kennedyClass: 'IV',
+            missingTeeth: 'Szczęka: 12, 13, 22, 23',
+            diagnosis: 'Braki zębowe typu Kennedy IV w szczęce',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny rozległy', correct: true },
+                { id: 'b', text: 'Implanty z koronami', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: true },
+                { id: 'd', text: 'Tymczasowa proteza osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący braki zębów w odcinku przednim. Widoczny zanik wyrostka zębodołowego w miejscach braków, zęby filarowe w dobrym stanie.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        }
+    ];
+
+    // Nazwy zębów dla konwersji z indeksu na numer zęba
+    const teethNames = {
+        maxilla: ['18','17','16','15','14','13','12','11','21','22','23','24','25','26','27','28'],
+        mandible: ['48','47','46','45','44','43','42','41','31','32','33','34','35','36','37','38']
+    };
+
+    // Stan aplikacji
+    let gameState = {
+        currentScreen: 'welcome', // welcome, exam, result
+        settings: {
+            showCorrectAnswer: true,
+            casesPerExam: 5,
+            difficultyLevel: 'medium'
+        },
+        examState: {
+            cases: [],
+            currentCaseIndex: 0,
+            score: 0,
+            caseHistory: [],
+            selectedOptions: [],
+            userKennedyClass: '',
+            showModelDescription: false
+        }
+    };
+
+    // Referencje do elementów DOM
+    const elements = {
+        // Ekrany
+        welcomeScreen: document.getElementById('welcome-screen'),
+        examScreen: document.getElementById('exam-screen'),
+        resultScreen: document.getElementById('result-screen'),
+
+        // Przyciski ekranu powitalnego
+        startExamBtn: document.getElementById('start-exam-btn'),
+        showSettingsBtn: document.getElementById('show-settings-btn'),
+        settingsContainer: document.getElementById('settings-container'),
+
+        // Ustawienia
+        showCorrectAnswer: document.getElementById('show-correct-answer'),
+        casesPerExam: document.getElementById('cases-per-exam'),
+        difficultyLevel: document.getElementById('difficulty-level'),
+
+        // Elementy ekranu egzaminu
+        caseNumber: document.getElementById('case-number'),
+        currentScore: document.getElementById('current-score'),
+        progressBar: document.getElementById('progress-bar'),
+        dentalDiagram: document.getElementById('dental-diagram'),
+        tabButtons: document.querySelectorAll('.tab'),
+        dentalView: document.getElementById('dental-view'),
+        descriptionView: document.getElementById('description-view'),
+        compactView: document.getElementById('compact-view'),
+        caseDescription: document.getElementById('case-description'),
+        showModelBtn: document.getElementById('show-model-btn'),
+        modelDescription: document.getElementById('model-description'),
+        kennedyClass: document.getElementById('kennedy-class'),
+        missingTeeth: document.getElementById('missing-teeth'),
+        treatmentOptions: document.getElementById('treatment-options'),
+        feedback: document.getElementById('feedback'),
+        checkAnswerBtn: document.getElementById('check-answer-btn'),
+        nextCaseBtn: document.getElementById('next-case-btn'),
+        dentalChartCompact: document.getElementById('dental-chart-compact'),
+
+        // Elementy ekranu wyników
+        totalScore: document.getElementById('total-score'),
+        grade: document.getElementById('grade'),
+        resultsTableBody: document.getElementById('results-table-body'),
+        backToMenuBtn: document.getElementById('back-to-menu-btn'),
+        restartExamBtn: document.getElementById('restart-exam-btn'),
+
+        // Inne elementy
+        printResults: document.getElementById('print-results')
+    };
+
+    // Inicjalizacja nasłuchiwania zdarzeń
+    function initEventListeners() {
+        // Przyciski ekranu powitalnego
+        elements.startExamBtn.addEventListener('click', startExam);
+        elements.showSettingsBtn.addEventListener('click', toggleSettings);
+
+        // Ustawienia
+        elements.showCorrectAnswer.addEventListener('change', updateSettings);
+        elements.casesPerExam.addEventListener('change', updateSettings);
+        elements.difficultyLevel.addEventListener('change', updateSettings);
+
+        // Przyciski ekranu egzaminu
+        elements.showModelBtn.addEventListener('click', showModelDescription);
+        elements.kennedyClass.addEventListener('change', updateKennedyClass);
+        elements.checkAnswerBtn.addEventListener('click', checkAnswer);
+        elements.nextCaseBtn.addEventListener('click', nextCase);
+
+        // Przyciski ekranu wyników
+        elements.backToMenuBtn.addEventListener('click', backToMenu);
+        elements.restartExamBtn.addEventListener('click', startExam);
+        elements.printResults.addEventListener('click', printResultsPage);
+
+        // Taby dla widoku diagramu/opisu/kompaktowego
+        elements.tabButtons.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const viewType = tab.getAttribute('data-view');
+                switchView(viewType);
+            });
+        });
+
+        // Obsługa responsywności strony
+        window.addEventListener('resize', adjustResponsiveness);
+    }
+
+    // Dostosowanie responsywności
+    function adjustResponsiveness() {
+        const currentCase = gameState.examState.cases[gameState.examState.currentCaseIndex];
+        if (currentCase) {
+            // Przerysowanie diagramu zębowego jeśli szerokość ekranu się zmienia
+            drawDentalDiagram(currentCase.dentalStatus);
+            // Aktualizacja widoku kompaktowego
+            updateCompactView(currentCase.dentalStatus);
+        }
+    }
+
+    // Przełączanie między widokami
+    function switchView(viewType) {
+        elements.tabButtons.forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.getAttribute('data-view') === viewType) {
+                tab.classList.add('active');
+            }
+        });
+
+        // Ukryj wszystkie widoki
+        elements.dentalView.classList.add('hidden');
+        elements.descriptionView.classList.add('hidden');
+        elements.compactView.classList.add('hidden');
+
+        // Pokaż wybrany widok
+        if (viewType === 'diagram') {
+            elements.dentalView.classList.remove('hidden');
+        } else if (viewType === 'description') {
+            elements.descriptionView.classList.remove('hidden');
+        } else if (viewType === 'compact') {
+            elements.compactView.classList.remove('hidden');
+        }
+    }
+
+    // Kontrola widoczności ekranów
+    function showScreen(screenName) {
+        elements.welcomeScreen.classList.add('hidden');
+        elements.examScreen.classList.add('hidden');
+        elements.resultScreen.classList.add('hidden');
+        elements.printResults.style.display = 'none';
+
+        gameState.currentScreen = screenName;
+
+        switch(screenName) {
+            case 'welcome':
+                elements.welcomeScreen.classList.remove('hidden');
+                break;
+            case 'exam':
+                elements.examScreen.classList.remove('hidden');
+                break;
+            case 'result':
+                elements.resultScreen.classList.remove('hidden');
+                elements.printResults.style.display = 'block';
+                generateResultsTable();
+                break;
+        }
+    }
+
+    // Funkcje ekranu powitalnego
+    function toggleSettings() {
+        elements.settingsContainer.classList.toggle('hidden');
+    }
+
+    function updateSettings() {
+        gameState.settings.showCorrectAnswer = elements.showCorrectAnswer.checked;
+        gameState.settings.casesPerExam = parseInt(elements.casesPerExam.value);
+        gameState.settings.difficultyLevel = elements.difficultyLevel.value;
+    }
+
+    // Inicjalizacja egzaminu
+    function startExam() {
+        // Losowe wybranie przypadków
+        const shuffledCases = [...CASES].sort(() => 0.5 - Math.random());
+        const selectedCases = shuffledCases.slice(0, gameState.settings.casesPerExam);
+
+        // Reset stanu egzaminu
+        gameState.examState = {
+            cases: selectedCases,
+            currentCaseIndex: 0,
+            score: 0,
+            caseHistory: [],
+            selectedOptions: [],
+            userKennedyClass: '',
+            showModelDescription: false
+        };
+
+        // Przejście do ekranu egzaminu
+        showScreen('exam');
+
+        // Załadowanie pierwszego przypadku
+        loadCurrentCase();
+    }
+
+    // Funkcje ekranu egzaminu
+    function loadCurrentCase() {
+        const currentCase = gameState.examState.cases[gameState.examState.currentCaseIndex];
+        const totalCases = gameState.examState.cases.length;
+        const currentProgress = gameState.examState.currentCaseIndex + 1;
+
+        // Aktualizacja nagłówka
+        elements.caseNumber.textContent = `Przypadek ${currentProgress}/${totalCases}`;
+        elements.currentScore.textContent = `Wynik: ${gameState.examState.score}/${(currentProgress - 1) * 2} pkt`;
+        elements.progressBar.style.width = `${(currentProgress / totalCases) * 100}%`;
+
+        // Rysowanie diagramu zębowego
+        drawDentalDiagram(currentCase.dentalStatus);
+
+        // Aktualizacja widoku kompaktowego
+        updateCompactView(currentCase.dentalStatus);
+
+        // Załadowanie danych przypadku
+        elements.caseDescription.textContent = currentCase.description;
+        elements.missingTeeth.textContent = currentCase.missingTeeth;
+        elements.modelDescription.textContent = currentCase.modelDescription;
+
+        // Reset elementów interaktywnych
+        elements.kennedyClass.value = '';
+        elements.feedback.classList.add('hidden');
+        elements.modelDescription.classList.add('hidden');
+        elements.showModelBtn.classList.remove('hidden');
+        elements.checkAnswerBtn.classList.remove('hidden');
+        elements.nextCaseBtn.classList.add('hidden');
+
+        // Powrót do widoku diagramu
+        switchView('diagram');
+
+        // Wygenerowanie opcji leczenia
+        generateTreatmentOptions(currentCase.treatmentOptions);
+
+        // Reset stanu przypadku
+        gameState.examState.selectedOptions = [];
+        gameState.examState.userKennedyClass = '';
+        gameState.examState.showModelDescription = false;
+
+        // Dezaktywacja przycisku sprawdzania
+        updateCheckButtonState();
+    }
+
+    // Aktualizacja widoku kompaktowego
+    function updateCompactView(dentalStatus) {
+        const maxillaRow = document.createElement('div');
+        maxillaRow.className = 'dental-row';
+
+        const mandibleRow = document.createElement('div');
+        mandibleRow.className = 'dental-row';
+
+        const maxillaLabelRow = document.createElement('div');
+        maxillaLabelRow.className = 'dental-row';
+
+        const mandibleLabelRow = document.createElement('div');
+        mandibleLabelRow.className = 'dental-row';
+
+        // Tworzenie kompaktowego widoku dla szczęki
+        teethNames.maxilla.forEach((toothNumber, index) => {
+            // Komórka z numerem zęba
+            const labelCell = document.createElement('div');
+            labelCell.className = 'dental-cell';
+            labelCell.textContent = toothNumber;
+            labelCell.style.backgroundColor = '#f3f4f6';
+            labelCell.style.border = 'none';
+            maxillaLabelRow.appendChild(labelCell);
+
+            // Komórka ze statusem zęba
+            const cell = document.createElement('div');
+            cell.className = 'dental-cell';
+            const status = dentalStatus.maxilla[index];
+
+            if (status === 1) {
+                cell.className += ' dental-cell-present';
+                cell.textContent = '1';
+            } else if (status === 0) {
+                cell.className += ' dental-cell-missing';
+                cell.textContent = '0';
+            } else if (status === 2) {
+                cell.className += ' dental-cell-treated';
+                cell.textContent = '2';
+            }
+
+            maxillaRow.appendChild(cell);
+        });
+
+        // Tworzenie kompaktowego widoku dla żuchwy
+        teethNames.mandible.forEach((toothNumber, index) => {
+            // Komórka z numerem zęba
+            const labelCell = document.createElement('div');
+            labelCell.className = 'dental-cell';
+            labelCell.textContent = toothNumber;
+            labelCell.style.backgroundColor = '#f3f4f6';
+            labelCell.style.border = 'none';
+            mandibleLabelRow.appendChild(labelCell);
+
+            // Komórka ze statusem zęba
+            const cell = document.createElement('div');
+            cell.className = 'dental-cell';
+            const status = dentalStatus.mandible[index];
+
+            if (status === 1) {
+                cell.className += ' dental-cell-present';
+                cell.textContent = '1';
+            } else if (status === 0) {
+                cell.className += ' dental-cell-missing';
+                cell.textContent = '0';
+            } else if (status === 2) {
+                cell.className += ' dental-cell-treated';
+                cell.textContent = '2';
+            }
+
+            mandibleRow.appendChild(cell);
+        });
+
+        // Dodanie etykiet nad rzędami
+        const maxillaHeader = document.createElement('div');
+        maxillaHeader.className = 'dental-row';
+        maxillaHeader.innerHTML = '<div style="width:100%; text-align:center; font-weight:bold; margin-bottom:5px;">SZCZĘKA</div>';
+
+        const mandibleHeader = document.createElement('div');
+        mandibleHeader.className = 'dental-row';
+        mandibleHeader.innerHTML = '<div style="width:100%; text-align:center; font-weight:bold; margin:15px 0 5px;">ŻUCHWA</div>';
+
+        // Wyczyszczenie i dodanie nowych elementów
+        elements.dentalChartCompact.innerHTML = '';
+        elements.dentalChartCompact.appendChild(maxillaHeader);
+        elements.dentalChartCompact.appendChild(maxillaLabelRow);
+        elements.dentalChartCompact.appendChild(maxillaRow);
+        elements.dentalChartCompact.appendChild(mandibleHeader);
+        elements.dentalChartCompact.appendChild(mandibleLabelRow);
+        elements.dentalChartCompact.appendChild(mandibleRow);
+    }
+
+    // Rysowanie diagramu zębowego SVG
+    function drawDentalDiagram(dentalStatus) {
+        const svg = elements.dentalDiagram;
+        svg.innerHTML = '';
+
+        // Zdefiniowanie wymiarów i położenia zębów
+        const maxillaY = 40;
+        const mandibleY = 150;
+        const toothWidth = 24;
+        const toothHeight = 28;
+        const gapBetween = 3;
+        const centralGap = 8;
+
+        // Funkcja do konwersji indeksu na status zęba
+        function getToothStatus(arch, index) {
+            const status = dentalStatus[arch][index];
+            if (status === 0) return 'missing';
+            if (status === 2) return 'treated';
+            return 'present';
+        }
+
+        // Funkcja do rysowania zęba
+        function drawTooth(x, y, toothNumber, status) {
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+            let toothClass = 'tooth';
+            if (status === 'missing') {
+                toothClass += ' tooth-missing';
+            } else if (status === 'treated') {
+                toothClass += ' tooth-treated';
+            }
+
+            // Kształt zęba
+            const tooth = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            tooth.setAttribute('x', x);
+            tooth.setAttribute('y', y);
+            tooth.setAttribute('width', toothWidth);
+            tooth.setAttribute('height', toothHeight);
+            tooth.setAttribute('rx', 3);
+            tooth.setAttribute('class', toothClass);
+
+            // Numer zęba
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute('x', x + toothWidth / 2);
+            text.setAttribute('y', y + toothHeight / 2 + 3);
+            text.setAttribute('class', 'tooth-number');
+            text.textContent = toothNumber;
+
+            group.appendChild(tooth);
+            group.appendChild(text);
+            svg.appendChild(group);
+        }
+
+        // Rysowanie szczęki (górny łuk)
+        // Prawa strona
+        let x = 240 + centralGap / 2;
+        for (let i = 0; i < 8; i++) {
+            const toothNumber = teethNames.maxilla[i];
+            drawTooth(x, maxillaY, toothNumber, getToothStatus('maxilla', i));
+            x += toothWidth + gapBetween;
+        }
+
+        // Lewa strona
+        x = 240 - centralGap / 2 - toothWidth;
+        for (let i = 8; i < 16; i++) {
+            const toothNumber = teethNames.maxilla[i];
+            drawTooth(x, maxillaY, toothNumber, getToothStatus('maxilla', i));
+            x -= (toothWidth + gapBetween);
+        }
+
+        // Rysowanie żuchwy (dolny łuk)
+        // Prawa strona
+        x = 240 + centralGap / 2;
+        for (let i = 0; i < 8; i++) {
+            const toothNumber = teethNames.mandible[i];
+            drawTooth(x, mandibleY, toothNumber, getToothStatus('mandible', i));
+            x += toothWidth + gapBetween;
+        }
+
+        // Lewa strona
+        x = 240 - centralGap / 2 - toothWidth;
+        for (let i = 8; i < 16; i++) {
+            const toothNumber = teethNames.mandible[i];
+            drawTooth(x, mandibleY, toothNumber, getToothStatus('mandible', i));
+            x -= (toothWidth + gapBetween);
+        }
+
+        // Dodanie etykiet
+        const maxillaLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        maxillaLabel.setAttribute('x', 240);
+        maxillaLabel.setAttribute('y', maxillaY - 10);
+        maxillaLabel.setAttribute('text-anchor', 'middle');
+        maxillaLabel.setAttribute('font-weight', 'bold');
+        maxillaLabel.textContent = 'SZCZĘKA';
+        svg.appendChild(maxillaLabel);
+
+        const mandibleLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        mandibleLabel.setAttribute('x', 240);
+        mandibleLabel.setAttribute('y', mandibleY - 10);
+        mandibleLabel.setAttribute('text-anchor', 'middle');
+        mandibleLabel.setAttribute('font-weight', 'bold');
+        mandibleLabel.textContent = 'ŻUCHWA';
+        svg.appendChild(mandibleLabel);
+    }
+
+    function generateTreatmentOptions(options) {
+        elements.treatmentOptions.innerHTML = '';
+
+        options.forEach(option => {
+            const optionElement = document.createElement('label');
+            optionElement.className = 'treatment-option';
+            optionElement.setAttribute('data-id', option.id);
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-checkbox';
+
+            const span = document.createElement('span');
+            span.textContent = option.text;
+
+            optionElement.appendChild(checkbox);
+            optionElement.appendChild(span);
+
+            optionElement.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                }
+                toggleTreatmentOption(option.id, optionElement);
+            });
+
+            checkbox.addEventListener('change', () => {
+                toggleTreatmentOption(option.id, optionElement);
+            });
+
+            elements.treatmentOptions.appendChild(optionElement);
+        });
+    }
+
+    function toggleTreatmentOption(optionId, optionElement) {
+        const checkbox = optionElement.querySelector('input[type="checkbox"]');
+
+        if (gameState.examState.selectedOptions.includes(optionId)) {
+            gameState.examState.selectedOptions = gameState.examState.selectedOptions.filter(id => id !== optionId);
+            optionElement.classList.remove('selected');
+            checkbox.checked = false;
+        } else {
+            gameState.examState.selectedOptions.push(optionId);
+            optionElement.classList.add('selected');
+            checkbox.checked = true;
+        }
+
+        updateCheckButtonState();
+    }
+
+    function updateKennedyClass() {
+        gameState.examState.userKennedyClass = elements.kennedyClass.value;
+        updateCheckButtonState();
+    }
+
+    function updateCheckButtonState() {
+        const hasSelectedKennedy = gameState.examState.userKennedyClass !== '';
+        const hasSelectedOptions = gameState.examState.selectedOptions.length > 0;
+
+        elements.checkAnswerBtn.disabled = !(hasSelectedKennedy && hasSelectedOptions);
+    }
+
+    function showModelDescription() {
+        elements.modelDescription.classList.remove('hidden');
+        elements.showModelBtn.classList.add('hidden');
+        gameState.examState.showModelDescription = true;
+    }
+
+    function checkAnswer() {
+        const currentCase = gameState.examState.cases[gameState.examState.currentCaseIndex];
+        let caseScore = 0;
+        let feedbackText = '';
+
+        // Sprawdzanie klasyfikacji Kennedy'ego
+        const kennedyCorrect = gameState.examState.userKennedyClass === currentCase.kennedyClass;
+        if (kennedyCorrect) {
+            caseScore += 1;
+            feedbackText += '<span class="text-success">✓ Poprawna klasyfikacja braków zębowych.</span> ';
+        } else {
+            feedbackText += `<span class="text-error">✗ Błędna klasyfikacja.</span> `;
+            if (gameState.settings.showCorrectAnswer) {
+                feedbackText += `Prawidłowa odpowiedź: ${currentCase.kennedyClass}. `;
+            }
+        }
+
+        // Sprawdzanie opcji leczenia
+        const correctOptions = currentCase.treatmentOptions.filter(option => option.correct);
+        const incorrectOptionsSelected = gameState.examState.selectedOptions.some(optionId => {
+            const option = currentCase.treatmentOptions.find(o => o.id === optionId);
+            return !option.correct;
+        });
+
+        const missedCorrectOptions = correctOptions.some(option =>
+            !gameState.examState.selectedOptions.includes(option.id)
+        );
+
+        const treatmentCorrect = !incorrectOptionsSelected && !missedCorrectOptions;
+
+        if (treatmentCorrect) {
+            caseScore += 1;
+            feedbackText += '<span class="text-success">✓ Poprawnie zaplanowane leczenie.</span> ';
+        } else {
+            feedbackText += '<span class="text-error">✗ Błędny plan leczenia.</span> ';
+            if (gameState.settings.showCorrectAnswer) {
+                const correctOptions = currentCase.treatmentOptions
+                    .filter(option => option.correct)
+                    .map(option => option.text)
+                    .join(', ');
+                feedbackText += `Prawidłowe opcje leczenia: ${correctOptions}. `;
+            }
+        }
+
+        // Aktualizacja wyniku
+        gameState.examState.score += caseScore;
+
+        // Zapisanie historii przypadku
+        gameState.examState.caseHistory.push({
+            id: currentCase.id,
+            diagnosis: currentCase.diagnosis,
+            kennedyCorrect: kennedyCorrect,
+            treatmentCorrect: treatmentCorrect,
+            score: caseScore
+        });
+
+        // Wyświetlenie informacji zwrotnej
+        elements.feedback.innerHTML = feedbackText;
+        elements.feedback.classList.remove('hidden');
+        elements.feedback.classList.remove('feedback-success', 'feedback-error');
+        elements.feedback.classList.add(feedbackText.includes('✓') ? 'feedback-success' : 'feedback-error');
+
+        // Pokazanie przycisku do następnego przypadku
+        elements.checkAnswerBtn.classList.add('hidden');
+        elements.nextCaseBtn.classList.remove('hidden');
+
+        // Aktualizacja nagłówka z wynikiem
+        const totalCases = gameState.examState.cases.length;
+        const currentProgress = gameState.examState.currentCaseIndex + 1;
+        elements.currentScore.textContent = `Wynik: ${gameState.examState.score}/${currentProgress * 2} pkt`;
+    }
+
+    function nextCase() {
+        gameState.examState.currentCaseIndex += 1;
+
+        if (gameState.examState.currentCaseIndex >= gameState.examState.cases.length) {
+            // Koniec egzaminu
+            showScreen('result');
+        } else {
+            // Następny przypadek
+            loadCurrentCase();
+        }
+    }
+
+    // Funkcje ekranu wyników
+    function generateResultsTable() {
+        const totalPointsPossible = gameState.examState.caseHistory.length * 2;
+        const score = gameState.examState.score;
+        const percentage = Math.round((score / totalPointsPossible) * 100);
+
+        // Określenie oceny
+        let grade = '';
+        if (percentage >= 90) grade = 'Bardzo dobry (5.0)';
+        else if (percentage >= 80) grade = 'Dobry plus (4.5)';
+        else if (percentage >= 70) grade = 'Dobry (4.0)';
+        else if (percentage >= 60) grade = 'Dostateczny plus (3.5)';
+        else if (percentage >= 50) grade = 'Dostateczny (3.0)';
+        else grade = 'Niedostateczny (2.0)';
+
+        // Aktualizacja podsumowania
+        elements.totalScore.textContent = `Twój wynik: ${score}/${totalPointsPossible} punktów (${percentage}%)`;
+        elements.grade.textContent = `Ocena: ${grade}`;
+        elements.grade.className = 'text-xl mt-2';
+
+        if (percentage >= 90) {
+            elements.grade.classList.add('text-success');
+        } else if (percentage >= 50) {
+            elements.grade.classList.add('text-primary');
+        } else {
+            elements.grade.classList.add('text-error');
+        }
+
+        // Wygenerowanie tabeli wyników
+        elements.resultsTableBody.innerHTML = '';
+
+        gameState.examState.caseHistory.forEach((item, index) => {
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${item.diagnosis}</td>
+                    <td>${item.kennedyCorrect ?
+                '<span class="check-icon">✓</span>' :
+                '<span class="x-icon">✗</span>'}</td>
+                    <td>${item.treatmentCorrect ?
+                '<span class="check-icon">✓</span>' :
+                '<span class="x-icon">✗</span>'}</td>
+                    <td>${item.score}/2</td>
+                `;
+
+            elements.resultsTableBody.appendChild(row);
+        });
+    }
+
+    function printResultsPage() {
+        window.print();
+    }
+
+    function backToMenu() {
+        showScreen('welcome');
+    }
+
+    // Inicjalizacja aplikacji
+    function init() {
+        initEventListeners();
+        showScreen('welcome');
+    }
+
+    // Uruchomienie aplikacji
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
