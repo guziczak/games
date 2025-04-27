@@ -254,11 +254,30 @@
             border-radius: var(--border-radius);
             margin-bottom: 1.5rem;
             overflow-x: auto;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .dental-diagram-wrapper {
-            min-width: 480px;
+            width: 100%;
+            max-width: 480px;
             margin: 0 auto;
+            transition: transform 0.3s ease;
+        }
+
+        .dental-diagram-wrapper:hover {
+            transform: scale(1.02);
+        }
+
+        @media (max-width: 480px) {
+            .dental-diagram-wrapper {
+                min-width: unset;
+                width: 100%;
+                transform: none;
+            }
+
+            .dental-diagram-wrapper:hover {
+                transform: none;
+            }
         }
 
         .dental-legend {
@@ -604,43 +623,56 @@
             opacity: 1;
         }
 
-        /* Dental Chart Compact Mode */
-        .dental-chart-compact {
-            font-family: monospace;
-            background-color: var(--bg-light);
-            padding: 1rem;
-            border-radius: 0.375rem;
-            overflow-x: auto;
+        /* Style animacji */
+        @keyframes highlight {
+            0% { box-shadow: 0 0 0 rgba(37, 99, 235, 0); }
+            50% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.5); }
+            100% { box-shadow: 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        .dental-row {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 0.5rem;
+        .highlight-animation {
+            animation: highlight 2s ease-in-out;
         }
 
-        .dental-cell {
-            width: 2rem;
-            height: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            border: 1px solid var(--border-light);
-            margin: 0 1px;
-            transition: var(--transition);
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
         }
 
-        .dental-cell-present {
-            background-color: var(--white);
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: var(--neutral-dark);
+            color: white;
+            text-align: center;
+            border-radius: var(--border-radius);
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 0.75rem;
         }
 
-        .dental-cell-missing {
-            background-color: var(--missing-tooth);
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--neutral-dark) transparent transparent transparent;
         }
 
-        .dental-cell-treated {
-            background-color: var(--treated-tooth);
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
         }
 
         .print-info {
@@ -674,14 +706,18 @@
     <div id="welcome-screen" class="card">
         <div class="card-body">
             <h1>Egzamin Praktyczny z Protetyki</h1>
-            <p class="text-lg mb-8 text-center max-w-2xl mx-auto">
+            <p class="text-lg mb-6 text-center max-w-2xl mx-auto">
                 Witaj w symulatorze egzaminu praktycznego z protetyki stomatologicznej.
                 Twoim zadaniem będzie analiza diagramów uzębienia, rozpoznanie klasy braków zębowych
                 oraz zaproponowanie odpowiedniego planu leczenia.
             </p>
 
+            <div class="text-center mb-4 p-3 bg-gray-100 rounded max-w-2xl mx-auto">
+                <p class="text-primary"><strong>Dostępne:</strong> 30 przypadków klinicznych - wszystkie przypadki są losowane przy każdym egzaminie</p>
+            </div>
+
             <div class="flex justify-center mb-8 gap-4">
-                <button id="start-exam-btn" class="btn btn-primary">
+                <button id="start-exam-btn" class="btn btn-primary pulse-animation">
                     Rozpocznij egzamin
                 </button>
 
@@ -708,16 +744,12 @@
                         <option value="7">7 przypadków</option>
                         <option value="10">10 przypadków</option>
                         <option value="15">15 przypadków</option>
+                        <option value="20">20 przypadków</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Poziom trudności:</label>
-                    <select id="difficulty-level" class="form-select">
-                        <option value="easy">Łatwy</option>
-                        <option value="medium" selected>Średni</option>
-                        <option value="hard">Trudny</option>
-                    </select>
+                    <p class="text-sm text-primary mb-2">Przypadki będą losowane automatycznie przy każdym egzaminie</p>
                 </div>
             </div>
         </div>
@@ -741,14 +773,13 @@
             <div class="tabs">
                 <div class="tab active" data-view="diagram">Diagram zębowy</div>
                 <div class="tab" data-view="description">Opis przypadku</div>
-                <div class="tab" data-view="compact">Widok kompaktowy</div>
             </div>
 
             <div id="dental-view">
                 <h3 class="mb-2">Diagram uzębienia pacjenta:</h3>
                 <div class="dental-diagram-container">
                     <div class="dental-diagram-wrapper">
-                        <svg id="dental-diagram" width="480" height="220" viewBox="0 0 480 220">
+                        <svg id="dental-diagram" width="100%" height="220" viewBox="0 0 480 220" preserveAspectRatio="xMidYMid meet">
                             <!-- Diagram będzie generowany dynamicznie przez JavaScript -->
                         </svg>
                     </div>
@@ -773,21 +804,6 @@
                 <h3 class="mb-2">Opis przypadku:</h3>
                 <div class="bg-gray-100 p-4 rounded">
                     <p id="case-description" class="mb-4"></p>
-                </div>
-            </div>
-
-            <div id="compact-view" class="hidden">
-                <h3 class="mb-2">Kompaktowa reprezentacja uzębienia:</h3>
-                <div id="dental-chart-compact" class="dental-chart-compact">
-                    <!-- Dental chart będzie generowany dynamicznie przez JavaScript -->
-                </div>
-                <div class="mt-4 text-sm">
-                    <p>Legenda:</p>
-                    <ul class="ml-2 mt-1">
-                        <li>1 - Ząb obecny</li>
-                        <li>0 - Ząb brakujący</li>
-                        <li>2 - Ząb z wypełnieniem</li>
-                    </ul>
                 </div>
             </div>
 
@@ -1165,6 +1181,276 @@
                 maxilla: [1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1],
                 mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             }
+        },
+        {
+            id: 16,
+            description: 'Pacjent lat 47, zgłosił się w celu uzupełnienia braków zębowych. W wywiadzie podaje utratę zębów w odcinku bocznym szczęki po stronie prawej oraz przedtrzonowców w żuchwie po stronie lewej.',
+            kennedyClass: 'Szczęka: klasa II, Żuchwa: klasa III',
+            missingTeeth: 'Szczęka: 15, 16, 17, 18; Żuchwa: 34, 35',
+            diagnosis: 'Złożone braki zębowe obuszczękowe (szczęka: klasa II, żuchwa: klasa III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe górna i dolna', correct: true },
+                { id: 'b', text: 'Most w żuchwie, implantacja w szczęce', correct: true },
+                { id: 'c', text: 'Proteza częściowa osiadająca w szczęce', correct: true },
+                { id: 'd', text: 'Mosty tradycyjne w obu łukach', correct: false },
+            ],
+            modelDescription: 'Model gipsowy ukazujący braki zębowe w odcinku bocznym szczęki po stronie prawej oraz braki przedtrzonowców w żuchwie po stronie lewej. Zęby filarowe w dobrym stanie klinicznym.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1]
+            }
+        },
+        {
+            id: 17,
+            description: 'Pacjentka lat 68, zgłosiła się w celu uzupełnienia braków zębowych. W szczęce zachowane tylko zęby przednie, w żuchwie brak zębów trzonowych obustronnie i przedtrzonowców po stronie prawej.',
+            kennedyClass: 'Szczęka: klasa I, Żuchwa: klasa I modyfikacja 1',
+            missingTeeth: 'Szczęka: 14, 15, 16, 17, 18, 24, 25, 26, 27, 28; Żuchwa: 34, 35, 36, 37, 38, 45, 46, 47, 48',
+            diagnosis: 'Rozległe braki zębowe obuszczękowe (szczęka i żuchwa klasa I z modyfikacją)',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe z precyzyjnymi elementami retencyjnymi', correct: true },
+                { id: 'b', text: 'Protezy częściowe osiadające', correct: true },
+                { id: 'c', text: 'Implanty w strategicznych miejscach z uzupełnieniami protetycznymi', correct: true },
+                { id: 'd', text: 'Mosty tradycyjne', correct: false },
+            ],
+            modelDescription: 'Model gipsowy ukazujący rozległe braki zębowe w szczęce i żuchwie. W szczęce zachowane tylko zęby przednie, w żuchwie zachowane zęby przednie i przedtrzonowce po stronie lewej. Wyraźny zanik wyrostków zębodołowych w miejscach braków.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 18,
+            description: 'Pacjent lat 38, zgłosił się w celu uzupełnienia braków zębowych w szczęce. W wywiadzie podaje utratę zębów przedtrzonowych po obu stronach w wyniku powikłań endodontycznych.',
+            kennedyClass: 'III modyfikacja 1',
+            missingTeeth: 'Szczęka: 14, 15, 24, 25',
+            diagnosis: 'Braki międzyzębowe w szczęce (klasa Kennedy III modyfikacja 1)',
+            treatmentOptions: [
+                { id: 'a', text: 'Mosty tradycyjne', correct: true },
+                { id: 'b', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: true },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: false },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący międzyzębowe braki przedtrzonowców obustronnie. Zęby filarowe wykazują dobry stan kliniczny, nadające się do wykorzystania jako podpory dla prac protetycznych.',
+            dentalStatus: {
+                maxilla: [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 19,
+            description: 'Pacjentka lat 29, zgłosiła się w celu uzupełnienia braku zębowego w żuchwie po stronie prawej. W wywiadzie podaje utratę pierwszego zęba trzonowego z powodu głębokiej próchnicy.',
+            kennedyClass: 'III',
+            missingTeeth: 'Żuchwa: 46',
+            diagnosis: 'Pojedynczy brak zębowy w żuchwie (klasa Kennedy III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Implant z koroną protetyczną', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: false },
+                { id: 'd', text: 'Brak interwencji, obserwacja', correct: false },
+            ],
+            modelDescription: 'Model gipsowy żuchwy ukazujący pojedynczy brak pierwszego zęba trzonowego po stronie prawej. Zęby sąsiadujące w dobrym stanie klinicznym, z niewielkim mezjalnym przechyleniem drugiego trzonowca.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 20,
+            description: 'Pacjent lat 75, zgłosił się w celu uzupełnienia braków zębowych. W żuchwie zachowane jedynie kły i siekacze, w szczęce obecne wszystkie zęby z wyjątkiem bocznych trzonowców.',
+            kennedyClass: 'Szczęka: klasa I, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: 17, 18, 27, 28; Żuchwa: 34, 35, 36, 37, 38, 44, 45, 46, 47, 48',
+            diagnosis: 'Braki skrzydłowe w szczęce i żuchwie (klasa Kennedy I w obu łukach)',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe w obu łukach', correct: true },
+                { id: 'b', text: 'Implanty strategiczne z uzupełnieniami protetycznymi', correct: true },
+                { id: 'c', text: 'Proteza całkowita w żuchwie', correct: false },
+                { id: 'd', text: 'Protezy typu overdenture w żuchwie', correct: true },
+            ],
+            modelDescription: 'Model gipsowy ukazujący braki skrzydłowe w szczęce i żuchwie. W szczęce brak zębów 17, 18, 27, 28. W żuchwie zachowane tylko zęby w odcinku przednim od 33 do 43. Wyraźny zanik wyrostków zębodołowych w miejscach braków.',
+            dentalStatus: {
+                maxilla: [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 21,
+            description: 'Pacjentka lat 31, zgłosiła się w celu uzupełnienia braków zębowych w szczęce i żuchwie. Utraciła pojedyncze zęby w różnych miejscach z powodu próchnicy i urazów.',
+            kennedyClass: 'Szczęka: klasa III modyfikacja 2, Żuchwa: klasa III modyfikacja 1',
+            missingTeeth: 'Szczęka: 15, 23, 26; Żuchwa: 35, 47',
+            diagnosis: 'Braki międzyzębowe złożone w szczęce i żuchwie',
+            treatmentOptions: [
+                { id: 'a', text: 'Mosty tradycyjne w odcinkach braków', correct: true },
+                { id: 'b', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'c', text: 'Protezy szkieletowe', correct: true },
+                { id: 'd', text: 'Brak interwencji protetycznej', correct: false },
+            ],
+            modelDescription: 'Model gipsowy ukazujący złożone braki międzyzębowe. W szczęce brakuje zęba 15, 23 i 26, w żuchwie brakuje zębów 35 i 47. Zęby sąsiednie w dobrym stanie klinicznym, bez znaczących migracji.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1],
+                mandible: [1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1]
+            }
+        },
+        {
+            id: 22,
+            description: 'Pacjent lat 59, zgłosił się w celu uzupełnienia braku zębowego w szczęce. W wywiadzie podaje utratę górnego prawego kła w wyniku urazu sportowego.',
+            kennedyClass: 'III',
+            missingTeeth: 'Szczęka: 13',
+            diagnosis: 'Pojedynczy brak zębowy w odcinku przednim szczęki (klasa Kennedy III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Implant z koroną protetyczną', correct: true },
+                { id: 'c', text: 'Most adhezyjny', correct: true },
+                { id: 'd', text: 'Proteza szkieletowa', correct: false },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący brak zęba 13. Okolica poekstrakcyjna dobrze wygojona, z niewielkim zanikiem wyrostka zębodołowego. Zęby sąsiednie w dobrym stanie klinicznym, bez zmian pozycji.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 23,
+            description: 'Pacjentka lat 42, zgłosiła się w celu uzupełnienia braków zębowych w żuchwie po stronie lewej. Zęby zostały utracone z powodu zaawansowanej choroby przyzębia.',
+            kennedyClass: 'II',
+            missingTeeth: 'Żuchwa: 35, 36, 37, 38',
+            diagnosis: 'Braki skrzydłowe jednostronne w żuchwie (klasa Kennedy II)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa z klamrami', correct: true },
+                { id: 'b', text: 'Implantacja z odbudową protetyczną', correct: true },
+                { id: 'c', text: 'Most rozległy', correct: false },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy żuchwy ukazujący brak zębów w odcinku bocznym lewym. Widoczny zanik wyrostka zębodołowego. Zęby przedtrzonowe ze strony prawej i zęby przednie w dobrym stanie klinicznym.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 24,
+            description: 'Pacjent lat 63, zgłosił się w celu uzupełnienia braków zębowych w szczęce. Zachowane tylko zęby przedtrzonowe i trzonowe po stronie prawej, reszta została utracona z powodu próchnicy i choroby przyzębia.',
+            kennedyClass: 'II modyfikacja 1',
+            missingTeeth: 'Szczęka: 11, 12, 13, 14, 15, 21, 22, 23, 24, 25, 26, 27, 28',
+            diagnosis: 'Uzębienie resztkowe w szczęce (klasa Kennedy II modyfikacja 1)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa z precyzyjnymi elementami retencyjnymi', correct: true },
+                { id: 'b', text: 'Ekstrakcja pozostałych zębów i proteza całkowita', correct: false },
+                { id: 'c', text: 'Implantacja z odbudową protetyczną', correct: true },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący uzębienie resztkowe - obecne jedynie zęby 16, 17, 18. Znaczny zanik wyrostka zębodołowego w miejscach braków. Pozostałe zęby wykazują cechy przeciążenia okluzyjnego.',
+            dentalStatus: {
+                maxilla: [1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 25,
+            description: 'Pacjentka lat 53, zgłosiła się w celu uzupełnienia braków zębowych. W szczęce brak zębów przednich, w żuchwie brakuje zębów trzonowych obustronnie.',
+            kennedyClass: 'Szczęka: klasa IV, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: 12, 11, 21, 22; Żuchwa: 36, 37, 38, 46, 47, 48',
+            diagnosis: 'Złożone braki zębowe w szczęce i żuchwie (klasa IV w szczęce, klasa I w żuchwie)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most w szczęce, proteza szkieletowa w żuchwie', correct: true },
+                { id: 'b', text: 'Implanty z odbudową protetyczną w obu łukach', correct: true },
+                { id: 'c', text: 'Protezy szkieletowe w obu łukach', correct: true },
+                { id: 'd', text: 'Mosty tradycyjne w obu łukach', correct: false },
+            ],
+            modelDescription: 'Model gipsowy ukazujący braki zębowe. W szczęce brak zębów siecznych, w żuchwie brak zębów trzonowych obustronnie. Zęby filarowe w dobrym stanie klinicznym, z niewielkim zanikiem wyrostka zębodołowego.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1],
+                mandible: [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0]
+            }
+        },
+        {
+            id: 26,
+            description: 'Pacjent lat 47, zgłosił się w celu uzupełnienia braków zębowych w żuchwie. W wywiadzie podaje utratę zębów z powodu urazu podczas wypadku komunikacyjnego.',
+            kennedyClass: 'III modyfikacja 3',
+            missingTeeth: 'Żuchwa: 32, 33, 34, 42, 43, 44',
+            diagnosis: 'Złożone braki międzyzębowe w żuchwie (klasa Kennedy III modyfikacja 3)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa', correct: true },
+                { id: 'b', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'c', text: 'Mosty tradycyjne', correct: false },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy żuchwy ukazujący złożone braki międzyzębowe w odcinkach bocznych i częściowo przednim. Zachowane zęby sieczne przyśrodkowe i zęby trzonowe oraz przedtrzonowce drugie. Wyraźny zanik wyrostka zębodołowego w miejscach braków.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1]
+            }
+        },
+        {
+            id: 27,
+            description: 'Pacjentka lat 36, zgłosiła się w celu uzupełnienia braku zębowego w szczęce. W wywiadzie podaje utratę pierwszego zęba przedtrzonowego z powodu powikłań endodontycznych.',
+            kennedyClass: 'III',
+            missingTeeth: 'Szczęka: 24',
+            diagnosis: 'Pojedynczy brak zębowy w szczęce (klasa Kennedy III)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Implant z koroną protetyczną', correct: true },
+                { id: 'c', text: 'Most adhezyjny', correct: true },
+                { id: 'd', text: 'Proteza szkieletowa', correct: false },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący pojedynczy brak zęba 24. Zęby sąsiednie w dobrym stanie klinicznym, bez zmian pozycji. Niewielki zanik wyrostka zębodołowego w miejscu braku.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 28,
+            description: 'Pacjent lat 71, zgłosił się w celu uzupełnienia braków zębowych w obu łukach. W szczęce i żuchwie zachowane tylko zęby przednie, reszta została utracona z powodu choroby przyzębia.',
+            kennedyClass: 'Szczęka: klasa I, Żuchwa: klasa I',
+            missingTeeth: 'Szczęka: 14, 15, 16, 17, 18, 24, 25, 26, 27, 28; Żuchwa: 34, 35, 36, 37, 38, 44, 45, 46, 47, 48',
+            diagnosis: 'Uzębienie resztkowe w obu łukach (klasa Kennedy I w szczęce i żuchwie)',
+            treatmentOptions: [
+                { id: 'a', text: 'Protezy szkieletowe w szczęce i żuchwie', correct: true },
+                { id: 'b', text: 'Implanty strategiczne z protezami typu overdenture', correct: true },
+                { id: 'c', text: 'Ekstrakcja pozostałych zębów i protezy całkowite', correct: false },
+                { id: 'd', text: 'Protezy częściowe osiadające', correct: true },
+            ],
+            modelDescription: 'Model gipsowy ukazujący uzębienie resztkowe w obu łukach. W szczęce i żuchwie zachowane tylko zęby przednie. Znaczny zanik wyrostków zębodołowych w miejscach braków. Zęby przednie wykazują wzmożoną ruchomość z powodu przeciążenia okluzyjnego.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+                mandible: [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0]
+            }
+        },
+        {
+            id: 29,
+            description: 'Pacjentka lat 39, zgłosiła się w celu uzupełnienia braków zębowych w szczęce. Utraciła zęby trzonowe i drugi ząb przedtrzonowy po stronie prawej i drugi ząb przedtrzonowy po stronie lewej z powodu próchnicy.',
+            kennedyClass: 'II modyfikacja 1',
+            missingTeeth: 'Szczęka: 15, 16, 17, 18, 25',
+            diagnosis: 'Braki zębowe w szczęce (klasa Kennedy II modyfikacja 1)',
+            treatmentOptions: [
+                { id: 'a', text: 'Proteza szkieletowa', correct: true },
+                { id: 'b', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'c', text: 'Mosty tradycyjne', correct: false },
+                { id: 'd', text: 'Proteza częściowa osiadająca', correct: true },
+            ],
+            modelDescription: 'Model gipsowy szczęki ukazujący braki zębowe w odcinku bocznym prawym oraz pojedynczy brak zęba 25. Zanik wyrostka zębodołowego w miejscach braków. Zęby sąsiednie w dobrym stanie klinicznym.',
+            dentalStatus: {
+                maxilla: [0,0,0,0,1,1,1,1,1,1,1,1,0,1,1,1],
+                mandible: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            }
+        },
+        {
+            id: 30,
+            description: 'Pacjent lat 25, zgłosił się w celu uzupełnienia braków zębowych w żuchwie. W wywiadzie podaje utratę siekaczy bocznych i kłów w wyniku urazu podczas uprawiania sportu.',
+            kennedyClass: 'IV',
+            missingTeeth: 'Żuchwa: 32, 33, 42, 43',
+            diagnosis: 'Braki zębowe w odcinku przednim żuchwy (klasa Kennedy IV)',
+            treatmentOptions: [
+                { id: 'a', text: 'Most tradycyjny', correct: true },
+                { id: 'b', text: 'Implanty z koronami protetycznymi', correct: true },
+                { id: 'c', text: 'Proteza szkieletowa', correct: true },
+                { id: 'd', text: 'Most adhezyjny', correct: true },
+            ],
+            modelDescription: 'Model gipsowy żuchwy ukazujący braki zębowe w odcinku przednim. Zachowane siekacze przyśrodkowe i zęby w odcinkach bocznych. Zanik wyrostka zębodołowego w miejscach braków. Zęby filarowe w dobrym stanie klinicznym.',
+            dentalStatus: {
+                maxilla: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                mandible: [1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1]
+            }
         }
     ];
 
@@ -1179,8 +1465,7 @@
         currentScreen: 'welcome', // welcome, exam, result
         settings: {
             showCorrectAnswer: true,
-            casesPerExam: 5,
-            difficultyLevel: 'medium'
+            casesPerExam: 5
         },
         examState: {
             cases: [],
@@ -1218,7 +1503,6 @@
         tabButtons: document.querySelectorAll('.tab'),
         dentalView: document.getElementById('dental-view'),
         descriptionView: document.getElementById('description-view'),
-        compactView: document.getElementById('compact-view'),
         caseDescription: document.getElementById('case-description'),
         showModelBtn: document.getElementById('show-model-btn'),
         modelDescription: document.getElementById('model-description'),
@@ -1228,7 +1512,6 @@
         feedback: document.getElementById('feedback'),
         checkAnswerBtn: document.getElementById('check-answer-btn'),
         nextCaseBtn: document.getElementById('next-case-btn'),
-        dentalChartCompact: document.getElementById('dental-chart-compact'),
 
         // Elementy ekranu wyników
         totalScore: document.getElementById('total-score'),
@@ -1250,7 +1533,6 @@
         // Ustawienia
         elements.showCorrectAnswer.addEventListener('change', updateSettings);
         elements.casesPerExam.addEventListener('change', updateSettings);
-        elements.difficultyLevel.addEventListener('change', updateSettings);
 
         // Przyciski ekranu egzaminu
         elements.showModelBtn.addEventListener('click', showModelDescription);
@@ -1263,7 +1545,7 @@
         elements.restartExamBtn.addEventListener('click', startExam);
         elements.printResults.addEventListener('click', printResultsPage);
 
-        // Taby dla widoku diagramu/opisu/kompaktowego
+        // Taby dla widoku diagramu/opisu
         elements.tabButtons.forEach(tab => {
             tab.addEventListener('click', () => {
                 const viewType = tab.getAttribute('data-view');
@@ -1281,8 +1563,6 @@
         if (currentCase) {
             // Przerysowanie diagramu zębowego jeśli szerokość ekranu się zmienia
             drawDentalDiagram(currentCase.dentalStatus);
-            // Aktualizacja widoku kompaktowego
-            updateCompactView(currentCase.dentalStatus);
         }
     }
 
@@ -1298,15 +1578,12 @@
         // Ukryj wszystkie widoki
         elements.dentalView.classList.add('hidden');
         elements.descriptionView.classList.add('hidden');
-        elements.compactView.classList.add('hidden');
 
         // Pokaż wybrany widok
         if (viewType === 'diagram') {
             elements.dentalView.classList.remove('hidden');
         } else if (viewType === 'description') {
             elements.descriptionView.classList.remove('hidden');
-        } else if (viewType === 'compact') {
-            elements.compactView.classList.remove('hidden');
         }
     }
 
@@ -1342,7 +1619,6 @@
     function updateSettings() {
         gameState.settings.showCorrectAnswer = elements.showCorrectAnswer.checked;
         gameState.settings.casesPerExam = parseInt(elements.casesPerExam.value);
-        gameState.settings.difficultyLevel = elements.difficultyLevel.value;
     }
 
     // Inicjalizacja egzaminu
@@ -1383,9 +1659,6 @@
         // Rysowanie diagramu zębowego
         drawDentalDiagram(currentCase.dentalStatus);
 
-        // Aktualizacja widoku kompaktowego
-        updateCompactView(currentCase.dentalStatus);
-
         // Załadowanie danych przypadku
         elements.caseDescription.textContent = currentCase.description;
         elements.missingTeeth.textContent = currentCase.missingTeeth;
@@ -1414,109 +1687,33 @@
         updateCheckButtonState();
     }
 
-    // Aktualizacja widoku kompaktowego
-    function updateCompactView(dentalStatus) {
-        const maxillaRow = document.createElement('div');
-        maxillaRow.className = 'dental-row';
-
-        const mandibleRow = document.createElement('div');
-        mandibleRow.className = 'dental-row';
-
-        const maxillaLabelRow = document.createElement('div');
-        maxillaLabelRow.className = 'dental-row';
-
-        const mandibleLabelRow = document.createElement('div');
-        mandibleLabelRow.className = 'dental-row';
-
-        // Tworzenie kompaktowego widoku dla szczęki
-        teethNames.maxilla.forEach((toothNumber, index) => {
-            // Komórka z numerem zęba
-            const labelCell = document.createElement('div');
-            labelCell.className = 'dental-cell';
-            labelCell.textContent = toothNumber;
-            labelCell.style.backgroundColor = '#f3f4f6';
-            labelCell.style.border = 'none';
-            maxillaLabelRow.appendChild(labelCell);
-
-            // Komórka ze statusem zęba
-            const cell = document.createElement('div');
-            cell.className = 'dental-cell';
-            const status = dentalStatus.maxilla[index];
-
-            if (status === 1) {
-                cell.className += ' dental-cell-present';
-                cell.textContent = '1';
-            } else if (status === 0) {
-                cell.className += ' dental-cell-missing';
-                cell.textContent = '0';
-            } else if (status === 2) {
-                cell.className += ' dental-cell-treated';
-                cell.textContent = '2';
-            }
-
-            maxillaRow.appendChild(cell);
-        });
-
-        // Tworzenie kompaktowego widoku dla żuchwy
-        teethNames.mandible.forEach((toothNumber, index) => {
-            // Komórka z numerem zęba
-            const labelCell = document.createElement('div');
-            labelCell.className = 'dental-cell';
-            labelCell.textContent = toothNumber;
-            labelCell.style.backgroundColor = '#f3f4f6';
-            labelCell.style.border = 'none';
-            mandibleLabelRow.appendChild(labelCell);
-
-            // Komórka ze statusem zęba
-            const cell = document.createElement('div');
-            cell.className = 'dental-cell';
-            const status = dentalStatus.mandible[index];
-
-            if (status === 1) {
-                cell.className += ' dental-cell-present';
-                cell.textContent = '1';
-            } else if (status === 0) {
-                cell.className += ' dental-cell-missing';
-                cell.textContent = '0';
-            } else if (status === 2) {
-                cell.className += ' dental-cell-treated';
-                cell.textContent = '2';
-            }
-
-            mandibleRow.appendChild(cell);
-        });
-
-        // Dodanie etykiet nad rzędami
-        const maxillaHeader = document.createElement('div');
-        maxillaHeader.className = 'dental-row';
-        maxillaHeader.innerHTML = '<div style="width:100%; text-align:center; font-weight:bold; margin-bottom:5px;">SZCZĘKA</div>';
-
-        const mandibleHeader = document.createElement('div');
-        mandibleHeader.className = 'dental-row';
-        mandibleHeader.innerHTML = '<div style="width:100%; text-align:center; font-weight:bold; margin:15px 0 5px;">ŻUCHWA</div>';
-
-        // Wyczyszczenie i dodanie nowych elementów
-        elements.dentalChartCompact.innerHTML = '';
-        elements.dentalChartCompact.appendChild(maxillaHeader);
-        elements.dentalChartCompact.appendChild(maxillaLabelRow);
-        elements.dentalChartCompact.appendChild(maxillaRow);
-        elements.dentalChartCompact.appendChild(mandibleHeader);
-        elements.dentalChartCompact.appendChild(mandibleLabelRow);
-        elements.dentalChartCompact.appendChild(mandibleRow);
-    }
+    // Usunięta funkcja updateCompactView - już nie jest potrzebna
 
     // Rysowanie diagramu zębowego SVG
     function drawDentalDiagram(dentalStatus) {
         const svg = elements.dentalDiagram;
         svg.innerHTML = '';
 
+        // Dynamiczne dostosowanie szerokości zębów w zależności od szerokości viewportu
+        const viewportWidth = Math.min(document.documentElement.clientWidth, 480);
+        const scaleFactor = viewportWidth < 400 ? viewportWidth / 400 : 1;
+
         // Zdefiniowanie wymiarów i położenia zębów
         const maxillaY = 40;
         const mandibleY = 150;
-        const toothWidth = 24;
-        const toothHeight = 28;
-        const gapBetween = 3;
-        const centralGap = 8;
+        const toothWidth = Math.max(16, Math.floor(24 * scaleFactor));
+        const toothHeight = Math.max(20, Math.floor(28 * scaleFactor));
+        const gapBetween = Math.max(1, Math.floor(3 * scaleFactor));
+        const centralGap = Math.max(4, Math.floor(8 * scaleFactor));
+
+        // Obliczenie całkowitej szerokości diagramu
+        const totalWidth = 16 * toothWidth + 15 * gapBetween + centralGap;
+
+        // Dostosowanie viewBox
+        svg.setAttribute('viewBox', `0 0 ${totalWidth} 220`);
+
+        // Obliczenie początkowego położenia X
+        const startX = (totalWidth - (8 * toothWidth + 7 * gapBetween + centralGap)) / 2;
 
         // Funkcja do konwersji indeksu na status zęba
         function getToothStatus(arch, index) {
@@ -1524,6 +1721,38 @@
             if (status === 0) return 'missing';
             if (status === 2) return 'treated';
             return 'present';
+        }
+
+        // Dodajemy tooltip pokazujący numer zęba
+        function addToothTooltip(group, toothNumber, status) {
+            group.onmouseover = function() {
+                const tooltipText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                tooltipText.setAttribute('x', parseFloat(group.firstChild.getAttribute('x')) + toothWidth/2);
+                tooltipText.setAttribute('y', parseFloat(group.firstChild.getAttribute('y')) - 5);
+                tooltipText.setAttribute('text-anchor', 'middle');
+                tooltipText.setAttribute('fill', '#1e40af');
+                tooltipText.setAttribute('font-weight', 'bold');
+                tooltipText.setAttribute('font-size', '12');
+                tooltipText.setAttribute('class', 'tooth-tooltip');
+                tooltipText.textContent = toothNumber + (status === 'missing' ? ' (brak)' : '');
+
+                svg.appendChild(tooltipText);
+
+                // Highlight zęba
+                group.firstChild.setAttribute('stroke-width', '2');
+                group.firstChild.setAttribute('stroke', '#1e40af');
+            };
+
+            group.onmouseout = function() {
+                const tooltips = svg.getElementsByClassName('tooth-tooltip');
+                while(tooltips.length > 0) {
+                    tooltips[0].parentNode.removeChild(tooltips[0]);
+                }
+
+                // Przywrócenie normalnego wyglądu
+                group.firstChild.setAttribute('stroke-width', '1');
+                group.firstChild.setAttribute('stroke', '#000000');
+            };
         }
 
         // Funkcja do rysowania zęba
@@ -1556,45 +1785,55 @@
             group.appendChild(tooth);
             group.appendChild(text);
             svg.appendChild(group);
+
+            // Dodanie interaktywnego tooltipa
+            addToothTooltip(group, toothNumber, status);
         }
 
-        // Rysowanie szczęki (górny łuk)
-        // Prawa strona
-        let x = 240 + centralGap / 2;
-        for (let i = 0; i < 8; i++) {
+        // Prawna strona szczęki (zęby 18-11)
+        const maxillaCenterX = totalWidth / 2;
+        let x = maxillaCenterX - centralGap / 2;
+
+        // Iterujemy od zęba 11 do 18 (7 indeks do 0 indeksu)
+        for (let i = 7; i >= 0; i--) {
+            x -= (toothWidth + gapBetween);
+            const toothNumber = teethNames.maxilla[i];
+            drawTooth(x + gapBetween, maxillaY, toothNumber, getToothStatus('maxilla', i));
+        }
+
+        // Lewa strona szczęki (zęby 21-28)
+        x = maxillaCenterX + centralGap / 2;
+
+        // Iterujemy od zęba 21 do 28 (8 indeks do 15 indeksu)
+        for (let i = 8; i < 16; i++) {
             const toothNumber = teethNames.maxilla[i];
             drawTooth(x, maxillaY, toothNumber, getToothStatus('maxilla', i));
             x += toothWidth + gapBetween;
         }
 
-        // Lewa strona
-        x = 240 - centralGap / 2 - toothWidth;
-        for (let i = 8; i < 16; i++) {
-            const toothNumber = teethNames.maxilla[i];
-            drawTooth(x, maxillaY, toothNumber, getToothStatus('maxilla', i));
+        // Prawa strona żuchwy (zęby 48-41)
+        x = maxillaCenterX - centralGap / 2;
+
+        // Iterujemy od zęba 41 do 48 (7 indeks do 0 indeksu)
+        for (let i = 7; i >= 0; i--) {
             x -= (toothWidth + gapBetween);
+            const toothNumber = teethNames.mandible[i];
+            drawTooth(x + gapBetween, mandibleY, toothNumber, getToothStatus('mandible', i));
         }
 
-        // Rysowanie żuchwy (dolny łuk)
-        // Prawa strona
-        x = 240 + centralGap / 2;
-        for (let i = 0; i < 8; i++) {
+        // Lewa strona żuchwy (zęby 31-38)
+        x = maxillaCenterX + centralGap / 2;
+
+        // Iterujemy od zęba 31 do 38 (8 indeks do 15 indeksu)
+        for (let i = 8; i < 16; i++) {
             const toothNumber = teethNames.mandible[i];
             drawTooth(x, mandibleY, toothNumber, getToothStatus('mandible', i));
             x += toothWidth + gapBetween;
-        }
-
-        // Lewa strona
-        x = 240 - centralGap / 2 - toothWidth;
-        for (let i = 8; i < 16; i++) {
-            const toothNumber = teethNames.mandible[i];
-            drawTooth(x, mandibleY, toothNumber, getToothStatus('mandible', i));
-            x -= (toothWidth + gapBetween);
         }
 
         // Dodanie etykiet
         const maxillaLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        maxillaLabel.setAttribute('x', 240);
+        maxillaLabel.setAttribute('x', totalWidth / 2);
         maxillaLabel.setAttribute('y', maxillaY - 10);
         maxillaLabel.setAttribute('text-anchor', 'middle');
         maxillaLabel.setAttribute('font-weight', 'bold');
@@ -1602,7 +1841,7 @@
         svg.appendChild(maxillaLabel);
 
         const mandibleLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        mandibleLabel.setAttribute('x', 240);
+        mandibleLabel.setAttribute('x', totalWidth / 2);
         mandibleLabel.setAttribute('y', mandibleY - 10);
         mandibleLabel.setAttribute('text-anchor', 'middle');
         mandibleLabel.setAttribute('font-weight', 'bold');
@@ -1653,6 +1892,10 @@
         } else {
             gameState.examState.selectedOptions.push(optionId);
             optionElement.classList.add('selected');
+            optionElement.classList.add('highlight-animation');
+            setTimeout(() => {
+                optionElement.classList.remove('highlight-animation');
+            }, 2000);
             checkbox.checked = true;
         }
 
@@ -1674,6 +1917,10 @@
     function showModelDescription() {
         elements.modelDescription.classList.remove('hidden');
         elements.showModelBtn.classList.add('hidden');
+        elements.modelDescription.classList.add('highlight-animation');
+        setTimeout(() => {
+            elements.modelDescription.classList.remove('highlight-animation');
+        }, 2000);
         gameState.examState.showModelDescription = true;
     }
 
@@ -1742,6 +1989,7 @@
         // Pokazanie przycisku do następnego przypadku
         elements.checkAnswerBtn.classList.add('hidden');
         elements.nextCaseBtn.classList.remove('hidden');
+        elements.nextCaseBtn.classList.add('pulse-animation');
 
         // Aktualizacja nagłówka z wynikiem
         const totalCases = gameState.examState.cases.length;
