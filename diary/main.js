@@ -16,6 +16,9 @@ class StoryGame {
         this.imageData = [];
         this.musicPlaying = false;
 
+        // Dodajemy właściwość dla aktualnej podróży
+        this.currentTravelId = 1; // Domyślnie pierwsza podróż
+
         // Elementy DOM
         this.gameContent = document.getElementById('gameContent');
         this.startBtn = document.getElementById('startBtn');
@@ -31,7 +34,7 @@ class StoryGame {
         this.init();
     }
 
-    init() {
+    async init() {
         // Załaduj dane obrazów z CSV
         this.loadImageData();
 
@@ -43,6 +46,9 @@ class StoryGame {
 
         // Stwórz wskaźnik emocji
         this.createEmotionIndicator();
+
+        // Dodaj selektor podróży do ekranu startowego
+        this.createTravelSelector();
 
         // Przypisanie zdarzeń do elementów
         this.startBtn.addEventListener('click', () => {
@@ -61,6 +67,143 @@ class StoryGame {
                 this.closeDiary();
             }
         });
+
+        // Zapisz instancję gry jako zmienną globalną (dla funkcji przełączania podróży)
+        window.game = this;
+    }
+
+// Poprawiona metoda do tworzenia selektora podróży
+    createTravelSelector() {
+        // Utwórz kontener dla selektora podróży
+        const travelSelectorContainer = document.createElement('div');
+        travelSelectorContainer.className = 'travel-selector';
+        travelSelectorContainer.innerHTML = '<h3>Wybierz podróż:</h3>';
+
+        // Utwórz listę podróży
+        const travelList = document.createElement('div');
+        travelList.className = 'travel-options';
+
+        // Dodaj każdą podróż jako opcję
+        window.travelsConfig.forEach(travel => {
+            const travelOption = document.createElement('div');
+            travelOption.className = 'travel-option';
+            travelOption.innerHTML = `
+            <h4>${travel.name}</h4>
+            <p>${travel.description}</p>
+        `;
+
+            // Dodaj klasę 'active' do domyślnie wybranej podróży
+            if (travel.id === this.currentTravelId) {
+                travelOption.classList.add('active');
+            }
+
+            // Dodaj handler kliknięcia do wyboru tej podróży
+            travelOption.addEventListener('click', () => {
+                // Usunięcie klasy 'active' ze wszystkich opcji
+                document.querySelectorAll('.travel-option').forEach(option => {
+                    option.classList.remove('active');
+                });
+
+                // Dodanie klasy 'active' do wybranej opcji
+                travelOption.classList.add('active');
+
+                // Ustawienie ID wybranej podróży
+                this.currentTravelId = travel.id;
+
+                // Zaktualizuj tytuł i podtytuł na podstawie wybranej podróży
+                const titleElement = document.querySelector('.game-title');
+                const subtitleElement = document.querySelector('.subtitle');
+
+                if (titleElement) {
+                    titleElement.textContent = travel.name;
+                }
+
+                if (subtitleElement) {
+                    subtitleElement.textContent = travel.description;
+                }
+            });
+
+            travelList.appendChild(travelOption);
+        });
+
+        travelSelectorContainer.appendChild(travelList);
+
+        // Dodaj selektor do ekranu startowego - POPRAWIONE
+        const startScreen = document.querySelector('.start-screen');
+        if (startScreen) {
+            // Znajdź element, przed którym chcemy wstawić selektor podróży
+            // Zamiast odniesienia do this.startBtn.parentNode, szukamy konkretnego elementu
+            const startButtonContainer = startScreen.querySelector('.start-button-container') ||
+                startScreen.querySelector('button') ||
+                null;
+
+            if (startButtonContainer) {
+                // Jeśli znaleźliśmy przycisk lub jego kontener, wstawiamy selektor przed nim
+                startScreen.insertBefore(travelSelectorContainer, startButtonContainer);
+            } else {
+                // Jeśli nie znaleźliśmy przycisku, po prostu dodajemy na końcu
+                startScreen.appendChild(travelSelectorContainer);
+            }
+        } else {
+            console.error("Element .start-screen nie został znaleziony w DOM");
+        }
+
+        // Dodaj style dla selektora podróży
+        const style = document.createElement('style');
+        style.textContent = `
+        .travel-selector {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .travel-selector h3 {
+            font-family: 'Playfair Display', serif;
+            color: var(--header-color);
+            margin-bottom: 1rem;
+        }
+        
+        .travel-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 0 auto;
+            max-width: 400px;
+        }
+        
+        .travel-option {
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .travel-option:hover {
+            background-color: var(--highlight);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .travel-option.active {
+            background-color: var(--soft-pink);
+            border: 1px solid var(--dark-accent);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .travel-option h4 {
+            font-family: 'Playfair Display', serif;
+            color: var(--dark-accent);
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .travel-option p {
+            font-size: 0.9rem;
+            margin: 0;
+            color: var(--text-color);
+        }
+    `;
+        document.head.appendChild(style);
     }
 
     // Metoda włączająca muzykę w tle
@@ -126,7 +269,7 @@ class StoryGame {
     }
 
     // Metoda parsująca dane CSV
-// Alternatywne rozwiązanie - poprawiona metoda parseImageCSV
+    // Alternatywne rozwiązanie - poprawiona metoda parseImageCSV
     parseImageCSV(csvData) {
         const lines = csvData.trim().split('\n');
         const headers = lines[0].split(',').map(header => header.trim()); // Usunięcie białych znaków z nagłówków
@@ -156,10 +299,41 @@ class StoryGame {
         }
     }
 
-    // Metoda uruchamiająca grę
-    startGame() {
-        document.querySelector('.start-screen').style.display = 'none';
-        this.loadScene('intro');
+// Poprawiona metoda uruchamiająca grę
+
+// Zaktualizowana metoda startGame w klasie StoryGame
+    async startGame() {
+        // Załaduj sceny dla wybranej podróży
+        const success = await window.initGameWithTravel(this.currentTravelId);
+
+        if (success) {
+            document.querySelector('.start-screen').style.display = 'none';
+
+            // Resetujemy stan gry przy każdym rozpoczęciu
+            this.gameState = {
+                emotions: {
+                    melancholy: 0,
+                    hope: 0,
+                    love: 0,
+                    courage: 0
+                },
+                variables: {},
+                visitedScenes: []
+            };
+
+            // Aktualizacja wskaźników emocji
+            this.updateEmotionIndicator();
+
+            // Dodaj logowanie dla debugowania
+            console.log("Rozpoczynam grę z podróżą ID:", this.currentTravelId);
+
+            // Ważne - używamy wprowadzanego prefiksu do ID sceny
+            // Ładujemy odpowiednią scenę intro dla wybranej podróży
+            this.loadScene(`travel${this.currentTravelId}_intro`);
+        } else {
+            console.error("Nie udało się załadować scen dla wybranej podróży.");
+            alert("Wystąpił problem z ładowaniem gry. Odśwież stronę i spróbuj ponownie.");
+        }
     }
 
     // Metoda ładująca scenę
@@ -170,11 +344,14 @@ class StoryGame {
         }
 
         // Pobierz dane sceny
-        const scene = scenesData[sceneId];
+        const scene = window.scenesData[sceneId];
         if (!scene) {
-            console.error(`Scena o ID ${sceneId} nie została znaleziona.`);
+            console.error(`Scena o ID ${sceneId} nie została znaleziona w aktualnych danych:`, window.scenesData);
             return;
         }
+
+        // Dodajemy logowanie dla debugowania
+        console.log(`Ładowanie sceny: ${sceneId}`, scene);
 
         // Ustaw aktualną scenę
         this.currentScene = scene;
@@ -324,7 +501,7 @@ class StoryGame {
     }
 
     // Metoda pobierająca dane obrazu z CSV
-// Poprawiona metoda getImageData w klasie StoryGame
+    // Poprawiona metoda getImageData w klasie StoryGame
     getImageData(filename) {
         const imageData = this.imageData.find(img => img.filename === filename);
         if (!imageData) {

@@ -1,4 +1,156 @@
+// Funkcje ładujące sceny z wybranej podróży
+// --------------------------------------------------------------
+
+// Zaktualizowana funkcja loadScenesFromTravel
+async function loadScenesFromTravel(travelId) {
+    // Znajdź konfigurację podróży o podanym ID
+    const travel = window.travelsConfig.find(t => t.id === travelId);
+
+    if (!travel) {
+        console.error(`Podróż o ID ${travelId} nie została znaleziona.`);
+        return null;
+    }
+
+    try {
+        // Obiekt do przechowywania wszystkich załadowanych scen
+        let allScenes = {};
+
+        // Ładuj i łącz wszystkie pliki JSON dla wybranej podróży
+        for (const file of travel.files) {
+            console.log(`Ładowanie pliku: ${travel.path}/${file}`);
+            const response = await fetch(`${travel.path}/${file}`);
+
+            if (!response.ok) {
+                throw new Error(`Błąd ładowania pliku ${file}: ${response.status}`);
+            }
+
+            // Pobierz zawartość jako tekst zamiast bezpośrednio parsować jako JSON
+            const text = await response.text();
+
+            // Usuń komentarze (// ...) przed parsowaniem
+            const cleanedText = text.replace(/\/\/.*$/gm, '');
+
+            try {
+                // Parsuj oczyszczony tekst jako JSON
+                const scenesData = JSON.parse(cleanedText);
+
+                // Dodaj prefiks do ID scen, aby były unikalne dla każdej podróży
+                // Nie modyfikujemy oryginalnych plików JSON
+                const prefixedScenes = {};
+
+                // Dla każdej sceny w pliku, utwórz nowy klucz z prefiksem podróży
+                Object.keys(scenesData).forEach(sceneId => {
+                    const scene = scenesData[sceneId];
+
+                    // Dodaj prefiks do ID sceny
+                    const prefixedSceneId = `travel${travelId}_${sceneId}`;
+
+                    // Skopiuj scenę i zaktualizuj odniesienia do innych scen
+                    const updatedScene = { ...scene };
+
+                    // Zaktualizuj odniesienia w wyborach
+                    if (updatedScene.choices && updatedScene.choices.length > 0) {
+                        updatedScene.choices = updatedScene.choices.map(choice => {
+                            return {
+                                ...choice,
+                                // Dodaj prefiks do ID następnej sceny
+                                nextScene: `travel${travelId}_${choice.nextScene}`
+                            };
+                        });
+                    }
+
+                    // Dodaj zaktualizowaną scenę do kolekcji
+                    prefixedScenes[prefixedSceneId] = updatedScene;
+                });
+
+                // Połącz zaktualizowane sceny z głównym obiektem
+                allScenes = { ...allScenes, ...prefixedScenes };
+            } catch (parseError) {
+                console.error(`Błąd parsowania pliku ${file}:`, parseError);
+                throw parseError;
+            }
+        }
+
+        console.log(`Podróż "${travel.name}" załadowana pomyślnie.`);
+        return allScenes;
+    } catch (error) {
+        console.error(`Nie udało się załadować podróży: ${error}`);
+        return null;
+    }
+}
+
+// Funkcja inicjalizująca grę z wybraną podróżą
+async function initGameWithTravel(travelId = 1) {
+    try {
+        // Załaduj sceny z wybranej podróży
+        const scenes = await loadScenesFromTravel(travelId);
+
+        if (scenes) {
+            // Ważne: Wyraźnie czyścimy i ustawiamy globalną zmienną scenesData
+            window.scenesData = {};
+            window.scenesData = scenes;
+
+            // Dodajemy logowanie dla debugowania
+            console.log("Ustawiono nowe sceny dla podróży ID:", travelId);
+            console.log("Zawartość scenesData:", window.scenesData);
+
+            // Zaktualizuj tytuł i podtytuł gry na podstawie wybranej podróży
+            const travel = window.travelsConfig.find(t => t.id === travelId);
+            if (travel) {
+                const titleElement = document.querySelector('.game-title');
+                const subtitleElement = document.querySelector('.subtitle');
+
+                if (titleElement) titleElement.textContent = travel.name;
+                if (subtitleElement) subtitleElement.textContent = travel.description;
+            }
+
+            console.log("Sceny załadowane pomyślnie, inicjalizacja gry...");
+            return true;
+        } else {
+            // Jeśli nie udało się załadować scen z JSON, spróbuj załadować z scenes.js
+            console.warn("Nie udało się załadować scen z JSON, korzystam z scenes.js jako zapasowego źródła.");
+            return false;
+        }
+    } catch (error) {
+        console.error("Błąd podczas inicjalizacji gry:", error);
+        return false;
+    }
+}
+
+// Funkcja zmieniająca aktualną podróż
+async function switchTravel(travelId) {
+    const success = await initGameWithTravel(travelId);
+
+    if (success) {
+        // Stwórz nową instancję gry lub zresetuj istniejącą
+        if (window.game) {
+            // Zresetuj stan gry
+            window.game.gameState = {
+                emotions: {
+                    melancholy: 0,
+                    hope: 0,
+                    love: 0,
+                    courage: 0
+                },
+                variables: {},
+                visitedScenes: []
+            };
+
+            // Załaduj scenę początkową nowej podróży
+            window.game.loadScene('intro');
+        } else {
+            console.error("Obiekt gry nie istnieje, nie można przełączyć podróży.");
+        }
+    }
+}
+
+// Eksportuj funkcje
+window.loadScenesFromTravel = loadScenesFromTravel;
+window.initGameWithTravel = initGameWithTravel;
+window.switchTravel = switchTravel;
+
 // Klasa ładująca i obsługująca dane gry
+// --------------------------------------------------------------
 class StoryLoader {
     constructor() {
         this.scenesData = null;
@@ -8,15 +160,35 @@ class StoryLoader {
         this.dataLoaded = false;
         this.scenesLoaded = false;
         this.imagesDataLoaded = false;
+
+        // Dodajemy właściwość dla określenia aktualnej podróży
+        this.currentTravelId = 1; // Domyślnie pierwsza podróż
     }
 
     // Inicjalizacja procesu ładowania
-    init() {
+    async init() {
         // Stwórz element ładowania
         this.createLoadingElement();
 
-        // Sprawdź czy dane scen są już dostępne
-        this.checkIfDataIsReady();
+        try {
+            // Próba załadowania scen z wybranej podróży
+            const scenes = await loadScenesFromTravel(this.currentTravelId);
+
+            if (scenes) {
+                // Ustaw globalną zmienną scenesData
+                window.scenesData = scenes;
+                this.scenesLoaded = true;
+                this.updateStatus("Wczytywanie danych obrazów...");
+                this.checkImagesDataLoaded();
+            } else {
+                // Jeśli nie udało się załadować z JSON, sprawdź tradycyjny sposób
+                this.checkIfDataIsReady();
+            }
+        } catch (error) {
+            console.error("Błąd podczas ładowania podróży:", error);
+            // Powrót do tradycyjnego sprawdzania
+            this.checkIfDataIsReady();
+        }
     }
 
     // Tworzenie elementu ładowania z motylami
@@ -240,7 +412,7 @@ class StoryLoader {
 
     // Sprawdza czy dane są już załadowane
     checkIfDataIsReady() {
-        // Sprawdź czy obiekt scenesData jest dostępny (został wczytany z scenes.js)
+        // Sprawdź czy obiekt scenesData jest dostępny (został wczytany z 2.json)
         if (typeof scenesData !== 'undefined' && scenesData) {
             this.scenesLoaded = true;
             this.updateStatus("Wczytywanie danych obrazów...");

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drzewko Wyborów - Odcienie Uczuć</title>
+    <title>Drzewko Wyborów</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,6 +11,7 @@
             padding: 0;
             background-color: #f8f9fa;
             color: #333;
+            overflow: hidden; /* Prevent overall body scrolling */
         }
 
         .container {
@@ -20,12 +21,12 @@
         }
 
         .sidebar {
-            width: 300px;
+            width: 350px; /* Increased width from 300px to 350px */
             background: #fff;
             border-right: 1px solid #e5e7eb;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-y: auto; /* Make the entire sidebar scrollable */
             box-shadow: 2px 0 5px rgba(0,0,0,0.05);
         }
 
@@ -38,6 +39,10 @@
         .header {
             padding: 20px;
             border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
 
         h1 {
@@ -46,12 +51,49 @@
             color: #374151;
         }
 
+        .travel-selector {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 60px;
+            z-index: 19;
+        }
+
+        .travel-selector h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: #4b5563;
+        }
+
+        .travel-option {
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .travel-option:hover {
+            background: #e5e7eb;
+        }
+
+        .travel-option.active {
+            background: #d1d5db;
+            font-weight: 600;
+        }
+
         .controls {
             padding: 10px 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 130px;
+            z-index: 18;
         }
 
         button {
@@ -77,6 +119,10 @@
             display: flex;
             padding: 10px 20px;
             border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 180px;
+            z-index: 17;
         }
 
         .layout-option {
@@ -100,6 +146,10 @@
         .search-box {
             padding: 10px 20px;
             border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 230px;
+            z-index: 16;
         }
 
         .search-box input {
@@ -110,10 +160,20 @@
             box-sizing: border-box;
         }
 
-        .scene-info {
+        .scene-info-container {
             flex: 1;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: auto; /* Make this container scrollable */
+            margin-bottom: 10px; /* Space between info and statistics */
+            min-height: 400px; /* Set minimum height */
+            max-height: calc(100vh - 330px); /* Ensure there's room for the stats */
+        }
+
+        .scene-info {
             padding: 20px;
+            display: flex;
+            flex-direction: column;
         }
 
         .scene-info h3 {
@@ -121,6 +181,10 @@
             color: #374151;
             border-bottom: 1px solid #e5e7eb;
             padding-bottom: 10px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
         }
 
         .quote {
@@ -133,8 +197,21 @@
             border-radius: 0 4px 4px 0;
         }
 
+        .text {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
         .choices {
             margin-top: 20px;
+            margin-bottom: 20px; /* Added margin bottom */
+            padding-bottom: 10px; /* Extra padding at bottom */
+        }
+
+        .choices h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #4b5563;
         }
 
         .choice-item {
@@ -152,14 +229,19 @@
         }
 
         .statistics {
-            padding: 10px 20px;
+            padding: 15px 20px;
             background: #f3f4f6;
             border-top: 1px solid #e5e7eb;
             font-size: 0.9rem;
+            flex-shrink: 0; /* Prevent statistics from shrinking */
+            position: sticky;
+            bottom: 0;
+            z-index: 15;
         }
 
         .statistics h3 {
             margin-top: 0;
+            margin-bottom: 10px;
             font-size: 1rem;
             color: #374151;
         }
@@ -168,6 +250,35 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 5px;
+        }
+
+        /* Status ładowania */
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 30px;
+            height: 30px;
+            margin: 0 auto 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* Stylowanie grafu */
@@ -185,6 +296,22 @@
             fill: none;
             stroke-width: 1.5px;
             stroke: #d1d5db;
+        }
+
+        /* Cross-path styling */
+        .link.cross-path, .cross-path-connection {
+            stroke-dasharray: 8, 4;
+            stroke: #ff5500;
+            stroke-width: 3px;
+            stroke-opacity: 1;
+            pointer-events: all; /* Enable interactions with the line */
+            cursor: pointer; /* Show pointer cursor */
+        }
+
+        /* Cross-path arrow styling */
+        .cross-path-arrow {
+            fill: #ff5500;
+            stroke: none;
         }
 
         /* Custom tooltip styles */
@@ -291,7 +418,12 @@
 <div class="container">
     <div class="sidebar">
         <div class="header">
-            <h1>Drzewko Wyborów - Odcienie Uczuć</h1>
+            <h1 id="travelTitle">Drzewko Wyborów</h1>
+        </div>
+
+        <div class="travel-selector">
+            <h3>Wybierz podróż:</h3>
+            <div id="travel-options"></div>
         </div>
 
         <div class="controls">
@@ -311,9 +443,11 @@
             <input type="text" id="searchInput" placeholder="Szukaj sceny...">
         </div>
 
-        <div class="scene-info">
-            <h3>Wybierz scenę, aby zobaczyć szczegóły</h3>
-            <p>Kliknij węzeł na grafie, aby wyświetlić informacje o danej scenie.</p>
+        <div class="scene-info-container">
+            <div class="scene-info">
+                <h3>Wybierz scenę, aby zobaczyć szczegóły</h3>
+                <p>Kliknij węzeł na grafie, aby wyświetlić informacje o danej scenie.</p>
+            </div>
         </div>
 
         <div class="statistics">
@@ -334,6 +468,10 @@
                 <span>Martwe końce:</span>
                 <span id="deadEnds">0</span>
             </div>
+            <div class="stat-item">
+                <span>Połączenia między ścieżkami:</span>
+                <span id="crossPathLinks">0</span>
+            </div>
         </div>
     </div>
 
@@ -344,77 +482,18 @@
             <div class="tooltip-quote"></div>
         </div>
         <div class="mode-indicator">Tryb: Drzewo</div>
+        <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Ładowanie danych...</p>
+        </div>
     </div>
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
-<!-- Definiujemy scenesData jeśli plik scenes.js nie zostanie załadowany -->
+<!-- Add script to load travels configuration -->
+<script src="travels.js"></script>
 <script>
-    // Definiujemy podstawowe dane scenesData jeśli nie zostały załadowane
-    if (typeof scenesData === 'undefined') {
-        console.log("Tworzenie tymczasowych danych scenesData...");
-        window.scenesData = {
-            "intro": {
-                "text": "<p>Budzisz się w swoim pokoju, promienie słońca nieśmiało zaglądają przez żaluzje.</p>",
-                "quote": "Czasem myślę, że życie to zbiór małych momentów...",
-                "choices": [
-                    {
-                        "text": "Otwórz pamiętnik i przeczytaj dawne zapiski",
-                        "nextScene": "pamietnik"
-                    },
-                    {
-                        "text": "Wyjdź na balkon i poczuj świeże powietrze",
-                        "nextScene": "balkon"
-                    }
-                ]
-            },
-            "pamietnik": {
-                "text": "<p>Siadasz na łóżku i otwierasz zakurzony pamiętnik.</p>",
-                "quote": "Miłość nie ginie, tylko zmienia kształt...",
-                "choices": [
-                    {
-                        "text": "Wspominaj dobre chwile",
-                        "nextScene": "dobre_wspomnienia"
-                    }
-                ]
-            },
-            "balkon": {
-                "text": "<p>Wychodzisz na balkon i głęboko oddychasz.</p>",
-                "quote": "Najpiękniejsze chwile przychodzą niespodziewanie...",
-                "choices": [
-                    {
-                        "text": "Postanów, że poznasz nowego sąsiada",
-                        "nextScene": "nowy_sasiad"
-                    }
-                ]
-            },
-            "dobre_wspomnienia": {
-                "text": "<p>Wspominasz dobre chwile z przeszłości...</p>",
-                "quote": "Wszystko, co kochaliśmy, staje się częścią nas...",
-                "choices": [
-                    {
-                        "text": "Rozpocznij historię od nowa",
-                        "nextScene": "intro"
-                    }
-                ]
-            },
-            "nowy_sasiad": {
-                "text": "<p>Poznajesz nowego sąsiada...</p>",
-                "quote": "Czasem wystarczy jedno spotkanie...",
-                "choices": [
-                    {
-                        "text": "Rozpocznij historię od nowa",
-                        "nextScene": "intro"
-                    }
-                ]
-            }
-        };
-    }
-</script>
-<!-- Próbujemy załadować scenes.js, ale mamy już fallback -->
-<script src="scenes.js"></script>
-<script>
-    // Zmienne globalne
+    // Globalne zmienne
     let svg, g;
     let zoom;
     let root;
@@ -424,6 +503,9 @@
     let currentLayout = 'tree';
     let labelMode = 'tooltip'; // 'tooltip', 'visible', 'hover'
     let selectedNode = null;
+    let currentTravelId = 1; // Domyślnie pierwsza podróż
+    let scenesData = {}; // Dane wszystkich scen
+    let crossPathLinks = []; // Lista połączeń między ścieżkami
 
     // Kolory dla różnych typów węzłów
     const nodeColors = {
@@ -459,29 +541,361 @@
         // Grupa do której będziemy dodawać elementy
         g = svg.append("g");
 
-        // Tworzymy hierarchię danych
-        root = processData('tree');
-
-        // Wykrywamy martwe końce
-        detectDeadEnds(root);
-
-        // Obliczamy statystyki
-        calculateStatistics(root);
-
-        // Renderujemy drzewo
-        renderGraph();
+        // Inicjalizacja selektora podróży
+        initTravelSelector();
 
         // Dodajemy obsługę przycisków i innych interakcji
         setupInteractions();
 
-        // Ustawiamy początkowy widok
-        resetView();
+        // Ładujemy dane dla domyślnej podróży
+        loadTravelData(currentTravelId);
+    }
 
-        // Wyświetlamy informacje o scenie początkowej
-        displaySceneInfo('intro');
+    // Inicjalizacja selektora podróży
+    function initTravelSelector() {
+        const travelOptionsContainer = document.getElementById('travel-options');
+        travelOptionsContainer.innerHTML = ''; // Wyczyść kontener
 
-        // Zaznaczamy węzeł początkowy jako wybrany
-        d3.selectAll(".node").filter(d => d.data.id === 'intro').classed("selected", true);
+        // Dodaj opcje podróży
+        window.travelsConfig.forEach(travel => {
+            const option = document.createElement('div');
+            option.className = 'travel-option' + (travel.id === currentTravelId ? ' active' : '');
+            option.textContent = travel.name;
+            option.setAttribute('data-travel-id', travel.id);
+
+            option.addEventListener('click', function() {
+                // Usuń klasę active ze wszystkich opcji
+                document.querySelectorAll('.travel-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+
+                // Dodaj klasę active do wybranej opcji
+                this.classList.add('active');
+
+                // Załaduj dane dla wybranej podróży
+                currentTravelId = parseInt(this.getAttribute('data-travel-id'));
+                loadTravelData(currentTravelId);
+            });
+
+            travelOptionsContainer.appendChild(option);
+        });
+    }
+
+    // Ładowanie danych JSON dla wybranej podróży
+    async function loadTravelData(travelId) {
+        // Pokaż wskaźnik ładowania
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        loadingIndicator.style.display = 'block';
+
+        try {
+            // Make sure travelsConfig exists
+            if (!window.travelsConfig || !Array.isArray(window.travelsConfig)) {
+                throw new Error("Konfiguracja podróży niedostępna. Upewnij się, że plik travels.js jest poprawnie załadowany.");
+            }
+
+            // Znajdź konfigurację podróży
+            const travel = window.travelsConfig.find(t => t.id === travelId);
+            if (!travel) {
+                throw new Error(`Podróż o ID ${travelId} nie została znaleziona.`);
+            }
+
+            // Aktualizuj tytuł strony i nagłówek
+            document.title = `Drzewko Wyborów - ${travel.name}`;
+            document.getElementById('travelTitle').textContent = `Drzewko Wyborów - ${travel.name}`;
+
+            // Resetujemy dane scen
+            scenesData = {};
+
+            // Defensive check for travel files
+            if (!travel.files || !Array.isArray(travel.files) || travel.files.length === 0) {
+                throw new Error(`Brak plików do załadowania dla podróży "${travel.name}"`);
+            }
+
+            // Ładujemy wszystkie pliki JSON dla wybranej podróży
+            for (const file of travel.files) {
+                try {
+                    const response = await fetch(`${travel.path}/${file}`);
+                    if (!response.ok) {
+                        throw new Error(`Błąd ładowania pliku ${file}: ${response.status}`);
+                    }
+
+                    // Pobierz tekst i usuń komentarze
+                    const text = await response.text();
+                    const cleanedText = text.replace(/\/\/.*$/gm, '');
+
+                    try {
+                        // Parsuj oczyszczony tekst jako JSON
+                        const fileData = JSON.parse(cleanedText);
+
+                        // Dodaj do głównego obiektu scen z prefiksem
+                        Object.keys(fileData).forEach(sceneId => {
+                            const prefixedSceneId = `travel${travelId}_${sceneId}`;
+                            const scene = { ...fileData[sceneId] };
+
+                            // Aktualizacja odniesień w wyborach
+                            if (scene.choices && scene.choices.length > 0) {
+                                scene.choices = scene.choices.map(choice => {
+                                    return {
+                                        ...choice,
+                                        nextScene: `travel${travelId}_${choice.nextScene}`
+                                    };
+                                });
+                            }
+
+                            scenesData[prefixedSceneId] = scene;
+                        });
+                    } catch (parseError) {
+                        console.error(`Błąd parsowania pliku ${file}:`, parseError);
+                        throw new Error(`Błąd parsowania pliku ${file}: ${parseError.message}`);
+                    }
+                } catch (fetchError) {
+                    console.error(`Błąd pobierania pliku ${file}:`, fetchError);
+                    throw new Error(`Błąd pobierania pliku ${file}: ${fetchError.message}`);
+                }
+            }
+
+            // Verify that scenesData has content
+            if (Object.keys(scenesData).length === 0) {
+                throw new Error("Nie załadowano żadnych danych scen. Sprawdź pliki JSON.");
+            }
+
+            // Przetwórz dane i renderuj graf
+            root = processData(currentLayout);
+
+            // Wykrywamy martwe końce i połączenia między ścieżkami
+            detectDeadEnds(root);
+            detectCrossPathLinks(root);
+
+            // Obliczamy statystyki
+            calculateStatistics(root);
+
+            // Renderujemy drzewo
+            renderGraph();
+
+            // Wyświetlamy informacje o scenie początkowej
+            displaySceneInfo(`travel${travelId}_intro`);
+
+            // Zaznaczamy węzeł początkowy jako wybrany
+            d3.selectAll(".node").filter(d => d.data.id === `travel${travelId}_intro`).classed("selected", true);
+
+            // Resetujemy widok
+            resetView();
+
+            console.log(`Podróż ${travel.name} (ID: ${travelId}) załadowana pomyślnie.`);
+        } catch (error) {
+            console.error(`Błąd podczas ładowania danych podróży:`, error);
+            // Wyświetl informację o błędzie
+            const infoPanel = document.querySelector('.scene-info');
+            infoPanel.innerHTML = `
+            <h3 style="color: #ef4444;">⚠️ Błąd ładowania</h3>
+            <div class="quote" style="color: #ef4444; background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+                "Nie udało się załadować danych dla wybranej podróży. Sprawdź czy pliki JSON istnieją w podanej ścieżce."
+            </div>
+            <div class="text" style="margin-top: 15px; padding: 10px; background-color: rgba(239, 68, 68, 0.05); border-radius: 4px;">
+                <strong>Błąd:</strong> ${error.message}
+            </div>
+        `;
+        } finally {
+            // Ukryj wskaźnik ładowania
+            loadingIndicator.style.display = 'none';
+        }
+    }
+
+    // Bezpośrednie wykrywanie połączeń cross-path
+    function checkForCrossPathConnections() {
+        console.log("DEBUGGING: Starting direct cross-path connection check");
+        crossPathLinks = []; // Reset the array
+
+        // Defensive programming: check if scenesData is properly loaded
+        if (!scenesData || Object.keys(scenesData).length === 0) {
+            console.error("No scene data available for cross-path detection");
+            return;
+        }
+
+        // Dla każdej sceny w bieżącej podróży, sprawdź wszystkie wybory
+        const travelPrefix = `travel${currentTravelId}_`;
+
+        Object.entries(scenesData).forEach(([sceneId, scene]) => {
+            // Sprawdź tylko sceny z bieżącej podróży
+            if (!sceneId.startsWith(travelPrefix)) return;
+
+            // Jeśli scena ma wybory
+            if (scene.choices && scene.choices.length > 0) {
+                scene.choices.forEach(choice => {
+                    // Defensive check for choice structure
+                    if (!choice || !choice.nextScene) return;
+
+                    const targetId = choice.nextScene;
+
+                    // Jeśli cel to nie scenariusz intro i istnieje w danych
+                    if (!targetId.endsWith('_intro') && !sceneId.endsWith('_intro') && scenesData[targetId]) {
+                        try {
+                            // Try to extract scene numbers safely with error handling
+                            const sourceMatch = sceneId.replace(travelPrefix, '').match(/\d+/);
+                            const targetMatch = targetId.replace(travelPrefix, '').match(/\d+/);
+
+                            if (!sourceMatch || !targetMatch) return;
+
+                            const sourceNum = parseInt(sourceMatch[0]);
+                            const targetNum = parseInt(targetMatch[0]);
+
+                            if (isNaN(sourceNum) || isNaN(targetNum)) return;
+
+                            // Sprawdź czy są sąsiednie - różnica większa niż 1 oznacza przeskok
+                            const diff = Math.abs(targetNum - sourceNum);
+
+                            if (diff > 1) {
+                                console.log(`DEBUGGING: Znaleziono bezpośrednie cross-path połączenie: ${sceneId} -> ${targetId}, różnica: ${diff}`);
+
+                                // Dodaj do listy z wyrazistymi parametrami do renderowania
+                                crossPathLinks.push({
+                                    source: sceneId,
+                                    target: targetId,
+                                    sourcePathId: sceneId,
+                                    targetPathId: targetId,
+                                    isDirect: true,
+                                    difference: diff,
+                                    color: "#ff3300",
+                                    width: 4,
+                                    opacity: 1
+                                });
+                            }
+                        } catch (error) {
+                            console.error(`Error processing cross-path from ${sceneId} to ${targetId}:`, error);
+                        }
+                    }
+                });
+            }
+        });
+
+        console.log(`DEBUGGING: Znaleziono ${crossPathLinks.length} bezpośrednich cross-path połączeń`);
+    }
+
+    // Dodaj znacznik strzałki z większą widocznością
+    function addArrowMarker() {
+        // Usuń poprzedni marker, jeśli istnieje
+        svg.select("defs").remove();
+
+        // Dodaj nowy marker
+        svg.append("defs").append("marker")
+            .attr("id", "end-arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 8)
+            .attr("refY", 0)
+            .attr("markerWidth", 8)
+            .attr("markerHeight", 8)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#ff5500");
+    }
+
+    // Dodaj tę funkcję do renderowania linii cross-path
+    function renderCrossPathLinks() {
+        console.log("DEBUGGING: Renderowanie cross-path połączeń");
+
+        // Safety check - if root is not defined or crossPathLinks is empty, return
+        if (!root || !crossPathLinks || crossPathLinks.length === 0) {
+            console.log("No cross-path links to render or missing root");
+            return;
+        }
+
+        // Najpierw usuń istniejące połączenia cross-path
+        g.selectAll(".cross-path-connection").remove();
+
+        // Renderuj każde połączenie cross-path
+        crossPathLinks.forEach((link, index) => {
+            try {
+                console.log(`DEBUGGING: Renderowanie cross-path ${index+1}: ${link.source} -> ${link.target}`);
+
+                // Znajdź węzły źródłowy i docelowy
+                const sourceNode = root.descendants().find(d => d.data.id === link.source);
+                const targetNode = root.descendants().find(d => d.data.id === link.target);
+
+                if (!sourceNode || !targetNode) {
+                    console.log(`DEBUGGING: Brak węzła ${!sourceNode ? 'źródłowego' : 'docelowego'} dla połączenia ${link.source} -> ${link.target}`);
+                    return;
+                }
+
+                // Ustal współrzędne punktów
+                let sx, sy, tx, ty;
+
+                if (currentLayout === 'radial') {
+                    sx = Math.sin(sourceNode.x) * sourceNode.y;
+                    sy = -Math.cos(sourceNode.x) * sourceNode.y;
+                    tx = Math.sin(targetNode.x) * targetNode.y;
+                    ty = -Math.cos(targetNode.x) * targetNode.y;
+                } else {
+                    sx = sourceNode.y; // W układzie drzewa x i y są zamienione
+                    sy = sourceNode.x;
+                    tx = targetNode.y;
+                    ty = targetNode.x;
+                }
+
+                // Narysuj linię
+                const line = g.append("path")
+                    .attr("class", "cross-path-connection")
+                    .attr("d", () => {
+                        const path = d3.path();
+
+                        if (currentLayout === 'radial') {
+                            // Zakrzywiona linia dla układu radialnego
+                            path.moveTo(sx, sy);
+
+                            // Punkt kontrolny
+                            const midX = (sx + tx) / 2;
+                            const midY = (sy + ty) / 2;
+                            const dx = tx - sx;
+                            const dy = ty - sy;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const offset = dist * 0.3;
+
+                            // Przesunięcie prostopadłe
+                            const nx = -dy / dist * offset;
+                            const ny = dx / dist * offset;
+
+                            path.quadraticCurveTo(midX + nx, midY + ny, tx, ty);
+                        } else {
+                            // Krzywa Beziera dla układu drzewa
+                            path.moveTo(sx, sy);
+
+                            const midX = (sx + tx) / 2;
+                            path.bezierCurveTo(
+                                midX, sy,   // pierwszy punkt kontrolny
+                                midX, ty,   // drugi punkt kontrolny
+                                tx, ty      // punkt końcowy
+                            );
+                        }
+
+                        return path.toString();
+                    })
+                    .attr("fill", "none")
+                    .attr("stroke", "#ff5500")
+                    .attr("stroke-width", 3)
+                    .attr("stroke-dasharray", "8,4")
+                    .attr("stroke-opacity", 1)
+                    .attr("marker-end", "url(#end-arrow)")
+                    .on("mouseover", function() {
+                        d3.select(this)
+                            .attr("stroke-width", 5)
+                            .attr("stroke", "#ff0000");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this)
+                            .attr("stroke-width", 3)
+                            .attr("stroke", "#ff5500");
+                    })
+                    .on("click", function() {
+                        // Fokus na węźle docelowym po kliknięciu
+                        focusOnScene(link.target);
+                        displaySceneInfo(link.target);
+                    });
+
+                console.log(`DEBUGGING: Narysowano cross-path linię ${index+1}`);
+            } catch (error) {
+                console.error(`Error rendering cross-path connection ${index}:`, error);
+            }
+        });
     }
 
     // Przetwarzanie danych do formatu hierarchicznego
@@ -496,8 +910,16 @@
         const processedNodes = new Set();
         const processedEdges = new Set();
 
+        // Najpierw wyszukujemy bezpośrednie połączenia cross-path
+        checkForCrossPathConnections();
+
         // Funkcja pomocnicza do przetwarzania scen
-        function processScene(sceneId, parentId = null, depth = 0) {
+        function processScene(sceneId, parentId = null, depth = 0, pathId = null) {
+            // Jeśli nie podano pathId, używamy sceneId jako ID ścieżki
+            if (pathId === null) {
+                pathId = sceneId;
+            }
+
             // Sprawdzamy, czy scena istnieje
             if (!scenesData[sceneId]) {
                 console.warn(`Scena nie znaleziona: ${sceneId}`);
@@ -509,7 +931,8 @@
                     name: sceneId,
                     nodeType: 'deadEnd',
                     depth,
-                    isDeadEnd: true
+                    isDeadEnd: true,
+                    pathId
                 });
                 return;
             }
@@ -518,10 +941,10 @@
 
             // Określamy typ sceny
             let nodeType = 'normal';
-            if (sceneId === 'intro') {
+            if (sceneId.endsWith('_intro')) {
                 nodeType = 'start';
             } else if (!scene.choices || scene.choices.length === 0 ||
-                (scene.choices.length === 1 && scene.choices[0].nextScene === 'intro')) {
+                (scene.choices.length === 1 && scene.choices[0].nextScene.endsWith('_intro'))) {
                 nodeType = 'end';
             }
 
@@ -538,17 +961,39 @@
                 processedEdges.add(edgeId);
             }
 
-            // Jeśli scena już istnieje i ma rodzica, tylko dodajemy wirtualny węzeł
+            // Jeśli scena już istnieje i ma rodzica, sprawdzamy czy trzeba dodać wirtualny węzeł
+            // lub zapisać informację o połączeniu między ścieżkami
             if (processedNodes.has(sceneId) && parentId) {
-                const virtualNodeId = `virtual-${parentId}-${sceneId}`;
-                flatData.push({
-                    id: virtualNodeId,
-                    parentId: parentId,
-                    name: sceneId,
-                    isVirtual: true,
-                    targetScene: sceneId,
-                    nodeType
-                });
+                // Pobierz istniejący węzeł
+                const existingNode = flatData.find(d => d.id === sceneId);
+
+                // Sprawdź czy węzeł należy do innej ścieżki
+                if (existingNode && existingNode.pathId !== pathId) {
+                    // Dodaj wirtualny węzeł dla lepszego renderowania
+                    const virtualNodeId = `virtual-${parentId}-${sceneId}`;
+                    flatData.push({
+                        id: virtualNodeId,
+                        parentId: parentId,
+                        name: sceneId,
+                        isVirtual: true,
+                        targetScene: sceneId,
+                        nodeType,
+                        pathId,
+                        crossPath: true
+                    });
+                } else {
+                    // Jeśli jest w tej samej ścieżce, dodaj standardowy wirtualny węzeł
+                    const virtualNodeId = `virtual-${parentId}-${sceneId}`;
+                    flatData.push({
+                        id: virtualNodeId,
+                        parentId: parentId,
+                        name: sceneId,
+                        isVirtual: true,
+                        targetScene: sceneId,
+                        nodeType,
+                        pathId
+                    });
+                }
                 return;
             }
 
@@ -562,7 +1007,8 @@
                 name: sceneId,
                 scene: scene,
                 nodeType,
-                depth
+                depth,
+                pathId
             });
 
             // Przetwarzamy wszystkie wybory
@@ -575,13 +1021,13 @@
                     flatData.find(d => d.id === sceneId).choices[i] = choice.text;
 
                     // Przetwarzamy następną scenę
-                    processScene(nextSceneId, sceneId, depth + 1);
+                    processScene(nextSceneId, sceneId, depth + 1, pathId);
                 });
             }
         }
 
-        // Zaczynamy od sceny "intro"
-        processScene('intro');
+        // Zaczynamy od sceny "intro" dla aktualnej podróży
+        processScene(`travel${currentTravelId}_intro`);
 
         // Tworzymy hierarchię
         const hierarchy = stratify(flatData);
@@ -651,10 +1097,72 @@
         return deadEnds;
     }
 
+    // Wykrywanie i przygotowanie danych o połączeniach między ścieżkami
+    function detectCrossPathLinks(root) {
+        console.log("Detecting cross-path links in the tree...");
+        console.log(`Currently have ${crossPathLinks.length} cross-path links`);
+
+        // Dodatkowa metoda wykrywania połączeń - sprawdzamy wszystkie węzły drzewa
+        root.eachAfter(node => {
+            if (node.data.scene && node.data.scene.choices) {
+                node.data.scene.choices.forEach(choice => {
+                    const targetSceneId = choice.nextScene;
+
+                    // Skip intro scenes
+                    if (node.data.id.endsWith('_intro') || targetSceneId.endsWith('_intro')) {
+                        return;
+                    }
+
+                    // Wyszukaj węzeł docelowy w drzewie
+                    const targetInTree = root.descendants().find(d =>
+                        d.data.id === targetSceneId ||
+                        (d.data.isVirtual && d.data.targetScene === targetSceneId));
+
+                    // Jeśli istnieje w drzewie, ale nie jest bezpośrednim dzieckiem
+                    if (targetInTree && !areDirectlyConnected(node, targetInTree)) {
+                        // To jest cross-path connection
+                        const isAlreadyAdded = crossPathLinks.some(link =>
+                            link.source === node.data.id && link.target === targetSceneId);
+
+                        if (!isAlreadyAdded) {
+                            console.log(`Found new cross-path from ${node.data.id} to ${targetSceneId}`);
+                            crossPathLinks.push({
+                                source: node.data.id,
+                                target: targetSceneId,
+                                sourcePathId: node.data.pathId,
+                                targetPathId: targetInTree.data.pathId,
+                                isDirect: true,
+                                fromDetectFunction: true
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Funkcja sprawdzająca czy dwa węzły są bezpośrednio połączone
+        function areDirectlyConnected(parentNode, childNode) {
+            if (!parentNode.children) return false;
+            return parentNode.children.some(child => child === childNode);
+        }
+
+        // Aktualizacja licznika w statystykach
+        document.getElementById('crossPathLinks').textContent = crossPathLinks.length;
+        console.log(`Total cross-path links after detection: ${crossPathLinks.length}`);
+    }
+
     // Renderowanie grafu
     function renderGraph() {
         // Najpierw czyścimy poprzedni graf
         g.selectAll("*").remove();
+
+        // Dodaj strzałki dla połączeń cross-path
+        addArrowMarker();
+
+        console.log(`Rendering graph with ${crossPathLinks.length} cross-path connections`);
+        crossPathLinks.forEach(link => {
+            console.log(`Cross-path: ${link.source} -> ${link.target}`);
+        });
 
         // Ustawiamy odpowiednie transformacje dla różnych layoutów
         if (currentLayout === 'radial') {
@@ -820,6 +1328,8 @@
                     return "Brak sceny!";
                 } else {
                     name = d.data.isVirtual ? d.data.targetScene : d.data.id;
+                    // Usuń prefix podróży dla czytelności
+                    name = name.replace(/^travel\d+_/, '');
                 }
                 return name.length > 10 ? name.substring(0, 8) + '..' : name;
             })
@@ -829,6 +1339,9 @@
         document.querySelector('.mode-indicator').textContent = `Tryb: ${
             currentLayout.charAt(0).toUpperCase() + currentLayout.slice(1)
         }`;
+
+        // Renderuj połączenia cross-path
+        renderCrossPathLinks();
     }
 
     // Całkowicie przepisana funkcja wyświetlania tooltipa
@@ -838,7 +1351,7 @@
         const scene = d.data.isDeadEnd ? null : scenesData[sceneId];
 
         // Ustawienie treści tooltipa
-        let title = d.data.isDeadEnd ? "Brak sceny!" : sceneId;
+        let title = d.data.isDeadEnd ? "Brak sceny!" : sceneId.replace(/^travel\d+_/, '');
         tooltip.select(".tooltip-title").text(title);
 
         if (d.data.isDeadEnd) {
@@ -896,36 +1409,39 @@
             // Obsługa martwego końca lub nieistniejącej sceny
             const infoPanel = document.querySelector('.scene-info');
             infoPanel.innerHTML = `
-                <h3 style="color: #ef4444;">⚠️ Brak sceny: ${sceneId}</h3>
+                <h3 style="color: #ef4444;">⚠️ Brak sceny: ${sceneId.replace(/^travel\d+_/, '')}</h3>
                 <div class="quote" style="color: #ef4444; background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
                     "Ta scena nie istnieje w bazie danych. To martwy koniec w drzewie wyborów."
                 </div>
                 <div class="text" style="margin-top: 15px; padding: 10px; background-color: rgba(239, 68, 68, 0.05); border-radius: 4px;">
                     <strong>Problem:</strong> Ta ścieżka prowadzi do nieistniejącej sceny.<br><br>
-                    <strong>Rozwiązanie:</strong> Należy dodać tę scenę do pliku scenes.js lub poprawić referencję do niej.
+                    <strong>Rozwiązanie:</strong> Należy dodać tę scenę do pliku JSON lub poprawić referencję do niej.
                 </div>
             `;
             return;
         }
 
         const infoPanel = document.querySelector('.scene-info');
+        const sceneName = sceneId.replace(/^travel\d+_/, '');
 
-        let html = `<h3>Scena: ${sceneId}</h3>`;
+        let html = `<h3>Scena: ${sceneName}</h3>`;
 
         if (scene.quote) {
             html += `<div class="quote">"${scene.quote}"</div>`;
         }
 
         if (scene.text) {
-            // Usuwamy tagi HTML
+            // Pokazujemy pełny tekst, pozwalając na scroll
             const textWithoutTags = scene.text.replace(/<\/?[^>]+(>|$)/g, "");
-            html += `<div class="text">${textWithoutTags.substring(0, 200)}${textWithoutTags.length > 200 ? '...' : ''}</div>`;
+            html += `<div class="text">${textWithoutTags}</div>`;
         }
 
         if (scene.choices && scene.choices.length > 0) {
             html += `<div class="choices"><h4>Wybory:</h4>`;
             scene.choices.forEach(choice => {
-                html += `<div class="choice-item" data-scene="${choice.nextScene}">${choice.text}</div>`;
+                // Usuwamy prefix podróży dla czytelności
+                const nextScene = choice.nextScene.replace(/^travel\d+_/, '');
+                html += `<div class="choice-item" data-scene="${choice.nextScene}">${choice.text} → <strong>${nextScene}</strong></div>`;
             });
             html += `</div>`;
         } else {
@@ -933,6 +1449,10 @@
         }
 
         infoPanel.innerHTML = html;
+
+        // Przewijanie do początku panelu informacyjnego
+        const infoContainer = document.querySelector('.scene-info-container');
+        infoContainer.scrollTop = 0;
 
         // Obsługa kliknięcia na wybory
         document.querySelectorAll('.choice-item').forEach(item => {
@@ -992,10 +1512,10 @@
     }
 
     // Obliczanie statystyk
-    function calculateStatistics(hierarchyData) {
+    function calculateStatistics(root) {
         // Unikalne sceny (bez wirtualnych)
         const uniqueScenes = new Set();
-        hierarchyData.descendants().forEach(d => {
+        root.descendants().forEach(d => {
             if (!d.data.isVirtual && !d.data.isDeadEnd) {
                 uniqueScenes.add(d.data.id);
             }
@@ -1012,20 +1532,24 @@
         });
 
         // Liczba scen końcowych
-        const endScenes = hierarchyData.descendants()
+        const endScenes = root.descendants()
             .filter(d => !d.data.isVirtual && !d.data.isDeadEnd && d.data.nodeType === 'end')
             .length;
 
         // Liczba martwych końców
-        const deadEnds = hierarchyData.descendants()
+        const deadEnds = root.descendants()
             .filter(d => d.data.isDeadEnd)
             .length;
+
+        // Liczba połączeń między ścieżkami
+        const crossPathsCount = crossPathLinks.length;
 
         // Aktualizujemy statystyki w interfejsie
         document.getElementById('totalScenes').textContent = totalScenes;
         document.getElementById('totalChoices').textContent = totalChoices;
         document.getElementById('endScenes').textContent = endScenes;
         document.getElementById('deadEnds').textContent = deadEnds;
+        document.getElementById('crossPathLinks').textContent = crossPathsCount;
     }
 
     // Konfiguracja interakcji
@@ -1045,8 +1569,8 @@
 
         // Przycisk powrotu do początku
         document.getElementById('focusIntro').addEventListener('click', () => {
-            focusOnScene('intro');
-            displaySceneInfo('intro');
+            focusOnScene(`travel${currentTravelId}_intro`);
+            displaySceneInfo(`travel${currentTravelId}_intro`);
         });
 
         // Obsługa wyszukiwania
@@ -1063,7 +1587,7 @@
             // Wyszukujemy pasujące węzły
             const nodes = d3.selectAll(".node");
             nodes.each(function(d) {
-                const sceneName = d.data.id.toLowerCase();
+                const sceneName = d.data.id.replace(/^travel\d+_/, '').toLowerCase();
                 const isMatch = sceneName.includes(query);
 
                 // Podświetlamy pasujące węzły
@@ -1076,7 +1600,7 @@
 
             // Znajdujemy pierwszy pasujący węzeł
             const matchingNode = root.descendants().find(d =>
-                d.data.id.toLowerCase().includes(query)
+                d.data.id.replace(/^travel\d+_/, '').toLowerCase().includes(query)
             );
 
             if (matchingNode) {
@@ -1101,8 +1625,9 @@
                 // Przetwarzamy dane na nowo z nowym layoutem
                 root = processData(currentLayout);
 
-                // Wykrywamy martwe końce
+                // Wykrywamy martwe końce i połączenia między ścieżkami
                 detectDeadEnds(root);
+                detectCrossPathLinks(root);
 
                 // Renderujemy graf na nowo
                 renderGraph();
@@ -1214,22 +1739,7 @@
 
     // Inicjalizacja po załadowaniu strony
     window.addEventListener('DOMContentLoaded', () => {
-        // Dodatkowe sprawdzenie czy scenesData zostało załadowane
-        setTimeout(() => {
-            if (window.scenesData) {
-                console.log("Inicjalizacja wizualizacji z dostępnymi danymi...");
-                initVisualization();
-
-                // Dodajemy słuchacza zdarzeń resize dla poprawnego działania tooltipów
-                window.addEventListener('resize', function() {
-                    tooltip.style("opacity", 0);
-                });
-            } else {
-                console.error("Dane scen (scenesData) nie są dostępne!");
-                document.getElementById('visualization').innerHTML =
-                    "<div style='text-align:center; padding:50px;'>Błąd: Nie znaleziono danych scen</div>";
-            }
-        }, 100); // Krótkie opóźnienie, aby upewnić się, że skrypt scenes.js został załadowany
+        initVisualization();
     });
 </script>
 </body>
