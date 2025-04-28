@@ -1,10 +1,10 @@
 // =============================================================================
 // Image Remapper - automatyczne mapowanie brakujących obrazów na dostępne alternatywy
-// Wersja 1.2.0 - Poprawiona wersja ze ścisłym dopasowaniem nazw plików
+// Wersja 1.3.0 - Z dokładnymi nazwami plików
 // =============================================================================
 
 (function() {
-    console.log("Image Remapper: Inicjalizacja wersji 1.2.0...");
+    console.log("Image Remapper: Inicjalizacja wersji 1.3.0...");
 
     // KOREKCJA: Używamy DOKŁADNIE tych samych nazw plików, jakie widać w systemie
     // Lista dostępnych obrazów z dokładnymi nazwami (włącznie z polskimi znakami)
@@ -18,7 +18,7 @@
         "park.png",
         "pracownia_petna_slonca_dziela.png",
         "rozstanie.png",
-        "sala_spotkan_społeczność.png",
+        "sala_spotkań_społeczność.png", // KOREKCJA: dokładna nazwa pliku z ogonkiem w "spotkań"
         "spokojna_sypialnia_poranne_slonce.png",
         "spotkanie.png",
         "spotkanie_moment_przebaczenia.png",
@@ -47,21 +47,21 @@
         "świadomy_dzień_uważność.png": "spokojna_sypialnia_poranne_slonce.png",
         "docenianie_momentu_promień_słońca.png": "swiatlo.png",
         "zwykły_poranek_niezwykła_perspektywa.png": "spokojna_sypialnia_poranne_slonce.png",
-        "spotykanie_w_kawiarni_odnowiona_milosc.png": "sala_spotkan_społeczność.png",
+        "spotykanie_w_kawiarni_odnowiona_milosc.png": "sala_spotkań_społeczność.png", // KOREKCJA: używamy poprawnej nazwy pliku
         "wyruszenie_w_podróż_droga.png": "park.png",
         "nowy_dom_poranne_światło.png": "spokojna_sypialnia_poranne_slonce.png",
         "las_sciezka_w_glebi.png": "park.png",
         "harmonia_natura_polanka.png": "park.png",
         "transformacja_motyl_kokon.png": "fala_wspomnien_wracajaca.png",
-        "wyciagnieta_dlon_pomoc.png": "drzwi.png", // KOREKCJA: usunięto polskie znaki
-        "glebsze_zaangazowanie_wolontariat.png": "sala_spotkan_społeczność.png", // KOREKCJA: usunięto polskie znaki
+        "wyciagnieta_dlon_pomoc.png": "drzwi.png",
+        "glebsze_zaangazowanie_wolontariat.png": "sala_spotkań_społeczność.png", // KOREKCJA: używamy poprawnej nazwy pliku
         "refleksja_nad_dzielem_kontemplacja.png": "pracownia_petna_slonca_dziela.png",
         "pracownia_ślady_twórczości_uzdrowienie.png": "pracownia_petna_slonca_dziela.png",
         "przygotowania_do_podróży_mapy.png": "ksiazka.png",
         "zachod_slonca_rodzinny_taras.png": "zachod_slonca_centrum_spoleczne.png",
-        "rodzinne_spotkanie_przy_stole.png": "sala_spotkan_społeczność.png",
+        "rodzinne_spotkanie_przy_stole.png": "sala_spotkań_społeczność.png", // KOREKCJA: używamy poprawnej nazwy pliku
         "odnowiona_przyjaźń_zachód_słońca.png": "zachod_slonca_centrum_spoleczne.png",
-        "spotkanie_przyjaciela_kawiarnia.png": "sala_spotkan_społeczność.png",
+        "spotkanie_przyjaciela_kawiarnia.png": "sala_spotkań_społeczność.png", // KOREKCJA: używamy poprawnej nazwy pliku
         "poszukiwanie_przyjaciela_detal.png": "telefon_w_dloni_wahanie.png",
         "wspomnienia_przyjaźni_album.png": "stare_zdjecie_w_ramce.png",
         "wspomnienie_przyjaciela_zdjęcie.png": "stare_zdjecie_w_ramce.png",
@@ -101,9 +101,15 @@
         "myśl_o_przebaczeniu_refleksja.png": "deszcz_za_oknem_spokój_po_przebaczeniu.png"
     };
 
+    // Dodajemy znane warianty zapisu, które powinny być remapowane na prawidłowe nazwy plików
+    const knownVariants = {
+        "sala_spotkan_społeczność.png": "sala_spotkań_społeczność.png", // Dodajemy wprost znany wariant
+        "glebsze_zaangazowanie_wolontariat.png": "sala_spotkań_społeczność.png"
+    };
+
     // Funkcja tworząca alternatywne warianty zapisu polskich znaków
     function createAlternateSpellings(names) {
-        const alternateMap = {};
+        const alternateMap = {...knownVariants}; // Startujemy od znanych wariantów
 
         // Mapowania znaków polskich na ich odpowiedniki bez ogonków
         const charMap = {
@@ -152,24 +158,30 @@
 
     // Funkcja znajdująca najlepsze dopasowanie dla nazwy pliku
     function findBestMatch(filename) {
+        console.log(`Szukam dopasowania dla: ${filename}`);
+
         // 1. Sprawdzamy, czy plik jest bezpośrednio dostępny
         if (availableImages.includes(filename)) {
+            console.log(`  -> plik dostępny bezpośrednio`);
             return filename;
         }
 
-        // 2. Sprawdzamy, czy istnieje alternatywny zapis z polskimi znakami
+        // 2. Sprawdzamy, czy istnieje znany wariant lub alternatywny zapis
         if (alternateSpellings[filename]) {
+            console.log(`  -> znaleziono alternatywny zapis: ${alternateSpellings[filename]}`);
             return alternateSpellings[filename];
         }
 
         // 3. Sprawdzamy, czy istnieje bezpośrednie mapowanie
         if (imageMap[filename]) {
+            console.log(`  -> znaleziono mapowanie: ${imageMap[filename]}`);
             return imageMap[filename];
         }
 
         // 4. Sprawdzamy znormalizowaną wersję
         const normalizedFilename = normalizeFileName(filename);
         if (normalizedImageMap[normalizedFilename]) {
+            console.log(`  -> dopasowano przez normalizację: ${normalizedImageMap[normalizedFilename]}`);
             return normalizedImageMap[normalizedFilename];
         }
 
@@ -177,6 +189,7 @@
         if (normalizedAvailableImages.includes(normalizedFilename)) {
             // Znajdujemy oryginalną wersję z poprawną wielkością liter i znakami
             const index = normalizedAvailableImages.indexOf(normalizedFilename);
+            console.log(`  -> dopasowano przez normalizowaną dostępność: ${availableImages[index]}`);
             return availableImages[index];
         }
 
@@ -190,12 +203,20 @@
             );
 
             if (commonParts.length > 0) {
+                console.log(`  -> dopasowano przez części wspólne: ${imageMap[key]}`);
                 return imageMap[key];
             }
         }
 
-        // 7. Jeśli wszystko zawiedzie, użyj domyślnego obrazu
-        console.log(`Nie znaleziono dopasowania dla: ${filename}, używam domyślnego obrazu`);
+        // 7. Szczególne przypadki dla znanych problemów
+        if (filename.includes('spolecznosc') || filename.includes('spotkań') ||
+            filename.includes('spotkan') || filename.includes('zaangazowanie')) {
+            console.log(`  -> specjalne dopasowanie dla "${filename}": sala_spotkań_społeczność.png`);
+            return "sala_spotkań_społeczność.png";
+        }
+
+        // 8. Jeśli wszystko zawiedzie, użyj domyślnego obrazu
+        console.log(`  -> nie znaleziono dopasowania, używam domyślnego obrazu`);
         return "swiatlo.png";
     }
 
@@ -491,7 +512,7 @@
 
     // Główna funkcja inicjalizująca
     function initialize() {
-        console.log("Image Remapper: Inicjalizacja wersji 1.2.0");
+        console.log("Image Remapper: Inicjalizacja wersji 1.3.0");
 
         // Wyświetl listę dostępnych obrazów
         console.log("Dostępne obrazy:", availableImages);
@@ -552,7 +573,7 @@
         },
 
         // Wersja remappera
-        version: "1.2.0"
+        version: "1.3.0"
     };
 
     // Uruchom inicjalizację
