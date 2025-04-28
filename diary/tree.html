@@ -318,28 +318,25 @@
         }
 
         /* Floating panels styles */
-        .floating-panel {
+        #panels-container {
             position: fixed;
             right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 900;
+        }
+
+        .floating-panel {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 8px;
             padding: 12px 15px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             font-size: 0.9rem;
-            z-index: 900;
             max-width: 250px;
             transition: all 0.3s ease;
             border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        /* Travel panel */
-        .travel-panel {
-            bottom: 100px; /* Position above stats panel */
-        }
-
-        /* Stats panel */
-        .stats-panel {
-            bottom: 20px;
         }
 
         .panel-title {
@@ -349,10 +346,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer; /* Make entire header clickable */
         }
 
         .panel-toggle {
-            cursor: pointer;
             font-size: 0.8rem;
             color: #6b7280;
         }
@@ -360,26 +357,12 @@
         .panel-content {
             overflow: hidden;
             transition: max-height 0.3s ease;
+            max-height: 300px; /* Set a maximum height for expanded state */
+            overflow-y: auto; /* Add scrolling for overflow content */
         }
 
         .panel-content.collapsed {
             max-height: 0;
-        }
-
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            color: #4b5563;
-        }
-
-        .stat-item span:first-child {
-            margin-right: 10px;
-        }
-
-        .stat-item span:last-child {
-            font-weight: 500;
-            color: #1f2937;
         }
 
         /* Highlight for cross-path connections */
@@ -566,6 +549,10 @@
                 <span>Połączenia między ścieżkami:</span>
                 <span id="crossPathLinks">0</span>
             </div>
+            <div class="stat-item">
+                <span>Przecięcia ścieżek:</span>
+                <span id="pathCrossings">0</span>
+            </div>
         </div>
     </div>
 
@@ -582,6 +569,9 @@
         </div>
     </div>
 </div>
+
+<!-- Container for floating panels -->
+<div id="panels-container"></div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <!-- Add script to load travels configuration -->
@@ -806,8 +796,12 @@
 
         // Update statistics
         document.getElementById('crossPathLinks').textContent = crossPathLinks.length;
+        document.getElementById('pathCrossings').textContent = crossPathLinks.length;
+
+        // Update panel stats if they exist
         if (document.getElementById('crossPathLinks-panel')) {
             document.getElementById('crossPathLinks-panel').textContent = crossPathLinks.length;
+            document.getElementById('pathCrossings-panel').textContent = crossPathLinks.length;
         }
     }
 
@@ -951,11 +945,8 @@
 
     // Function to create and update the statistics panel
     function createStatsPanel() {
-        // Remove any existing panel
-        d3.select('.stats-panel').remove();
-
         // Create the panel
-        const panel = d3.select('body')
+        const panel = d3.select('#panels-container')
             .append('div')
             .attr('class', 'floating-panel stats-panel')
             .html(`
@@ -984,14 +975,20 @@
                         <span>Połączenia między ścieżkami:</span>
                         <span id="crossPathLinks-panel" class="stat-highlight">0</span>
                     </div>
+                    <div class="stat-item">
+                        <span>Przecięcia ścieżek:</span>
+                        <span id="pathCrossings-panel" class="stat-highlight">0</span>
+                    </div>
                 </div>
             `);
 
-        // Add toggle functionality
-        document.getElementById('stats-toggle').addEventListener('click', function() {
+        // Make entire header clickable
+        panel.select(".panel-title").on("click", function() {
             const content = document.getElementById('stats-content');
+            const toggle = document.getElementById('stats-toggle');
+
             content.classList.toggle('collapsed');
-            this.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
+            toggle.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
         });
 
         // Update stats in panel from main stats
@@ -1006,6 +1003,8 @@
                 document.getElementById('deadEnds').textContent;
             document.getElementById('crossPathLinks-panel').textContent =
                 document.getElementById('crossPathLinks').textContent;
+            document.getElementById('pathCrossings-panel').textContent =
+                document.getElementById('pathCrossings').textContent;
         }
 
         // Initial update
@@ -1021,11 +1020,8 @@
 
     // Create travel selector panel
     function createTravelPanel() {
-        // Remove any existing panel
-        d3.select('.travel-panel').remove();
-
         // Create the panel
-        const panel = d3.select('body')
+        const panel = d3.select('#panels-container')
             .append('div')
             .attr('class', 'floating-panel travel-panel')
             .html(`
@@ -1038,11 +1034,13 @@
                 </div>
             `);
 
-        // Add toggle functionality
-        document.getElementById('travel-toggle').addEventListener('click', function() {
+        // Make entire header clickable
+        panel.select(".panel-title").on("click", function() {
             const content = document.getElementById('travel-panel-content');
+            const toggle = document.getElementById('travel-toggle');
+
             content.classList.toggle('collapsed');
-            this.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
+            toggle.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
         });
 
         // Populate travel options
@@ -1831,6 +1829,7 @@
         document.getElementById('endScenes').textContent = endScenes;
         document.getElementById('deadEnds').textContent = deadEnds;
         document.getElementById('crossPathLinks').textContent = crossPathsCount;
+        document.getElementById('pathCrossings').textContent = crossPathsCount;
 
         // Update stats panel if it exists
         if (document.getElementById('totalScenes-panel')) {
@@ -1839,6 +1838,7 @@
             document.getElementById('endScenes-panel').textContent = endScenes;
             document.getElementById('deadEnds-panel').textContent = deadEnds;
             document.getElementById('crossPathLinks-panel').textContent = crossPathsCount;
+            document.getElementById('pathCrossings-panel').textContent = crossPathsCount;
         }
     }
 
