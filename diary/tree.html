@@ -58,6 +58,7 @@
             position: sticky;
             top: 60px;
             z-index: 19;
+            display: none; /* Hide the original travel selector */
         }
 
         .travel-selector h3 {
@@ -92,7 +93,7 @@
             border-bottom: 1px solid #e5e7eb;
             background: white;
             position: sticky;
-            top: 130px;
+            top: 60px; /* Adjusted due to removal of travel selector */
             z-index: 18;
         }
 
@@ -121,7 +122,7 @@
             border-bottom: 1px solid #e5e7eb;
             background: white;
             position: sticky;
-            top: 180px;
+            top: 110px; /* Adjusted due to removal of travel selector */
             z-index: 17;
         }
 
@@ -148,7 +149,7 @@
             border-bottom: 1px solid #e5e7eb;
             background: white;
             position: sticky;
-            top: 230px;
+            top: 160px; /* Adjusted due to removal of travel selector */
             z-index: 16;
         }
 
@@ -237,6 +238,7 @@
             position: sticky;
             bottom: 0;
             z-index: 15;
+            display: none; /* Hidden, but still there for data binding */
         }
 
         .statistics h3 {
@@ -298,20 +300,111 @@
             stroke: #d1d5db;
         }
 
-        /* Cross-path styling */
+        /* More subtle cross-path styling */
         .link.cross-path, .cross-path-connection {
-            stroke-dasharray: 8, 4;
-            stroke: #ff5500;
-            stroke-width: 3px;
-            stroke-opacity: 1;
-            pointer-events: all; /* Enable interactions with the line */
-            cursor: pointer; /* Show pointer cursor */
+            stroke-dasharray: 5, 3;
+            stroke: #6366f1; /* Indigo color - less harsh than bright red */
+            stroke-width: 1.5px;
+            stroke-opacity: 0.8;
+            pointer-events: all;
+            cursor: pointer;
+            fill: none; /* Explicitly set fill to none */
         }
 
         /* Cross-path arrow styling */
         .cross-path-arrow {
-            fill: #ff5500;
+            fill: #6366f1;
             stroke: none;
+        }
+
+        /* Floating panels styles */
+        .floating-panel {
+            position: fixed;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 12px 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+            z-index: 900;
+            max-width: 250px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* Travel panel */
+        .travel-panel {
+            bottom: 100px; /* Position above stats panel */
+        }
+
+        /* Stats panel */
+        .stats-panel {
+            bottom: 20px;
+        }
+
+        .panel-title {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            color: #374151;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-toggle {
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .panel-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .panel-content.collapsed {
+            max-height: 0;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: #4b5563;
+        }
+
+        .stat-item span:first-child {
+            margin-right: 10px;
+        }
+
+        .stat-item span:last-child {
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        /* Highlight for cross-path connections */
+        .stat-highlight {
+            color: #4f46e5;
+            font-weight: bold;
+        }
+
+        /* Add a badge for cross-path count */
+        .cross-path-badge {
+            background: #6366f1;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        /* Updated hover states for crosspath connections */
+        .cross-path-connection:hover {
+            stroke-width: 2.5px;
+            stroke: #4f46e5;
+            stroke-opacity: 1;
         }
 
         /* Custom tooltip styles */
@@ -450,7 +543,8 @@
             </div>
         </div>
 
-        <div class="statistics">
+        <!-- Statistics hidden, but kept for data binding -->
+        <div class="statistics" style="display: none;">
             <h3>Statystyki</h3>
             <div class="stat-item">
                 <span>Łączna liczba scen:</span>
@@ -515,6 +609,471 @@
         'deadEnd': '#f97316' // pomarańczowy dla martwych końców
     };
 
+    // Improved cross-path detection function
+    function detectAllCrossPaths() {
+        console.log("Starting comprehensive cross-path detection...");
+        crossPathLinks = []; // Reset the array
+
+        // Skip detection if scene data isn't available
+        if (!scenesData || Object.keys(scenesData).length === 0) {
+            console.error("No scene data available for cross-path detection");
+            return;
+        }
+
+        const travelPrefix = `travel${currentTravelId}_`;
+        const processedConnections = new Set(); // Track processed connections to avoid duplicates
+
+        // Method 1: Direct scene number difference detection
+        // This detects scenes that have a number difference > 1 (non-sequential)
+        Object.entries(scenesData).forEach(([sceneId, scene]) => {
+            if (!sceneId.startsWith(travelPrefix)) return;
+            if (!scene.choices) return;
+
+            scene.choices.forEach(choice => {
+                if (!choice || !choice.nextScene) return;
+
+                const targetId = choice.nextScene;
+
+                // Skip intro-to-intro connections as requested
+                if (sceneId.endsWith('_intro') || targetId.endsWith('_intro')) return;
+
+                // Skip if target doesn't exist
+                if (!scenesData[targetId]) return;
+
+                try {
+                    // Try to extract scene numbers safely
+                    const sourceMatch = sceneId.match(/(\d+)$/);
+                    const targetMatch = targetId.match(/(\d+)$/);
+
+                    if (!sourceMatch || !targetMatch) return;
+
+                    const sourceNum = parseInt(sourceMatch[0]);
+                    const targetNum = parseInt(targetMatch[0]);
+
+                    if (isNaN(sourceNum) || isNaN(targetNum)) return;
+
+                    // Difference > 1 indicates a non-sequential jump
+                    const diff = Math.abs(targetNum - sourceNum);
+
+                    if (diff > 1) {
+                        const connectionKey = `${sceneId}->${targetId}`;
+
+                        // Avoid duplicates
+                        if (!processedConnections.has(connectionKey)) {
+                            processedConnections.add(connectionKey);
+
+                            crossPathLinks.push({
+                                source: sceneId,
+                                target: targetId,
+                                sourcePathId: sceneId,
+                                targetPathId: targetId,
+                                isDirect: true,
+                                method: "number-diff",
+                                difference: diff
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error in number-diff detection for ${sceneId} to ${targetId}:`, error);
+                }
+            });
+        });
+
+        console.log(`Found ${crossPathLinks.length} cross-paths using number difference method`);
+
+        // Method 2: Tree structure analysis
+        // This detects connections that aren't part of the direct parent-child structure in the tree
+        if (root) {
+            // Build a map of direct tree connections
+            const treeConnections = new Set();
+            root.links().forEach(link => {
+                const source = link.source.data.id;
+                const target = link.target.data.id;
+                treeConnections.add(`${source}->${target}`);
+            });
+
+            // Check all choices against the tree structure
+            Object.entries(scenesData).forEach(([sceneId, scene]) => {
+                if (!sceneId.startsWith(travelPrefix)) return;
+                if (!scene.choices) return;
+
+                scene.choices.forEach(choice => {
+                    if (!choice || !choice.nextScene) return;
+
+                    const targetId = choice.nextScene;
+
+                    // Skip intro connections
+                    if (sceneId.endsWith('_intro') || targetId.endsWith('_intro')) return;
+
+                    // Skip if target doesn't exist
+                    if (!scenesData[targetId]) return;
+
+                    const connectionKey = `${sceneId}->${targetId}`;
+
+                    // If the connection is not in the tree but exists in the choices,
+                    // it's a cross-path connection
+                    if (!treeConnections.has(connectionKey) && !processedConnections.has(connectionKey)) {
+                        processedConnections.add(connectionKey);
+
+                        crossPathLinks.push({
+                            source: sceneId,
+                            target: targetId,
+                            sourcePathId: sceneId,
+                            targetPathId: targetId,
+                            isDirect: true,
+                            method: "tree-structure"
+                        });
+                    }
+                });
+            });
+
+            console.log(`Added ${crossPathLinks.length - processedConnections.size + 1} cross-paths using tree structure method`);
+        } else {
+            console.warn("Root not available for tree structure detection");
+        }
+
+        // Method 3: Full graph analysis for reachability
+        // This creates a complete graph from all choices and detects paths that
+        // would be "shortcuts" in the story flow
+        try {
+            // Build a graph of all connections
+            const allConnections = new Map();
+
+            Object.entries(scenesData).forEach(([sceneId, scene]) => {
+                if (!sceneId.startsWith(travelPrefix)) return;
+
+                // Initialize node if not exists
+                if (!allConnections.has(sceneId)) {
+                    allConnections.set(sceneId, new Set());
+                }
+
+                // Add all direct connections from choices
+                if (scene.choices) {
+                    scene.choices.forEach(choice => {
+                        if (choice && choice.nextScene && scenesData[choice.nextScene]) {
+                            allConnections.get(sceneId).add(choice.nextScene);
+                        }
+                    });
+                }
+            });
+
+            // Find all scenes that can reach each other indirectly (skipping over other scenes)
+            allConnections.forEach((targets, source) => {
+                if (source.endsWith('_intro')) return; // Skip intro scenes
+
+                targets.forEach(target => {
+                    if (target.endsWith('_intro')) return; // Skip intro scenes
+
+                    const connectionKey = `${source}->${target}`;
+
+                    // Skip already processed connections
+                    if (processedConnections.has(connectionKey)) return;
+
+                    // Get source and target numbers
+                    const sourceMatch = source.match(/(\d+)$/);
+                    const targetMatch = target.match(/(\d+)$/);
+
+                    if (!sourceMatch || !targetMatch) return;
+
+                    const sourceNum = parseInt(sourceMatch[0]);
+                    const targetNum = parseInt(targetMatch[0]);
+
+                    if (isNaN(sourceNum) || isNaN(targetNum)) return;
+
+                    // Check if there are scenes between source and target
+                    const diff = Math.abs(targetNum - sourceNum);
+
+                    if (diff > 5) { // Significant jumps only
+                        processedConnections.add(connectionKey);
+
+                        crossPathLinks.push({
+                            source: source,
+                            target: target,
+                            sourcePathId: source,
+                            targetPathId: target,
+                            isDirect: true,
+                            method: "graph-analysis",
+                            difference: diff
+                        });
+                    }
+                });
+            });
+
+            console.log(`Total cross-paths after all methods: ${crossPathLinks.length}`);
+        } catch (error) {
+            console.error("Error in graph analysis method:", error);
+        }
+
+        // Update statistics
+        document.getElementById('crossPathLinks').textContent = crossPathLinks.length;
+        if (document.getElementById('crossPathLinks-panel')) {
+            document.getElementById('crossPathLinks-panel').textContent = crossPathLinks.length;
+        }
+    }
+
+    // Function to add marker for cross-path connections
+    function addArrowMarker() {
+        // Clear previous markers
+        svg.select("defs").remove();
+
+        // Add new marker with more subtle styling
+        const defs = svg.append("defs");
+
+        // Create end arrow marker
+        defs.append("marker")
+            .attr("id", "end-arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 8)
+            .attr("refY", 0)
+            .attr("markerWidth", 6) // Smaller marker
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-4L8,0L0,4") // Slightly smaller arrow
+            .attr("fill", "#6366f1") // Indigo color to match path
+            .attr("stroke", "none"); // No stroke
+    }
+
+    // Enhanced function to render cross-path links
+    function renderCrossPathLinks() {
+        console.log(`Rendering ${crossPathLinks.length} cross-path connections`);
+
+        // Safety check
+        if (!root || !crossPathLinks || crossPathLinks.length === 0) {
+            console.log("No cross-path links to render or missing root");
+            return;
+        }
+
+        // Remove any existing cross-path connections
+        g.selectAll(".cross-path-connection").remove();
+
+        // Create a map for quick node lookup
+        const nodeMap = new Map();
+        root.descendants().forEach(node => {
+            nodeMap.set(node.data.id, node);
+
+            // Also map virtual nodes to their targets
+            if (node.data.isVirtual && node.data.targetScene) {
+                nodeMap.set(node.data.targetScene, node);
+            }
+        });
+
+        // Render each cross-path connection
+        let renderedCount = 0;
+
+        crossPathLinks.forEach((link, index) => {
+            try {
+                // Skip intro connections
+                if (link.source.endsWith('_intro') || link.target.endsWith('_intro')) {
+                    return;
+                }
+
+                // Find source and target nodes
+                const sourceNode = nodeMap.get(link.source);
+                const targetNode = nodeMap.get(link.target);
+
+                if (!sourceNode || !targetNode) {
+                    // Skip this connection if nodes not found
+                    return;
+                }
+
+                // Calculate coordinates based on layout
+                let sx, sy, tx, ty;
+
+                if (currentLayout === 'radial') {
+                    sx = Math.sin(sourceNode.x) * sourceNode.y;
+                    sy = -Math.cos(sourceNode.x) * sourceNode.y;
+                    tx = Math.sin(targetNode.x) * targetNode.y;
+                    ty = -Math.cos(targetNode.x) * targetNode.y;
+                } else {
+                    sx = sourceNode.y;
+                    sy = sourceNode.x;
+                    tx = targetNode.y;
+                    ty = targetNode.x;
+                }
+
+                // Create the path
+                const line = g.append("path")
+                    .attr("class", "cross-path-connection")
+                    .attr("d", () => {
+                        const path = d3.path();
+
+                        if (currentLayout === 'radial') {
+                            // Curved path for radial layout
+                            path.moveTo(sx, sy);
+
+                            // Calculate control point for curvature
+                            const midX = (sx + tx) / 2;
+                            const midY = (sy + ty) / 2;
+                            const dx = tx - sx;
+                            const dy = ty - sy;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const offset = dist * 0.3;
+
+                            // Perpendicular offset
+                            const nx = -dy / dist * offset;
+                            const ny = dx / dist * offset;
+
+                            path.quadraticCurveTo(midX + nx, midY + ny, tx, ty);
+                        } else {
+                            // Bezier curve for tree layout
+                            path.moveTo(sx, sy);
+
+                            const midX = (sx + tx) / 2;
+                            path.bezierCurveTo(
+                                midX, sy,
+                                midX, ty,
+                                tx, ty
+                            );
+                        }
+
+                        return path.toString();
+                    })
+                    .attr("fill", "none") // Explicitly set fill to none
+                    .attr("marker-end", "url(#end-arrow)")
+                    .on("click", function() {
+                        focusOnScene(link.target);
+                        displaySceneInfo(link.target);
+                    });
+
+                // Add tooltip with information about the connection
+                line.append("title")
+                    .text(`${link.source.replace(/^travel\d+_/, '')} → ${link.target.replace(/^travel\d+_/, '')}`);
+
+                renderedCount++;
+            } catch (error) {
+                console.error(`Error rendering cross-path ${index}:`, error);
+            }
+        });
+
+        console.log(`Successfully rendered ${renderedCount} cross-path connections`);
+    }
+
+    // Function to create and update the statistics panel
+    function createStatsPanel() {
+        // Remove any existing panel
+        d3.select('.stats-panel').remove();
+
+        // Create the panel
+        const panel = d3.select('body')
+            .append('div')
+            .attr('class', 'floating-panel stats-panel')
+            .html(`
+                <h3 class="panel-title">
+                    Statystyki
+                    <span class="panel-toggle" id="stats-toggle">▼</span>
+                </h3>
+                <div class="panel-content" id="stats-content">
+                    <div class="stat-item">
+                        <span>Łączna liczba scen:</span>
+                        <span id="totalScenes-panel">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Liczba wyborów:</span>
+                        <span id="totalChoices-panel">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Sceny końcowe:</span>
+                        <span id="endScenes-panel">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Martwe końce:</span>
+                        <span id="deadEnds-panel">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Połączenia między ścieżkami:</span>
+                        <span id="crossPathLinks-panel" class="stat-highlight">0</span>
+                    </div>
+                </div>
+            `);
+
+        // Add toggle functionality
+        document.getElementById('stats-toggle').addEventListener('click', function() {
+            const content = document.getElementById('stats-content');
+            content.classList.toggle('collapsed');
+            this.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
+        });
+
+        // Update stats in panel from main stats
+        function updateStatsPanel() {
+            document.getElementById('totalScenes-panel').textContent =
+                document.getElementById('totalScenes').textContent;
+            document.getElementById('totalChoices-panel').textContent =
+                document.getElementById('totalChoices').textContent;
+            document.getElementById('endScenes-panel').textContent =
+                document.getElementById('endScenes').textContent;
+            document.getElementById('deadEnds-panel').textContent =
+                document.getElementById('deadEnds').textContent;
+            document.getElementById('crossPathLinks-panel').textContent =
+                document.getElementById('crossPathLinks').textContent;
+        }
+
+        // Initial update
+        updateStatsPanel();
+
+        // Set up an observer to update the panel when the main stats change
+        const statsObserver = new MutationObserver(updateStatsPanel);
+        statsObserver.observe(document.getElementById('totalScenes'), { childList: true });
+        statsObserver.observe(document.getElementById('crossPathLinks'), { childList: true });
+
+        return panel;
+    }
+
+    // Create travel selector panel
+    function createTravelPanel() {
+        // Remove any existing panel
+        d3.select('.travel-panel').remove();
+
+        // Create the panel
+        const panel = d3.select('body')
+            .append('div')
+            .attr('class', 'floating-panel travel-panel')
+            .html(`
+                <h3 class="panel-title">
+                    Wybierz podróż
+                    <span class="panel-toggle" id="travel-toggle">▼</span>
+                </h3>
+                <div class="panel-content" id="travel-panel-content">
+                    <div id="floating-travel-options"></div>
+                </div>
+            `);
+
+        // Add toggle functionality
+        document.getElementById('travel-toggle').addEventListener('click', function() {
+            const content = document.getElementById('travel-panel-content');
+            content.classList.toggle('collapsed');
+            this.textContent = content.classList.contains('collapsed') ? '▲' : '▼';
+        });
+
+        // Populate travel options
+        const travelOptionsContainer = document.getElementById('floating-travel-options');
+
+        window.travelsConfig.forEach(travel => {
+            const option = document.createElement('div');
+            option.className = 'travel-option' + (travel.id === currentTravelId ? ' active' : '');
+            option.textContent = travel.name;
+            option.setAttribute('data-travel-id', travel.id);
+
+            option.addEventListener('click', function() {
+                // Remove active class from all options
+                document.querySelectorAll('.travel-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+
+                // Add active class to selected option
+                this.classList.add('active');
+
+                // Load data for selected travel
+                currentTravelId = parseInt(this.getAttribute('data-travel-id'));
+                loadTravelData(currentTravelId);
+            });
+
+            travelOptionsContainer.appendChild(option);
+        });
+
+        return panel;
+    }
+
     // Inicjalizacja wizualizacji
     function initVisualization() {
         const container = document.getElementById('visualization');
@@ -541,44 +1100,18 @@
         // Grupa do której będziemy dodawać elementy
         g = svg.append("g");
 
-        // Inicjalizacja selektora podróży
-        initTravelSelector();
-
         // Dodajemy obsługę przycisków i innych interakcji
         setupInteractions();
 
+        // Create floating panels
+        createTravelPanel();
+        createStatsPanel();
+
+        // Hide the statistics section in the sidebar
+        document.querySelector('.statistics').style.display = 'none';
+
         // Ładujemy dane dla domyślnej podróży
         loadTravelData(currentTravelId);
-    }
-
-    // Inicjalizacja selektora podróży
-    function initTravelSelector() {
-        const travelOptionsContainer = document.getElementById('travel-options');
-        travelOptionsContainer.innerHTML = ''; // Wyczyść kontener
-
-        // Dodaj opcje podróży
-        window.travelsConfig.forEach(travel => {
-            const option = document.createElement('div');
-            option.className = 'travel-option' + (travel.id === currentTravelId ? ' active' : '');
-            option.textContent = travel.name;
-            option.setAttribute('data-travel-id', travel.id);
-
-            option.addEventListener('click', function() {
-                // Usuń klasę active ze wszystkich opcji
-                document.querySelectorAll('.travel-option').forEach(opt => {
-                    opt.classList.remove('active');
-                });
-
-                // Dodaj klasę active do wybranej opcji
-                this.classList.add('active');
-
-                // Załaduj dane dla wybranej podróży
-                currentTravelId = parseInt(this.getAttribute('data-travel-id'));
-                loadTravelData(currentTravelId);
-            });
-
-            travelOptionsContainer.appendChild(option);
-        });
     }
 
     // Ładowanie danych JSON dla wybranej podróży
@@ -681,219 +1214,39 @@
             // Resetujemy widok
             resetView();
 
+            // Update travel options in both panels
+            updateTravelSelectors();
+
             console.log(`Podróż ${travel.name} (ID: ${travelId}) załadowana pomyślnie.`);
         } catch (error) {
             console.error(`Błąd podczas ładowania danych podróży:`, error);
             // Wyświetl informację o błędzie
             const infoPanel = document.querySelector('.scene-info');
             infoPanel.innerHTML = `
-            <h3 style="color: #ef4444;">⚠️ Błąd ładowania</h3>
-            <div class="quote" style="color: #ef4444; background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
-                "Nie udało się załadować danych dla wybranej podróży. Sprawdź czy pliki JSON istnieją w podanej ścieżce."
-            </div>
-            <div class="text" style="margin-top: 15px; padding: 10px; background-color: rgba(239, 68, 68, 0.05); border-radius: 4px;">
-                <strong>Błąd:</strong> ${error.message}
-            </div>
-        `;
+                <h3 style="color: #ef4444;">⚠️ Błąd ładowania</h3>
+                <div class="quote" style="color: #ef4444; background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+                    "Nie udało się załadować danych dla wybranej podróży. Sprawdź czy pliki JSON istnieją w podanej ścieżce."
+                </div>
+                <div class="text" style="margin-top: 15px; padding: 10px; background-color: rgba(239, 68, 68, 0.05); border-radius: 4px;">
+                    <strong>Błąd:</strong> ${error.message}
+                </div>
+            `;
         } finally {
             // Ukryj wskaźnik ładowania
             loadingIndicator.style.display = 'none';
         }
     }
 
-    // Bezpośrednie wykrywanie połączeń cross-path
-    function checkForCrossPathConnections() {
-        console.log("DEBUGGING: Starting direct cross-path connection check");
-        crossPathLinks = []; // Reset the array
-
-        // Defensive programming: check if scenesData is properly loaded
-        if (!scenesData || Object.keys(scenesData).length === 0) {
-            console.error("No scene data available for cross-path detection");
-            return;
-        }
-
-        // Dla każdej sceny w bieżącej podróży, sprawdź wszystkie wybory
-        const travelPrefix = `travel${currentTravelId}_`;
-
-        Object.entries(scenesData).forEach(([sceneId, scene]) => {
-            // Sprawdź tylko sceny z bieżącej podróży
-            if (!sceneId.startsWith(travelPrefix)) return;
-
-            // Jeśli scena ma wybory
-            if (scene.choices && scene.choices.length > 0) {
-                scene.choices.forEach(choice => {
-                    // Defensive check for choice structure
-                    if (!choice || !choice.nextScene) return;
-
-                    const targetId = choice.nextScene;
-
-                    // Jeśli cel to nie scenariusz intro i istnieje w danych
-                    if (!targetId.endsWith('_intro') && !sceneId.endsWith('_intro') && scenesData[targetId]) {
-                        try {
-                            // Try to extract scene numbers safely with error handling
-                            const sourceMatch = sceneId.replace(travelPrefix, '').match(/\d+/);
-                            const targetMatch = targetId.replace(travelPrefix, '').match(/\d+/);
-
-                            if (!sourceMatch || !targetMatch) return;
-
-                            const sourceNum = parseInt(sourceMatch[0]);
-                            const targetNum = parseInt(targetMatch[0]);
-
-                            if (isNaN(sourceNum) || isNaN(targetNum)) return;
-
-                            // Sprawdź czy są sąsiednie - różnica większa niż 1 oznacza przeskok
-                            const diff = Math.abs(targetNum - sourceNum);
-
-                            if (diff > 1) {
-                                console.log(`DEBUGGING: Znaleziono bezpośrednie cross-path połączenie: ${sceneId} -> ${targetId}, różnica: ${diff}`);
-
-                                // Dodaj do listy z wyrazistymi parametrami do renderowania
-                                crossPathLinks.push({
-                                    source: sceneId,
-                                    target: targetId,
-                                    sourcePathId: sceneId,
-                                    targetPathId: targetId,
-                                    isDirect: true,
-                                    difference: diff,
-                                    color: "#ff3300",
-                                    width: 4,
-                                    opacity: 1
-                                });
-                            }
-                        } catch (error) {
-                            console.error(`Error processing cross-path from ${sceneId} to ${targetId}:`, error);
-                        }
-                    }
-                });
-            }
-        });
-
-        console.log(`DEBUGGING: Znaleziono ${crossPathLinks.length} bezpośrednich cross-path połączeń`);
-    }
-
-    // Dodaj znacznik strzałki z większą widocznością
-    function addArrowMarker() {
-        // Usuń poprzedni marker, jeśli istnieje
-        svg.select("defs").remove();
-
-        // Dodaj nowy marker
-        svg.append("defs").append("marker")
-            .attr("id", "end-arrow")
-            .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 8)
-            .attr("refY", 0)
-            .attr("markerWidth", 8)
-            .attr("markerHeight", 8)
-            .attr("orient", "auto")
-            .append("path")
-            .attr("d", "M0,-5L10,0L0,5")
-            .attr("fill", "#ff5500");
-    }
-
-    // Dodaj tę funkcję do renderowania linii cross-path
-    function renderCrossPathLinks() {
-        console.log("DEBUGGING: Renderowanie cross-path połączeń");
-
-        // Safety check - if root is not defined or crossPathLinks is empty, return
-        if (!root || !crossPathLinks || crossPathLinks.length === 0) {
-            console.log("No cross-path links to render or missing root");
-            return;
-        }
-
-        // Najpierw usuń istniejące połączenia cross-path
-        g.selectAll(".cross-path-connection").remove();
-
-        // Renderuj każde połączenie cross-path
-        crossPathLinks.forEach((link, index) => {
-            try {
-                console.log(`DEBUGGING: Renderowanie cross-path ${index+1}: ${link.source} -> ${link.target}`);
-
-                // Znajdź węzły źródłowy i docelowy
-                const sourceNode = root.descendants().find(d => d.data.id === link.source);
-                const targetNode = root.descendants().find(d => d.data.id === link.target);
-
-                if (!sourceNode || !targetNode) {
-                    console.log(`DEBUGGING: Brak węzła ${!sourceNode ? 'źródłowego' : 'docelowego'} dla połączenia ${link.source} -> ${link.target}`);
-                    return;
-                }
-
-                // Ustal współrzędne punktów
-                let sx, sy, tx, ty;
-
-                if (currentLayout === 'radial') {
-                    sx = Math.sin(sourceNode.x) * sourceNode.y;
-                    sy = -Math.cos(sourceNode.x) * sourceNode.y;
-                    tx = Math.sin(targetNode.x) * targetNode.y;
-                    ty = -Math.cos(targetNode.x) * targetNode.y;
-                } else {
-                    sx = sourceNode.y; // W układzie drzewa x i y są zamienione
-                    sy = sourceNode.x;
-                    tx = targetNode.y;
-                    ty = targetNode.x;
-                }
-
-                // Narysuj linię
-                const line = g.append("path")
-                    .attr("class", "cross-path-connection")
-                    .attr("d", () => {
-                        const path = d3.path();
-
-                        if (currentLayout === 'radial') {
-                            // Zakrzywiona linia dla układu radialnego
-                            path.moveTo(sx, sy);
-
-                            // Punkt kontrolny
-                            const midX = (sx + tx) / 2;
-                            const midY = (sy + ty) / 2;
-                            const dx = tx - sx;
-                            const dy = ty - sy;
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-                            const offset = dist * 0.3;
-
-                            // Przesunięcie prostopadłe
-                            const nx = -dy / dist * offset;
-                            const ny = dx / dist * offset;
-
-                            path.quadraticCurveTo(midX + nx, midY + ny, tx, ty);
-                        } else {
-                            // Krzywa Beziera dla układu drzewa
-                            path.moveTo(sx, sy);
-
-                            const midX = (sx + tx) / 2;
-                            path.bezierCurveTo(
-                                midX, sy,   // pierwszy punkt kontrolny
-                                midX, ty,   // drugi punkt kontrolny
-                                tx, ty      // punkt końcowy
-                            );
-                        }
-
-                        return path.toString();
-                    })
-                    .attr("fill", "none")
-                    .attr("stroke", "#ff5500")
-                    .attr("stroke-width", 3)
-                    .attr("stroke-dasharray", "8,4")
-                    .attr("stroke-opacity", 1)
-                    .attr("marker-end", "url(#end-arrow)")
-                    .on("mouseover", function() {
-                        d3.select(this)
-                            .attr("stroke-width", 5)
-                            .attr("stroke", "#ff0000");
-                    })
-                    .on("mouseout", function() {
-                        d3.select(this)
-                            .attr("stroke-width", 3)
-                            .attr("stroke", "#ff5500");
-                    })
-                    .on("click", function() {
-                        // Fokus na węźle docelowym po kliknięciu
-                        focusOnScene(link.target);
-                        displaySceneInfo(link.target);
-                    });
-
-                console.log(`DEBUGGING: Narysowano cross-path linię ${index+1}`);
-            } catch (error) {
-                console.error(`Error rendering cross-path connection ${index}:`, error);
+    // Update travel selectors in both sidebar and floating panel
+    function updateTravelSelectors() {
+        // Update travel options in floating panel
+        const floatingOptions = document.querySelectorAll('#floating-travel-options .travel-option');
+        floatingOptions.forEach(option => {
+            const travelId = parseInt(option.getAttribute('data-travel-id'));
+            if (travelId === currentTravelId) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
             }
         });
     }
@@ -909,9 +1262,7 @@
         const flatData = [];
         const processedNodes = new Set();
         const processedEdges = new Set();
-
-        // Najpierw wyszukujemy bezpośrednie połączenia cross-path
-        checkForCrossPathConnections();
+        crossPathLinks = []; // Reset cross path links
 
         // Funkcja pomocnicza do przetwarzania scen
         function processScene(sceneId, parentId = null, depth = 0, pathId = null) {
@@ -1099,79 +1450,26 @@
 
     // Wykrywanie i przygotowanie danych o połączeniach między ścieżkami
     function detectCrossPathLinks(root) {
-        console.log("Detecting cross-path links in the tree...");
-        console.log(`Currently have ${crossPathLinks.length} cross-path links`);
-
-        // Dodatkowa metoda wykrywania połączeń - sprawdzamy wszystkie węzły drzewa
-        root.eachAfter(node => {
-            if (node.data.scene && node.data.scene.choices) {
-                node.data.scene.choices.forEach(choice => {
-                    const targetSceneId = choice.nextScene;
-
-                    // Skip intro scenes
-                    if (node.data.id.endsWith('_intro') || targetSceneId.endsWith('_intro')) {
-                        return;
-                    }
-
-                    // Wyszukaj węzeł docelowy w drzewie
-                    const targetInTree = root.descendants().find(d =>
-                        d.data.id === targetSceneId ||
-                        (d.data.isVirtual && d.data.targetScene === targetSceneId));
-
-                    // Jeśli istnieje w drzewie, ale nie jest bezpośrednim dzieckiem
-                    if (targetInTree && !areDirectlyConnected(node, targetInTree)) {
-                        // To jest cross-path connection
-                        const isAlreadyAdded = crossPathLinks.some(link =>
-                            link.source === node.data.id && link.target === targetSceneId);
-
-                        if (!isAlreadyAdded) {
-                            console.log(`Found new cross-path from ${node.data.id} to ${targetSceneId}`);
-                            crossPathLinks.push({
-                                source: node.data.id,
-                                target: targetSceneId,
-                                sourcePathId: node.data.pathId,
-                                targetPathId: targetInTree.data.pathId,
-                                isDirect: true,
-                                fromDetectFunction: true
-                            });
-                        }
-                    }
-                });
-            }
-        });
-
-        // Funkcja sprawdzająca czy dwa węzły są bezpośrednio połączone
-        function areDirectlyConnected(parentNode, childNode) {
-            if (!parentNode.children) return false;
-            return parentNode.children.some(child => child === childNode);
-        }
-
-        // Aktualizacja licznika w statystykach
-        document.getElementById('crossPathLinks').textContent = crossPathLinks.length;
-        console.log(`Total cross-path links after detection: ${crossPathLinks.length}`);
+        // Use our comprehensive detection method instead
+        detectAllCrossPaths();
     }
 
     // Renderowanie grafu
     function renderGraph() {
-        // Najpierw czyścimy poprzedni graf
+        // Clear the canvas
         g.selectAll("*").remove();
 
-        // Dodaj strzałki dla połączeń cross-path
+        // Add arrow marker for cross-path connections
         addArrowMarker();
 
-        console.log(`Rendering graph with ${crossPathLinks.length} cross-path connections`);
-        crossPathLinks.forEach(link => {
-            console.log(`Cross-path: ${link.source} -> ${link.target}`);
-        });
-
-        // Ustawiamy odpowiednie transformacje dla różnych layoutów
+        // Set appropriate transformations for different layouts
         if (currentLayout === 'radial') {
             g.attr("transform", `translate(${width/2},${height/2})`);
         } else {
             g.attr("transform", `translate(50,40)`);
         }
 
-        // Funkcja link generator zależna od typu layoutu
+        // Create appropriate link generator
         let linkGenerator;
         if (currentLayout === 'radial') {
             linkGenerator = d3.linkRadial()
@@ -1183,7 +1481,7 @@
                 .y(d => d.x);
         }
 
-        // Rysujemy krawędzie
+        // Draw regular tree links
         g.selectAll(".link")
             .data(root.links())
             .enter()
@@ -1191,7 +1489,7 @@
             .attr("class", "link")
             .attr("d", linkGenerator);
 
-        // Rysujemy węzły
+        // Draw nodes
         const nodes = g.selectAll(".node")
             .data(root.descendants())
             .enter()
@@ -1211,55 +1509,47 @@
                 }
             })
             .on("click", function(event, d) {
-                // Wyczyść poprzednie zaznaczenie
+                // Clear previous selection
                 d3.selectAll(".node").classed("selected", false);
 
-                // Zaznacz bieżący węzeł
+                // Mark this node as selected
                 d3.select(this).classed("selected", true);
                 selectedNode = d;
 
+                // Display scene info
                 const sceneId = d.data.isVirtual ? d.data.targetScene : d.data.id;
                 displaySceneInfo(sceneId);
             })
             .on("mouseover", function(event, d) {
-                // Zatrzymaj propagację wydarzeń, aby zapobiec błędnej detekcji
                 event.stopPropagation();
 
-                // Dodaj klasę hover
                 d3.select(this).classed("hover", true);
 
-                // Podświetlamy węzeł
                 d3.select(this).select("circle")
                     .transition().duration(200)
                     .attr("r", nodeRadius * 1.3);
 
-                // Pokazujemy tooltip bez opóźnienia
                 showTooltip(event, d);
 
-                // Jeśli etykiety są w trybie "hover", pokazujemy etykietę
                 if (labelMode === 'hover') {
                     d3.select(this).select("text").style("opacity", 1);
                 }
             })
             .on("mouseout", function() {
-                // Usuń klasę hover
                 d3.select(this).classed("hover", false);
 
-                // Przywracamy normalny rozmiar węzła
                 d3.select(this).select("circle")
                     .transition().duration(200)
                     .attr("r", nodeRadius);
 
-                // Ukrywamy tooltip natychmiast
                 tooltip.style("opacity", 0);
 
-                // Jeśli etykiety są w trybie "hover", ukrywamy etykietę
                 if (labelMode === 'hover') {
                     d3.select(this).select("text").style("opacity", 0);
                 }
             });
 
-        // Dodajemy kółka reprezentujące węzły
+        // Add circles for nodes
         nodes.append("circle")
             .attr("r", nodeRadius)
             .attr("fill", d => {
@@ -1269,26 +1559,20 @@
                 const nodeType = d.data.nodeType;
                 return nodeColors[nodeType];
             })
-            .attr("stroke", d => {
-                return d.data.isDeadEnd ? "#ef4444" : "#d1d5db";
-            })
-            .attr("stroke-width", d => {
-                return d.data.isDeadEnd ? 3 : 2;
-            });
+            .attr("stroke", d => d.data.isDeadEnd ? "#ef4444" : "#d1d5db")
+            .attr("stroke-width", d => d.data.isDeadEnd ? 3 : 2);
 
-        // Dodajemy znak X dla martwych końców
+        // Add X marks for dead ends
         nodes.filter(d => d.data.isDeadEnd)
             .append("g")
             .attr("class", "node-x")
             .call(g => {
-                // Dodajemy ciemniejsze tło dla lepszego kontrastu
                 g.append("circle")
                     .attr("r", nodeRadius * 0.9)
                     .attr("fill", "#fff")
                     .attr("stroke", "#ef4444")
                     .attr("stroke-width", 1);
 
-                // Linia X - lewa góra do prawego dołu
                 g.append("line")
                     .attr("x1", -nodeRadius/1.2)
                     .attr("y1", -nodeRadius/1.2)
@@ -1298,7 +1582,6 @@
                     .attr("stroke-width", 3)
                     .attr("stroke-linecap", "round");
 
-                // Linia X - prawa góra do lewego dołu
                 g.append("line")
                     .attr("x1", nodeRadius/1.2)
                     .attr("y1", -nodeRadius/1.2)
@@ -1309,16 +1592,16 @@
                     .attr("stroke-linecap", "round");
             });
 
-        // Dodajemy tło dla etykiet (dla lepszej czytelności)
+        // Add backgrounds for labels
         nodes.append("rect")
             .attr("class", "label-background")
             .attr("x", -25)
             .attr("y", -25)
             .attr("width", 50)
             .attr("height", 20)
-            .attr("opacity", 0);  // Domyślnie niewidoczne
+            .attr("opacity", 0);
 
-        // Dodajemy etykiety węzłów
+        // Add node labels
         nodes.append("text")
             .attr("dy", -15)
             .attr("x", 0)
@@ -1328,19 +1611,17 @@
                     return "Brak sceny!";
                 } else {
                     name = d.data.isVirtual ? d.data.targetScene : d.data.id;
-                    // Usuń prefix podróży dla czytelności
                     name = name.replace(/^travel\d+_/, '');
                 }
                 return name.length > 10 ? name.substring(0, 8) + '..' : name;
             })
-            .style("opacity", labelMode === 'visible' ? 1 : 0);  // Widoczne tylko w trybie "visible"
+            .style("opacity", labelMode === 'visible' ? 1 : 0);
 
-        // Aktualizujemy wskaźnik trybu
-        document.querySelector('.mode-indicator').textContent = `Tryb: ${
-            currentLayout.charAt(0).toUpperCase() + currentLayout.slice(1)
-        }`;
+        // Update mode indicator
+        document.querySelector('.mode-indicator').textContent =
+            `Tryb: ${currentLayout.charAt(0).toUpperCase() + currentLayout.slice(1)}`;
 
-        // Renderuj połączenia cross-path
+        // Render cross-path connections
         renderCrossPathLinks();
     }
 
@@ -1550,6 +1831,15 @@
         document.getElementById('endScenes').textContent = endScenes;
         document.getElementById('deadEnds').textContent = deadEnds;
         document.getElementById('crossPathLinks').textContent = crossPathsCount;
+
+        // Update stats panel if it exists
+        if (document.getElementById('totalScenes-panel')) {
+            document.getElementById('totalScenes-panel').textContent = totalScenes;
+            document.getElementById('totalChoices-panel').textContent = totalChoices;
+            document.getElementById('endScenes-panel').textContent = endScenes;
+            document.getElementById('deadEnds-panel').textContent = deadEnds;
+            document.getElementById('crossPathLinks-panel').textContent = crossPathsCount;
+        }
     }
 
     // Konfiguracja interakcji
