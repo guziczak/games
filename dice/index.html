@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symulacja Rzutu Kostką</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            transition: color 0.3s;
+            min-height: 30px;
+        }
+
+        #velocityInfo {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        #debugConsole {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            height: 200px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            z-index: 100;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<div id="controls">
+    <button id="throwBtn">Rzuć kostką</button>
+    <div id="result"></div>
+    <div id="velocityInfo"></div>
+    <button id="toggleDebug" style="background-color: #666;">Pokaż/Ukryj logi</button>
+</div>
+<div id="debugConsole"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+<script>
+    // Konfiguracja
+    const config = {
+        diceSize: 2,
+        throwForce: 15,
+        spinForce: 15,
+        gravity: -25,
+        stabilizationThreshold: 0.1,
+        stabilizationDelay: 500, // Skrócono czas oczekiwania przed sprawdzeniem wyniku
+        showResultThreshold: 0.5, // Próg do pokazania wyniku podczas stabilizacji
+        boxSize: {
+            width: 20,
+            height: 20,
+            depth: 20
+        }
+    };
+
+    // Zmienne globalne
+    let scene, camera, renderer, world;
+    let dice, diceBody;
+    let boxes = [];
+    let isThrowInProgress = false;
+    let resultTimeout;
+
+    // Inicjalizacja
+    init();
+    animate();
+
+    function init() {
+        // Ustawienie sceny Three.js
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+
+        // Kamera
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 10, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Oświetlenie
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.camera.near = 1;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -20;
+        directionalLight.shadow.camera.right = 20;
+        directionalLight.shadow.camera.top = 20;
+        directionalLight.shadow.camera.bottom = -20;
+        scene.add(directionalLight);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Świat fizyki Cannon.js
+        setupPhysics();
+
+        // Stwórz kostkę i dodaj do sceny
+        createDice();
+
+        // Stwórz pudełko ograniczające
+        createBoundingBox();
+
+        // Obsługa zdarzeń
+        window.addEventListener('resize', onWindowResize);
+        document.getElementById('throwBtn').addEventListener('click', throwDice);
+        document.getElementById('toggleDebug').addEventListener('click', toggleDebugConsole);
+
+        // Przechwytujemy console.log i przekierowujemy do debugConsole
+        setupDebugConsole();
+
+        // Dodaj płaszczyznę jako podłogę
+        const planeGeometry = new THREE.PlaneGeometry(config.boxSize.width, config.boxSize.depth);
+        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // Fizyka dla podłogi
+        const planeShape = new CANNON.Plane();
+        const planeBody = new CANNON.Body({ mass: 0 });
+        planeBody.addShape(planeShape);
+        planeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        world.addBody(planeBody);
+    }
+
+    function setupPhysics() {
+        world = new CANNON.World();
+        world.gravity.set(0, config.gravity, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+        world.defaultContactMaterial.restitution = 0.3;
+        world.defaultContactMaterial.friction = 0.5;
+    }
+
+    function createDice() {
+        // Geometria kostki
+        const diceGeometry = new THREE.BoxGeometry(config.diceSize, config.diceSize, config.diceSize);
+        const diceMaterials = createDiceMaterials();
+
+        // Wyświetl informacje o ułożeniu tekstur
+        console.log("Układ ścian kostki THREE.js:");
+        console.log("Ściana 0 (prawo, +X): 1");
+        console.log("Ściana 1 (lewo, -X): 6");
+        console.log("Ściana 2 (góra, +Y): 2");
+        console.log("Ściana 3 (dół, -Y): 5");
+        console.log("Ściana 4 (przód, +Z): 3");
+        console.log("Ściana 5 (tył, -Z): 4");
+
+        // Stwórz kostkę z materiałami
+        dice = new THREE.Mesh(diceGeometry, diceMaterials);
+        dice.castShadow = true;
+        dice.position.set(0, 5, 0);
+        scene.add(dice);
+
+        // Fizyka kostki
+        const diceShape = new CANNON.Box(new CANNON.Vec3(config.diceSize/2, config.diceSize/2, config.diceSize/2));
+        diceBody = new CANNON.Body({
+            mass: 1,
+            shape: diceShape,
+            position: new CANNON.Vec3(0, 5, 0),
+            angularDamping: 0.5,
+            linearDamping: 0.3
+        });
+        world.addBody(diceBody);
+
+        // Ustaw pozycję początkową
+        resetDice();
+    }
+
+    function createDiceMaterials() {
+        const diceTextures = [
+            createDiceTexture(1), // prawo (+X)
+            createDiceTexture(6), // lewo (-X)
+            createDiceTexture(2), // góra (+Y)
+            createDiceTexture(5), // dół (-Y)
+            createDiceTexture(3), // przód (+Z)
+            createDiceTexture(4)  // tył (-Z)
+        ];
+
+        return diceTextures.map((texture, index) => {
+            // Dodajemy numer do materiału, żeby można było go łatwo zidentyfikować wizualnie
+            const material = new THREE.MeshStandardMaterial({ map: texture });
+            material.userData = { value: [1, 6, 2, 5, 3, 4][index] };
+            return material;
+        });
+    }
+
+    function createDiceTexture(value) {
+        // Tworzy canvas z numerem kostki
+        const canvas = document.createElement('canvas');
+        const size = 128;
+        canvas.width = size;
+        canvas.height = size;
+
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, size, size);
+
+        // Dodaj kropki w odpowiednich miejscach
+        context.fillStyle = '#000000';
+
+        const dotPositions = {
+            1: [[0.5, 0.5]],
+            2: [[0.25, 0.25], [0.75, 0.75]],
+            3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+            4: [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]],
+            5: [[0.25, 0.25], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [0.75, 0.75]],
+            6: [[0.25, 0.25], [0.25, 0.5], [0.25, 0.75], [0.75, 0.25], [0.75, 0.5], [0.75, 0.75]]
+        };
+
+        const dotSize = size * 0.15;
+        dotPositions[value].forEach(pos => {
+            context.beginPath();
+            context.arc(pos[0] * size, pos[1] * size, dotSize, 0, 2 * Math.PI);
+            context.fill();
+        });
+
+        // Dodanie cienia wokół brzegów dla lepszego efektu 3D
+        context.strokeStyle = '#888888';
+        context.lineWidth = 4;
+        context.strokeRect(0, 0, size, size);
+
+        // Konwersja canvas na teksturę
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function createBoundingBox() {
+        const { width, height, depth } = config.boxSize;
+
+        // Stwórz boki pudełka (tylko wizualne)
+        const boxGeometry = new THREE.BoxGeometry(1, height, depth);
+        const boxMaterial = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.2
+        });
+
+        // Lewy bok
+        const leftWall = new THREE.Mesh(boxGeometry, boxMaterial);
+        leftWall.position.set(-width/2, height/2, 0);
+        scene.add(leftWall);
+        boxes.push(leftWall);
+
+        // Prawy bok
+        const rightWall = new THREE.Mesh(boxGeometry, boxMaterial);
+        rightWall.position.set(width/2, height/2, 0);
+        scene.add(rightWall);
+        boxes.push(rightWall);
+
+        // Tylny bok
+        const backWallGeometry = new THREE.BoxGeometry(width, height, 1);
+        const backWall = new THREE.Mesh(backWallGeometry, boxMaterial);
+        backWall.position.set(0, height/2, -depth/2);
+        scene.add(backWall);
+        boxes.push(backWall);
+
+        // Przedni bok
+        const frontWall = new THREE.Mesh(backWallGeometry, boxMaterial);
+        frontWall.position.set(0, height/2, depth/2);
+        scene.add(frontWall);
+        boxes.push(frontWall);
+
+        // Dodaj fizyczne ściany
+        // Grubość ścian
+        const wallThickness = 0.5;
+
+        // Lewy bok - fizyka
+        const leftShape = new CANNON.Box(new CANNON.Vec3(wallThickness/2, height/2, depth/2));
+        const leftBody = new CANNON.Body({ mass: 0 });
+        leftBody.addShape(leftShape);
+        leftBody.position.set(-width/2, height/2, 0);
+        world.addBody(leftBody);
+
+        // Prawy bok - fizyka
+        const rightBody = new CANNON.Body({ mass: 0 });
+        rightBody.addShape(leftShape);
+        rightBody.position.set(width/2, height/2, 0);
+        world.addBody(rightBody);
+
+        // Tylny bok - fizyka
+        const backShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, wallThickness/2));
+        const backBody = new CANNON.Body({ mass: 0 });
+        backBody.addShape(backShape);
+        backBody.position.set(0, height/2, -depth/2);
+        world.addBody(backBody);
+
+        // Przedni bok - fizyka
+        const frontBody = new CANNON.Body({ mass: 0 });
+        frontBody.addShape(backShape);
+        frontBody.position.set(0, height/2, depth/2);
+        world.addBody(frontBody);
+    }
+
+    function throwDice() {
+        if (isThrowInProgress) return;
+
+        isThrowInProgress = true;
+        resetDice();
+
+        // Wyczyść wynik
+        document.getElementById('result').textContent = '';
+        document.getElementById('velocityInfo').textContent = 'Rzucam kostkę...';
+
+        console.log("=== RZUCAM KOSTKĄ ===");
+
+        // Zastosuj losowe siły i impulsy
+        const throwDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.throwForce,
+            config.throwForce * 0.8,
+            (Math.random() - 0.5) * config.throwForce
+        );
+
+        diceBody.applyImpulse(throwDirection, diceBody.position);
+        console.log(`Siła rzutu: (${throwDirection.x.toFixed(2)}, ${throwDirection.y.toFixed(2)}, ${throwDirection.z.toFixed(2)})`);
+
+        // Dodaj losowy moment obrotowy (spin)
+        const spinDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.spinForce,
+            (Math.random() - 0.5) * config.spinForce,
+            (Math.random() - 0.5) * config.spinForce
+        );
+
+        diceBody.angularVelocity.set(spinDirection.x, spinDirection.y, spinDirection.z);
+        console.log(`Moment obrotowy: (${spinDirection.x.toFixed(2)}, ${spinDirection.y.toFixed(2)}, ${spinDirection.z.toFixed(2)})`);
+
+        // Wyczyść timeout jeśli istnieje
+        if (resultTimeout) {
+            clearTimeout(resultTimeout);
+        }
+
+        // Ustaw timeout na odczyt wyniku
+        resultTimeout = setTimeout(checkDiceResult, config.stabilizationDelay);
+        console.log(`Sprawdzę wynik za ${config.stabilizationDelay}ms`);
+    }
+
+    function resetDice() {
+        console.log("Resetowanie kostki");
+        // Resetuj pozycję kostki
+        diceBody.position.set(0, 8, 0);
+        diceBody.velocity.set(0, 0, 0);
+        diceBody.angularVelocity.set(0, 0, 0);
+        diceBody.quaternion.set(0, 0, 0, 1);
+
+        // Zastosuj małą rotację żeby kostka nie była idealnie wypoziomowana
+        const smallRotation = Math.PI / 6;
+        diceBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 1), smallRotation);
+
+        // Wyczyść konsole debugowania
+        document.getElementById('debugConsole').innerHTML = '';
+        console.log("Kostka zresetowana");
+    }
+
+    function checkDiceResult() {
+        // Sprawdź prędkość kostki
+        const velocityMagnitude = diceBody.velocity.norm();
+        const angularVelocityMagnitude = diceBody.angularVelocity.norm();
+
+        // Aktualizuj informacje o prędkości
+        document.getElementById('velocityInfo').textContent =
+            `Prędkość: ${velocityMagnitude.toFixed(2)}, Obrót: ${angularVelocityMagnitude.toFixed(2)}`;
+
+        // Sprawdź czy kostka się zatrzymała
+        const isStable = velocityMagnitude < config.stabilizationThreshold &&
+            angularVelocityMagnitude < config.stabilizationThreshold;
+
+        if (isStable) {
+            console.log("KOSTKA UZNANA ZA STABILNĄ - rozpoczynam proces stabilizacji");
+            console.log(`Prędkość przed stabilizacją: liniowa=${velocityMagnitude.toFixed(4)}, kątowa=${angularVelocityMagnitude.toFixed(4)}`);
+
+            // Najpierw odczytaj wartość przed stabilizacją
+            const resultBeforeStabilization = getDiceValue();
+            console.log(`Wartość kostki PRZED stabilizacją: ${resultBeforeStabilization}`);
+
+            // TUTAJ NAPRAWIAMY GŁÓWNY PROBLEM:
+            // Nie stabilizujemy kostki, tylko po prostu bierzemy wynik z getDiceValue()
+            // Funkcja stabilizeDiceRotation() powodowała problemy
+
+            const result = resultBeforeStabilization;
+            console.log(`Wartość kostki (bez stabilizacji): ${result}`);
+
+            document.getElementById('result').textContent = `Wynik: ${result}`;
+            document.getElementById('result').style.color = '#4CAF50'; // Zielony kolor dla ostatecznego wyniku
+            document.getElementById('velocityInfo').textContent = 'Kostka ustabilizowana';
+
+            // Zatrzymujemy ruch kostki bez zmiany jej orientacji
+            diceBody.velocity.set(0, 0, 0);
+            diceBody.angularVelocity.set(0, 0, 0);
+
+            isThrowInProgress = false;
+        } else {
+            // Pokaż wstępny wynik, jeśli kostka porusza się powoli
+            if (velocityMagnitude < config.showResultThreshold &&
+                angularVelocityMagnitude < config.showResultThreshold) {
+                const prelimResult = getDiceValue();
+                console.log(`Wartość tymczasowa podczas ruchu: ${prelimResult} (prędkości: ${velocityMagnitude.toFixed(4)}, ${angularVelocityMagnitude.toFixed(4)})`);
+                document.getElementById('result').textContent = `Stabilizowanie... ${prelimResult}`;
+                document.getElementById('result').style.color = '#FF9800'; // Pomarańczowy dla wyniku tymczasowego
+            }
+
+            // Jeśli wciąż się porusza, sprawdź ponownie za chwilę
+            resultTimeout = setTimeout(checkDiceResult, 100); // Sprawdzaj częściej
+        }
+    }
+
+    function stabilizeDiceRotation() {
+        console.log("=== ROZPOCZĘCIE STABILIZACJI KOSTKI ===");
+        // Pobierz aktualną rotację kostki
+        const quaternion = diceBody.quaternion.clone();
+        console.log("Quaternion przed stabilizacją:", quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+
+        // Tworzymy macierz rotacji
+        const rotMat = new CANNON.Mat3();
+        // W nowszych wersjach CANNON.js metoda nazywa się vmult
+        quaternion.vmult(new CANNON.Vec3(1, 0, 0), new CANNON.Vec3());
+
+        // Ręcznie tworzymy macierz rotacji na podstawie quaterniona
+        const x = quaternion.x, y = quaternion.y, z = quaternion.z, w = quaternion.w;
+        const xx = x * x, yy = y * y, zz = z * z;
+        const xy = x * y, xz = x * z, yz = y * z;
+        const wx = w * x, wy = w * y, wz = w * z;
+
+        rotMat.elements[0] = 1 - 2 * (yy + zz);
+        rotMat.elements[1] = 2 * (xy - wz);
+        rotMat.elements[2] = 2 * (xz + wy);
+
+        rotMat.elements[3] = 2 * (xy + wz);
+        rotMat.elements[4] = 1 - 2 * (xx + zz);
+        rotMat.elements[5] = 2 * (yz - wx);
+
+        rotMat.elements[6] = 2 * (xz - wy);
+        rotMat.elements[7] = 2 * (yz + wx);
+        rotMat.elements[8] = 1 - 2 * (xx + yy);
+
+        // Pobierz wektory osi lokalnej kostki i przypisz im wartości kostki
+        const faces = [
+            { axis: new CANNON.Vec3(1, 0, 0), value: 1 },  // +x (prawo) = 1
+            { axis: new CANNON.Vec3(-1, 0, 0), value: 6 }, // -x (lewo) = 6
+            { axis: new CANNON.Vec3(0, 1, 0), value: 2 },  // +y (góra) = 2
+            { axis: new CANNON.Vec3(0, -1, 0), value: 5 }, // -y (dół) = 5
+            { axis: new CANNON.Vec3(0, 0, 1), value: 3 },  // +z (przód) = 3
+            { axis: new CANNON.Vec3(0, 0, -1), value: 4 }  // -z (tył) = 4
+        ];
+
+        console.log("Lokalne osie kostki:");
+        faces.forEach((face, i) => {
+            console.log(`Oś ${i}, wartość ${face.value}: (${face.axis.x}, ${face.axis.y}, ${face.axis.z})`);
+        });
+
+        // Przekształć wszystkie wektory face przy użyciu macierzy rotacji
+        const rotatedFaces = faces.map(face => {
+            const rotatedFace = new CANNON.Vec3();
+            // Ręczna implementacja vmult
+            const vmult = (mat, vec, target) => {
+                const x = vec.axis.x;
+                const y = vec.axis.y;
+                const z = vec.axis.z;
+                const e = mat.elements;
+
+                target.x = e[0] * x + e[1] * y + e[2] * z;
+                target.y = e[3] * x + e[4] * y + e[5] * z;
+                target.z = e[6] * x + e[7] * y + e[8] * z;
+
+                return target;
+            };
+
+            vmult(rotMat, face, rotatedFace);
+            return {
+                axis: rotatedFace,
+                value: face.value
+            };
+        });
+
+        console.log("Przekształcone osie kostki:");
+        rotatedFaces.forEach((face, i) => {
+            console.log(`Oś ${i}, wartość ${face.value} po transformacji: (${face.axis.x.toFixed(3)}, ${face.axis.y.toFixed(3)}, ${face.axis.z.toFixed(3)})`);
+        });
+
+        // Znajdź wektor, który jest najbardziej skierowany do góry
+        let bestFaceIndex = 0;
+        let bestDot = -Infinity;
+
+        // Znajdź, który wektor (x, y, z) jest najbardziej zbliżony do globalnego "w górę"
+        const upVec = new CANNON.Vec3(0, 1, 0);
+
+        console.log("Iloczyny skalarne z wektorem 'góra' podczas stabilizacji:");
+        for (let i = 0; i < rotatedFaces.length; i++) {
+            const dot = rotatedFaces[i].axis.dot(upVec);
+            console.log(`Oś ${i}, wartość ${rotatedFaces[i].value}: iloczyn skalarny = ${dot.toFixed(4)}`);
+            if (dot > bestDot) {
+                bestDot = dot;
+                bestFaceIndex = i;
+            }
+        }
+
+        console.log(`Wybrana oś do stabilizacji: ${bestFaceIndex}, wartość ${rotatedFaces[bestFaceIndex].value} z iloczynem ${bestDot.toFixed(4)}`);
+
+        // Znajdź oś i kąt, które przekształcą aktualną rotację w taką,
+        // gdzie wybrany wektor face jest dokładnie skierowany w górę
+        const targetVec = faces[bestFaceIndex].axis;
+        const currentVec = rotatedFaces[bestFaceIndex].axis;
+
+        console.log(`Wektor docelowy: (${targetVec.x}, ${targetVec.y}, ${targetVec.z})`);
+        console.log(`Wektor bieżący: (${currentVec.x.toFixed(3)}, ${currentVec.y.toFixed(3)}, ${currentVec.z.toFixed(3)})`);
+
+        // Znajdź oś prostopadłą do obu wektorów
+        const rotAxis = new CANNON.Vec3();
+        currentVec.cross(upVec, rotAxis);
+        rotAxis.normalize();
+
+        console.log(`Oś rotacji: (${rotAxis.x.toFixed(3)}, ${rotAxis.y.toFixed(3)}, ${rotAxis.z.toFixed(3)})`);
+
+        // Znajdź kąt między wektorami
+        const angle = Math.acos(currentVec.dot(upVec));
+        console.log(`Kąt rotacji: ${angle.toFixed(3)} rad`);
+
+        // Stwórz nowy quaternion reprezentujący tę rotację
+        const stabilizeQuaternion = new CANNON.Quaternion();
+        stabilizeQuaternion.setFromAxisAngle(rotAxis, angle);
+
+        console.log(`Quaternion stabilizacji: ${stabilizeQuaternion.x.toFixed(3)}, ${stabilizeQuaternion.y.toFixed(3)}, ${stabilizeQuaternion.z.toFixed(3)}, ${stabilizeQuaternion.w.toFixed(3)}`);
+
+        // Połącz oba quaterniony
+        const finalQuaternion = new CANNON.Quaternion();
+        finalQuaternion.mult(stabilizeQuaternion, quaternion, finalQuaternion);
+
+        console.log(`Quaternion końcowy: ${finalQuaternion.x.toFixed(3)}, ${finalQuaternion.y.toFixed(3)}, ${finalQuaternion.z.toFixed(3)}, ${finalQuaternion.w.toFixed(3)}`);
+
+        // Zastosuj końcową rotację do bryły kostki
+        diceBody.quaternion.copy(finalQuaternion);
+        diceBody.velocity.set(0, 0, 0);
+        diceBody.angularVelocity.set(0, 0, 0);
+
+        console.log("=== KONIEC STABILIZACJI KOSTKI ===");
+
+        // Sprawdź, jaki wynik będzie po stabilizacji
+        const resultAfterStabilization = getDiceValue();
+        console.log(`Wynik po stabilizacji: ${resultAfterStabilization}`);
+
+        // Bezpośrednio mapuj wartość na podstawie wybranej osi
+        const valueFromAxis = rotatedFaces[bestFaceIndex].value;
+        console.log(`Oczekiwana wartość na podstawie wybranej osi: ${valueFromAxis}`);
+
+        // Jeśli wartości się różnią, to mamy problem
+        if (resultAfterStabilization !== valueFromAxis) {
+            console.error(`!!! NIEZGODNOŚĆ: getDiceValue() zwraca ${resultAfterStabilization}, ale wybrana oś ma wartość ${valueFromAxis}`);
+        }
+    }
+
+    function getDiceValue() {
+        // Ta funkcja określa, która strona kostki jest skierowana do góry
+        // i zwraca odpowiadającą wartość
+
+        console.log("=== ROZPOCZĘCIE SPRAWDZANIA WYNIKU ===");
+
+        // Ustal, który wektor lokalny kostki jest skierowany do góry
+        const upVector = new CANNON.Vec3(0, 1, 0);
+        console.log("Wektor 'góra':", upVector);
+
+        // Przekształć lokalne osie kostki na globalne przy użyciu quaternionu
+        const rotMat = new CANNON.Mat3();
+
+        // Ręcznie tworzymy macierz rotacji na podstawie quaterniona
+        const q = diceBody.quaternion;
+        console.log("Aktualny quaternion kostki:", q.x, q.y, q.z, q.w);
+
+        const x = q.x, y = q.y, z = q.z, w = q.w;
+        const xx = x * x, yy = y * y, zz = z * z;
+        const xy = x * y, xz = x * z, yz = y * z;
+        const wx = w * x, wy = w * y, wz = w * z;
+
+        rotMat.elements[0] = 1 - 2 * (yy + zz);
+        rotMat.elements[1] = 2 * (xy - wz);
+        rotMat.elements[2] = 2 * (xz + wy);
+
+        rotMat.elements[3] = 2 * (xy + wz);
+        rotMat.elements[4] = 1 - 2 * (xx + zz);
+        rotMat.elements[5] = 2 * (yz - wx);
+
+        rotMat.elements[6] = 2 * (xz - wy);
+        rotMat.elements[7] = 2 * (yz + wx);
+        rotMat.elements[8] = 1 - 2 * (xx + yy);
+
+        // Określ wszystkie możliwe strony kostki (w lokalnym układzie współrzędnych)
+        // WAŻNE: To musi być zgodne z wartościami w faces[] w funkcji stabilizeDiceRotation
+        const localFaces = [
+            { axis: new CANNON.Vec3(1, 0, 0), value: 1 },   // prawo (1)
+            { axis: new CANNON.Vec3(-1, 0, 0), value: 6 },  // lewo (6)
+            { axis: new CANNON.Vec3(0, 1, 0), value: 2 },   // góra (2)
+            { axis: new CANNON.Vec3(0, -1, 0), value: 5 },  // dół (5)
+            { axis: new CANNON.Vec3(0, 0, 1), value: 3 },   // przód (3)
+            { axis: new CANNON.Vec3(0, 0, -1), value: 4 }   // tył (4)
+        ];
+
+        console.log("Definicje lokalnych stron kostki:", localFaces.map(f => `wartość ${f.value}: oś (${f.axis.x}, ${f.axis.y}, ${f.axis.z})`));
+
+        // Przekształć wszystkie lokalne wektory na globalne
+        const globalFaces = localFaces.map(face => {
+            const globalAxis = new CANNON.Vec3();
+            // Używamy vmult do transformacji wektora przez macierz
+            // Ale najpierw musimy stworzyć pomocniczą funkcję, ponieważ rotMat.vmult nie istnieje
+            const vmult = (mat, vec, target) => {
+                const x = vec.x;
+                const y = vec.y;
+                const z = vec.z;
+                const e = mat.elements;
+
+                target.x = e[0] * x + e[1] * y + e[2] * z;
+                target.y = e[3] * x + e[4] * y + e[5] * z;
+                target.z = e[6] * x + e[7] * y + e[8] * z;
+
+                return target;
+            };
+
+            vmult(rotMat, face.axis, globalAxis);
+
+            console.log(`Przekształcona oś dla wartości ${face.value}: (${globalAxis.x.toFixed(3)}, ${globalAxis.y.toFixed(3)}, ${globalAxis.z.toFixed(3)})`);
+
+            return {
+                axis: globalAxis,
+                value: face.value
+            };
+        });
+
+        // Znajdź wektor, który jest najbardziej skierowany do góry
+        let bestFaceIndex = 0;
+        let bestDotProduct = -Infinity;
+
+        console.log("Iloczyny skalarne z wektorem 'góra':");
+        for (let i = 0; i < globalFaces.length; i++) {
+            const dotProduct = globalFaces[i].axis.dot(upVector);
+            console.log(`Strona ${globalFaces[i].value}: iloczyn skalarny = ${dotProduct.toFixed(4)}`);
+            if (dotProduct > bestDotProduct) {
+                bestDotProduct = dotProduct;
+                bestFaceIndex = i;
+            }
+        }
+
+        // Zwróć wartość kostki, która jest skierowana do góry
+        console.log(`Wybrana strona: ${globalFaces[bestFaceIndex].value} z iloczynem ${bestDotProduct.toFixed(4)}`);
+        console.log("=== KONIEC SPRAWDZANIA WYNIKU ===");
+
+        return globalFaces[bestFaceIndex].value;
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Aktualizuj fizykę
+        world.step(1/60);
+
+        // Synchronizuj pozycję kostki z fizyką
+        dice.position.copy(diceBody.position);
+        dice.quaternion.copy(diceBody.quaternion);
+
+        renderer.render(scene, camera);
+    }
+
+    function setupDebugConsole() {
+        const debugConsole = document.getElementById('debugConsole');
+        const oldConsoleLog = console.log;
+
+        console.log = function() {
+            // Wywołaj oryginalne console.log
+            oldConsoleLog.apply(console, arguments);
+
+            // Dodaj do naszego debug console
+            const args = Array.from(arguments);
+            const message = args.map(arg => {
+                if (typeof arg === 'object') {
+                    try {
+                        return JSON.stringify(arg);
+                    } catch (e) {
+                        return arg.toString();
+                    }
+                } else {
+                    return arg;
+                }
+            }).join(' ');
+
+            const logLine = document.createElement('div');
+            logLine.textContent = message;
+            debugConsole.appendChild(logLine);
+
+            // Auto-scroll na dół
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+        };
+    }
+
+    function toggleDebugConsole() {
+        const debugConsole = document.getElementById('debugConsole');
+        if (debugConsole.style.display === 'none') {
+            debugConsole.style.display = 'block';
+        } else {
+            debugConsole.style.display = 'none';
+        }
+    }
+</script>
+</body>
+</html>
