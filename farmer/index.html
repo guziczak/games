@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Farmer - Wersja Desktopowa</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-light: #8BC34A;
+            --primary-dark: #2E7D32;
+            --accent: #FF9800;
+            --accent-dark: #F57C00;
+            --bg-color: #f5f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --text-light: #757575;
+            --gray-light: #EEEEEE;
+            --border-color: #E0E0E0;
+            --shadow-small: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow: 0 3px 8px rgba(0,0,0,0.08);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.2s ease;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing: 16px;
+            --spacing-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 16px;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing);
+        }
+
+        /* Header styles */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: var(--spacing) 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .logo-icon {
+            font-size: 1.8rem;
+        }
+
+        .game-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm) var(--spacing);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-dark);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            font-size: 1.1rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+        }
+
+        .btn-secondary {
+            background-color: var(--primary-light);
+        }
+
+        /* Game Setup Screen */
+        .setup-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            padding: var(--spacing-lg);
+        }
+
+        .setup-title {
+            font-size: 2.5rem;
+            margin-bottom: var(--spacing-lg);
+            color: var(--primary-dark);
+        }
+
+        .setup-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: var(--spacing-lg);
+            color: var(--text-light);
+        }
+
+        .player-selection {
+            display: flex;
+            gap: var(--spacing);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .player-count-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-sm);
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 2px solid var(--primary);
+            background-color: white;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .player-count-btn:hover {
+            background-color: var(--primary-light);
+            color: white;
+        }
+
+        .player-count-btn.selected {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .player-name-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing);
+            margin-bottom: var(--spacing-lg);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .player-input {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing);
+        }
+
+        .player-input input {
+            flex: 1;
+            padding: var(--spacing);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+        }
+
+        .player-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .start-btn {
+            font-size: 1.2rem;
+            padding: var(--spacing) var(--spacing-lg);
+        }
+
+        /* Game board layout */
+        .game-screen {
+            display: none;
+        }
+
+        .game-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: var(--spacing);
+            padding: var(--spacing) 0;
+        }
+
+        .board-section,
+        .sidebar-section {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+        }
+
+        /* Game board */
+        .board-content {
+            padding: var(--spacing);
+        }
+
+        /* Game table */
+        .game-table {
+            background-color: #336633;
+            border-radius: var(--radius);
+            padding: var(--spacing);
+            margin-bottom: var(--spacing);
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .stock-area {
+            display: flex;
+            justify-content: center;
+            margin-bottom: var(--spacing);
+            padding: var(--spacing);
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+        }
+
+        .stock-title {
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin-bottom: var(--spacing-sm);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .stock-tokens {
+            display: flex;
+            gap: var(--spacing);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .player-areas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing);
+        }
+
+        .player-area {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .player-area.current {
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.7);
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .player-name {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .current-indicator {
+            background-color: yellow;
+            color: black;
+            padding: 2px var(--spacing-sm);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: none;
+        }
+
+        .player-area.current .current-indicator {
+            display: inline-block;
+        }
+
+        .player-tokens {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        .token-stack {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm);
+            text-align: center;
+            position: relative;
+        }
+
+        .token-icon {
+            font-size: 1.8rem;
+            margin-bottom: var(--spacing-xs);
+            display: block;
+        }
+
+        .token-count {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            line-height: 1;
+        }
+
+        .token-name {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 2px;
+        }
+
+        /* Game action bar */
+        .action-bar {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin: var(--spacing) 0;
+            flex-wrap: wrap;
+        }
+
+        /* Dice area */
+        .dice-area {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            margin-top: var(--spacing);
+        }
+
+        .dice-container {
+            display: flex;
+            gap: var(--spacing);
+        }
+
+        .dice {
+            width: 60px;
+            height: 60px;
+            background-color: white;
+            border-radius: var(--radius-sm);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            box-shadow: var(--shadow-small);
+            border: 1px solid var(--border-color);
+        }
+
+        .dice.rolling {
+            animation: diceRoll 0.8s ease;
+        }
+
+        @keyframes diceRoll {
+            0% { transform: rotate(0deg); }
+            20% { transform: rotate(15deg) scale(1.1); }
+            40% { transform: rotate(-15deg); }
+            60% { transform: rotate(15deg); }
+            80% { transform: rotate(-15deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        .dice-result {
+            flex: 1;
+            padding-left: var(--spacing);
+            border-left: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        /* Sidebar */
+        .sidebar-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .sidebar-block {
+            padding: var(--spacing);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-block:last-child {
+            border-bottom: none;
+        }
+
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .game-status {
+            display: flex;
+            gap: var(--spacing);
+            margin-top: var(--spacing-sm);
+        }
+
+        .status-item {
+            background-color: var(--gray-light);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm);
+            flex: 1;
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Exchange table */
+        .exchange-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-bottom: var(--spacing);
+        }
+
+        .exchange-table th {
+            text-align: left;
+            padding: var(--spacing-sm);
+            background-color: var(--primary-light);
+            color: white;
+        }
+
+        .exchange-table td {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .exchange-row:hover td {
+            background-color: var(--gray-light);
+        }
+
+        /* Exchange controls */
+        .exchange-form {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .exchange-selector {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .exchange-dropdown {
+            flex: 1;
+            padding: var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+        }
+
+        /* Trade history */
+        .trade-history {
+            max-height: 140px;
+            overflow-y: auto;
+            padding: var(--spacing-sm) 0;
+        }
+
+        .trade-item {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid var(--gray-light);
+            font-size: 0.85rem;
+        }
+
+        .trade-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: var(--spacing);
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--primary-dark);
+            color: white;
+            padding: var(--spacing-sm) var(--spacing);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transition: 0.3s ease;
+            font-size: 0.9rem;
+            z-index: 1000;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.3s ease;
+            padding: var(--spacing);
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: scale(0.9);
+            transition: 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: var(--spacing);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: var(--spacing);
+        }
+
+        .modal-body p {
+            margin-bottom: var(--spacing);
+        }
+
+        .modal-body li {
+            margin-left: var(--spacing);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .modal-footer {
+            padding: var(--spacing);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* Winner modal */
+        .winner-icon {
+            font-size: 4rem;
+            text-align: center;
+            display: block;
+            margin-bottom: var(--spacing);
+        }
+
+        .winner-message {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: var(--spacing);
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .game-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                justify-content: center;
+            }
+
+            .player-areas {
+                grid-template-columns: 1fr;
+            }
+
+            .dice {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+
+            .action-bar {
+                justify-content: center;
+            }
+
+            .btn {
+                padding: var(--spacing-sm) var(--spacing);
+                font-size: 0.8rem;
+            }
+
+            .token-stack {
+                padding: var(--spacing-xs);
+            }
+
+            .token-icon {
+                font-size: 1.5rem;
+            }
+
+            .token-count {
+                font-size: 1.2rem;
+            }
+
+            .sidebar-block {
+                padding: var(--spacing-sm);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .player-tokens {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .token-stack {
+                padding: var(--spacing-xs);
+            }
+
+            .token-icon {
+                font-size: 1.2rem;
+            }
+
+            .token-count {
+                font-size: 1rem;
+            }
+
+            .token-name {
+                font-size: 0.7rem;
+            }
+
+            .dice-area {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .dice-result {
+                border-left: none;
+                padding-left: 0;
+                padding-top: var(--spacing-sm);
+                border-top: 1px solid var(--border-color);
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="container header-content">
+        <div class="logo">
+            <span class="logo-icon">🚜</span>
+            <span>SUPER FARMER</span>
+        </div>
+        <div class="game-controls">
+            <button id="newGameBtn" class="btn btn-primary">
+                <span class="btn-icon">🎮</span>
+                Nowa gra
+            </button>
+            <button id="rulesBtn" class="btn btn-secondary">
+                <span class="btn-icon">📋</span>
+                Zasady
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <!-- Game Setup Screen -->
+    <div class="setup-screen" id="setupScreen">
+        <h1 class="setup-title">Super Farmer</h1>
+        <p class="setup-subtitle">Wybierz liczbę graczy i podaj ich imiona</p>
+
+        <div class="player-selection">
+            <button class="player-count-btn" data-count="2">2</button>
+            <button class="player-count-btn" data-count="3">3</button>
+            <button class="player-count-btn" data-count="4">4</button>
+        </div>
+
+        <div class="player-name-inputs" id="playerInputs">
+            <!-- Player inputs will be added here -->
+        </div>
+
+        <button id="startGameBtn" class="btn btn-primary start-btn">
+            Rozpocznij grę
+        </button>
+    </div>
+
+    <!-- Game Screen -->
+    <div class="game-screen" id="gameScreen">
+        <div class="game-layout">
+            <div class="board-section">
+                <div class="board-content">
+                    <div class="game-table">
+                        <div class="stock-area">
+                            <div>
+                                <h3 class="stock-title">Główne stado</h3>
+                                <div class="stock-tokens" id="stockTokens">
+                                    <!-- Stock tokens will be added here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="player-areas" id="playerAreas">
+                            <!-- Player areas will be added here -->
+                        </div>
+                    </div>
+
+                    <div class="action-bar">
+                        <button id="rollDiceBtn" class="btn btn-primary">
+                            <span class="btn-icon">🎲</span>
+                            Rzuć kostkami
+                        </button>
+                        <button id="endTurnBtn" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">⏭️</span>
+                            Koniec tury
+                        </button>
+                    </div>
+
+                    <div class="dice-area">
+                        <div class="dice-container">
+                            <div id="dice1" class="dice">🎲</div>
+                            <div id="dice2" class="dice">🎲</div>
+                        </div>
+                        <div class="dice-result" id="diceResult">
+                            Rzuć kostkami, aby rozpocząć grę
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-content">
+                    <div class="sidebar-block">
+                        <h3 class="sidebar-title">
+                            <span class="btn-icon">📊</span>
+                            Status gry
+                        </h3>
+                        <div class="game-status">
+                            <div class="status-item">
+                                <div class="status-label">Tura</div>
+                                <div class="status-value" id="turnCounter">1</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Aktualny gracz</div>
+                                <div class="status-value" id="currentPlayerDisplay">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-block">
+                        <h3 class="sidebar-title">
+                            <span class="btn-icon">🔄</span>
+                            Wymiana zwierząt
+                        </h3>
+                        <table class="exchange-table">
+                            <tr>
+                                <th>Wymiana</th>
+                                <th>Koszt</th>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🐑 Owca</td>
+                                <td>6 🐇 Królików</td>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🐖 Świnia</td>
+                                <td>2 🐑 Owce</td>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🐄 Krowa</td>
+                                <td>3 🐖 Świnie</td>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🐎 Koń</td>
+                                <td>2 🐄 Krowy</td>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🐕 Mały pies</td>
+                                <td>1 🐑 Owca</td>
+                            </tr>
+                            <tr class="exchange-row">
+                                <td>1 🦮 Duży pies</td>
+                                <td>1 🐄 Krowa</td>
+                            </tr>
+                        </table>
+
+                        <form class="exchange-form">
+                            <div class="exchange-selector">
+                                <select id="exchangeFrom" class="exchange-dropdown">
+                                    <option value="">Co oddajesz?</option>
+                                    <option value="rabbit">6 🐇 Królików</option>
+                                    <option value="sheep">2 🐑 Owce</option>
+                                    <option value="pig">3 🐖 Świnie</option>
+                                    <option value="cow">2 🐄 Krowy</option>
+                                    <option value="sheep1">1 🐑 Owca</option>
+                                    <option value="cow1">1 🐄 Krowa</option>
+                                </select>
+                            </div>
+                            <div class="exchange-selector">
+                                <select id="exchangeTo" class="exchange-dropdown">
+                                    <option value="">Co otrzymujesz?</option>
+                                    <option value="sheep">1 🐑 Owca</option>
+                                    <option value="pig">1 🐖 Świnia</option>
+                                    <option value="cow">1 🐄 Krowa</option>
+                                    <option value="horse">1 🐎 Koń</option>
+                                    <option value="smallDog">1 🐕 Mały pies</option>
+                                    <option value="bigDog">1 🦮 Duży pies</option>
+                                </select>
+                            </div>
+                            <button type="button" id="exchangeBtn" class="btn btn-primary">
+                                <span class="btn-icon">🔄</span>
+                                Wymień
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="sidebar-block">
+                        <h3 class="sidebar-title">
+                            <span class="btn-icon">📜</span>
+                            Historia gry
+                        </h3>
+                        <div id="gameHistory" class="trade-history">
+                            <!-- Game history items will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="notification" class="notification"></div>
+
+<!-- Rules Modal -->
+<div id="rulesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Zasady gry SUPER FARMER</h2>
+            <button class="modal-close" id="rulesCloseBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p><strong>Cel gry:</strong> Być pierwszym graczem, który będzie posiadał co najmniej 1 sztukę każdego zwierzęcia (królik, owca, świnia, krowa, koń).</p>
+
+            <p><strong>Rozgrywka:</strong></p>
+            <ol>
+                <li>Każdy gracz zaczyna z pustą farmą.</li>
+                <li>W swojej turze rzucasz dwiema kostkami, które określają, jakie zwierzęta otrzymujesz.</li>
+                <li>Jeśli masz co najmniej 2 takie same zwierzęta, otrzymujesz 1 dodatkowe (rozmnażanie).</li>
+                <li>Możesz wymienić zwierzęta według tabeli wymian.</li>
+            </ol>
+
+            <p><strong>Utrata zwierząt:</strong></p>
+            <ul>
+                <li>Jeśli gracz wyrzuci lisa, to traci na rzecz stada wszystkie posiadane króliki. Jeśli wyrzuci wilka, traci wszystkie posiadane zwierzęta, z wyjątkiem konia i małego psa (jeśli je ma).</li>
+                <li>Od straty wynikającej z wyrzucenia lisa chroni gracza mały pies. Jeżeli gracz wyrzuci lisa, a ma małego psa to jego zwierzęta pozostają nietknięte; do stada wraca jedynie mały pies.</li>
+                <li>Od straty spowodowanej wyrzuceniem wilka chroni duży pies. Jeżeli gracz wyrzuci wilka, a ma dużego psa, to jego zwierzęta pozostają nietknięte; do stada wraca jedynie duży pies.</li>
+                <li><strong>UWAGA!</strong> Duży pies nie chroni przed lisem.</li>
+            </ul>
+
+            <p><strong>Wymiana zwierząt:</strong></p>
+            <ul>
+                <li>6 królików = 1 owca</li>
+                <li>2 owce = 1 świnia</li>
+                <li>3 świnie = 1 krowa</li>
+                <li>2 krowy = 1 koń</li>
+                <li>1 owca = 1 mały pies</li>
+                <li>1 krowa = 1 duży pies</li>
+            </ul>
+
+            <p><strong>Dostępne psy w grze:</strong></p>
+            <ul>
+                <li>4 małe psy - chronią przed lisem</li>
+                <li>2 duże psy - chronią przed wilkiem</li>
+            </ul>
+        </div>
+        <div class="modal-footer">
+            <button id="rulesOkBtn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Winner Modal -->
+<div id="winnerModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Koniec gry!</h2>
+            <button class="modal-close" id="winnerCloseBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <span id="winnerIcon" class="winner-icon">🏆</span>
+            <p id="winnerMessage" class="winner-message">Gracz wygrywa!</p>
+        </div>
+        <div class="modal-footer">
+            <button id="playAgainBtn" class="btn btn-primary">Zagraj ponownie</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Game elements
+        const setupScreen = document.getElementById('setupScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const playerCountBtns = document.querySelectorAll('.player-count-btn');
+        const playerInputs = document.getElementById('playerInputs');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const playerAreas = document.getElementById('playerAreas');
+        const stockTokens = document.getElementById('stockTokens');
+        const rollDiceBtn = document.getElementById('rollDiceBtn');
+        const endTurnBtn = document.getElementById('endTurnBtn');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const rulesBtn = document.getElementById('rulesBtn');
+        const rulesModal = document.getElementById('rulesModal');
+        const rulesCloseBtn = document.getElementById('rulesCloseBtn');
+        const rulesOkBtn = document.getElementById('rulesOkBtn');
+        const winnerModal = document.getElementById('winnerModal');
+        const winnerCloseBtn = document.getElementById('winnerCloseBtn');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const dice1 = document.getElementById('dice1');
+        const dice2 = document.getElementById('dice2');
+        const diceResult = document.getElementById('diceResult');
+        const notification = document.getElementById('notification');
+        const turnCounter = document.getElementById('turnCounter');
+        const currentPlayerDisplay = document.getElementById('currentPlayerDisplay');
+        const gameHistory = document.getElementById('gameHistory');
+        const exchangeBtn = document.getElementById('exchangeBtn');
+        const exchangeFrom = document.getElementById('exchangeFrom');
+        const exchangeTo = document.getElementById('exchangeTo');
+        const winnerMessage = document.getElementById('winnerMessage');
+        const winnerIcon = document.getElementById('winnerIcon');
+
+        // Game configuration
+        const playerColors = ['#FF5252', '#448AFF', '#66BB6A', '#FFC107'];
+
+        let selectedPlayerCount = 2;
+        let players = [];
+
+        // Game state
+        let gameState = {
+            players: [],
+            stock: {
+                rabbit: 60,
+                sheep: 24,
+                pig: 20,
+                cow: 12,
+                horse: 6,
+                smallDog: 4,
+                bigDog: 2
+            },
+            currentPlayerIndex: 0,
+            currentTurn: 1,
+            diceRolled: false,
+            gameOver: false,
+            lastDiceResult: ''
+        };
+
+        // Animals with emojis and names
+        const animals = {
+            rabbit: { emoji: '🐇', name: 'królik', namePlural: 'króliki' },
+            sheep: { emoji: '🐑', name: 'owca', namePlural: 'owce' },
+            pig: { emoji: '🐖', name: 'świnia', namePlural: 'świnie' },
+            cow: { emoji: '🐄', name: 'krowa', namePlural: 'krowy' },
+            horse: { emoji: '🐎', name: 'koń', namePlural: 'konie' },
+            smallDog: { emoji: '🐕', name: 'mały pies', namePlural: 'małe psy' },
+            bigDog: { emoji: '🦮', name: 'duży pies', namePlural: 'duże psy' },
+            wolf: { emoji: '🐺', name: 'wilk' },
+            fox: { emoji: '🦊', name: 'lis' }
+        };
+
+        // Exchange rates
+        const exchanges = {
+            rabbit: { cost: { rabbit: 6 }, get: 'sheep' },
+            sheep: { cost: { sheep: 2 }, get: 'pig' },
+            pig: { cost: { pig: 3 }, get: 'cow' },
+            cow: { cost: { cow: 2 }, get: 'horse' },
+            sheep1: { cost: { sheep: 1 }, get: 'smallDog' },
+            cow1: { cost: { cow: 1 }, get: 'bigDog' }
+        };
+
+        // Setup initial UI
+        setupPlayerCountSelection();
+
+        // Button event listeners
+        newGameBtn.addEventListener('click', showSetupScreen);
+        startGameBtn.addEventListener('click', startGame);
+        rollDiceBtn.addEventListener('click', rollDice);
+        endTurnBtn.addEventListener('click', endTurn);
+        rulesBtn.addEventListener('click', showRules);
+        rulesCloseBtn.addEventListener('click', hideRules);
+        rulesOkBtn.addEventListener('click', hideRules);
+        winnerCloseBtn.addEventListener('click', hideWinnerModal);
+        playAgainBtn.addEventListener('click', showSetupScreen);
+        exchangeBtn.addEventListener('click', exchangeAnimals);
+
+        // Setup player count selection
+        function setupPlayerCountSelection() {
+            playerCountBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    playerCountBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedPlayerCount = parseInt(this.dataset.count);
+                    updatePlayerInputs();
+                });
+            });
+
+            // Select 2 players by default
+            playerCountBtns[0].classList.add('selected');
+            updatePlayerInputs();
+        }
+
+        // Update player input fields based on selected count
+        function updatePlayerInputs() {
+            playerInputs.innerHTML = '';
+
+            for (let i = 0; i < selectedPlayerCount; i++) {
+                const playerInput = document.createElement('div');
+                playerInput.className = 'player-input';
+
+                const colorIndicator = document.createElement('div');
+                colorIndicator.className = 'player-color';
+                colorIndicator.style.backgroundColor = playerColors[i];
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Imię gracza ${i + 1}`;
+                input.value = `Gracz ${i + 1}`;
+                input.className = 'player-name-input';
+
+                playerInput.appendChild(colorIndicator);
+                playerInput.appendChild(input);
+                playerInputs.appendChild(playerInput);
+            }
+        }
+
+        // Show setup screen
+        function showSetupScreen() {
+            setupScreen.style.display = 'flex';
+            gameScreen.style.display = 'none';
+            hideWinnerModal();
+        }
+
+        // Start the game
+        function startGame() {
+            // Get player names
+            const nameInputs = document.querySelectorAll('.player-name-input');
+            players = [];
+
+            for (let i = 0; i < selectedPlayerCount; i++) {
+                const name = nameInputs[i].value.trim() || `Gracz ${i + 1}`;
+                players.push({
+                    id: i,
+                    name: name,
+                    color: playerColors[i],
+                    animals: {
+                        rabbit: 0,
+                        sheep: 0,
+                        pig: 0,
+                        cow: 0,
+                        horse: 0,
+                        smallDog: 0,
+                        bigDog: 0
+                    }
+                });
+            }
+
+            // Initialize game state
+            gameState = {
+                players: players,
+                stock: {
+                    rabbit: 60,
+                    sheep: 24,
+                    pig: 20,
+                    cow: 12,
+                    horse: 6,
+                    smallDog: 4,
+                    bigDog: 2
+                },
+                currentPlayerIndex: 0,
+                currentTurn: 1,
+                diceRolled: false,
+                gameOver: false,
+                lastDiceResult: ''
+            };
+
+            // Switch to game screen
+            setupScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+
+            // Initialize game board
+            initializeGameBoard();
+            updateGameDisplay();
+            showNotification('Gra rozpoczęta! ' + gameState.players[0].name + ' rozpoczyna.');
+            gameHistory.innerHTML = '';
+            addGameHistoryItem('Gra rozpoczęta! ' + gameState.players[0].name + ' rozpoczyna.');
+
+            // Reset dice and buttons
+            endTurnBtn.disabled = true;
+            dice1.textContent = '🎲';
+            dice2.textContent = '🎲';
+            diceResult.textContent = 'Rzuć kostkami, aby rozpocząć grę';
+
+            // Enable roll dice button
+            rollDiceBtn.disabled = false;
+        }
+
+        // Initialize the game board with player areas and stock
+        function initializeGameBoard() {
+            // Clear previous content
+            playerAreas.innerHTML = '';
+            stockTokens.innerHTML = '';
+
+            // Create player areas
+            gameState.players.forEach((player, index) => {
+                const playerArea = document.createElement('div');
+                playerArea.className = 'player-area';
+                playerArea.id = `player-${index}-area`;
+                if (index === gameState.currentPlayerIndex) {
+                    playerArea.classList.add('current');
+                }
+
+                const playerInfo = document.createElement('div');
+                playerInfo.className = 'player-info';
+
+                const playerName = document.createElement('div');
+                playerName.className = 'player-name';
+                playerName.innerHTML = `
+                        <span class="player-color" style="background-color: ${player.color};"></span>
+                        <span>${player.name}</span>
+                        <span class="current-indicator">AKTUALNY GRACZ</span>
+                    `;
+
+                playerInfo.appendChild(playerName);
+                playerArea.appendChild(playerInfo);
+
+                const playerTokens = document.createElement('div');
+                playerTokens.className = 'player-tokens';
+
+                // Add animal token stacks
+                Object.keys(animals).forEach(animalType => {
+                    if (animalType !== 'wolf' && animalType !== 'fox') {
+                        const tokenStack = document.createElement('div');
+                        tokenStack.className = 'token-stack';
+                        tokenStack.innerHTML = `
+                                <span class="token-icon">${animals[animalType].emoji}</span>
+                                <span class="token-count" id="player-${index}-${animalType}">0</span>
+                                <span class="token-name">${animals[animalType].namePlural}</span>
+                            `;
+                        playerTokens.appendChild(tokenStack);
+                    }
+                });
+
+                playerArea.appendChild(playerTokens);
+                playerAreas.appendChild(playerArea);
+            });
+
+            // Create stock area tokens
+            Object.keys(animals).forEach(animalType => {
+                if (animalType !== 'wolf' && animalType !== 'fox') {
+                    const tokenStack = document.createElement('div');
+                    tokenStack.className = 'token-stack';
+                    tokenStack.innerHTML = `
+                            <span class="token-icon">${animals[animalType].emoji}</span>
+                            <span class="token-count" id="stock-${animalType}">${gameState.stock[animalType]}</span>
+                            <span class="token-name">${animals[animalType].namePlural}</span>
+                        `;
+                    stockTokens.appendChild(tokenStack);
+                }
+            });
+
+            // Set current player display
+            currentPlayerDisplay.textContent = gameState.players[gameState.currentPlayerIndex].name;
+        }
+
+        // Roll the dice
+        function rollDice() {
+            if (gameState.gameOver || gameState.diceRolled) return;
+
+            // Animate dice
+            dice1.classList.add('rolling');
+            dice2.classList.add('rolling');
+
+            setTimeout(() => {
+                dice1.classList.remove('rolling');
+                dice2.classList.remove('rolling');
+
+                // Generate random dice values
+                const diceOptions = ['rabbit', 'rabbit', 'sheep', 'pig', 'cow', 'fox', 'wolf'];
+                const dice1Value = diceOptions[Math.floor(Math.random() * diceOptions.length)];
+                const dice2Value = diceOptions[Math.floor(Math.random() * diceOptions.length)];
+
+                // Update dice display
+                dice1.textContent = dice1Value === 'fox' ? animals.fox.emoji :
+                    dice1Value === 'wolf' ? animals.wolf.emoji :
+                        animals[dice1Value].emoji;
+
+                dice2.textContent = dice2Value === 'fox' ? animals.fox.emoji :
+                    dice2Value === 'wolf' ? animals.wolf.emoji :
+                        animals[dice2Value].emoji;
+
+                // Process dice results
+                const resultMessage = processDiceResults(dice1Value, dice2Value);
+                diceResult.textContent = resultMessage || 'Rzut kostkami zakończony.';
+                gameState.lastDiceResult = resultMessage;
+                addGameHistoryItem(`${gameState.players[gameState.currentPlayerIndex].name}: ${resultMessage}`);
+
+                // Mark dice as rolled
+                gameState.diceRolled = true;
+                rollDiceBtn.disabled = true;
+                endTurnBtn.disabled = false;
+            }, 800);
+        }
+
+        // Process the results of the dice roll
+        function processDiceResults(dice1, dice2) {
+            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+            let message = '';
+            let hasFox = dice1 === 'fox' || dice2 === 'fox';
+            let hasWolf = dice1 === 'wolf' || dice2 === 'wolf';
+
+            // Handle fox - takes all rabbits unless player has a small dog
+            if (hasFox) {
+                if (currentPlayer.animals.smallDog > 0) {
+                    message += `${animals.fox.emoji} Lis się pojawił, ale mały pies go przepędził! `;
+                    currentPlayer.animals.smallDog--;
+                    gameState.stock.smallDog++;
+                } else {
+                    message += `${animals.fox.emoji} Lis zaatakował! ${currentPlayer.name} traci wszystkie króliki. `;
+                    gameState.stock.rabbit += currentPlayer.animals.rabbit;
+                    currentPlayer.animals.rabbit = 0;
+                }
+            }
+
+            // Handle wolf - takes everything except horses and small dogs
+            if (hasWolf) {
+                if (currentPlayer.animals.bigDog > 0) {
+                    message += `${animals.wolf.emoji} Wilk się pojawił, ale duży pies go przepędził! `;
+                    currentPlayer.animals.bigDog--;
+                    gameState.stock.bigDog++;
+                } else {
+                    message += `${animals.wolf.emoji} Wilk zaatakował! ${currentPlayer.name} traci wszystkie zwierzęta oprócz koni i małych psów. `;
+                    // Return animals to stock
+                    gameState.stock.rabbit += currentPlayer.animals.rabbit;
+                    gameState.stock.sheep += currentPlayer.animals.sheep;
+                    gameState.stock.pig += currentPlayer.animals.pig;
+                    gameState.stock.cow += currentPlayer.animals.cow;
+                    gameState.stock.bigDog += currentPlayer.animals.bigDog;
+
+                    // Reset player animals
+                    currentPlayer.animals.rabbit = 0;
+                    currentPlayer.animals.sheep = 0;
+                    currentPlayer.animals.pig = 0;
+                    currentPlayer.animals.cow = 0;
+                    currentPlayer.animals.bigDog = 0;
+                    // Keep horses and small dogs
+                }
+            }
+
+            // Add animals from dice roll
+            const addAnimal = (type) => {
+                if (type !== 'wolf' && type !== 'fox' && gameState.stock[type] > 0) {
+                    currentPlayer.animals[type]++;
+                    gameState.stock[type]--;
+                    message += `${animals[type].emoji} ${currentPlayer.name} otrzymuje 1 ${animals[type].name}. `;
+                }
+            };
+
+            if (dice1 !== 'wolf' && dice1 !== 'fox') addAnimal(dice1);
+            if (dice2 !== 'wolf' && dice2 !== 'fox') addAnimal(dice2);
+
+            // Breeding - if at least 2 of the same animal type
+            Object.keys(animals).forEach(type => {
+                if (type !== 'wolf' && type !== 'fox' &&
+                    type !== 'smallDog' && type !== 'bigDog' && // Dogs don't breed
+                    currentPlayer.animals[type] >= 2 &&
+                    gameState.stock[type] > 0) {
+                    currentPlayer.animals[type]++;
+                    gameState.stock[type]--;
+                    message += `${animals[type].emoji} Rozmnażanie! ${currentPlayer.name} otrzymuje dodatkowego ${animals[type].name}. `;
+                }
+            });
+
+            // Update game display
+            updateGameDisplay();
+            showNotification(message || 'Rzut kostkami zakończony.');
+
+            // Check if game is over
+            checkWinCondition();
+
+            return message || 'Rzut kostkami zakończony.';
+        }
+
+        // End the current turn
+        function endTurn() {
+            if (gameState.gameOver) return;
+
+            gameState.diceRolled = false;
+            gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+
+            if (gameState.currentPlayerIndex === 0) {
+                gameState.currentTurn++;
+                turnCounter.textContent = gameState.currentTurn;
+            }
+
+            updateCurrentPlayerIndicator();
+            rollDiceBtn.disabled = false;
+            endTurnBtn.disabled = true;
+            diceResult.textContent = 'Rzuć kostkami';
+
+            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+            showNotification(`Tura gracza: ${currentPlayer.name}`);
+            addGameHistoryItem(`Tura gracza: ${currentPlayer.name}`);
+        }
+
+        // Update the current player indicator
+        function updateCurrentPlayerIndicator() {
+            document.querySelectorAll('.player-area').forEach((area, index) => {
+                if (index === gameState.currentPlayerIndex) {
+                    area.classList.add('current');
+                } else {
+                    area.classList.remove('current');
+                }
+            });
+
+            currentPlayerDisplay.textContent = gameState.players[gameState.currentPlayerIndex].name;
+        }
+
+        // Exchange animals based on selection
+        function exchangeAnimals() {
+            if (gameState.gameOver) return;
+
+            const fromValue = exchangeFrom.value;
+            const toValue = exchangeTo.value;
+
+            if (!fromValue || !toValue) {
+                showNotification('Wybierz zwierzęta do wymiany!');
+                return;
+            }
+
+            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+            let exchangeSuccessful = false;
+            let exchangeMessage = '';
+
+            // Check if exchange is valid
+            switch(fromValue) {
+                case 'rabbit': // 6 rabbits for a sheep
+                    if (currentPlayer.animals.rabbit >= 6 && gameState.stock.sheep > 0 && toValue === 'sheep') {
+                        currentPlayer.animals.rabbit -= 6;
+                        gameState.stock.rabbit += 6;
+                        currentPlayer.animals.sheep += 1;
+                        gameState.stock.sheep -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 6 królików na 1 owcę`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+                case 'sheep': // 2 sheep for a pig
+                    if (currentPlayer.animals.sheep >= 2 && gameState.stock.pig > 0 && toValue === 'pig') {
+                        currentPlayer.animals.sheep -= 2;
+                        gameState.stock.sheep += 2;
+                        currentPlayer.animals.pig += 1;
+                        gameState.stock.pig -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 2 owce na 1 świnię`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+                case 'pig': // 3 pigs for a cow
+                    if (currentPlayer.animals.pig >= 3 && gameState.stock.cow > 0 && toValue === 'cow') {
+                        currentPlayer.animals.pig -= 3;
+                        gameState.stock.pig += 3;
+                        currentPlayer.animals.cow += 1;
+                        gameState.stock.cow -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 3 świnie na 1 krowę`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+                case 'cow': // 2 cows for a horse
+                    if (currentPlayer.animals.cow >= 2 && gameState.stock.horse > 0 && toValue === 'horse') {
+                        currentPlayer.animals.cow -= 2;
+                        gameState.stock.cow += 2;
+                        currentPlayer.animals.horse += 1;
+                        gameState.stock.horse -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 2 krowy na 1 konia`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+                case 'sheep1': // 1 sheep for a small dog
+                    if (currentPlayer.animals.sheep >= 1 && gameState.stock.smallDog > 0 && toValue === 'smallDog') {
+                        currentPlayer.animals.sheep -= 1;
+                        gameState.stock.sheep += 1;
+                        currentPlayer.animals.smallDog += 1;
+                        gameState.stock.smallDog -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 1 owcę na 1 małego psa`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+                case 'cow1': // 1 cow for a big dog
+                    if (currentPlayer.animals.cow >= 1 && gameState.stock.bigDog > 0 && toValue === 'bigDog') {
+                        currentPlayer.animals.cow -= 1;
+                        gameState.stock.cow += 1;
+                        currentPlayer.animals.bigDog += 1;
+                        gameState.stock.bigDog -= 1;
+                        exchangeMessage = `${currentPlayer.name} wymienia 1 krowę na 1 dużego psa`;
+                        exchangeSuccessful = true;
+                    }
+                    break;
+            }
+
+            if (exchangeSuccessful) {
+                updateGameDisplay();
+                showNotification('Wymiana zakończona pomyślnie!');
+                addGameHistoryItem(exchangeMessage);
+
+                // Check if someone has won
+                checkWinCondition();
+            } else {
+                showNotification('Nie można wykonać wymiany. Sprawdź czy masz wystarczającą liczbę zwierząt lub czy są dostępne w stadzie.');
+            }
+
+            // Reset selects
+            exchangeFrom.value = '';
+            exchangeTo.value = '';
+        }
+
+        // Add item to game history
+        function addGameHistoryItem(text) {
+            const item = document.createElement('div');
+            item.className = 'trade-item';
+            item.textContent = text;
+            gameHistory.prepend(item);
+
+            // Keep history limited to last 10 events
+            if (gameHistory.children.length > 10) {
+                gameHistory.removeChild(gameHistory.lastChild);
+            }
+        }
+
+        // Check if someone has won
+        function checkWinCondition() {
+            gameState.players.forEach((player, index) => {
+                const hasAllAnimals =
+                    player.animals.rabbit > 0 &&
+                    player.animals.sheep > 0 &&
+                    player.animals.pig > 0 &&
+                    player.animals.cow > 0 &&
+                    player.animals.horse > 0;
+
+                if (hasAllAnimals) {
+                    gameState.gameOver = true;
+                    showWinnerModal(`${player.name} wygrywa!`, '🏆');
+                    addGameHistoryItem(`🏆 ${player.name} wygrywa grę!`);
+                }
+            });
+        }
+
+        // Update game display with current state
+        function updateGameDisplay() {
+            // Update stock counts
+            Object.keys(gameState.stock).forEach(animalType => {
+                const stockElement = document.getElementById(`stock-${animalType}`);
+                if (stockElement) {
+                    stockElement.textContent = gameState.stock[animalType];
+                }
+            });
+
+            // Update player counts
+            gameState.players.forEach((player, playerIndex) => {
+                Object.keys(player.animals).forEach(animalType => {
+                    const playerAnimalElement = document.getElementById(`player-${playerIndex}-${animalType}`);
+                    if (playerAnimalElement) {
+                        playerAnimalElement.textContent = player.animals[animalType];
+                    }
+                });
+            });
+
+            // Update turn counter
+            turnCounter.textContent = gameState.currentTurn;
+        }
+
+        // Show notification
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Modal controls
+        function showRules() {
+            rulesModal.classList.add('show');
+        }
+
+        function hideRules() {
+            rulesModal.classList.remove('show');
+        }
+
+        function showWinnerModal(message, icon) {
+            winnerMessage.textContent = message;
+            winnerIcon.textContent = icon;
+            winnerModal.classList.add('show');
+        }
+
+        function hideWinnerModal() {
+            winnerModal.classList.remove('show');
+        }
+    });
+</script>
+</body>
+</html>
