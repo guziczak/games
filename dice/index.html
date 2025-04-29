@@ -191,6 +191,8 @@
         directionalLight.castShadow = true;
         directionalLight.shadow.camera.near = 1;
         directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
 
         // Dostosuj kamerę światła do rozmiaru boiska
         const { width, height, depth } = config.boxSize;
@@ -272,10 +274,101 @@
         world.defaultContactMaterial.friction = 0.5;
     }
 
+    function createDiceTexture(value) {
+        // Tworzy canvas z numerem kostki
+        const canvas = document.createElement('canvas');
+        const size = 512;
+        canvas.width = size;
+        canvas.height = size;
+
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fffae0'; // Kremowe tło
+        context.fillRect(0, 0, size, size);
+
+        // Dodaj delikatną teksturę
+        context.globalAlpha = 0.05;
+        for (let i = 0; i < 5000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = Math.random() * 2;
+
+            context.fillStyle = '#ddd0a0';
+            context.beginPath();
+            context.arc(x, y, radius, 0, Math.PI * 2);
+            context.fill();
+        }
+        context.globalAlpha = 1.0;
+
+        // Dodaj subtelną ramkę
+        context.strokeStyle = 'rgba(180, 160, 120, 0.3)';
+        context.lineWidth = size * 0.02;
+        const padding = context.lineWidth / 2;
+        context.strokeRect(padding, padding, size - 2 * padding, size - 2 * padding);
+
+        // Dodaj kropki w odpowiednich miejscach
+        context.fillStyle = '#302010';
+
+        const dotPositions = {
+            1: [[0.5, 0.5]],
+            2: [[0.25, 0.25], [0.75, 0.75]],
+            3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+            4: [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]],
+            5: [[0.25, 0.25], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [0.75, 0.75]],
+            6: [[0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]]
+        };
+
+        // Dostosuj rozmiar kropek - mniejszy dla większej liczby kropek
+        let dotSizeMultiplier = 1;
+        if (value === 6) dotSizeMultiplier = 0.8;
+
+        const dotSize = size * 0.1 * dotSizeMultiplier;
+
+        // Dodaj cień dla kropek
+        context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        context.shadowBlur = dotSize * 0.3;
+        context.shadowOffsetX = dotSize * 0.05;
+        context.shadowOffsetY = dotSize * 0.05;
+
+        dotPositions[value].forEach(pos => {
+            context.beginPath();
+            context.arc(pos[0] * size, pos[1] * size, dotSize, 0, 2 * Math.PI);
+            context.fill();
+        });
+
+        // Konwersja canvas na teksturę
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 16; // Większa anizotropia dla ostrzejszych tekstur przy kątach
+        return texture;
+    }
+
     function createDice() {
         // Geometria kostki
         const diceGeometry = new THREE.BoxGeometry(config.diceSize, config.diceSize, config.diceSize);
-        const diceMaterials = createDiceMaterials();
+
+        // Stwórz tekstury dla wszystkich ścian
+        const diceTextures = [
+            createDiceTexture(1), // prawo (+X)
+            createDiceTexture(6), // lewo (-X)
+            createDiceTexture(2), // góra (+Y)
+            createDiceTexture(5), // dół (-Y)
+            createDiceTexture(3), // przód (+Z)
+            createDiceTexture(4)  // tył (-Z)
+        ];
+
+        // Stwórz materiały dla każdej ściany
+        const materials = diceTextures.map(texture => {
+            return new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 0.6,
+                metalness: 0.1
+            });
+        });
+
+        // Przypisz wartości do materiałów dla łatwego dostępu
+        const values = [1, 6, 2, 5, 3, 4];
+        for (let i = 0; i < materials.length; i++) {
+            materials[i].userData = { value: values[i] };
+        }
 
         // Wyświetl informacje o ułożeniu tekstur
         console.log("Układ ścian kostki THREE.js:");
@@ -287,7 +380,7 @@
         console.log("Ściana 5 (tył, -Z): 4");
 
         // Stwórz kostkę z materiałami
-        dice = new THREE.Mesh(diceGeometry, diceMaterials);
+        dice = new THREE.Mesh(diceGeometry, materials);
         dice.castShadow = true;
         dice.position.set(0, 5, 0);
         scene.add(dice);
@@ -305,65 +398,6 @@
 
         // Ustaw pozycję początkową
         resetDice();
-    }
-
-    function createDiceMaterials() {
-        const diceTextures = [
-            createDiceTexture(1), // prawo (+X)
-            createDiceTexture(6), // lewo (-X)
-            createDiceTexture(2), // góra (+Y)
-            createDiceTexture(5), // dół (-Y)
-            createDiceTexture(3), // przód (+Z)
-            createDiceTexture(4)  // tył (-Z)
-        ];
-
-        return diceTextures.map((texture, index) => {
-            // Dodajemy numer do materiału, żeby można było go łatwo zidentyfikować wizualnie
-            const material = new THREE.MeshStandardMaterial({ map: texture });
-            material.userData = { value: [1, 6, 2, 5, 3, 4][index] };
-            return material;
-        });
-    }
-
-    function createDiceTexture(value) {
-        // Tworzy canvas z numerem kostki
-        const canvas = document.createElement('canvas');
-        const size = 128;
-        canvas.width = size;
-        canvas.height = size;
-
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, size, size);
-
-        // Dodaj kropki w odpowiednich miejscach
-        context.fillStyle = '#000000';
-
-        const dotPositions = {
-            1: [[0.5, 0.5]],
-            2: [[0.25, 0.25], [0.75, 0.75]],
-            3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
-            4: [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]],
-            5: [[0.25, 0.25], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [0.75, 0.75]],
-            6: [[0.25, 0.25], [0.25, 0.5], [0.25, 0.75], [0.75, 0.25], [0.75, 0.5], [0.75, 0.75]]
-        };
-
-        const dotSize = size * 0.15;
-        dotPositions[value].forEach(pos => {
-            context.beginPath();
-            context.arc(pos[0] * size, pos[1] * size, dotSize, 0, 2 * Math.PI);
-            context.fill();
-        });
-
-        // Dodanie cienia wokół brzegów dla lepszego efektu 3D
-        context.strokeStyle = '#888888';
-        context.lineWidth = 4;
-        context.strokeRect(0, 0, size, size);
-
-        // Konwersja canvas na teksturę
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
-        return texture;
     }
 
     function createBoundingBox() {
@@ -484,10 +518,9 @@
         console.log("Resetowanie kostki");
 
         // Resetuj pozycję kostki, umieszczając ją bliżej środka na mniejszych ekranach
-        const horizontalOffset = window.innerWidth < 600 ? 0 : 0;
         const heightOffset = window.innerWidth < 600 ? 6 : 8;
 
-        diceBody.position.set(horizontalOffset, heightOffset, 0);
+        diceBody.position.set(0, heightOffset, 0);
         diceBody.velocity.set(0, 0, 0);
         diceBody.angularVelocity.set(0, 0, 0);
         diceBody.quaternion.set(0, 0, 0, 1);
@@ -515,18 +548,12 @@
             angularVelocityMagnitude < config.stabilizationThreshold;
 
         if (isStable) {
-            console.log("KOSTKA UZNANA ZA STABILNĄ - rozpoczynam proces stabilizacji");
+            console.log("KOSTKA UZNANA ZA STABILNĄ");
             console.log(`Prędkość przed stabilizacją: liniowa=${velocityMagnitude.toFixed(4)}, kątowa=${angularVelocityMagnitude.toFixed(4)}`);
 
-            // Najpierw odczytaj wartość przed stabilizacją
-            const resultBeforeStabilization = getDiceValue();
-            console.log(`Wartość kostki PRZED stabilizacją: ${resultBeforeStabilization}`);
-
-            // TUTAJ NAPRAWIAMY GŁÓWNY PROBLEM:
-            // Nie stabilizujemy kostki, tylko po prostu bierzemy wynik z getDiceValue()
-
-            const result = resultBeforeStabilization;
-            console.log(`Wartość kostki (bez stabilizacji): ${result}`);
+            // Odczytaj wartość
+            const result = getDiceValue();
+            console.log(`Wartość kostki: ${result}`);
 
             document.getElementById('result').textContent = `Wynik: ${result}`;
             document.getElementById('result').style.color = '#4CAF50'; // Zielony kolor dla ostatecznego wyniku
@@ -677,8 +704,10 @@
         world.step(1/60);
 
         // Synchronizuj pozycję kostki z fizyką
-        dice.position.copy(diceBody.position);
-        dice.quaternion.copy(diceBody.quaternion);
+        if (dice && diceBody) {
+            dice.position.copy(diceBody.position);
+            dice.quaternion.copy(diceBody.quaternion);
+        }
 
         renderer.render(scene, camera);
     }
