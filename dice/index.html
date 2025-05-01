@@ -3,36 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Symulacja Rzutu Kostką</title>
+    <title>Symulacja Kostek Super Farmer</title>
     <style>
+        :root {
+            --blue-primary: #3a75c4;
+            --blue-light: #e6f0ff;
+            --blue-dark: #1a4585;
+            --orange-primary: #ff8c00;
+            --orange-light: #fff4e6;
+            --orange-dark: #d97600;
+            --green-primary: #4CAF50;
+            --green-dark: #45a049;
+            --background: #f5f5f5;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --shadow: rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #f0f0f0;
-            font-family: Arial, sans-serif;
+            background-color: var(--background);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
         }
+
         #container {
             width: 100%;
             height: 100vh;
             position: relative;
         }
+
         #controls {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            background-color: rgba(255, 255, 255, 0.7);
+            background-color: rgba(255, 255, 255, 0.9);
             padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            box-shadow: 0 6px 16px var(--shadow);
             max-width: 90%;
+            width: 500px;
             text-align: center;
             backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
         button {
-            background-color: #4CAF50;
+            background-color: var(--green-primary);
             border: none;
             color: white;
             padding: 10px 20px;
@@ -42,43 +80,187 @@
             font-size: 16px;
             margin: 4px 2px;
             cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.3s;
+            border-radius: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 120px;
+            font-weight: 500;
         }
+
         button:hover {
-            background-color: #45a049;
+            background-color: var(--green-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        button.secondary {
+            background-color: #777;
+        }
+
+        button.secondary:hover {
+            background-color: #666;
+        }
+
         #result {
             margin-top: 10px;
             font-size: 24px;
             font-weight: bold;
-            transition: color 0.3s;
-            min-height: 30px;
+            transition: all 0.3s;
+            min-height: 80px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .dice-result {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            position: relative;
+            max-width: 200px;
+        }
+
+        .dice-result:after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 10%;
+            width: 80%;
+            height: 3px;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .dice-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        #blueResult {
+            background-color: var(--blue-light);
+            border: 1px solid rgba(0, 100, 255, 0.3);
+        }
+
+        #blueResult:after {
+            background-color: var(--blue-primary);
+        }
+
+        #orangeResult {
+            background-color: var(--orange-light);
+            border: 1px solid rgba(255, 140, 0, 0.3);
+        }
+
+        #orangeResult:after {
+            background-color: var(--orange-primary);
+        }
+
+        .animal-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .animal-icon {
+            font-size: 32px;
+            margin: 5px 0;
+        }
+
+        .animal-name {
+            font-weight: 600;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        .dice-history {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .history-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .history-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .history-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            max-width: 200px;
+        }
+
+        .history-item {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+        }
+
+        .blue-history .history-item {
+            background-color: var(--blue-light);
+            border: 1px solid var(--blue-primary);
+        }
+
+        .orange-history .history-item {
+            background-color: var(--orange-light);
+            border: 1px solid var(--orange-primary);
         }
 
         #velocityInfo {
-            margin-top: 5px;
+            margin-top: 8px;
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary);
+            min-height: 15px;
         }
 
         #debugConsole {
             position: absolute;
             top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 10px;
             width: 90%;
-            max-width: 400px;
-            height: 150px;
-            background-color: rgba(0, 0, 0, 0.7);
+            max-width: 500px;
+            height: 200px;
+            background-color: rgba(0, 0, 0, 0.8);
             color: #00ff00;
             padding: 10px;
             font-family: monospace;
             font-size: 12px;
             overflow-y: auto;
             z-index: 100;
-            border-radius: 4px;
+            border-radius: 5px;
             display: none;
+            backdrop-filter: blur(3px);
         }
 
         #diceContainer {
@@ -90,24 +272,185 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            touch-action: none; /* Zapobiega domyślnym akcjom dotyku */
+        }
+
+        #dragHint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(0, 0, 0, 0.3);
+            font-size: 24px;
+            pointer-events: none; /* Pozwala klikom przechodzić przez */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80%;
+            max-width: 300px;
+            height: 80px;
+            border: 2px dashed rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            animation: pulse 2s infinite;
+            z-index: 5;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .settings-panel {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .close-settings {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #777;
+            padding: 5px;
+        }
+
+        .settings-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .settings-section {
+            margin-bottom: 10px;
+        }
+
+        .settings-section h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            flex: 1;
+        }
+
+        .control-group .value {
+            width: 50px;
+            text-align: right;
+            font-size: 14px;
+            color: #777;
+        }
+
+        .settings-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        .show-advanced {
+            background: none;
+            border: none;
+            color: #3a75c4;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px;
+            margin-right: auto;
+        }
+
+        .advanced-settings {
+            display: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
         }
 
         /* Responsywne style dla mobilnych urządzeń */
         @media (max-width: 600px) {
             #controls {
-                padding: 8px;
+                padding: 10px;
                 bottom: 10px;
+                width: 95%;
             }
 
             button {
-                padding: 6px 12px;
+                padding: 8px 15px;
                 font-size: 14px;
                 margin: 3px 1px;
+                min-width: auto;
             }
 
             #result {
-                font-size: 20px;
+                font-size: 18px;
                 margin-top: 5px;
+                min-height: 60px;
+            }
+
+            .animal-icon {
+                font-size: 24px;
+            }
+
+            .animal-name {
+                font-size: 12px;
+            }
+
+            #dragHint {
+                font-size: 18px;
+                height: 60px;
+            }
+
+            .dice-history {
+                display: none;
             }
         }
     </style>
@@ -115,56 +458,236 @@
 <body>
 <div id="container"></div>
 <div id="diceContainer"></div>
+
+<div id="dragHint">Przeciągnij, aby rzucić kostkami</div>
+
 <div id="controls">
-    <button id="throwBtn">Rzuć kostką</button>
-    <div id="result"></div>
+    <div class="button-group">
+        <button id="throwBtn">Rzuć kostkami</button>
+        <button id="settingsBtn" class="secondary">Ustawienia</button>
+    </div>
+
+    <div id="result">
+        <div id="blueResult" class="dice-result">
+            <div class="dice-label">Niebieska</div>
+            <div class="result-value"></div>
+        </div>
+        <div id="orangeResult" class="dice-result">
+            <div class="dice-label">Pomarańczowa</div>
+            <div class="result-value"></div>
+        </div>
+    </div>
+
+    <div class="dice-history">
+        <div class="history-column blue-history">
+            <div class="history-label">Historia niebieskiej</div>
+            <div class="history-items" id="blueHistory"></div>
+        </div>
+        <div class="history-column orange-history">
+            <div class="history-label">Historia pomarańczowej</div>
+            <div class="history-items" id="orangeHistory"></div>
+        </div>
+    </div>
+
     <div id="velocityInfo"></div>
-    <button id="toggleDebug" style="background-color: #666;">Pokaż/Ukryj logi</button>
 </div>
+
 <div id="debugConsole"></div>
+
+<div class="overlay" id="settingsOverlay"></div>
+<div class="settings-panel" id="settingsPanel">
+    <div class="settings-header">
+        <h2 class="settings-title">Ustawienia symulacji</h2>
+        <button class="close-settings">&times;</button>
+    </div>
+
+    <div class="settings-content">
+        <div class="settings-section">
+            <h3>Podstawowe ustawienia</h3>
+
+            <div class="control-group">
+                <label for="throwForce">Siła rzutu</label>
+                <input type="range" id="throwForce" min="5" max="30" step="1" value="15">
+                <span class="value" id="throwForceValue">15</span>
+            </div>
+
+            <div class="control-group">
+                <label for="spinForce">Siła obrotu</label>
+                <input type="range" id="spinForce" min="5" max="30" step="1" value="15">
+                <span class="value" id="spinForceValue">15</span>
+            </div>
+
+            <div class="control-group">
+                <label for="gravity">Grawitacja</label>
+                <input type="range" id="gravity" min="5" max="50" step="1" value="25">
+                <span class="value" id="gravityValue">25</span>
+            </div>
+        </div>
+
+        <button class="show-advanced">Pokaż ustawienia zaawansowane</button>
+
+        <div class="advanced-settings">
+            <div class="settings-section">
+                <h3>Zaawansowane ustawienia</h3>
+
+                <div class="control-group">
+                    <label for="diceSize">Rozmiar kostek</label>
+                    <input type="range" id="diceSize" min="0.5" max="3" step="0.1" value="1.6">
+                    <span class="value" id="diceSizeValue">1.6</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="friction">Tarcie</label>
+                    <input type="range" id="friction" min="0.1" max="1" step="0.1" value="0.5">
+                    <span class="value" id="frictionValue">0.5</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="restitution">Sprężystość</label>
+                    <input type="range" id="restitution" min="0.1" max="1" step="0.1" value="0.3">
+                    <span class="value" id="restitutionValue">0.3</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="stabilizationThreshold">Próg stabilizacji</label>
+                    <input type="range" id="stabilizationThreshold" min="0.01" max="0.5" step="0.01" value="0.1">
+                    <span class="value" id="stabilizationThresholdValue">0.1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-footer">
+        <button id="resetSettings" class="secondary">Resetuj</button>
+        <button id="applySettings">Zastosuj</button>
+    </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 
 <script>
-    // Konfiguracja z dynamicznym dostosowaniem do szerokości ekranu
-    const getResponsiveConfig = () => {
+    // ---------- KONFIGURACJA I ZMIENNE GLOBALNE ----------
+
+    // Zmienne do śledzenia gestu przeciągania
+    let isDragging = false;
+    let dragStartPos = { x: 0, y: 0, time: 0 };
+    let dragEndPos = { x: 0, y: 0, time: 0 };
+    let dragVisualizer = null;
+
+    // Historia rzutów
+    let blueHistory = [];
+    let orangeHistory = [];
+    const MAX_HISTORY = 10;
+
+    // Konfiguracja domyślna
+    const getDefaultConfig = () => {
         const isMobile = window.innerWidth < 600;
 
-        // Baazowa konfiguracja
-        let config = {
-            diceSize: isMobile ? 1.5 : 2,
+        return {
+            diceSize: isMobile ? 1.2 : 1.6,
             throwForce: 15,
             spinForce: 15,
-            gravity: -25,
+            gravity: 25,
             stabilizationThreshold: 0.1,
+            restitution: 0.3,
+            friction: 0.5,
             stabilizationDelay: 500,
             showResultThreshold: 0.5,
             boxSize: {
                 width: isMobile ? 12 : 20,
                 height: isMobile ? 12 : 20,
                 depth: isMobile ? 12 : 20
-            }
+            },
+            dragForceMultiplier: isMobile ? 0.04 : 0.025,
+            diceSeparation: isMobile ? 2 : 3
         };
-
-        return config;
     };
 
-    // Inicjalizacja z responsywną konfiguracją
+    // Konfiguracja z dynamicznym dostosowaniem do szerokości ekranu
+    const getResponsiveConfig = () => {
+        const baseConfig = getDefaultConfig();
+        return baseConfig;
+    };
+
+    // Załaduj konfigurację
     let config = getResponsiveConfig();
 
-    // Zmienne globalne
+    // Zmienne globalne sceny i fizyki
     let scene, camera, renderer, world;
-    let dice, diceBody;
+    let blueDice, orangeDice, blueDiceBody, orangeDiceBody;
     let boxes = [];
     let isThrowInProgress = false;
     let resultTimeout;
+    let diceMaterials = {}; // Przechowuje materiały dla ścianek kostek
+
+    // Definicje zwierząt dla kostek
+    const blueAnimals = [
+        'królik', 'królik', 'królik', 'królik', 'królik', 'królik', // 6x królik
+        'owca', 'owca', // 2x owca
+        'świnia', 'świnia', // 2x świnia
+        'krowa', // 1x krowa
+        'wilk'  // 1x wilk
+    ];
+
+    const orangeAnimals = [
+        'królik', 'królik', 'królik', 'królik', 'królik', 'królik', // 6x królik
+        'owca', 'owca', 'owca', // 3x owca
+        'świnia', // 1x świnia
+        'koń', // 1x koń
+        'lis'  // 1x lis
+    ];
+
+    // Mapowanie zwierząt na emoji
+    const animalEmojis = {
+        'królik': '🐰',
+        'owca': '🐑',
+        'świnia': '🐖',
+        'krowa': '🐄',
+        'wilk': '🐺',
+        'koń': '🐴',
+        'lis': '🦊'
+    };
+
+    // Kolory kostek
+    const blueColor = 0x3a75c4;
+    const orangeColor = 0xff8c00;
+
+    // Wektory normalne dla ścianek dwunastościanu
+    const faceNormals = [];
+
+    // Złoty podział - podstawa konstrukcji dwunastościanu
+    const phi = (1 + Math.sqrt(5)) / 2;
+
+    // Funkcja inicjująca wektory normalne dla dwunastościanu
+    function initFaceNormals() {
+        // Normalne dla 12 ścianek dwunastościanu
+        // Te wektory są skierowane prostopadle do każdej ścianki dwunastościanu
+        faceNormals.push(new THREE.Vector3(0, 1, phi).normalize());
+        faceNormals.push(new THREE.Vector3(0, -1, phi).normalize());
+        faceNormals.push(new THREE.Vector3(0, 1, -phi).normalize());
+        faceNormals.push(new THREE.Vector3(0, -1, -phi).normalize());
+        faceNormals.push(new THREE.Vector3(phi, 0, 1).normalize());
+        faceNormals.push(new THREE.Vector3(-phi, 0, 1).normalize());
+        faceNormals.push(new THREE.Vector3(phi, 0, -1).normalize());
+        faceNormals.push(new THREE.Vector3(-phi, 0, -1).normalize());
+        faceNormals.push(new THREE.Vector3(1, phi, 0).normalize());
+        faceNormals.push(new THREE.Vector3(-1, phi, 0).normalize());
+        faceNormals.push(new THREE.Vector3(1, -phi, 0).normalize());
+        faceNormals.push(new THREE.Vector3(-1, -phi, 0).normalize());
+    }
 
     // Inicjalizacja
     init();
     animate();
+    setupEventListeners();
+
+    // ---------- INICJALIZACJA I PODSTAWOWE FUNKCJE ----------
 
     function init() {
+        // Inicjalizuj wektory normalne dla ścianek
+        initFaceNormals();
+
         // Ustawienie sceny Three.js
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf0f0f0);
@@ -172,7 +695,6 @@
         // Kamera
         const aspectRatio = window.innerWidth / window.innerHeight;
         camera = new THREE.PerspectiveCamera(
-            // Większy kąt dla telefonów, by więcej zmieścić
             window.innerWidth < 600 ? 60 : 45,
             aspectRatio,
             0.1,
@@ -183,53 +705,109 @@
         adjustCameraPosition();
 
         // Oświetlenie
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 20, 10);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.camera.near = 1;
-        directionalLight.shadow.camera.far = 50;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-
-        // Dostosuj kamerę światła do rozmiaru boiska
-        const { width, height, depth } = config.boxSize;
-        const max = Math.max(width, height, depth);
-        directionalLight.shadow.camera.left = -max / 2;
-        directionalLight.shadow.camera.right = max / 2;
-        directionalLight.shadow.camera.top = max / 2;
-        directionalLight.shadow.camera.bottom = -max / 2;
-
-        scene.add(directionalLight);
+        setupLighting();
 
         // Renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.getElementById('diceContainer').appendChild(renderer.domElement);
 
         // Świat fizyki Cannon.js
         setupPhysics();
 
-        // Stwórz kostkę i dodaj do sceny
+        // Przygotuj tekstury dla kostek
+        prepareDiceTextures();
+
+        // Stwórz kostki i dodaj do sceny
         createDice();
 
         // Stwórz pudełko ograniczające
         createBoundingBox();
 
-        // Obsługa zdarzeń
-        window.addEventListener('resize', onWindowResize);
-        document.getElementById('throwBtn').addEventListener('click', throwDice);
-        document.getElementById('toggleDebug').addEventListener('click', toggleDebugConsole);
-
         // Przechwytujemy console.log i przekierowujemy do debugConsole
         setupDebugConsole();
 
         // Dodaj płaszczyznę jako podłogę
+        createFloor();
+
+        // Stwórz wizualizację gestu (linia)
+        createDragVisualizer();
+    }
+
+    function setupLighting() {
+        // Światło ambientowe - delikatne światło ogólne
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        // Główne światło kierunkowe
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+
+        // Konfiguracja cieni dla światła kierunkowego
+        directionalLight.shadow.camera.near = 1;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -12;
+        directionalLight.shadow.camera.right = 12;
+        directionalLight.shadow.camera.top = 12;
+        directionalLight.shadow.camera.bottom = -12;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.bias = -0.0001;
+
+        scene.add(directionalLight);
+
+        // Dodatkowe światło z przeciwnej strony
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        fillLight.position.set(-10, 15, -10);
+        scene.add(fillLight);
+    }
+
+    function setupPhysics() {
+        world = new CANNON.World();
+        world.gravity.set(0, -config.gravity, 0);
+
+        // Użyj SAPBroadphase dla lepszej wydajności i dokładności kolizji
+        world.broadphase = new CANNON.SAPBroadphase(world);
+
+        // Zwiększenie dokładności obliczeń
+        world.solver.iterations = 30;
+        world.solver.tolerance = 0.001;
+
+        // Domyślne materiały i zachowanie kontaktu
+        const defaultMaterial = new CANNON.Material('default');
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: config.friction,
+                restitution: config.restitution,
+                contactEquationStiffness: 1e7,     // Zwiększona sztywność dla lepszego zachowania
+                contactEquationRelaxation: 3,      // Optymalna wartość relaksacji dla stabilności
+                frictionEquationStiffness: 1e7,    // Lepsze zachowanie tarcia
+                frictionEquationRegularizationTime: 3 // Ustabilizowanie równań tarcia
+            }
+        );
+
+        world.addContactMaterial(defaultContactMaterial);
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // Włącz detekcję kolizji pomiędzy wszystkimi ciałami
+        world.collisionFilterGroup = 1;
+        world.collisionFilterMask = 1;
+    }
+
+    function createFloor() {
+        // Dodaj płaszczyznę jako podłogę
         const planeGeometry = new THREE.PlaneGeometry(config.boxSize.width, config.boxSize.depth);
-        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const planeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2;
         plane.receiveShadow = true;
@@ -243,7 +821,6 @@
         world.addBody(planeBody);
     }
 
-    // Dostosowuje pozycję kamery w zależności od rozmiaru ekranu
     function adjustCameraPosition() {
         const isMobile = window.innerWidth < 600;
         const isLandscape = window.innerWidth > window.innerHeight;
@@ -253,425 +830,41 @@
                 // Telefon w orientacji poziomej
                 camera.position.set(0, 8, 15);
             } else {
-                // Telefon w orientacji pionowej - kamera nieco wyżej
-                // żeby nie zasłaniać kostki panelem sterowania na dole
+                // Telefon w orientacji pionowej
                 camera.position.set(0, 10, 12);
             }
         } else {
             // Tablet/desktop
-            camera.position.set(0, 10, 20);
+            camera.position.set(0, 12, 20);
         }
 
         camera.lookAt(0, 0, 0);
     }
 
-    function setupPhysics() {
-        world = new CANNON.World();
-        world.gravity.set(0, config.gravity, 0);
-        world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 10;
-        world.defaultContactMaterial.restitution = 0.3;
-        world.defaultContactMaterial.friction = 0.5;
-    }
+    function animate() {
+        requestAnimationFrame(animate);
 
-    function createDiceTexture(value) {
-        // Tworzy canvas z numerem kostki
-        const canvas = document.createElement('canvas');
-        const size = 512;
-        canvas.width = size;
-        canvas.height = size;
-
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#fffae0'; // Kremowe tło
-        context.fillRect(0, 0, size, size);
-
-        // Dodaj delikatną teksturę
-        context.globalAlpha = 0.05;
-        for (let i = 0; i < 5000; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const radius = Math.random() * 2;
-
-            context.fillStyle = '#ddd0a0';
-            context.beginPath();
-            context.arc(x, y, radius, 0, Math.PI * 2);
-            context.fill();
-        }
-        context.globalAlpha = 1.0;
-
-        // Dodaj subtelną ramkę
-        context.strokeStyle = 'rgba(180, 160, 120, 0.3)';
-        context.lineWidth = size * 0.02;
-        const padding = context.lineWidth / 2;
-        context.strokeRect(padding, padding, size - 2 * padding, size - 2 * padding);
-
-        // Dodaj kropki w odpowiednich miejscach
-        context.fillStyle = '#302010';
-
-        const dotPositions = {
-            1: [[0.5, 0.5]],
-            2: [[0.25, 0.25], [0.75, 0.75]],
-            3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
-            4: [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]],
-            5: [[0.25, 0.25], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [0.75, 0.75]],
-            6: [[0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]]
-        };
-
-        // Dostosuj rozmiar kropek - mniejszy dla większej liczby kropek
-        let dotSizeMultiplier = 1;
-        if (value === 6) dotSizeMultiplier = 0.8;
-
-        const dotSize = size * 0.1 * dotSizeMultiplier;
-
-        // Dodaj cień dla kropek
-        context.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        context.shadowBlur = dotSize * 0.3;
-        context.shadowOffsetX = dotSize * 0.05;
-        context.shadowOffsetY = dotSize * 0.05;
-
-        dotPositions[value].forEach(pos => {
-            context.beginPath();
-            context.arc(pos[0] * size, pos[1] * size, dotSize, 0, 2 * Math.PI);
-            context.fill();
-        });
-
-        // Konwersja canvas na teksturę
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.anisotropy = 16; // Większa anizotropia dla ostrzejszych tekstur przy kątach
-        return texture;
-    }
-
-    function createDice() {
-        // Geometria kostki
-        const diceGeometry = new THREE.BoxGeometry(config.diceSize, config.diceSize, config.diceSize);
-
-        // Stwórz tekstury dla wszystkich ścian
-        const diceTextures = [
-            createDiceTexture(1), // prawo (+X)
-            createDiceTexture(6), // lewo (-X)
-            createDiceTexture(2), // góra (+Y)
-            createDiceTexture(5), // dół (-Y)
-            createDiceTexture(3), // przód (+Z)
-            createDiceTexture(4)  // tył (-Z)
-        ];
-
-        // Stwórz materiały dla każdej ściany
-        const materials = diceTextures.map(texture => {
-            return new THREE.MeshStandardMaterial({
-                map: texture,
-                roughness: 0.6,
-                metalness: 0.1
-            });
-        });
-
-        // Przypisz wartości do materiałów dla łatwego dostępu
-        const values = [1, 6, 2, 5, 3, 4];
-        for (let i = 0; i < materials.length; i++) {
-            materials[i].userData = { value: values[i] };
+        // Aktualizuj fizykę
+        if (world) {
+            world.step(1/60);
         }
 
-        // Wyświetl informacje o ułożeniu tekstur
-        console.log("Układ ścian kostki THREE.js:");
-        console.log("Ściana 0 (prawo, +X): 1");
-        console.log("Ściana 1 (lewo, -X): 6");
-        console.log("Ściana 2 (góra, +Y): 2");
-        console.log("Ściana 3 (dół, -Y): 5");
-        console.log("Ściana 4 (przód, +Z): 3");
-        console.log("Ściana 5 (tył, -Z): 4");
-
-        // Stwórz kostkę z materiałami
-        dice = new THREE.Mesh(diceGeometry, materials);
-        dice.castShadow = true;
-        dice.position.set(0, 5, 0);
-        scene.add(dice);
-
-        // Fizyka kostki
-        const diceShape = new CANNON.Box(new CANNON.Vec3(config.diceSize/2, config.diceSize/2, config.diceSize/2));
-        diceBody = new CANNON.Body({
-            mass: 1,
-            shape: diceShape,
-            position: new CANNON.Vec3(0, 5, 0),
-            angularDamping: 0.5,
-            linearDamping: 0.3
-        });
-        world.addBody(diceBody);
-
-        // Ustaw pozycję początkową
-        resetDice();
-    }
-
-    function createBoundingBox() {
-        const { width, height, depth } = config.boxSize;
-
-        // Stwórz boki pudełka (tylko wizualne)
-        const boxGeometry = new THREE.BoxGeometry(1, height, depth);
-        const boxMaterial = new THREE.MeshStandardMaterial({
-            color: 0x888888,
-            transparent: true,
-            opacity: 0.2
-        });
-
-        // Lewy bok
-        const leftWall = new THREE.Mesh(boxGeometry, boxMaterial);
-        leftWall.position.set(-width/2, height/2, 0);
-        scene.add(leftWall);
-        boxes.push(leftWall);
-
-        // Prawy bok
-        const rightWall = new THREE.Mesh(boxGeometry, boxMaterial);
-        rightWall.position.set(width/2, height/2, 0);
-        scene.add(rightWall);
-        boxes.push(rightWall);
-
-        // Tylny bok
-        const backWallGeometry = new THREE.BoxGeometry(width, height, 1);
-        const backWall = new THREE.Mesh(backWallGeometry, boxMaterial);
-        backWall.position.set(0, height/2, -depth/2);
-        scene.add(backWall);
-        boxes.push(backWall);
-
-        // Przedni bok
-        const frontWall = new THREE.Mesh(backWallGeometry, boxMaterial);
-        frontWall.position.set(0, height/2, depth/2);
-        scene.add(frontWall);
-        boxes.push(frontWall);
-
-        // Dodaj fizyczne ściany
-        // Grubość ścian
-        const wallThickness = 0.5;
-
-        // Lewy bok - fizyka
-        const leftShape = new CANNON.Box(new CANNON.Vec3(wallThickness/2, height/2, depth/2));
-        const leftBody = new CANNON.Body({ mass: 0 });
-        leftBody.addShape(leftShape);
-        leftBody.position.set(-width/2, height/2, 0);
-        world.addBody(leftBody);
-
-        // Prawy bok - fizyka
-        const rightBody = new CANNON.Body({ mass: 0 });
-        rightBody.addShape(leftShape);
-        rightBody.position.set(width/2, height/2, 0);
-        world.addBody(rightBody);
-
-        // Tylny bok - fizyka
-        const backShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, wallThickness/2));
-        const backBody = new CANNON.Body({ mass: 0 });
-        backBody.addShape(backShape);
-        backBody.position.set(0, height/2, -depth/2);
-        world.addBody(backBody);
-
-        // Przedni bok - fizyka
-        const frontBody = new CANNON.Body({ mass: 0 });
-        frontBody.addShape(backShape);
-        frontBody.position.set(0, height/2, depth/2);
-        world.addBody(frontBody);
-    }
-
-    function throwDice() {
-        if (isThrowInProgress) return;
-
-        isThrowInProgress = true;
-        resetDice();
-
-        // Wyczyść wynik
-        document.getElementById('result').textContent = '';
-        document.getElementById('velocityInfo').textContent = 'Rzucam kostkę...';
-
-        console.log("=== RZUCAM KOSTKĄ ===");
-
-        // Dostosuj siłę rzutu, aby zawsze lądowała w widocznym obszarze
-        // Mniejsza siła na mniejszych ekranach
-        const forceMultiplier = window.innerWidth < 600 ? 0.7 : 1;
-
-        // Zastosuj siły i impulsy z ograniczeniem, by kostka nie wypadła poza obszar
-        const throwDirection = new CANNON.Vec3(
-            // Mniejszy rozrzut dla X i Z na wąskich ekranach
-            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6,
-            config.throwForce * 0.8 * forceMultiplier,
-            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6
-        );
-
-        diceBody.applyImpulse(throwDirection, diceBody.position);
-        console.log(`Siła rzutu: (${throwDirection.x.toFixed(2)}, ${throwDirection.y.toFixed(2)}, ${throwDirection.z.toFixed(2)})`);
-
-        // Dodaj losowy moment obrotowy (spin)
-        const spinDirection = new CANNON.Vec3(
-            (Math.random() - 0.5) * config.spinForce * forceMultiplier,
-            (Math.random() - 0.5) * config.spinForce * forceMultiplier,
-            (Math.random() - 0.5) * config.spinForce * forceMultiplier
-        );
-
-        diceBody.angularVelocity.set(spinDirection.x, spinDirection.y, spinDirection.z);
-        console.log(`Moment obrotowy: (${spinDirection.x.toFixed(2)}, ${spinDirection.y.toFixed(2)}, ${spinDirection.z.toFixed(2)})`);
-
-        // Wyczyść timeout jeśli istnieje
-        if (resultTimeout) {
-            clearTimeout(resultTimeout);
+        // Synchronizuj pozycję niebieskiej kostki z fizyką
+        if (blueDice && blueDiceBody) {
+            blueDice.position.copy(blueDiceBody.position);
+            blueDice.quaternion.copy(blueDiceBody.quaternion);
         }
 
-        // Ustaw timeout na odczyt wyniku
-        resultTimeout = setTimeout(checkDiceResult, config.stabilizationDelay);
-        console.log(`Sprawdzę wynik za ${config.stabilizationDelay}ms`);
-    }
-
-    function resetDice() {
-        console.log("Resetowanie kostki");
-
-        // Resetuj pozycję kostki, umieszczając ją bliżej środka na mniejszych ekranach
-        const heightOffset = window.innerWidth < 600 ? 6 : 8;
-
-        diceBody.position.set(0, heightOffset, 0);
-        diceBody.velocity.set(0, 0, 0);
-        diceBody.angularVelocity.set(0, 0, 0);
-        diceBody.quaternion.set(0, 0, 0, 1);
-
-        // Zastosuj małą rotację żeby kostka nie była idealnie wypoziomowana
-        const smallRotation = Math.PI / 6;
-        diceBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 1), smallRotation);
-
-        // Wyczyść konsole debugowania
-        document.getElementById('debugConsole').innerHTML = '';
-        console.log("Kostka zresetowana");
-    }
-
-    function checkDiceResult() {
-        // Sprawdź prędkość kostki
-        const velocityMagnitude = diceBody.velocity.norm();
-        const angularVelocityMagnitude = diceBody.angularVelocity.norm();
-
-        // Aktualizuj informacje o prędkości
-        document.getElementById('velocityInfo').textContent =
-            `Prędkość: ${velocityMagnitude.toFixed(2)}, Obrót: ${angularVelocityMagnitude.toFixed(2)}`;
-
-        // Sprawdź czy kostka się zatrzymała
-        const isStable = velocityMagnitude < config.stabilizationThreshold &&
-            angularVelocityMagnitude < config.stabilizationThreshold;
-
-        if (isStable) {
-            console.log("KOSTKA UZNANA ZA STABILNĄ");
-            console.log(`Prędkość przed stabilizacją: liniowa=${velocityMagnitude.toFixed(4)}, kątowa=${angularVelocityMagnitude.toFixed(4)}`);
-
-            // Odczytaj wartość
-            const result = getDiceValue();
-            console.log(`Wartość kostki: ${result}`);
-
-            document.getElementById('result').textContent = `Wynik: ${result}`;
-            document.getElementById('result').style.color = '#4CAF50'; // Zielony kolor dla ostatecznego wyniku
-            document.getElementById('velocityInfo').textContent = 'Kostka ustabilizowana';
-
-            // Zatrzymujemy ruch kostki bez zmiany jej orientacji
-            diceBody.velocity.set(0, 0, 0);
-            diceBody.angularVelocity.set(0, 0, 0);
-
-            isThrowInProgress = false;
-        } else {
-            // Pokaż wstępny wynik, jeśli kostka porusza się powoli
-            if (velocityMagnitude < config.showResultThreshold &&
-                angularVelocityMagnitude < config.showResultThreshold) {
-                const prelimResult = getDiceValue();
-                console.log(`Wartość tymczasowa podczas ruchu: ${prelimResult} (prędkości: ${velocityMagnitude.toFixed(4)}, ${angularVelocityMagnitude.toFixed(4)})`);
-                document.getElementById('result').textContent = `Stabilizowanie... ${prelimResult}`;
-                document.getElementById('result').style.color = '#FF9800'; // Pomarańczowy dla wyniku tymczasowego
-            }
-
-            // Jeśli wciąż się porusza, sprawdź ponownie za chwilę
-            resultTimeout = setTimeout(checkDiceResult, 100); // Sprawdzaj częściej
-        }
-    }
-
-    function getDiceValue() {
-        // Ta funkcja określa, która strona kostki jest skierowana do góry
-        // i zwraca odpowiadającą wartość
-
-        console.log("=== ROZPOCZĘCIE SPRAWDZANIA WYNIKU ===");
-
-        // Ustal, który wektor lokalny kostki jest skierowany do góry
-        const upVector = new CANNON.Vec3(0, 1, 0);
-        console.log("Wektor 'góra':", upVector);
-
-        // Przekształć lokalne osie kostki na globalne przy użyciu quaternionu
-        const rotMat = new CANNON.Mat3();
-
-        // Ręcznie tworzymy macierz rotacji na podstawie quaterniona
-        const q = diceBody.quaternion;
-        console.log("Aktualny quaternion kostki:", q.x, q.y, q.z, q.w);
-
-        const x = q.x, y = q.y, z = q.z, w = q.w;
-        const xx = x * x, yy = y * y, zz = z * z;
-        const xy = x * y, xz = x * z, yz = y * z;
-        const wx = w * x, wy = w * y, wz = w * z;
-
-        rotMat.elements[0] = 1 - 2 * (yy + zz);
-        rotMat.elements[1] = 2 * (xy - wz);
-        rotMat.elements[2] = 2 * (xz + wy);
-
-        rotMat.elements[3] = 2 * (xy + wz);
-        rotMat.elements[4] = 1 - 2 * (xx + zz);
-        rotMat.elements[5] = 2 * (yz - wx);
-
-        rotMat.elements[6] = 2 * (xz - wy);
-        rotMat.elements[7] = 2 * (yz + wx);
-        rotMat.elements[8] = 1 - 2 * (xx + yy);
-
-        // Określ wszystkie możliwe strony kostki (w lokalnym układzie współrzędnych)
-        const localFaces = [
-            { axis: new CANNON.Vec3(1, 0, 0), value: 1 },   // prawo (1)
-            { axis: new CANNON.Vec3(-1, 0, 0), value: 6 },  // lewo (6)
-            { axis: new CANNON.Vec3(0, 1, 0), value: 2 },   // góra (2)
-            { axis: new CANNON.Vec3(0, -1, 0), value: 5 },  // dół (5)
-            { axis: new CANNON.Vec3(0, 0, 1), value: 3 },   // przód (3)
-            { axis: new CANNON.Vec3(0, 0, -1), value: 4 }   // tył (4)
-        ];
-
-        console.log("Definicje lokalnych stron kostki:", localFaces.map(f => `wartość ${f.value}: oś (${f.axis.x}, ${f.axis.y}, ${f.axis.z})`));
-
-        // Przekształć wszystkie lokalne wektory na globalne
-        const globalFaces = localFaces.map(face => {
-            const globalAxis = new CANNON.Vec3();
-            // Używamy vmult do transformacji wektora przez macierz
-            // Ale najpierw musimy stworzyć pomocniczą funkcję, ponieważ rotMat.vmult nie istnieje
-            const vmult = (mat, vec, target) => {
-                const x = vec.x;
-                const y = vec.y;
-                const z = vec.z;
-                const e = mat.elements;
-
-                target.x = e[0] * x + e[1] * y + e[2] * z;
-                target.y = e[3] * x + e[4] * y + e[5] * z;
-                target.z = e[6] * x + e[7] * y + e[8] * z;
-
-                return target;
-            };
-
-            vmult(rotMat, face.axis, globalAxis);
-
-            console.log(`Przekształcona oś dla wartości ${face.value}: (${globalAxis.x.toFixed(3)}, ${globalAxis.y.toFixed(3)}, ${globalAxis.z.toFixed(3)})`);
-
-            return {
-                axis: globalAxis,
-                value: face.value
-            };
-        });
-
-        // Znajdź wektor, który jest najbardziej skierowany do góry
-        let bestFaceIndex = 0;
-        let bestDotProduct = -Infinity;
-
-        console.log("Iloczyny skalarne z wektorem 'góra':");
-        for (let i = 0; i < globalFaces.length; i++) {
-            const dotProduct = globalFaces[i].axis.dot(upVector);
-            console.log(`Strona ${globalFaces[i].value}: iloczyn skalarny = ${dotProduct.toFixed(4)}`);
-            if (dotProduct > bestDotProduct) {
-                bestDotProduct = dotProduct;
-                bestFaceIndex = i;
-            }
+        // Synchronizuj pozycję pomarańczowej kostki z fizyką
+        if (orangeDice && orangeDiceBody) {
+            orangeDice.position.copy(orangeDiceBody.position);
+            orangeDice.quaternion.copy(orangeDiceBody.quaternion);
         }
 
-        // Zwróć wartość kostki, która jest skierowana do góry
-        console.log(`Wybrana strona: ${globalFaces[bestFaceIndex].value} z iloczynem ${bestDotProduct.toFixed(4)}`);
-        console.log("=== KONIEC SPRAWDZANIA WYNIKU ===");
-
-        return globalFaces[bestFaceIndex].value;
+        // Renderuj scenę
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
     }
 
     function onWindowResize() {
@@ -689,28 +882,1215 @@
         // Zatrzymaj trwający rzut, jeśli nastąpiła zmiana orientacji ekranu
         if (isThrowInProgress) {
             clearTimeout(resultTimeout);
-            diceBody.velocity.set(0, 0, 0);
-            diceBody.angularVelocity.set(0, 0, 0);
+            blueDiceBody.velocity.set(0, 0, 0);
+            blueDiceBody.angularVelocity.set(0, 0, 0);
+            orangeDiceBody.velocity.set(0, 0, 0);
+            orangeDiceBody.angularVelocity.set(0, 0, 0);
             isThrowInProgress = false;
-            document.getElementById('result').textContent = '';
+            document.querySelector('#blueResult .result-value').innerHTML = '';
+            document.querySelector('#orangeResult .result-value').innerHTML = '';
             document.getElementById('velocityInfo').textContent = '';
         }
     }
 
-    function animate() {
-        requestAnimationFrame(animate);
+    // ---------- TWORZENIE I ZARZĄDZANIE KOSTKAMI ----------
 
-        // Aktualizuj fizykę
-        world.step(1/60);
+    function prepareDiceTextures() {
+        // Przygotuj tekstury dla obu kostek
+        diceMaterials = {
+            blue: createDiceTextures(blueAnimals, 'blue'),
+            orange: createDiceTextures(orangeAnimals, 'orange')
+        };
+    }
 
-        // Synchronizuj pozycję kostki z fizyką
-        if (dice && diceBody) {
-            dice.position.copy(diceBody.position);
-            dice.quaternion.copy(diceBody.quaternion);
+    function createDiceTextures(animals, diceType) {
+        // Kolor tła etykiet
+        const bgColor = diceType === 'blue' ? '#3a75c4' : '#ff8c00';
+        const bgAlpha = 0.7; // Półprzezroczystość tła, aby lepiej zintegrować z kostką
+        const textColor = '#ffffff';
+
+        // Tablica na materiały
+        const materials = [];
+
+        for (let i = 0; i < 12; i++) {
+            // Stwórz teksturę dla każdej ścianki
+            const animal = animals[i];
+            const emoji = animalEmojis[animal];
+
+            // Przygotuj canvas dla tekstury
+            const canvas = document.createElement('canvas');
+            const size = 512; // Większy rozmiar dla lepszej jakości
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d');
+
+            // Wypełnij tło z gradientem dla lepszego wyglądu
+            const gradient = ctx.createRadialGradient(
+                size/2, size/2, 0,
+                size/2, size/2, size/2
+            );
+
+            // Konwertuj kolor z hex do rgba dla kontroli przezroczystości
+            const hexToRgb = (hex) => {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            };
+
+            const rgb = hexToRgb(bgColor);
+            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${bgAlpha})`);
+            gradient.addColorStop(0.8, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${bgAlpha * 0.9})`);
+            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`); // Przezroczyste na brzegach
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dodaj cień dla głębi efektu "wytatuowania"
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            // Dodaj emoji - główny element
+            ctx.fillStyle = textColor;
+            ctx.font = `${size/2.2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, size/2, size/2 - size/12);
+
+            // Resetuj cień dla tekstu
+            ctx.shadowColor = 'transparent';
+
+            // Dodaj nazwę zwierzęcia
+            ctx.font = `bold ${size/8}px Arial`;
+            ctx.fillText(animal.toUpperCase(), size/2, size * 0.7);
+
+            // Stwórz teksturę z canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+
+            // Stwórz materiał z teksturą - używając MeshBasicMaterial dla lepszej widoczności
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                opacity: 1,
+                depthWrite: false,  // Zapobiega problemom z renderowaniem przezroczystości
+                side: THREE.DoubleSide // Widoczne z obu stron dla uniknięcia problemów z kierunkiem
+            });
+
+            materials.push({
+                animal: animal,
+                material: material
+            });
         }
 
-        renderer.render(scene, camera);
+        return materials;
     }
+
+    function createDice() {
+        // Stwórz geometrię dwunastościanu
+        const radius = config.diceSize;
+
+        // Stwórz bazowe materiały dla kostek
+        const blueMaterial = new THREE.MeshStandardMaterial({
+            color: blueColor,
+            roughness: 0.4,
+            metalness: 0.1
+        });
+
+        const orangeMaterial = new THREE.MeshStandardMaterial({
+            color: orangeColor,
+            roughness: 0.4,
+            metalness: 0.1
+        });
+
+        // Stwórz kostki jako dwunastościany
+        blueDice = createDodecahedron(radius, blueMaterial, 'blue');
+        orangeDice = createDodecahedron(radius, orangeMaterial, 'orange');
+
+        // Dodaj właściwości cieni
+        blueDice.castShadow = true;
+        blueDice.receiveShadow = true;
+        orangeDice.castShadow = true;
+        orangeDice.receiveShadow = true;
+
+        // Ustaw początkowe pozycje
+        blueDice.position.set(-config.diceSeparation/2, 5, 0);
+        orangeDice.position.set(config.diceSeparation/2, 5, 0);
+
+        // Dodaj do sceny
+        scene.add(blueDice);
+        scene.add(orangeDice);
+
+        // Utwórz fizyczne bryły dla kostek
+        createDicePhysics(radius);
+
+        // Ustaw początkową pozycję
+        resetDice();
+
+        console.log("Utworzono kostki dwunastościenne");
+    }
+
+    function createDodecahedron(radius, baseMaterial, diceType) {
+        // Stwórz geometrię dwunastościanu
+        const geometry = new THREE.DodecahedronGeometry(radius);
+
+        // Upewnij się, że materiał bazowy jest nieprzezroczysty
+        baseMaterial.transparent = false;
+        baseMaterial.opacity = 1.0;
+        baseMaterial.side = THREE.FrontSide;
+
+        // Stwórz siatkę z geometrii i materiału
+        const dice = new THREE.Mesh(geometry, baseMaterial);
+
+        // Dodaj zwierzęta jako tekstury na ściankach
+        applyAnimalTextures(dice, diceType);
+
+        return dice;
+    }
+
+    function applyAnimalTextures(dice, diceType) {
+        const radius = config.diceSize;
+        const materials = diceMaterials[diceType];
+
+        // Dla każdej ścianki dodaj nakładkę z teksturą zwierzęcia
+        for (let i = 0; i < 12; i++) {
+            const texture = materials[i];
+
+            // Stwórz płaski okrąg jako decal (naklejkę)
+            // Używamy mniejszego promienia dla decala, aby był bardziej jak tatuaż
+            const decalGeometry = new THREE.CircleGeometry(radius * 0.65, 32);
+            const decal = new THREE.Mesh(decalGeometry, texture.material);
+
+            // Ustaw pozycję decala używając wektora normalnego ścianki
+            const normal = faceNormals[i].clone();
+            // Pozycjonujemy decal dokładnie na powierzchni kostki (minimalne przesunięcie)
+            const position = normal.clone().multiplyScalar(radius * 1.001);
+
+            // Pozycjonujemy i obracamy decal, aby przylegał do powierzchni kostki
+            decal.position.copy(position);
+            decal.lookAt(position.clone().add(normal));
+
+            // Dodaj nieco obrotu dla lepszego dopasowania do ścianki
+            // decal.rotateZ(Math.random() * Math.PI * 2); // Losowa rotacja dla zróżnicowania
+
+            // Zapisz dane dla identyfikacji ścianki
+            decal.userData = { animal: texture.animal, normalVector: normal };
+
+            // Dodaj do kostki
+            dice.add(decal);
+        }
+    }
+
+    function createDicePhysics(radius) {
+        // Użyjemy kształtu sfery dla lepszej stabilności, ale dodamy kilka
+        // usprawnień, aby zapobiec sklejaniu i poprawić kolizje
+        const shape = new CANNON.Sphere(radius * 0.95);
+
+        // Materiał fizyczny z niskim tarciem dla uniknięcia sklejania
+        const diceMaterial = new CANNON.Material('diceMaterial');
+        const diceDiceContactMaterial = new CANNON.ContactMaterial(
+            diceMaterial,
+            diceMaterial,
+            {
+                friction: 0.1,         // Niskie tarcie między kostkami
+                restitution: 0.7,      // Wysoka sprężystość dla lepszych odbić
+                contactEquationStiffness: 1e8,  // Sztywność kontaktu
+                contactEquationRelaxation: 3    // Relaksacja kontaktu
+            }
+        );
+
+        // Dodaj materiał kontaktu do świata
+        world.addContactMaterial(diceDiceContactMaterial);
+
+        // Stwórz ciała fizyki z odrębnymi pozycjami startowymi, aby uniknąć sklejania
+        blueDiceBody = new CANNON.Body({
+            mass: 1,
+            shape: shape,
+            material: diceMaterial,
+            position: new CANNON.Vec3(-config.diceSeparation, 6, -0.5), // Zmieniona pozycja
+            angularDamping: 0.6,
+            linearDamping: 0.4,
+            allowSleep: false // Zapobiega "usypianiu" ciał, co może powodować problemy
+        });
+
+        orangeDiceBody = new CANNON.Body({
+            mass: 1,
+            shape: shape,
+            material: diceMaterial,
+            position: new CANNON.Vec3(config.diceSeparation, 8, 0.5), // Zmieniona pozycja
+            angularDamping: 0.6,
+            linearDamping: 0.4,
+            allowSleep: false
+        });
+
+        // Dodaj siłę odrzutu, aby zapobiec sklejaniu na starcie
+        const repulsionForce = 0.5;
+        blueDiceBody.applyImpulse(
+            new CANNON.Vec3(-repulsionForce, 0, -repulsionForce),
+            blueDiceBody.position
+        );
+        orangeDiceBody.applyImpulse(
+            new CANNON.Vec3(repulsionForce, 0, repulsionForce),
+            orangeDiceBody.position
+        );
+
+        // Dodaj ciała do świata
+        world.addBody(blueDiceBody);
+        world.addBody(orangeDiceBody);
+    }
+
+    function createBoundingBox() {
+        const { width, height, depth } = config.boxSize;
+
+        // Stwórz boki pudełka (tylko wizualne)
+        const boxMaterial = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide
+        });
+
+        // Funkcja tworząca ścianę
+        const createWall = (width, height, position, rotation = null) => {
+            const wallGeometry = new THREE.PlaneGeometry(width, height);
+            const wallMesh = new THREE.Mesh(wallGeometry, boxMaterial);
+            wallMesh.position.copy(position);
+            if (rotation) {
+                wallMesh.rotation.copy(rotation);
+            }
+            wallMesh.receiveShadow = true;
+            scene.add(wallMesh);
+            boxes.push(wallMesh);
+
+            return wallMesh;
+        };
+
+        // Lewy bok
+        createWall(
+            depth, height,
+            new THREE.Vector3(-width/2, height/2, 0),
+            new THREE.Euler(0, Math.PI/2, 0)
+        );
+
+        // Prawy bok
+        createWall(
+            depth, height,
+            new THREE.Vector3(width/2, height/2, 0),
+            new THREE.Euler(0, -Math.PI/2, 0)
+        );
+
+        // Tylny bok
+        createWall(
+            width, height,
+            new THREE.Vector3(0, height/2, -depth/2)
+        );
+
+        // Przedni bok
+        createWall(
+            width, height,
+            new THREE.Vector3(0, height/2, depth/2),
+            new THREE.Euler(0, Math.PI, 0)
+        );
+
+        // Dodaj fizyczne ściany
+        const wallThickness = 0.5;
+
+        // Funkcja tworząca ciało fizyczne ściany
+        const createWallBody = (shape, position) => {
+            const body = new CANNON.Body({ mass: 0 });
+            body.addShape(shape);
+            body.position.copy(position);
+            world.addBody(body);
+            return body;
+        };
+
+        // Lewy bok - fizyka
+        const leftShape = new CANNON.Box(new CANNON.Vec3(wallThickness/2, height/2, depth/2));
+        createWallBody(leftShape, new CANNON.Vec3(-width/2, height/2, 0));
+
+        // Prawy bok - fizyka
+        createWallBody(leftShape, new CANNON.Vec3(width/2, height/2, 0));
+
+        // Tylny bok - fizyka
+        const backShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, wallThickness/2));
+        createWallBody(backShape, new CANNON.Vec3(0, height/2, -depth/2));
+
+        // Przedni bok - fizyka
+        createWallBody(backShape, new CANNON.Vec3(0, height/2, depth/2));
+    }
+
+    function createDragVisualizer() {
+        const material = new THREE.LineBasicMaterial({
+            color: 0x4CAF50,
+            linewidth: 2,
+            opacity: 0.7,
+            transparent: true
+        });
+
+        // Tworzymy początkową linię (zostanie zaktualizowana podczas przeciągania)
+        const points = [
+            new THREE.Vector3(0, 0.1, 0),
+            new THREE.Vector3(0, 0.1, 0)
+        ];
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        dragVisualizer = new THREE.Line(geometry, material);
+        dragVisualizer.visible = false;
+        scene.add(dragVisualizer);
+    }
+
+    function updateDragVisualizer(startX, startY, endX, endY) {
+        if (!dragVisualizer) return;
+
+        // Funkcja pomocnicza do konwersji współrzędnych ekranu na współrzędne świata
+        const screenToWorld = (x, y, z) => {
+            const vector = new THREE.Vector3(
+                (x / window.innerWidth) * 2 - 1,
+                -(y / window.innerHeight) * 2 + 1,
+                z
+            );
+
+            vector.unproject(camera);
+            return vector;
+        };
+
+        // Konwertuj punkty 2D na punkty 3D na płaszczyźnie y = 0.1 (tuż nad podłogą)
+        const startPoint = screenToWorld(startX, startY, 0.5);
+        const endPoint = screenToWorld(endX, endY, 0.5);
+
+        // Ustaw stałą wartość y, aby linia była zawsze na tej samej wysokości
+        startPoint.y = 0.1;
+        endPoint.y = 0.1;
+
+        // Aktualizuj geometrię
+        const points = [startPoint, endPoint];
+        dragVisualizer.geometry.dispose();
+        dragVisualizer.geometry = new THREE.BufferGeometry().setFromPoints(points);
+    }
+
+    function resetDice() {
+        console.log("Resetowanie kostek");
+
+        // Resetuj pozycję kostek, umieszczając je bliżej środka na mniejszych ekranach
+        // ale także z lekkim przesunięciem względem siebie, aby uniknąć sklejania
+        const heightOffset = window.innerWidth < 600 ? 6 : 8;
+
+        // Resetuj niebieską kostkę - dajemy jej większy rozrzut na osiach X i Z
+        blueDiceBody.position.set(
+            -config.diceSeparation * 1.2,  // Dalej w lewo od środka
+            heightOffset + 1,              // Nieco wyżej
+            -0.8                          // Lekkie przesunięcie w głąb
+        );
+        blueDiceBody.velocity.set(0, 0, 0);
+        blueDiceBody.angularVelocity.set(0, 0, 0);
+
+        // Dajemy większy rozrzut losowej orientacji początkowej
+        blueDiceBody.quaternion.set(
+            Math.random()*0.5 - 0.25,
+            Math.random()*0.5 - 0.25,
+            Math.random()*0.5 - 0.25,
+            1
+        );
+        blueDiceBody.quaternion.normalize();
+
+        // Resetuj pomarańczową kostkę - przesuwamy ją bardziej w prawo i do przodu
+        orangeDiceBody.position.set(
+            config.diceSeparation * 1.2,   // Dalej w prawo
+            heightOffset + 2,              // Jeszcze wyżej niż niebieska
+            0.8                           // Lekkie przesunięcie do przodu
+        );
+        orangeDiceBody.velocity.set(0, 0, 0);
+        orangeDiceBody.angularVelocity.set(0, 0, 0);
+
+        // Inna losowa orientacja
+        orangeDiceBody.quaternion.set(
+            Math.random()*0.5 - 0.25,
+            Math.random()*0.5 - 0.25,
+            Math.random()*0.5 - 0.25,
+            1
+        );
+        orangeDiceBody.quaternion.normalize();
+
+        // Dodajemy lekki impuls odrzutu w przeciwnych kierunkach
+        const repulsion = 0.2;
+        blueDiceBody.applyImpulse(
+            new CANNON.Vec3(-repulsion, 0, -repulsion),
+            blueDiceBody.position
+        );
+        orangeDiceBody.applyImpulse(
+            new CANNON.Vec3(repulsion, 0, repulsion),
+            orangeDiceBody.position
+        );
+
+        // Pokaż podpowiedź
+        document.getElementById('dragHint').style.display = 'block';
+
+        console.log("Kostki zresetowane");
+    }
+
+    // ---------- RZUCANIE KOSTKAMI I OBSŁUGA WYNIKÓW ----------
+
+    function throwDice() {
+        if (isThrowInProgress) return;
+
+        isThrowInProgress = true;
+        resetDice();
+
+        // Wyczyść wyniki
+        document.querySelector('#blueResult .result-value').innerHTML = '';
+        document.querySelector('#orangeResult .result-value').innerHTML = '';
+        document.getElementById('velocityInfo').textContent = 'Rzucam kostkami...';
+
+        console.log("=== RZUCAM KOSTKAMI ===");
+
+        // Dostosuj siłę rzutu, aby zawsze lądowała w widocznym obszarze
+        // Mniejsza siła na mniejszych ekranach
+        const forceMultiplier = window.innerWidth < 600 ? 0.7 : 1;
+
+        // Rzut niebieską kostką
+        const blueThrowDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6 - 1, // Lekko w lewo
+            config.throwForce * 0.8 * forceMultiplier,
+            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6
+        );
+
+        blueDiceBody.applyImpulse(blueThrowDirection, blueDiceBody.position);
+
+        // Rzut pomarańczową kostką
+        const orangeThrowDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6 + 1, // Lekko w prawo
+            config.throwForce * 0.8 * forceMultiplier,
+            (Math.random() - 0.5) * config.throwForce * forceMultiplier * 0.6
+        );
+
+        orangeDiceBody.applyImpulse(orangeThrowDirection, orangeDiceBody.position);
+
+        console.log(`Siła rzutu nieb.: (${blueThrowDirection.x.toFixed(2)}, ${blueThrowDirection.y.toFixed(2)}, ${blueThrowDirection.z.toFixed(2)})`);
+        console.log(`Siła rzutu pom.: (${orangeThrowDirection.x.toFixed(2)}, ${orangeThrowDirection.y.toFixed(2)}, ${orangeThrowDirection.z.toFixed(2)})`);
+
+        // Dodaj losowy moment obrotowy dla niebieskiej kostki
+        const blueSpinDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier,
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier,
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier
+        );
+
+        blueDiceBody.angularVelocity.set(
+            blueSpinDirection.x,
+            blueSpinDirection.y,
+            blueSpinDirection.z
+        );
+
+        // Dodaj losowy moment obrotowy dla pomarańczowej kostki (dla różnorodności)
+        const orangeSpinDirection = new CANNON.Vec3(
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier * 1.1,
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier * 0.9,
+            (Math.random() - 0.5) * config.spinForce * forceMultiplier * 1.2
+        );
+
+        orangeDiceBody.angularVelocity.set(
+            orangeSpinDirection.x,
+            orangeSpinDirection.y,
+            orangeSpinDirection.z
+        );
+
+        // Wyczyść timeout jeśli istnieje
+        if (resultTimeout) {
+            clearTimeout(resultTimeout);
+        }
+
+        // Ustaw timeout na odczyt wyniku
+        resultTimeout = setTimeout(checkDiceResult, config.stabilizationDelay);
+        console.log(`Sprawdzę wynik za ${config.stabilizationDelay}ms`);
+    }
+
+    function throwDiceWithDrag() {
+        if (isThrowInProgress) return;
+
+        isThrowInProgress = true;
+
+        // Oblicz wektor przeciągnięcia
+        const deltaX = dragEndPos.x - dragStartPos.x;
+        const deltaY = dragEndPos.y - dragStartPos.y;
+
+        // Oblicz długość przeciągnięcia dla lepszego skalowania siły
+        const dragLength = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // Oblicz czas trwania ruchu w sekundach
+        const dragDuration = Math.max(0.1, (dragEndPos.time - dragStartPos.time) / 1000);
+
+        // Oblicz prędkość (piksele na sekundę)
+        const velocityX = deltaX / dragDuration;
+        const velocityY = deltaY / dragDuration;
+
+        // Oblicz prędkość całkowitą dla lepszego skalowania
+        const velocityMagnitude = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+
+        // Dostosuj mnożnik siły w zależności od długości przeciągnięcia i prędkości
+        // Krótkie, szybkie ruchy powinny dawać więcej siły niż długie, wolne
+        const adaptiveMultiplier = config.dragForceMultiplier *
+            (1 + Math.min(velocityMagnitude / 1000, 1.0)) * // Zwiększamy dla szybkich ruchów
+            (1 - Math.min(dragLength / 500, 0.5));         // Zmniejszamy dla długich przeciągnięć
+
+        // Skaluj prędkość do odpowiedniej siły
+        // Używamy negatywnego deltaY, ponieważ współrzędne ekranu mają y rosnące w dół,
+        // podczas gdy w naszej przestrzeni 3D pozytywne y jest w górę
+        const throwForceX = velocityX * adaptiveMultiplier;
+        const throwForceY = Math.abs(velocityY) * adaptiveMultiplier; // Zawsze rzucaj w górę
+        const throwForceZ = -velocityY * adaptiveMultiplier * 0.8; // Mapuj pionowy ruch ekranu na oś z, nieco zredukowany
+
+        // Zastosuj minimalną siłę, jeśli ruch był zbyt mały
+        const minForce = 7; // Zwiększona minimalna siła dla lepszego efektu
+        const forceY = Math.max(throwForceY, minForce);
+
+        // Maksymalna siła dla Y, aby zapobiec wyrzuceniu poza pole widzenia
+        const maxForceY = 30;
+        const clampedForceY = Math.min(forceY, maxForceY);
+
+        console.log("=== RZUCAM KOSTKAMI GESTEM ===");
+        console.log(`Gest: (${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}) w ${dragDuration.toFixed(2)}s`);
+        console.log(`Prędkość gestu: (${velocityX.toFixed(0)}, ${velocityY.toFixed(0)}) pikseli/s`);
+        console.log(`Adaptacyjny mnożnik: ${adaptiveMultiplier.toFixed(4)}`);
+
+        // Wyczyść wyświetlanie wyniku
+        document.querySelector('#blueResult .result-value').innerHTML = '';
+        document.querySelector('#orangeResult .result-value').innerHTML = '';
+        document.getElementById('velocityInfo').textContent = 'Rzucam kostkami...';
+
+        // Unikalne rzuty dla każdej kostki z niewielkim randomizowaniem dla różnorodności
+        const randomVariation = () => (Math.random() * 0.4 + 0.8); // 0.8 - 1.2 losowa wartość
+
+        // Zastosuj siłę impulsu dla niebieskiej kostki z losową wariacją
+        const blueThrowDirection = new CANNON.Vec3(
+            throwForceX * randomVariation() - 2, // Bardziej w lewo
+            clampedForceY * randomVariation(),
+            throwForceZ * randomVariation()
+        );
+
+        // Zastosuj siłę impulsu dla pomarańczowej kostki z losową wariacją
+        const orangeThrowDirection = new CANNON.Vec3(
+            throwForceX * randomVariation() + 2, // Bardziej w prawo
+            clampedForceY * randomVariation() * 1.05, // Nieco wyżej
+            throwForceZ * randomVariation() * 0.95 // Nieco mniej w przód/tył
+        );
+
+        // Dodaj losowe odchylenie, aby zapobiec sklejaniu się kostek
+        const addRandomDeviation = (vec) => {
+            vec.x += (Math.random() - 0.5) * 2;
+            vec.z += (Math.random() - 0.5) * 2;
+            return vec;
+        };
+
+        // Aplikujemy siły z losowym odchyleniem
+        blueDiceBody.applyImpulse(addRandomDeviation(blueThrowDirection), blueDiceBody.position);
+        orangeDiceBody.applyImpulse(addRandomDeviation(orangeThrowDirection), orangeDiceBody.position);
+
+        console.log(`Siła rzutu nieb.: (${blueThrowDirection.x.toFixed(2)}, ${blueThrowDirection.y.toFixed(2)}, ${blueThrowDirection.z.toFixed(2)})`);
+        console.log(`Siła rzutu pom.: (${orangeThrowDirection.x.toFixed(2)}, ${orangeThrowDirection.y.toFixed(2)}, ${orangeThrowDirection.z.toFixed(2)})`);
+
+        // Dodaj moment obrotowy - zwiększamy dla lepszego efektu
+        const spinForce = config.spinForce * 1.2;
+        const randomSpin = () => (Math.random() - 0.5) * spinForce * 2; // Większy losowy rozrzut
+
+        // Dodaj moment obrotowy dla niebieskiej kostki z randomizacją
+        const blueSpinDirection = new CANNON.Vec3(
+            -velocityY * 0.015 + randomSpin() * 0.5,
+            velocityX * 0.015 + randomSpin() * 0.5,
+            randomSpin()
+        );
+
+        // Dodaj moment obrotowy dla pomarańczowej kostki (jeszcze bardziej zróżnicowany)
+        const orangeSpinDirection = new CANNON.Vec3(
+            -velocityY * 0.018 + randomSpin() * 0.6,
+            velocityX * 0.012 + randomSpin() * 0.6,
+            randomSpin() * 1.2
+        );
+
+        blueDiceBody.angularVelocity.set(blueSpinDirection.x, blueSpinDirection.y, blueSpinDirection.z);
+        orangeDiceBody.angularVelocity.set(orangeSpinDirection.x, orangeSpinDirection.y, orangeSpinDirection.z);
+
+        // Wyczyść istniejący timeout
+        if (resultTimeout) {
+            clearTimeout(resultTimeout);
+        }
+
+        // Ustaw timeout do sprawdzenia wyniku z dłuższym czasem dla bardziej dynamicznych rzutów
+        resultTimeout = setTimeout(checkDiceResult, config.stabilizationDelay * 1.5);
+        console.log(`Sprawdzę wynik za ${config.stabilizationDelay * 1.5}ms`);
+    }
+
+    function checkDiceResult() {
+        // Sprawdź prędkość obu kostek
+        const blueVelocityMagnitude = blueDiceBody.velocity.norm();
+        const blueAngularVelocityMagnitude = blueDiceBody.angularVelocity.norm();
+
+        const orangeVelocityMagnitude = orangeDiceBody.velocity.norm();
+        const orangeAngularVelocityMagnitude = orangeDiceBody.angularVelocity.norm();
+
+        // Aktualizuj informacje o prędkości
+        document.getElementById('velocityInfo').textContent =
+            `Prędkość - niebieska: ${blueVelocityMagnitude.toFixed(2)}, pomarańczowa: ${orangeVelocityMagnitude.toFixed(2)}`;
+
+        // Sprawdź czy obie kostki się zatrzymały
+        const blueIsStable = blueVelocityMagnitude < config.stabilizationThreshold &&
+            blueAngularVelocityMagnitude < config.stabilizationThreshold;
+
+        const orangeIsStable = orangeVelocityMagnitude < config.stabilizationThreshold &&
+            orangeAngularVelocityMagnitude < config.stabilizationThreshold;
+
+        if (blueIsStable && orangeIsStable) {
+            console.log("OBE KOSTKI UZNANE ZA STABILNE");
+
+            // Odczytaj wartości
+            const blueResult = getDiceValue(blueDice, 'blue');
+            const orangeResult = getDiceValue(orangeDice, 'orange');
+
+            console.log(`Wynik niebieskiej kostki: ${blueResult}`);
+            console.log(`Wynik pomarańczowej kostki: ${orangeResult}`);
+
+            // Wyświetl wyniki ze specjalnymi stylem i emoji
+            setDiceResults(blueResult, orangeResult);
+
+            // Dodaj do historii
+            addToHistory(blueResult, orangeResult);
+
+            document.getElementById('velocityInfo').textContent = 'Kostki ustabilizowane';
+
+            // Zatrzymujemy ruch kostek bez zmiany ich orientacji
+            blueDiceBody.velocity.set(0, 0, 0);
+            blueDiceBody.angularVelocity.set(0, 0, 0);
+
+            orangeDiceBody.velocity.set(0, 0, 0);
+            orangeDiceBody.angularVelocity.set(0, 0, 0);
+
+            isThrowInProgress = false;
+        } else {
+            // Jeśli obie kostki są prawie stabilne, pokaż wstępne wyniki
+            if (blueVelocityMagnitude < config.showResultThreshold &&
+                blueAngularVelocityMagnitude < config.showResultThreshold &&
+                orangeVelocityMagnitude < config.showResultThreshold &&
+                orangeAngularVelocityMagnitude < config.showResultThreshold) {
+
+                const prelimBlueResult = getDiceValue(blueDice, 'blue');
+                const prelimOrangeResult = getDiceValue(orangeDice, 'orange');
+
+                console.log(`Wyniki tymczasowe: ${prelimBlueResult}, ${prelimOrangeResult}`);
+
+                // Pokaż wyniki ze specjalnym stylem
+                setDiceResults(prelimBlueResult, prelimOrangeResult, true);
+            }
+
+            // Jeśli wciąż się poruszają, sprawdź ponownie za chwilę
+            resultTimeout = setTimeout(checkDiceResult, 100); // Sprawdzaj częściej
+        }
+    }
+
+    function getDiceValue(dice, diceType) {
+        // Znajdź, która nakładka (zwierzę) jest skierowana najbardziej do góry
+        // Wektor "góra" w globalnym układzie współrzędnych
+        const upVector = new THREE.Vector3(0, 1, 0);
+
+        let bestDotProduct = -Infinity;
+        let bestFaceAnimal = null;
+
+        // Przejrzyj wszystkie nakładki (dzieci kostki)
+        for (let i = 0; i < dice.children.length; i++) {
+            const child = dice.children[i];
+            if (!child.userData || !child.userData.animal) continue;
+
+            // Pobierz wektor normalny do ścianki w lokalnym układzie współrzędnych
+            const normalLocal = child.userData.normalVector.clone();
+
+            // Przekształć wektor normalny do globalnego układu współrzędnych
+            const normalWorld = normalLocal.clone();
+            normalWorld.applyQuaternion(dice.quaternion);
+
+            // Oblicz iloczyn skalarny z wektorem "góra"
+            const dotProduct = normalWorld.dot(upVector);
+
+            // Jeśli to najlepszy wynik do tej pory, zapisz go
+            if (dotProduct > bestDotProduct) {
+                bestDotProduct = dotProduct;
+                bestFaceAnimal = child.userData.animal;
+            }
+        }
+
+        // Jeśli nie znaleziono żadnej ścianki (co nie powinno się zdarzyć), użyj zapasowej metody
+        if (!bestFaceAnimal) {
+            // Zapasowa metoda - losowość oparta na quaternionie
+            const animals = diceType === 'blue' ? blueAnimals : orangeAnimals;
+            const q = dice.quaternion;
+            const seed = Math.abs(q.x * 1000 + q.y * 100 + q.z * 10 + q.w);
+            const index = Math.floor(seed % animals.length);
+            bestFaceAnimal = animals[index];
+
+            console.log(`Nie znaleziono ścianki dla ${diceType} kostki, używam zapasowej metody.`);
+        }
+
+        console.log(`Wybrane zwierzę dla ${diceType} kostki: ${bestFaceAnimal} z iloczynem skalarnym: ${bestDotProduct.toFixed(4)}`);
+
+        return bestFaceAnimal;
+    }
+
+    function setDiceResults(blueResult, orangeResult, temporary = false) {
+        // Ustaw wynik niebieskiej kostki
+        const blueResultElement = document.querySelector('#blueResult .result-value');
+        blueResultElement.innerHTML = `
+            <div class="animal-display">
+                <span class="animal-icon">${animalEmojis[blueResult] || '❓'}</span>
+                <span class="animal-name">${blueResult}</span>
+            </div>
+        `;
+        blueResultElement.style.color = temporary ? '#FF9800' : '#333';
+
+        // Ustaw wynik pomarańczowej kostki
+        const orangeResultElement = document.querySelector('#orangeResult .result-value');
+        orangeResultElement.innerHTML = `
+            <div class="animal-display">
+                <span class="animal-icon">${animalEmojis[orangeResult] || '❓'}</span>
+                <span class="animal-name">${orangeResult}</span>
+            </div>
+        `;
+        orangeResultElement.style.color = temporary ? '#FF9800' : '#333';
+    }
+
+    function addToHistory(blueResult, orangeResult) {
+        // Dodaj do historii niebieskiej kostki
+        blueHistory.unshift(blueResult);
+        if (blueHistory.length > MAX_HISTORY) {
+            blueHistory.pop();
+        }
+
+        // Dodaj do historii pomarańczowej kostki
+        orangeHistory.unshift(orangeResult);
+        if (orangeHistory.length > MAX_HISTORY) {
+            orangeHistory.pop();
+        }
+
+        // Aktualizuj wyświetlanie historii
+        updateHistoryDisplay();
+    }
+
+    function updateHistoryDisplay() {
+        // Wyczyść obecną historię
+        const blueHistoryElement = document.getElementById('blueHistory');
+        const orangeHistoryElement = document.getElementById('orangeHistory');
+
+        blueHistoryElement.innerHTML = '';
+        orangeHistoryElement.innerHTML = '';
+
+        // Dodaj elementy historii niebieskiej kostki
+        blueHistory.forEach(animal => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.title = animal;
+            item.textContent = animalEmojis[animal] || '❓';
+            blueHistoryElement.appendChild(item);
+        });
+
+        // Dodaj elementy historii pomarańczowej kostki
+        orangeHistory.forEach(animal => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.title = animal;
+            item.textContent = animalEmojis[animal] || '❓';
+            orangeHistoryElement.appendChild(item);
+        });
+    }
+
+    // ---------- USTAWIENIA I PANEL STEROWANIA ----------
+
+    function setupEventListeners() {
+        // Obsługa podstawowych zdarzeń
+        window.addEventListener('resize', onWindowResize);
+        document.getElementById('throwBtn').addEventListener('click', throwDice);
+
+        // Obsługa zdarzeń dotykowych i myszy do przeciągania
+        setupDragEvents();
+
+        // Obsługa panelu ustawień
+        setupSettingsEvents();
+    }
+
+    function setupDragEvents() {
+        const container = document.getElementById('diceContainer');
+
+        // Zdarzenia dotykowe dla urządzeń mobilnych
+        container.addEventListener('touchstart', function(event) {
+            event.preventDefault(); // Zapobiega przewijaniu
+            const touch = event.touches[0];
+            handleDragStart(touch.clientX, touch.clientY);
+        });
+
+        container.addEventListener('touchmove', function(event) {
+            event.preventDefault(); // Zapobiega przewijaniu
+            const touch = event.touches[0];
+            handleDragMove(touch.clientX, touch.clientY);
+        });
+
+        container.addEventListener('touchend', function(event) {
+            event.preventDefault(); // Zapobiega przewijaniu
+            const touch = event.changedTouches[0];
+            handleDragEnd(touch.clientX, touch.clientY);
+        });
+
+        // Zdarzenia myszy dla desktopów
+        container.addEventListener('mousedown', function(event) {
+            event.preventDefault();
+            handleDragStart(event.clientX, event.clientY);
+        });
+
+        container.addEventListener('mousemove', function(event) {
+            handleDragMove(event.clientX, event.clientY);
+        });
+
+        container.addEventListener('mouseup', function(event) {
+            handleDragEnd(event.clientX, event.clientY);
+        });
+    }
+
+    function setupSettingsEvents() {
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        const closeSettingsBtn = document.querySelector('.close-settings');
+        const applySettingsBtn = document.getElementById('applySettings');
+        const resetSettingsBtn = document.getElementById('resetSettings');
+        const showAdvancedBtn = document.querySelector('.show-advanced');
+        const advancedSettings = document.querySelector('.advanced-settings');
+
+        // Pokazywanie/ukrywanie panelu ustawień
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.style.display = 'block';
+            settingsOverlay.style.display = 'block';
+            updateSettingsInputs();
+        });
+
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsPanel.style.display = 'none';
+            settingsOverlay.style.display = 'none';
+        });
+
+        settingsOverlay.addEventListener('click', () => {
+            settingsPanel.style.display = 'none';
+            settingsOverlay.style.display = 'none';
+        });
+
+        // Pokazywanie/ukrywanie zaawansowanych ustawień
+        showAdvancedBtn.addEventListener('click', () => {
+            if (advancedSettings.style.display === 'block') {
+                advancedSettings.style.display = 'none';
+                showAdvancedBtn.textContent = 'Pokaż ustawienia zaawansowane';
+            } else {
+                advancedSettings.style.display = 'block';
+                showAdvancedBtn.textContent = 'Ukryj ustawienia zaawansowane';
+            }
+        });
+
+        // Obsługa suwaka siły rzutu
+        const throwForceInput = document.getElementById('throwForce');
+        const throwForceValue = document.getElementById('throwForceValue');
+
+        throwForceInput.addEventListener('input', () => {
+            throwForceValue.textContent = throwForceInput.value;
+        });
+
+        // Obsługa suwaka siły obrotu
+        const spinForceInput = document.getElementById('spinForce');
+        const spinForceValue = document.getElementById('spinForceValue');
+
+        spinForceInput.addEventListener('input', () => {
+            spinForceValue.textContent = spinForceInput.value;
+        });
+
+        // Obsługa suwaka grawitacji
+        const gravityInput = document.getElementById('gravity');
+        const gravityValue = document.getElementById('gravityValue');
+
+        gravityInput.addEventListener('input', () => {
+            gravityValue.textContent = gravityInput.value;
+        });
+
+        // Obsługa suwaka rozmiaru kostek
+        const diceSizeInput = document.getElementById('diceSize');
+        const diceSizeValue = document.getElementById('diceSizeValue');
+
+        diceSizeInput.addEventListener('input', () => {
+            diceSizeValue.textContent = diceSizeInput.value;
+        });
+
+        // Obsługa suwaka tarcia
+        const frictionInput = document.getElementById('friction');
+        const frictionValue = document.getElementById('frictionValue');
+
+        frictionInput.addEventListener('input', () => {
+            frictionValue.textContent = frictionInput.value;
+        });
+
+        // Obsługa suwaka sprężystości
+        const restitutionInput = document.getElementById('restitution');
+        const restitutionValue = document.getElementById('restitutionValue');
+
+        restitutionInput.addEventListener('input', () => {
+            restitutionValue.textContent = restitutionInput.value;
+        });
+
+        // Obsługa suwaka progu stabilizacji
+        const stabilizationThresholdInput = document.getElementById('stabilizationThreshold');
+        const stabilizationThresholdValue = document.getElementById('stabilizationThresholdValue');
+
+        stabilizationThresholdInput.addEventListener('input', () => {
+            stabilizationThresholdValue.textContent = stabilizationThresholdInput.value;
+        });
+
+        // Zastosowanie ustawień
+        applySettingsBtn.addEventListener('click', () => {
+            applySettings();
+            settingsPanel.style.display = 'none';
+            settingsOverlay.style.display = 'none';
+        });
+
+        // Resetowanie ustawień
+        resetSettingsBtn.addEventListener('click', () => {
+            resetSettings();
+        });
+    }
+
+    function updateSettingsInputs() {
+        // Podstawowe ustawienia
+        document.getElementById('throwForce').value = config.throwForce;
+        document.getElementById('throwForceValue').textContent = config.throwForce;
+
+        document.getElementById('spinForce').value = config.spinForce;
+        document.getElementById('spinForceValue').textContent = config.spinForce;
+
+        document.getElementById('gravity').value = config.gravity;
+        document.getElementById('gravityValue').textContent = config.gravity;
+
+        // Zaawansowane ustawienia
+        document.getElementById('diceSize').value = config.diceSize;
+        document.getElementById('diceSizeValue').textContent = config.diceSize;
+
+        document.getElementById('friction').value = config.friction;
+        document.getElementById('frictionValue').textContent = config.friction;
+
+        document.getElementById('restitution').value = config.restitution;
+        document.getElementById('restitutionValue').textContent = config.restitution;
+
+        document.getElementById('stabilizationThreshold').value = config.stabilizationThreshold;
+        document.getElementById('stabilizationThresholdValue').textContent = config.stabilizationThreshold;
+    }
+
+    function applySettings() {
+        // Pobierz wartości z suwaków
+        config.throwForce = parseFloat(document.getElementById('throwForce').value);
+        config.spinForce = parseFloat(document.getElementById('spinForce').value);
+        config.gravity = parseFloat(document.getElementById('gravity').value);
+        config.diceSize = parseFloat(document.getElementById('diceSize').value);
+        config.friction = parseFloat(document.getElementById('friction').value);
+        config.restitution = parseFloat(document.getElementById('restitution').value);
+        config.stabilizationThreshold = parseFloat(document.getElementById('stabilizationThreshold').value);
+
+        // Zastosuj nowe ustawienia
+        world.gravity.set(0, -config.gravity, 0);
+
+        // Aktualizuj materiały kontaktu
+        const defaultMaterial = new CANNON.Material('default');
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: config.friction,
+                restitution: config.restitution
+            }
+        );
+
+        world.defaultContactMaterial = defaultContactMaterial;
+
+        // Usuń stare kostki
+        scene.remove(blueDice);
+        scene.remove(orangeDice);
+        world.remove(blueDiceBody);
+        world.remove(orangeDiceBody);
+
+        // Stwórz nowe kostki
+        prepareDiceTextures();
+        createDice();
+    }
+
+    function resetSettings() {
+        // Przywróć domyślne ustawienia
+        const defaultConfig = getDefaultConfig();
+
+        // Aktualizuj suwaki
+        document.getElementById('throwForce').value = defaultConfig.throwForce;
+        document.getElementById('throwForceValue').textContent = defaultConfig.throwForce;
+
+        document.getElementById('spinForce').value = defaultConfig.spinForce;
+        document.getElementById('spinForceValue').textContent = defaultConfig.spinForce;
+
+        document.getElementById('gravity').value = defaultConfig.gravity;
+        document.getElementById('gravityValue').textContent = defaultConfig.gravity;
+
+        document.getElementById('diceSize').value = defaultConfig.diceSize;
+        document.getElementById('diceSizeValue').textContent = defaultConfig.diceSize;
+
+        document.getElementById('friction').value = defaultConfig.friction;
+        document.getElementById('frictionValue').textContent = defaultConfig.friction;
+
+        document.getElementById('restitution').value = defaultConfig.restitution;
+        document.getElementById('restitutionValue').textContent = defaultConfig.restitution;
+
+        document.getElementById('stabilizationThreshold').value = defaultConfig.stabilizationThreshold;
+        document.getElementById('stabilizationThresholdValue').textContent = defaultConfig.stabilizationThreshold;
+    }
+
+    // ---------- OBSŁUGA GESTÓW PRZECIĄGANIA ----------
+
+    function handleDragStart(clientX, clientY) {
+        if (!isThrowInProgress) {
+            isDragging = true;
+            dragStartPos = {
+                x: clientX,
+                y: clientY,
+                time: Date.now()
+            };
+
+            // NIE resetujemy pozycji kostek - pozwolimy im pozostać na obecnej pozycji
+            // Dodamy je do palca dopiero w trakcie ruchu
+
+            // Ukryj podpowiedź
+            document.getElementById('dragHint').style.display = 'none';
+
+            // Aktualizuj tekst informacji
+            document.getElementById('velocityInfo').textContent = 'Przeciągnij, aby rzucić kostkami...';
+
+            // Pokaż wizualizację gestu
+            updateDragVisualizer(clientX, clientY, clientX, clientY);
+            dragVisualizer.visible = true;
+
+            // Inicjalizujemy pozycje kostek pod kursorem/palcem
+            const screenToWorld = getScreenToWorldCoordinates(clientX, clientY, 5); // Wysokość ponad podłogą
+
+            // Przenieś kostki do pozycji palca z lekkim odsunięciem od siebie
+            blueDiceBody.velocity.set(0, 0, 0);
+            blueDiceBody.angularVelocity.set(0, 0, 0);
+            blueDiceBody.position.set(
+                screenToWorld.x - 1, // Lekko w lewo
+                screenToWorld.y,
+                screenToWorld.z
+            );
+
+            orangeDiceBody.velocity.set(0, 0, 0);
+            orangeDiceBody.angularVelocity.set(0, 0, 0);
+            orangeDiceBody.position.set(
+                screenToWorld.x + 1, // Lekko w prawo
+                screenToWorld.y,
+                screenToWorld.z
+            );
+        }
+    }
+
+    function handleDragMove(clientX, clientY) {
+        if (isDragging) {
+            // Pokazuj bieżący wektor ruchu
+            updateDragVisualizer(dragStartPos.x, dragStartPos.y, clientX, clientY);
+
+            const deltaX = clientX - dragStartPos.x;
+            const deltaY = clientY - dragStartPos.y;
+            const distance = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+
+            // Aktualizuj tekst informacji
+            document.getElementById('velocityInfo').textContent =
+                `Siła: ${Math.min(100, Math.floor(distance / 5))}%`;
+
+            // Przemieszczaj kostki wraz z ruchem palca/kursora
+            const screenToWorld = getScreenToWorldCoordinates(clientX, clientY, 5);
+
+            // Płynnie przemieszczaj kostki do nowej pozycji
+            // Zatrzymujemy prędkość, aby kostki "przyczepiły się" do kursora
+            blueDiceBody.velocity.set(0, 0, 0);
+            blueDiceBody.angularVelocity.set(0, 0, 0);
+            blueDiceBody.position.set(
+                screenToWorld.x - 1,
+                screenToWorld.y,
+                screenToWorld.z
+            );
+
+            orangeDiceBody.velocity.set(0, 0, 0);
+            orangeDiceBody.angularVelocity.set(0, 0, 0);
+            orangeDiceBody.position.set(
+                screenToWorld.x + 1,
+                screenToWorld.y,
+                screenToWorld.z
+            );
+        }
+    }
+
+    // Funkcja pomocnicza konwertująca współrzędne ekranu na współrzędne świata 3D
+    function getScreenToWorldCoordinates(clientX, clientY, desiredY) {
+        // Konwersja współrzędnych ekranu na znormalizowane współrzędne (-1 do 1)
+        const normalizedX = (clientX / window.innerWidth) * 2 - 1;
+        const normalizedY = -(clientY / window.innerHeight) * 2 + 1;
+
+        // Tworzymy tymczasowy wektor dla obliczeń
+        const vector = new THREE.Vector3(normalizedX, normalizedY, 0.5);
+
+        // Przekształcamy do przestrzeni świata
+        vector.unproject(camera);
+
+        // Tworzymy promień od kamery w kierunku kliknięcia
+        const dir = vector.sub(camera.position).normalize();
+
+        // Obliczamy odległość do płaszczyzny y = desiredY
+        // Używamy równania płaszczyzny: (p - p0) · n = 0
+        // gdzie n to wektor normalny płaszczyzny (0, 1, 0)
+        // p0 to punkt na płaszczyźnie (0, desiredY, 0)
+        const planeNormal = new THREE.Vector3(0, 1, 0);
+        const planePoint = new THREE.Vector3(0, desiredY, 0);
+
+        // Obliczamy odległość od kamery do płaszczyzny wzdłuż promienia dir
+        const denominator = dir.dot(planeNormal);
+
+        // Jeśli promień jest równoległy do płaszczyzny, zwracamy domyślną pozycję
+        if (Math.abs(denominator) < 0.001) {
+            return { x: 0, y: desiredY, z: 0 };
+        }
+
+        const t = (planePoint.clone().sub(camera.position)).dot(planeNormal) / denominator;
+
+        // Obliczamy punkt na płaszczyźnie
+        const point = camera.position.clone().add(dir.clone().multiplyScalar(t));
+
+        return { x: point.x, y: point.y, z: point.z };
+    }
+
+    function handleDragEnd(clientX, clientY) {
+        if (isDragging) {
+            isDragging = false;
+            dragEndPos = {
+                x: clientX,
+                y: clientY,
+                time: Date.now()
+            };
+
+            // Ukryj wizualizację gestu
+            dragVisualizer.visible = false;
+
+            // Oblicz wektor ruchu i rzuć kostką
+            throwDiceWithDrag();
+        }
+    }
+
+    // ---------- NARZĘDZIA DEBUGOWANIA ----------
 
     function setupDebugConsole() {
         const debugConsole = document.getElementById('debugConsole');
@@ -741,6 +2121,15 @@
             // Auto-scroll na dół
             debugConsole.scrollTop = debugConsole.scrollHeight;
         };
+
+        // Dodaj przycisk do panelu ustawień dla debugging console
+        const settingsContent = document.querySelector('.settings-content');
+        const debugBtn = document.createElement('button');
+        debugBtn.textContent = 'Pokaż/Ukryj konsolę';
+        debugBtn.className = 'secondary';
+        debugBtn.style.marginTop = '10px';
+        debugBtn.addEventListener('click', toggleDebugConsole);
+        settingsContent.appendChild(debugBtn);
     }
 
     function toggleDebugConsole() {
