@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Niesamowity Bubble Shooter</title>
+    <style>
+        :root {
+            --primary-color: #7c4dff;
+            --secondary-color: #ff4081;
+            --background-color: #0f0f1e;
+            --text-color: #ffffff;
+            --grid-color: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(124, 77, 255, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 80% 70%, rgba(255, 64, 129, 0.1) 0%, transparent 20%);
+        }
+
+        .grid-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            max-width: 450px;
+            width: 100%;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px;
+            background: rgba(15, 15, 30, 0.8);
+            padding: 10px 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 5;
+        }
+
+        .score-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .score-label {
+            font-size: 12px;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .level {
+            font-size: 14px;
+            padding: 5px 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(124, 77, 255, 0.3);
+        }
+
+        #game-canvas {
+            background-color: rgba(15, 15, 30, 0.6);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: crosshair;
+            max-height: 70vh;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: auto;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            background-color: rgba(15, 15, 30, 0.95);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            border-radius: 12px;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .ui-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .ui-title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(124, 77, 255, 0.3);
+        }
+
+        .ui-message {
+            font-size: 16px;
+            margin-bottom: 20px;
+            max-width: 400px;
+            text-align: center;
+            line-height: 1.5;
+            opacity: 0.8;
+        }
+
+        .ui-button {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 15px rgba(124, 77, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .ui-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(124, 77, 255, 0.5);
+        }
+
+        .ui-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 4px 10px rgba(124, 77, 255, 0.3);
+        }
+
+        .ui-button::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .ui-button:hover::after {
+            transform: translateX(100%);
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 10px;
+            z-index: 5;
+        }
+
+        .control-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .control-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0;
+            animation: float 20s linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.2;
+            }
+            90% {
+                opacity: 0.1;
+            }
+            100% {
+                transform: translateY(-1000px) translateX(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .bubble-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            aspect-ratio: 2/3;
+            margin: 0 auto;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tutorial-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 350px;
+            background: rgba(15, 15, 30, 0.95);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        .tutorial-step {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tutorial-icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+            width: 40px;
+            height: 40px;
+            background: rgba(124, 77, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tutorial-text {
+            font-size: 14px;
+            max-width: 280px;
+            line-height: 1.4;
+        }
+
+        @media (max-height: 700px) {
+            .game-wrapper {
+                max-height: 65vh;
+            }
+            
+            .tutorial-step {
+                margin-bottom: 10px;
+            }
+            
+            .tutorial-icon {
+                width: 30px;
+                height: 30px;
+                font-size: 16px;
+                margin-bottom: 5px;
+            }
+            
+            .tutorial-text {
+                font-size: 12px;
+            }
+            
+            .ui-title {
+                font-size: 28px;
+                margin-bottom: 10px;
+            }
+            
+            .ui-message {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .header {
+                padding: 8px 12px;
+            }
+            
+            .score {
+                font-size: 20px;
+            }
+            
+            .level {
+                font-size: 12px;
+                padding: 4px 10px;
+            }
+            
+            .control-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            .control-button svg {
+                width: 14px;
+                height: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-background"></div>
+    <div class="bubble-container" id="bubble-container"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="score-container">
+                <span class="score-label">Punkty</span>
+                <span class="score" id="score">0</span>
+            </div>
+            <div class="level" id="level">Poziom 1</div>
+        </div>
+        
+        <div class="game-wrapper">
+            <canvas id="game-canvas" width="400" height="600"></canvas>
+            
+            <div class="ui-overlay" id="start-screen">
+                <h1 class="ui-title">Bubble Shooter</h1>
+                <p class="ui-message">Połącz bańki tego samego koloru, aby zdobyć punkty. Postaraj się wyczyścić planszę!</p>
+                <button class="ui-button" id="start-button">Rozpocznij grę</button>
+            </div>
+            
+            <div class="ui-overlay" id="game-over-screen">
+                <h1 class="ui-title">Koniec gry!</h1>
+                <p class="ui-message">Twój wynik: <span id="final-score">0</span></p>
+                <button class="ui-button" id="restart-button">Zagraj ponownie</button>
+            </div>
+            
+            <div class="tutorial-overlay" id="tutorial-overlay">
+                <h2 class="ui-title" style="font-size: 24px; margin-top: 0; margin-bottom: 15px;">Jak grać</h2>
+                
+                <div class="tutorial-step">
+                    <div class="tutorial-icon">🎯</div>
+                    <div class="tutorial-text">Kliknij myszką, aby wystrzelić bańkę w wybranym kierunku</div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="tutorial-icon">🔄</div>
+                    <div class="tutorial-text">Połącz co najmniej 3 bańki tego samego koloru, aby je zniszczyć</div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="tutorial-icon">🏆</div>
+                    <div class="tutorial-text">Zdobywaj punkty i przechodź na wyższe poziomy</div>
+                </div>
+                
+                <button class="ui-button" id="tutorial-button" style="margin-top: 10px;">Zaczynajmy!</button>
+            </div>
+        </div>
+        
+        <div class="game-controls">
+            <button class="control-button" id="reset-button">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                </svg>
+                Zresetuj
+            </button>
+            <button class="control-button" id="sound-button">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                Dźwięk: Włączony
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Konfiguracja gry
+        const config = {
+            bubbleRadius: 20,
+            bubbleColors: ['#ff4081', '#7c4dff', '#00e5ff', '#76ff03', '#ffea00', '#ff9100'],
+            rows: 15, // Zwiększona liczba rzędów dla lepszego wykrywania końca gry
+            cols: 8,
+            shooterSpeed: 10,
+            matchMinCount: 3,
+            levelUpScore: 1000,
+            soundEnabled: true
+        };
+
+        // Inicjalizacja zmiennych gry
+        let canvas, ctx;
+        let bubbleGrid = [];
+        let shooterBubble = null;
+        let nextBubble = null;
+        let activeBubbles = [];
+        let score = 0;
+        let level = 1;
+        let gameRunning = false;
+        let mouseX = 0, mouseY = 0;
+        let soundEnabled = true;
+
+        // Zmienne Audio
+        let audioContext;
+        let soundGenerators = {};
+
+        // Stan interfejsu
+        let startScreen, gameOverScreen, tutorialOverlay;
+        let scoreElement, levelElement, finalScoreElement;
+
+        // Inicjalizacja gry
+        window.onload = function() {
+            // Pobranie elementów interfejsu
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext('2d');
+            startScreen = document.getElementById('start-screen');
+            gameOverScreen = document.getElementById('game-over-screen');
+            tutorialOverlay = document.getElementById('tutorial-overlay');
+            scoreElement = document.getElementById('score');
+            levelElement = document.getElementById('level');
+            finalScoreElement = document.getElementById('final-score');
+            
+            // Dopasowanie rozmiaru canvas do kontenera
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Pokazanie ekranu startowego
+            startScreen.classList.add('active');
+            
+            // Nasłuchiwanie zdarzeń
+            document.getElementById('start-button').addEventListener('click', startGame);
+            document.getElementById('restart-button').addEventListener('click', restartGame);
+            document.getElementById('reset-button').addEventListener('click', restartGame);
+            document.getElementById('tutorial-button').addEventListener('click', closeTutorial);
+            document.getElementById('sound-button').addEventListener('click', toggleSound);
+            
+            canvas.addEventListener('mousemove', trackMouse);
+            canvas.addEventListener('click', shootBubble);
+            
+            // Tworzenie dekoracyjnych bąbelków w tle
+            createBackgroundBubbles();
+            
+            // Inicjalizacja systemu audio
+            initAudio();
+        };
+
+        // Dopasowanie rozmiaru canvas
+        function resizeCanvas() {
+            const gameWrapper = document.querySelector('.game-wrapper');
+            const containerWidth = gameWrapper.clientWidth;
+            const containerHeight = gameWrapper.clientHeight;
+            
+            // Zachowanie proporcji 2:3
+            const aspectRatio = 2/3;
+            let canvasWidth, canvasHeight;
+            
+            if (containerWidth / containerHeight > aspectRatio) {
+                // Kontener jest szerszy niż potrzeba
+                canvasHeight = containerHeight;
+                canvasWidth = containerHeight * aspectRatio;
+            } else {
+                // Kontener jest wyższy niż potrzeba
+                canvasWidth = containerWidth;
+                canvasHeight = containerWidth / aspectRatio;
+            }
+            
+            canvas.width = Math.min(400, canvasWidth);
+            canvas.height = Math.min(600, canvasHeight);
+            
+            // Aktualizacja promienia baniek w zależności od rozmiaru canvas
+            config.bubbleRadius = Math.floor(canvas.width / (config.cols * 2.2));
+            
+            // Jeśli gra jest już uruchomiona, przerysuj
+            if (gameRunning) {
+                render();
+            }
+        }
+
+        // Inicjalizacja systemu audio
+        function initAudio() {
+            try {
+                // Tworzenie kontekstu audio
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Inicjalizacja generatorów dźwięków
+                initSoundGenerators();
+            } catch (e) {
+                console.error('Web Audio API nie jest obsługiwane w tej przeglądarce.', e);
+                document.getElementById('sound-button').style.display = 'none';
+                soundEnabled = false;
+            }
+        }
+
+        // Inicjalizacja generatorów dźwięków
+        function initSoundGenerators() {
+            // Generator dźwięku strzału
+            soundGenerators.shoot = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(220, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+            };
+            
+            // Generator dźwięku odbicia
+            soundGenerators.bounce = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+            };
+            
+            // Generator dźwięku przyłączenia
+            soundGenerators.attach = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(330, audioContext.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.15);
+            };
+            
+            // Generator dźwięku dopasowania
+            soundGenerators.match = () => {
+                const duration = 0.3;
+                const notes = [330, 440, 550, 660];
+                
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = note;
+                        
+                        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.1);
+                    }, index * 50);
+                });
+            };
+            
+            // Generator dźwięku awansu na wyższy poziom
+            soundGenerators.levelup = () => {
+                const duration = 0.5;
+                const notes = [440, 554, 659, 880];
+                
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.type = 'square';
+                        oscillator.frequency.value = note;
+                        
+                        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.15);
+                    }, index * 100);
+                });
+            };
+            
+            // Generator dźwięku nowego rzędu
+            soundGenerators.newrow = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(110, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(55, audioContext.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.3);
+            };
+            
+            // Generator dźwięku pływających baniek
+            soundGenerators.float = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 660;
+                
+                filter.type = 'bandpass';
+                filter.frequency.value = 660;
+                filter.Q.value = 10;
+                
+                gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+                
+                oscillator.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.4);
+            };
+            
+            // Generator dźwięku końca gry
+            soundGenerators.gameover = () => {
+                const notes = [880, 783.99, 698.46, 659.25, 587.33, 523.25, 493.88, 440];
+                
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.value = note;
+                        
+                        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.2);
+                    }, index * 70);
+                });
+            };
+            
+            // Generator dźwięku startu
+            soundGenerators.start = () => {
+                const notes = [523.25, 659.25, 783.99];
+                
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.type = 'triangle';
+                        oscillator.frequency.value = note;
+                        
+                        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.2);
+                    }, index * 100);
+                });
+            };
+            
+            // Generator dźwięku restartu
+            soundGenerators.restart = soundGenerators.start;
+            
+            // Generator dźwięku przełączania
+            soundGenerators.toggle = () => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(soundEnabled ? 440 : 880, audioContext.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+            };
+        }
+
+        // Odtwarzanie dźwięku
+        function playSound(sound) {
+            if (!soundEnabled || !audioContext || !soundGenerators[sound]) return;
+            
+            // Włączenie kontekstu audio, jeśli został wstrzymany
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Odtworzenie dźwięku za pomocą generatora
+            soundGenerators[sound]();
+        }
+
+        // Przełączanie dźwięku
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-button').innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    ${soundEnabled ? 
+                    `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>` :
+                    `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>`}
+                </svg>
+                Dźwięk: ${soundEnabled ? 'Włączony' : 'Wyłączony'}
+            `;
+            playSound('toggle');
+        }
+
+        // Tworzenie dekoracyjnych bąbelków w tle
+        function createBackgroundBubbles() {
+            const container = document.getElementById('bubble-container');
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const bubble = document.createElement('div');
+                    bubble.classList.add('bubble');
+                    
+                    const size = Math.random() * 50 + 20;
+                    const color = config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)];
+                    
+                    bubble.style.width = `${size}px`;
+                    bubble.style.height = `${size}px`;
+                    bubble.style.backgroundColor = color;
+                    bubble.style.left = `${Math.random() * 100}%`;
+                    bubble.style.bottom = `-${size}px`;
+                    bubble.style.opacity = '0';
+                    bubble.style.animationDuration = `${Math.random() * 10 + 10}s`;
+                    bubble.style.animationDelay = `${Math.random() * 10}s`;
+                    
+                    container.appendChild(bubble);
+                    
+                    // Usunięcie bąbelka po zakończeniu animacji
+                    setTimeout(() => {
+                        bubble.remove();
+                        createBubbleReplacement();
+                    }, (Math.random() * 10 + 10) * 1000);
+                }, i * 1000);
+            }
+        }
+
+        // Tworzenie nowego bąbelka w tle po usunięciu starego
+        function createBubbleReplacement() {
+            const container = document.getElementById('bubble-container');
+            
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            
+            const size = Math.random() * 50 + 20;
+            const color = config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)];
+            
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            bubble.style.backgroundColor = color;
+            bubble.style.left = `${Math.random() * 100}%`;
+            bubble.style.bottom = `-${size}px`;
+            bubble.style.opacity = '0';
+            bubble.style.animationDuration = `${Math.random() * 10 + 10}s`;
+            
+            container.appendChild(bubble);
+            
+            // Usunięcie bąbelka po zakończeniu animacji
+            setTimeout(() => {
+                bubble.remove();
+                createBubbleReplacement();
+            }, (Math.random() * 10 + 10) * 1000);
+        }
+
+        // Zamknięcie tutoriala
+        function closeTutorial() {
+            tutorialOverlay.style.display = 'none';
+            startScreen.classList.add('active');
+        }
+
+        // Rozpoczęcie gry
+        function startGame() {
+            startScreen.classList.remove('active');
+            initGame();
+            gameRunning = true;
+            gameLoop();
+            playSound('start');
+        }
+
+        // Restart gry
+        function restartGame() {
+            gameOverScreen.classList.remove('active');
+            score = 0;
+            level = 1;
+            updateUI();
+            initGame();
+            gameRunning = true;
+            gameLoop();
+            playSound('restart');
+        }
+
+        // Śledzenie pozycji myszy
+        function trackMouse(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        }
+
+        // Inicjalizacja gry
+        function initGame() {
+            // Czyszczenie stanu gry
+            bubbleGrid = [];
+            activeBubbles = [];
+            
+            // Obliczenie offsetu, aby wycentrować siatkę w canvas
+            const gridWidth = config.cols * config.bubbleRadius * 2;
+            const xOffset = (canvas.width - gridWidth) / 2;
+            
+            // Tworzenie siatki baniek
+            for (let row = 0; row < config.rows; row++) {
+                bubbleGrid[row] = [];
+                for (let col = 0; col < config.cols; col++) {
+                    // Wypełniamy tylko górne rzędy na początku
+                    if (row < 3) {
+                        bubbleGrid[row][col] = {
+                            x: xOffset + col * config.bubbleRadius * 2 + (row % 2 === 0 ? 0 : config.bubbleRadius),
+                            y: row * config.bubbleRadius * 1.8 + config.bubbleRadius,
+                            color: config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)],
+                            row,
+                            col
+                        };
+                    } else {
+                        bubbleGrid[row][col] = null;
+                    }
+                }
+            }
+            
+            // Tworzenie początkowych baniek strzelających
+            createShooterBubble();
+            createNextBubble();
+        }
+
+        // Tworzenie bańki do strzelania
+        function createShooterBubble() {
+            shooterBubble = {
+                x: canvas.width / 2,
+                y: canvas.height - config.bubbleRadius - 10,
+                color: config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)],
+                isActive: false,
+                dx: 0,
+                dy: 0
+            };
+        }
+
+        // Tworzenie następnej bańki
+        function createNextBubble() {
+            nextBubble = {
+                x: canvas.width - config.bubbleRadius * 2 - 10,
+                y: canvas.height - config.bubbleRadius - 10,
+                color: config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)]
+            };
+        }
+
+        // Wystrzeliwanie bańki
+        function shootBubble() {
+            if (!gameRunning || shooterBubble.isActive) return;
+            
+            let angle = Math.atan2(mouseY - shooterBubble.y, mouseX - shooterBubble.x);
+            
+            // Ograniczenie kąta strzału - nie pozwalamy strzelać w dół
+            if (angle > 0 && angle < Math.PI) {
+                // Jeśli kąt jest w dolnej półkuli, ograniczamy go do maksymalnie poziomego
+                // lub lekko w górę
+                if (angle < Math.PI / 2) {
+                    angle = Math.min(angle, 0.1); // lekko w prawo-górę
+                } else {
+                    angle = Math.max(angle, Math.PI - 0.1); // lekko w lewo-górę
+                }
+            }
+            
+            shooterBubble.dx = Math.cos(angle) * config.shooterSpeed;
+            shooterBubble.dy = Math.sin(angle) * config.shooterSpeed;
+            shooterBubble.isActive = true;
+            
+            playSound('shoot');
+        }
+
+        // Główna pętla gry
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            update();
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Aktualizacja stanu gry
+        function update() {
+            // Aktualizacja pozycji aktywnej bańki
+            if (shooterBubble.isActive) {
+                shooterBubble.x += shooterBubble.dx;
+                shooterBubble.y += shooterBubble.dy;
+                
+                // Sprawdzenie kolizji z krawędziami
+                if (shooterBubble.x < config.bubbleRadius || shooterBubble.x > canvas.width - config.bubbleRadius) {
+                    shooterBubble.dx = -shooterBubble.dx;
+                    playSound('bounce');
+                }
+                
+                // Sprawdzenie kolizji z górną krawędzią
+                if (shooterBubble.y < config.bubbleRadius) {
+                    // Obliczenie offsetu, aby wycentrować siatkę w canvas
+                    const gridWidth = config.cols * config.bubbleRadius * 2;
+                    const xOffset = (canvas.width - gridWidth) / 2;
+                    
+                    // Znalezienie najbliższej kolumny
+                    const col = Math.floor((shooterBubble.x - xOffset) / (config.bubbleRadius * 2));
+                    const adjustedCol = Math.max(0, Math.min(config.cols - 1, col));
+                    
+                    attachBubble(shooterBubble, 0, adjustedCol);
+                    return;
+                }
+                
+                // Sprawdzenie kolizji z istniejącymi bańkami
+                checkBubbleCollision();
+            }
+            
+            // Sprawdzenie warunku przegranej
+            checkGameOver();
+        }
+
+        // Sprawdzenie kolizji z istniejącymi bańkami
+        function checkBubbleCollision() {
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    const bubble = bubbleGrid[row][col];
+                    if (bubble) {
+                        const dx = bubble.x - shooterBubble.x;
+                        const dy = bubble.y - shooterBubble.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < config.bubbleRadius * 2) {
+                            // Znajdź najbliższe wolne miejsce
+                            attachBubbleToNearest(shooterBubble);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Sprawdzenie kolizji z górną krawędzią
+            if (shooterBubble.y < config.bubbleRadius) {
+                // Obliczenie offsetu, aby wycentrować siatkę w canvas
+                const gridWidth = config.cols * config.bubbleRadius * 2;
+                const xOffset = (canvas.width - gridWidth) / 2;
+                
+                // Znalezienie najbliższej kolumny
+                const col = Math.floor((shooterBubble.x - xOffset) / (config.bubbleRadius * 2));
+                const adjustedCol = Math.max(0, Math.min(config.cols - 1, col));
+                
+                attachBubble(shooterBubble, 0, adjustedCol);
+            }
+        }
+
+        // Przyłączanie bańki do najbliższego wolnego miejsca
+        function attachBubbleToNearest(bubble) {
+            // Znalezienie najbliższego wolnego miejsca w siatce
+            let minDist = Number.MAX_VALUE;
+            let bestRow = -1, bestCol = -1;
+            
+            // Obliczenie offsetu, aby wycentrować siatkę w canvas
+            const gridWidth = config.cols * config.bubbleRadius * 2;
+            const xOffset = (canvas.width - gridWidth) / 2;
+            
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    if (!bubbleGrid[row][col]) {
+                        // Obliczenie pozycji wolnego miejsca
+                        const x = xOffset + col * config.bubbleRadius * 2 + (row % 2 === 0 ? 0 : config.bubbleRadius);
+                        const y = row * config.bubbleRadius * 1.8 + config.bubbleRadius;
+                        
+                        // Sprawdzenie, czy ma sąsiada
+                        let hasBubbleNeighbor = false;
+                        
+                        // Sprawdzanie 6 sąsiednich miejsc
+                        const directions = [];
+                        if (row % 2 === 0) {
+                            directions.push([-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]);
+                        } else {
+                            directions.push([-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]);
+                        }
+                        
+                        for (const [dr, dc] of directions) {
+                            const newRow = row + dr;
+                            const newCol = col + dc;
+                            
+                            if (newRow >= 0 && newRow < config.rows && newCol >= 0 && newCol < config.cols) {
+                                if (bubbleGrid[newRow][newCol]) {
+                                    hasBubbleNeighbor = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hasBubbleNeighbor) {
+                            const dx = x - bubble.x;
+                            const dy = y - bubble.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (dist < minDist) {
+                                minDist = dist;
+                                bestRow = row;
+                                bestCol = col;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Przyłączanie bańki
+            if (bestRow !== -1 && bestCol !== -1) {
+                attachBubble(bubble, bestRow, bestCol);
+            } else {
+                // Jeśli nie znaleziono miejsca, przyłączamy do górnego rzędu
+                for (let col = 0; col < config.cols; col++) {
+                    if (!bubbleGrid[0][col]) {
+                        attachBubble(bubble, 0, col);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Przyłączenie bańki do siatki
+        function attachBubble(bubble, row, col) {
+            // Sprawdzenie czy miejsce jest wolne
+            if (row >= 0 && row < config.rows && col >= 0 && col < config.cols && !bubbleGrid[row][col]) {
+                // Obliczenie offsetu, aby wycentrować siatkę w canvas
+                const gridWidth = config.cols * config.bubbleRadius * 2;
+                const xOffset = (canvas.width - gridWidth) / 2;
+                
+                bubbleGrid[row][col] = {
+                    x: xOffset + col * config.bubbleRadius * 2 + (row % 2 === 0 ? 0 : config.bubbleRadius),
+                    y: row * config.bubbleRadius * 1.8 + config.bubbleRadius,
+                    color: bubble.color,
+                    row,
+                    col
+                };
+                
+                playSound('attach');
+                
+                // Sprawdzenie dopasowań
+                const matches = findMatches(row, col);
+                
+                if (matches.length >= config.matchMinCount) {
+                    // Usunięcie dopasowanych baniek
+                    for (const match of matches) {
+                        bubbleGrid[match.row][match.col] = null;
+                    }
+                    
+                    // Dodanie punktów
+                    addScore(matches.length * 10);
+                    
+                    playSound('match');
+                    
+                    // Sprawdzenie wiszących baniek
+                    checkFloatingBubbles();
+                } else {
+                    // Dodanie nowego rzędu baniek co kilka ruchów
+                    if (Math.random() < 0.3) {
+                        addNewRow();
+                    }
+                }
+                
+                // Przygotowanie nowej bańki do strzelania
+                shooterBubble = nextBubble;
+                shooterBubble.x = canvas.width / 2;
+                shooterBubble.y = canvas.height - config.bubbleRadius - 10;
+                shooterBubble.isActive = false;
+                shooterBubble.dx = 0;
+                shooterBubble.dy = 0;
+                
+                createNextBubble();
+            }
+        }
+
+        // Znajdowanie dopasowujących się baniek (rekurencyjne)
+        function findMatches(row, col, visited = new Set(), matches = []) {
+            if (!bubbleGrid[row][col]) return matches;
+            
+            const key = `${row},${col}`;
+            if (visited.has(key)) return matches;
+            
+            visited.add(key);
+            const color = bubbleGrid[row][col].color;
+            matches.push({ row, col });
+            
+            // Określenie kierunków sąsiadów (sześciokątna siatka)
+            const directions = [];
+            if (row % 2 === 0) {
+                directions.push([-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]);
+            } else {
+                directions.push([-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]);
+            }
+            
+            for (const [dr, dc] of directions) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+                
+                if (newRow >= 0 && newRow < config.rows && newCol >= 0 && newCol < config.cols && 
+                    bubbleGrid[newRow][newCol] && bubbleGrid[newRow][newCol].color === color) {
+                    findMatches(newRow, newCol, visited, matches);
+                }
+            }
+            
+            return matches;
+        }
+
+        // Sprawdzenie wiszących baniek
+        function checkFloatingBubbles() {
+            const connected = new Set();
+            
+            // Znajdowanie baniek połączonych z górnym rzędem
+            for (let col = 0; col < config.cols; col++) {
+                if (bubbleGrid[0][col]) {
+                    markConnected(0, col, connected);
+                }
+            }
+            
+            // Usunięcie wiszących baniek
+            let floatingCount = 0;
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    const key = `${row},${col}`;
+                    if (bubbleGrid[row][col] && !connected.has(key)) {
+                        bubbleGrid[row][col] = null;
+                        floatingCount++;
+                    }
+                }
+            }
+            
+            if (floatingCount > 0) {
+                addScore(floatingCount * 20);
+                playSound('float');
+            }
+            
+            // Sprawdzenie czy wszystkie bańki zostały usunięte
+            checkLevelComplete();
+        }
+
+        // Oznaczanie połączonych baniek
+        function markConnected(row, col, connected) {
+            if (row < 0 || row >= config.rows || col < 0 || col >= config.cols || !bubbleGrid[row][col]) return;
+            
+            const key = `${row},${col}`;
+            if (connected.has(key)) return;
+            
+            connected.add(key);
+            
+            // Określenie kierunków sąsiadów (sześciokątna siatka)
+            const directions = [];
+            if (row % 2 === 0) {
+                directions.push([-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]);
+            } else {
+                directions.push([-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]);
+            }
+            
+            for (const [dr, dc] of directions) {
+                markConnected(row + dr, col + dc, connected);
+            }
+        }
+
+        // Dodawanie nowego rzędu baniek
+        function addNewRow() {
+            // Obliczenie offsetu, aby wycentrować siatkę w canvas
+            const gridWidth = config.cols * config.bubbleRadius * 2;
+            const xOffset = (canvas.width - gridWidth) / 2;
+            
+            // Przesunięcie istniejących baniek w dół
+            for (let row = config.rows - 1; row > 0; row--) {
+                for (let col = 0; col < config.cols; col++) {
+                    bubbleGrid[row][col] = bubbleGrid[row - 1][col];
+                    if (bubbleGrid[row][col]) {
+                        bubbleGrid[row][col].row = row;
+                        bubbleGrid[row][col].y = row * config.bubbleRadius * 1.8 + config.bubbleRadius;
+                    }
+                }
+            }
+            
+            // Dodanie nowego rzędu na górze
+            for (let col = 0; col < config.cols; col++) {
+                bubbleGrid[0][col] = {
+                    x: xOffset + col * config.bubbleRadius * 2 + (0 % 2 === 0 ? 0 : config.bubbleRadius),
+                    y: 0 * config.bubbleRadius * 1.8 + config.bubbleRadius,
+                    color: config.bubbleColors[Math.floor(Math.random() * config.bubbleColors.length)],
+                    row: 0,
+                    col
+                };
+            }
+            
+            playSound('newrow');
+            
+            // Sprawdzenie warunku przegranej po dodaniu nowego rzędu
+            checkGameOver();
+        }
+
+        // Sprawdzenie czy poziom został ukończony
+        function checkLevelComplete() {
+            let remainingBubbles = 0;
+            
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    if (bubbleGrid[row][col]) {
+                        remainingBubbles++;
+                    }
+                }
+            }
+            
+            if (remainingBubbles === 0) {
+                level++;
+                levelElement.textContent = `Poziom ${level}`;
+                addScore(500);
+                
+                playSound('levelup');
+                
+                // Inicjalizacja nowego poziomu
+                initGame();
+            }
+        }
+
+        // Sprawdzenie warunku przegranej
+        function checkGameOver() {
+            // Używamy tylko jednego prostego warunku - czy jakakolwiek kulka przekroczyła granicę
+            const bottomLimit = canvas.height - config.bubbleRadius * 3;
+            
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    const bubble = bubbleGrid[row][col];
+                    if (bubble && bubble.y + config.bubbleRadius > bottomLimit) {
+                        console.log("Koniec gry! Kulka w pozycji:", bubble.row, bubble.col, "Y:", bubble.y, "Limit:", bottomLimit);
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Zakończenie gry
+        function gameOver() {
+            gameRunning = false;
+            finalScoreElement.textContent = score;
+            gameOverScreen.classList.add('active');
+            
+            playSound('gameover');
+        }
+
+        // Dodawanie punktów
+        function addScore(points) {
+            score += points;
+            scoreElement.textContent = score;
+            
+            // Sprawdzenie awansu na wyższy poziom
+            if (score >= level * config.levelUpScore && level < 10) {
+                level++;
+                levelElement.textContent = `Poziom ${level}`;
+                
+                playSound('levelup');
+            }
+        }
+
+        // Aktualizacja interfejsu
+        function updateUI() {
+            scoreElement.textContent = score;
+            levelElement.textContent = `Poziom ${level}`;
+        }
+
+        // Renderowanie
+        function render() {
+            // Czyszczenie canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Rysowanie tła
+            renderBackground();
+            
+            // Rysuj linię graniczną końca gry (teraz widoczna zawsze)
+            const bottomLimit = canvas.height - config.bubbleRadius * 3;
+            ctx.strokeStyle = 'rgba(255, 64, 129, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, bottomLimit);
+            ctx.lineTo(canvas.width, bottomLimit);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Rysowanie siatki baniek
+            renderBubbleGrid();
+            
+            // Rysowanie celownika
+            renderAimer();
+            
+            // Rysowanie aktywnej bańki
+            if (shooterBubble) {
+                renderBubble(shooterBubble.x, shooterBubble.y, shooterBubble.color);
+            }
+            
+            // Rysowanie następnej bańki
+            if (nextBubble) {
+                renderBubble(nextBubble.x, nextBubble.y, nextBubble.color);
+                
+                // Etykieta "Następna"
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Następna', nextBubble.x, nextBubble.y + config.bubbleRadius + 20);
+            }
+        }
+
+        // Renderowanie tła
+        function renderBackground() {
+            // Delikatne tło gradientowe
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, 'rgba(15, 15, 30, 0.3)');
+            gradient.addColorStop(1, 'rgba(15, 15, 30, 0.5)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Linia oddzielająca
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - config.bubbleRadius * 3);
+            ctx.lineTo(canvas.width, canvas.height - config.bubbleRadius * 3);
+            ctx.stroke();
+        }
+
+        // Renderowanie siatki baniek
+        function renderBubbleGrid() {
+            for (let row = 0; row < config.rows; row++) {
+                for (let col = 0; col < config.cols; col++) {
+                    const bubble = bubbleGrid[row][col];
+                    if (bubble) {
+                        renderBubble(bubble.x, bubble.y, bubble.color);
+                    }
+                }
+            }
+        }
+
+        // Renderowanie pojedynczej bańki
+        function renderBubble(x, y, color) {
+            // Cień
+            ctx.beginPath();
+            ctx.arc(x, y, config.bubbleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            // Główny kolor
+            ctx.beginPath();
+            ctx.arc(x, y, config.bubbleRadius - 1, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            // Odblask
+            ctx.beginPath();
+            ctx.arc(x - config.bubbleRadius / 3, y - config.bubbleRadius / 3, config.bubbleRadius / 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+        }
+
+        // Renderowanie celownika
+        function renderAimer() {
+            if (shooterBubble && !shooterBubble.isActive) {
+                ctx.save();
+                
+                // Obliczenie kąta
+                const angle = Math.atan2(mouseY - shooterBubble.y, mouseX - shooterBubble.x);
+                
+                // Ograniczenie kąta strzału - nie pozwalamy strzelać w dół
+                let displayAngle = angle;
+                if (displayAngle > 0 && displayAngle < Math.PI) {
+                    // Jeśli kąt jest w dolnej półkuli, ograniczamy go
+                    if (displayAngle < Math.PI / 2) {
+                        displayAngle = Math.min(displayAngle, 0.1); // lekko w prawo-górę
+                    } else {
+                        displayAngle = Math.max(displayAngle, Math.PI - 0.1); // lekko w lewo-górę
+                    }
+                }
+                
+                // Rysowanie linii celowniczej
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(shooterBubble.x, shooterBubble.y);
+                
+                // Symulacja odbicia od ścian
+                let sim_x = shooterBubble.x;
+                let sim_y = shooterBubble.y;
+                let sim_dx = Math.cos(displayAngle) * 20;
+                let sim_dy = Math.sin(displayAngle) * 20;
+                
+                for (let i = 0; i < 10; i++) {
+                    sim_x += sim_dx;
+                    sim_y += sim_dy;
+                    
+                    if (sim_x < config.bubbleRadius || sim_x > canvas.width - config.bubbleRadius) {
+                        sim_dx = -sim_dx;
+                    }
+                    
+                    if (sim_y < config.bubbleRadius) {
+                        break;
+                    }
+                    
+                    let collision = false;
+                    for (let row = 0; row < config.rows; row++) {
+                        for (let col = 0; col < config.cols; col++) {
+                            const bubble = bubbleGrid[row][col];
+                            if (bubble) {
+                                const dx = bubble.x - sim_x;
+                                const dy = bubble.y - sim_y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                
+                                if (distance < config.bubbleRadius * 2) {
+                                    collision = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (collision) break;
+                    }
+                    
+                    if (collision) break;
+                    
+                    ctx.lineTo(sim_x, sim_y);
+                }
+                
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Rysowanie strzałki wskazującej kierunek
+                ctx.translate(shooterBubble.x, shooterBubble.y);
+                ctx.rotate(displayAngle);
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(config.bubbleRadius + 10, 0);
+                ctx.lineTo(config.bubbleRadius + 25, 0);
+                ctx.lineTo(config.bubbleRadius + 20, -5);
+                ctx.moveTo(config.bubbleRadius + 25, 0);
+                ctx.lineTo(config.bubbleRadius + 20, 5);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+    </script>
+</body>
+</html>
