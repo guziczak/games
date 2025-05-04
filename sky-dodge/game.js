@@ -884,17 +884,70 @@ function checkCollision() {
 function makeJump() {
     if (gameRunning) {
         velocity = jump;
-        playSound('jump');
         
-        // Aktywuj efekt jetpacka
-        const jetpackFlames = document.querySelector('.jetpack-flames');
-        if (jetpackFlames) {
-            jetpackFlames.classList.add('active');
+        if (frogModeActive) {
+            // Dźwięk skoku dla żaby
+            playSound('jump');
             
-            // Deaktywuj efekt po 300ms (czas trwania animacji)
+            // ====== ANATOMICZNIE POPRAWNA ANIMACJA SKOKU ŻABY ======
+            bird.classList.add('jumping');
+            
+            // Resetujemy i uruchamiamy animacje wszystkich części anatomicznych
+            const frontLeg = bird.querySelector('.frog-front-leg');
+            const frontFoot = frontLeg ? frontLeg.querySelector('.frog-front-foot') : null;
+            const backThigh = bird.querySelector('.frog-back-thigh');
+            const backShin = backThigh ? backThigh.querySelector('.frog-back-shin') : null;
+            const backFoot = backShin ? backShin.querySelector('.frog-back-foot') : null;
+            
+            // Reset wszystkich animacji dla płynnego efektu
+            if (frontLeg) {
+                frontLeg.style.animation = 'none';
+                void frontLeg.offsetWidth; // Trigger reflow
+                frontLeg.style.animation = 'anatomicalFrontLegJump 0.65s ease-in-out';
+            }
+            
+            if (frontFoot) {
+                frontFoot.style.animation = 'none';
+                void frontFoot.offsetWidth;
+                frontFoot.style.animation = 'anatomicalFrontFootJump 0.65s ease-in-out';
+            }
+            
+            if (backThigh) {
+                backThigh.style.animation = 'none';
+                void backThigh.offsetWidth;
+                backThigh.style.animation = 'anatomicalBackThighJump 0.65s ease-in-out';
+            }
+            
+            if (backShin) {
+                backShin.style.animation = 'none';
+                void backShin.offsetWidth;
+                backShin.style.animation = 'anatomicalBackShinJump 0.65s ease-in-out';
+            }
+            
+            if (backFoot) {
+                backFoot.style.animation = 'none';
+                void backFoot.offsetWidth;
+                backFoot.style.animation = 'anatomicalBackFootJump 0.65s ease-in-out';
+            }
+            
+            // Usuń klasę po zakończeniu animacji
             setTimeout(() => {
-                jetpackFlames.classList.remove('active');
-            }, 300);
+                bird.classList.remove('jumping');
+            }, 600);
+        } else {
+            // Standardowy skok z jetpackiem dla normalnego trybu
+            playSound('jump');
+            
+            // Aktywuj efekt jetpacka
+            const jetpackFlames = document.querySelector('.jetpack-flames');
+            if (jetpackFlames) {
+                jetpackFlames.classList.add('active');
+                
+                // Deaktywuj efekt po 300ms
+                setTimeout(() => {
+                    jetpackFlames.classList.remove('active');
+                }, 300);
+            }
         }
     }
 }
@@ -924,7 +977,70 @@ function activateFrogMode(event) {
         // Aktywuj TRYB FROGA
         frogModeActive = true;
         frogModeTime = frogModeDuration;
+        
+        // Zastosuj klasę CSS na gameArea dla transformacji wizualnej
         gameArea.classList.add('frog-mode-active');
+        
+        // ====== ANATOMICZNIE POPRAWNA ŻABA Z PRAWIDŁOWĄ STRUKTURĄ KOŃCZYN ======
+        const existingElements = document.querySelector('.frog-head');
+        if (!existingElements) {
+            // Dodajemy głowę żaby
+            const frogHead = document.createElement('div');
+            frogHead.className = 'frog-head';
+            bird.appendChild(frogHead);
+            
+            // Dodajemy brzuszek
+            const frogBelly = document.createElement('div');
+            frogBelly.className = 'frog-belly';
+            bird.appendChild(frogBelly);
+            
+            // Dodajemy oko
+            const frogEye = document.createElement('div');
+            frogEye.className = 'frog-eye';
+            bird.appendChild(frogEye);
+            
+            // Dodajemy źrenicę
+            const frogPupil = document.createElement('div');
+            frogPupil.className = 'frog-pupil';
+            frogEye.appendChild(frogPupil);
+            
+            // Przednia noga - anatomicznie poprawna
+            const frontLeg = document.createElement('div');
+            frontLeg.className = 'frog-front-leg';
+            bird.appendChild(frontLeg);
+            
+            // Stopa przedniej nogi
+            const frontFoot = document.createElement('div');
+            frontFoot.className = 'frog-front-foot';
+            frontLeg.appendChild(frontFoot);
+            
+            // Tylna noga (udo) - pierwsza część Z-kształtu
+            const backThigh = document.createElement('div');
+            backThigh.className = 'frog-back-thigh';
+            bird.appendChild(backThigh);
+            
+            // Tylna łydka - druga część Z-kształtu
+            const backShin = document.createElement('div');
+            backShin.className = 'frog-back-shin';
+            backThigh.appendChild(backShin);
+            
+            // Tylna stopa
+            const backFoot = document.createElement('div');
+            backFoot.className = 'frog-back-foot';
+            backShin.appendChild(backFoot);
+        }
+        
+        // Reset animacji i ukrycie jetpacka
+        bird.style.animation = 'none';
+        void bird.offsetWidth; 
+        bird.style.animation = '';
+        
+        // Upewniamy się, że jetpack jest ukryty
+        const jetpackFlames = bird.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.style.display = 'none';
+        }
+        
         frogModeTimer.style.display = 'block';
         frogModeTimer.textContent = `TRYB FROGA: ${frogModeDuration}s`;
         frogModeButton.disabled = true;
@@ -970,7 +1086,46 @@ function deactivateFrogMode() {
     
     frogModeActive = false;
     frogModeTime = 0;
-    gameArea.classList.remove('frog-mode-active');
+    
+    // Dodaj przejściową klasę dla efektu transformacji z powrotem
+    bird.classList.add('transforming-back');
+    
+    // Usuń klasę frog-mode-active po krótkim opóźnieniu aby animacja przejścia zadziałała
+    setTimeout(() => {
+        // Usuwamy wszystkie elementy żaby - anatomicznie poprawne usuwanie
+        const frogElements = bird.querySelectorAll('.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh');
+        frogElements.forEach(element => {
+            if (element.parentNode === bird) {
+                // Usuwamy najpierw wszystkie dzieci elementu
+                const children = element.querySelectorAll('*');
+                children.forEach(child => {
+                    if (child.parentNode === element) {
+                        // Rekurencyjnie usuwamy dzieci dzieci (np. stopa w łydce)
+                        const grandchildren = child.querySelectorAll('*');
+                        grandchildren.forEach(grandchild => {
+                            if (grandchild.parentNode === child) {
+                                child.removeChild(grandchild);
+                            }
+                        });
+                        element.removeChild(child);
+                    }
+                });
+                // Potem usuwamy sam element
+                bird.removeChild(element);
+            }
+        });
+        
+        // Usuń klasy
+        gameArea.classList.remove('frog-mode-active');
+        bird.classList.remove('jumping', 'transforming-back');
+        
+        // Przywróć widoczność jetpacka
+        const jetpackFlames = bird.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.style.display = '';
+        }
+    }, 300);
+    
     frogModeTimer.style.display = 'none';
     
     // Przywróć normalne parametry
