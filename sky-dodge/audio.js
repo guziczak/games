@@ -1,49 +1,479 @@
-// Enhanced game sounds in base64 format
-const GAME_SOUNDS = {
-    // Improved jump sound with better "boing" effect
-    jump: "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YSADAAB9mKq1v8fP1NjZ2dbRycO5q5qMfHJmWVFKQz43My8sKikoJycnKCkqLC4xMzc7P0RJTlNZXmNob3R5foOIjZKXm5+jqKyvsrW3uri6u7y8vLy7uru5uLa0srCurKqop6WjoqGgn5+en5+foKGipKWnqauttLe7v8PGys3Q09XY2dve4OLk5ebn6Ojp6erq6urq6urq6eno6Ofm5eTj4uHf3t3c29nY19XU09HQz87NzMrJyMfGxcTDw8LCwsLCwsLDw8TFxsfIycvMztDR09XX2dvd3+Hi5Obn6erq6+zt7e7u7u/v7+/v7+/v7+/u7u7t7ezs6+vq6ejo5+bl5OPi4eDf3t3c29rZ2NfW1dTU09LS0dHQ0NDPz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Q0NDQ0NHR0dHS0tLT09PU1NTV1dXW1tbX19fY2NjZ2dna2trb29vc3Nzd3d3e3t7f39/g4ODh4eHi4uLj4+Pk5OTl5eXm5ubm5+fn5+jo6Ojo6enp6enp6urq6urq6urq6+vr6+vr6+vr6+vr6+vr7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7A==",
+// Sky Dodge sound effects system using Web Audio API
+// Dynamically generates game sounds instead of using pre-recorded samples
+
+// Initialize audio context
+let audioContext;
+let masterGainNode;
+
+// Initialize audio system
+function initAudioSystem() {
+    try {
+        // Create audio context
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+        
+        // Create master volume control
+        masterGainNode = audioContext.createGain();
+        masterGainNode.gain.value = 0.7; // Set default volume
+        masterGainNode.connect(audioContext.destination);
+        
+        return true;
+    } catch(e) {
+        console.error("Web Audio API not supported in this browser", e);
+        return false;
+    }
+}
+
+// Sound generation functions
+const soundGenerators = {
+    // Jump sound - springy "boing" effect
+    jump: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Connect nodes
+        oscillator.connect(gainNode);
+        gainNode.connect(masterGainNode);
+        
+        // Configure oscillator
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(180, audioContext.currentTime + 0.2);
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+        
+        // Play sound
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+    },
     
-    // Improved coin collection sound - more resonant
-    coin: "data:audio/wav;base64,UklGRpgCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YXQCAABjbnV4eXp7fH1+f3+AgICAf39+fXx7enl4d3Z1dHNycXBvbm1sa2ppaGdmZWRjYmFgX15dXFtaWVhXVlVUU1JRUE9OTUxLSklIR0ZFRENCQUA/Pj08Ozo5ODc2NTQzMjEwLy4tLCsqKSgnJiUkIyIhIB8eHRwbGhkYFxYVFBMSERAQDw4NDAsLCgkIBwcGBQQEAwICAQEAAAAAAAAAAAAAAAAAAAABAQICAwQEBQYGBwgICQoKCwwNDQ4PEBARERITFBQVFhcXGBkaGhscHR0eHyAhISIjJCQlJicoKSorLC0tLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/v7+/fz7+vn49/b19PPy8fDv7u3s6+rp6Ofm5eTj4uHg397d3Nva2djX1tXU09LR0M/OzcvKycjHxsXEw8LBwL++vby7urm4t7a1tLOysbCvrq2sq6qpqKemo6+rqKajo6GgpKSgnZmVlpaYm5+hpaiqra+xtLe6vL7Aw8TGx8nMztDT1tjb3eDi5Obp6+3w8vT3+fv+",
+    // Regular coin collection - bright, cheerful "ding"
+    coin: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Connect nodes
+        oscillator.connect(gainNode);
+        gainNode.connect(masterGainNode);
+        
+        // Configure oscillator
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1320, audioContext.currentTime + 0.1);
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+        
+        // Play sound
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+    },
     
-    // Improved purple coin sound - more magical
-    purpleCoin: "data:audio/wav;base64,UklGRsQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YaACAAB9kqq7ydbh7PT4+vr49O/o4NnQx72zqZ+VioB2bGJYTkU8My8tKyknJSMiISAfHx4eHh4eHh8fICEiIyQmJygrLS8yNDc6PUBDRklMT1JVWFpdYGNmZ2psbnBydHZ3eXt8fX9/gIGBgoKDg4ODg4SEhISEhISEhISEhISEhISEhISDg4ODgoKCgYGAgH9/fn18e3p5eHd2dXRzcnFwb25ta2ppZ2ZlZGNiYV9eXVxbWllYV1ZVVFNSUVBPTk1MS0pJSEdGRURDQkFAPz49PDo5NzYxLCorLC4yNzxCR01TV19kaW5zdnp+gYSGiYuNj5GSlJWWl5iZmZqampqampqZmZiYl5aVlJKRj46MiomHhYSCgH59e3l4dnRzcXBubGtpZ2ZkY2FgXl1bWlhXVVRSUVBOTUxKSUdGRENCQD8+PDo5Nzc1NDIyMTAvLi4tLCwrKioppKWlpaWmppGHfG5lXllRTEQ3Jw0AAAEDFCA4TGaBmay9ztjh6/P5/v////3689/Kt5yJdmFNOikbEAkEAQAAAAADChIbJi86RVBcZ3J8hpCZoqq0vMXN1d3l7PT7////////////3s7BsqCRgXFhUkQ2KR0SDQUAAAAAAAAAAAEBAQIDBAUHCA0QFBkdIiYrLzQ4PUJHSk5TkJGTlJWXmJmbnZ+hpKaqra+ytLW3t7W0s7GvrausqainpaOhoJ6cm5mYlpWTkpCPjYyLiomIh4aFhYSEg4ODg4ODg4ODhISFhoeIiYqMjY+RkpSWmJqcnqCipKaprK6ws7W4ury+wMLExsfJy8zO0NHS09XW19jZ2tvc3d7f3+Dh4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+",
+    // Purple coin - magical "sparkly" sound
+    purpleCoin: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(biquadFilter);
+        biquadFilter.connect(masterGainNode);
+        
+        // Configure oscillators
+        oscillator1.type = 'sine';
+        oscillator1.frequency.setValueAtTime(1200, audioContext.currentTime);
+        oscillator1.frequency.exponentialRampToValueAtTime(1800, audioContext.currentTime + 0.2);
+        
+        oscillator2.type = 'triangle';
+        oscillator2.frequency.setValueAtTime(900, audioContext.currentTime);
+        oscillator2.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.4);
+        
+        // Configure filter for sparkly effect
+        biquadFilter.type = 'lowpass';
+        biquadFilter.frequency.setValueAtTime(1000, audioContext.currentTime);
+        biquadFilter.frequency.exponentialRampToValueAtTime(4000, audioContext.currentTime + 0.1);
+        biquadFilter.Q.value = 5;
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.15);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+        
+        // Play sound
+        oscillator1.start();
+        oscillator2.start();
+        oscillator1.stop(audioContext.currentTime + 0.5);
+        oscillator2.stop(audioContext.currentTime + 0.5);
+    },
     
-    // Improved game over sound - more dramatic
-    gameOver: "data:audio/wav;base64,UklGRrwEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YZgEAAB3gIKEhoiJiouMjY2Ojo+Pj4+Pj46OjYyLioiHhYSCgX9+fHt5eHZ1c3JwbmxramhmaGZmZWVlZWVmZmZnaGlqa2xtbm9xcnR1d3h6e3x+f4GCg4WGiImKjI2Oj5CRkpOUlJWVlpaWlpaWlpaWlZWUlJOTkpGRkI+OjYyLioiIh4aFhIOCgYB/fn18e3p5eHd2dXRzcnFwbq6Oh3lwaWNdV1JNSUVBPTs5NzY1NDMzMjIyMjMzMzQ1Njc4Oj0/QkVIS09TW45ZYmZpbG1tbnBzdn6JlqKvu8XN1Nrg5erv9PX39/j29fPs5tzSyLuxo5aNfnBlWEg5KRsQBwEBCSI2SFpufY+dp7K8xc3T2N3h5Obn6Ofl4t/b1tHMx8K9uLOuqaWgnpuYlpSSkI6NjIqJiIeGhYSDgoGAf39+fX18e3t6enl5eHh3d3Z2dXV0dHNzc3JycXFwcG9vb25ubW1sbGtramppJzU0MzMzNDQ0NTY2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLS0xMTU1OTk9PT1BQUFFRUVFSUlJSUlNTU1NTU1NTU1RUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFVUVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVLW1tbW0tLOysrGwsK+vrq6trauqqainpqalpaSkpKOjo6KioqGhoaGhoaCgoKCgn5+fn5+fnp6enp6enp6enp6dnZ2dnZ2dnZ2dnZ2cnJycnJycnJycnJycm5ubm5ubm5ubm5ubm5ubm5ubmpqampqampqampqaE4OLkJWZnqKmqq2vs7a4ur2/wcPFx8nLzc7Q0tPV1tjZ29zd39/g4eLj5OXm5+jp6uvs7e7u7/Dw8fLy8/P09PX19vb29/f3+Pj4+fn5+fn6+vr6+/v7+/v7/Pz8/Pz8/Pz8/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f3",
+    // Game over - dramatic descending tone
+    gameOver: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Connect nodes
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(masterGainNode);
+        
+        // Configure oscillators
+        oscillator1.type = 'sawtooth';
+        oscillator1.frequency.setValueAtTime(220, audioContext.currentTime);
+        oscillator1.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.8);
+        
+        oscillator2.type = 'sine';
+        oscillator2.frequency.setValueAtTime(180, audioContext.currentTime);
+        oscillator2.frequency.exponentialRampToValueAtTime(55, audioContext.currentTime + 1.2);
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.3);
+        
+        // Play sound
+        oscillator1.start();
+        oscillator2.start();
+        oscillator1.stop(audioContext.currentTime + 1.3);
+        oscillator2.stop(audioContext.currentTime + 1.3);
+    },
     
-    // Improved frog mode activation sound - more ribbit-like
-    frogMode: "data:audio/wav;base64,UklGRuQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YcACAAB0i5urvcbO1dnc3t/f3t3b2dfUz8vGwLqzraWdlIyDem9lW1FHPjQqIRgPBgAAAggPFx8oMDk/RktQVFdaXWBiZGZoaWtsbW5vcHFycnN0dHV1dnZ3d3h4eHl5eXp6enp7e3t7fHx8fHx8fHx8fHx8fHx8fHx8fHx7e3t7e3t7e3p6enp6enp6eXl5eXl5eXl4eHh4eHh4eHd3d3d3d3d3d3Z2dnZ2dnZ2dnV1dXV1dXV1dXV1dHR0dHR0dHR0dHRzc3NzcnJycnJycnJycnFxcXFxcXFwcHBwcHBwcHBwcHBvb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vbxseICIkJScpKiwuMDEzNDY3OTo8PT9AQUNERkdISktMTU5PUFJTVFVWVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v//////////////////////////////+/n39fTz8vHw7+7t7Ovq6ejn5uXk4+Lh4N/e3dzb2tnY19bV1NTT0tHQ0M/OzczLysnIx8bFxMPCwcC/vr28u7q5uLe2tbSzsrGwr66trKuqqainpqWko6KhoJ+enZybmpmYl5aVlJOSkZCPjo2Mi4qJiIeGhYSCOjY0AgkRGiQ9SGN6kKOpv87c6PP7//////////////////////////////////8=",
+    // Frog mode - ribbit-like sound
+    frogMode: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator.connect(biquadFilter);
+        biquadFilter.connect(gainNode);
+        gainNode.connect(masterGainNode);
+        
+        // Configure oscillator for frog-like sound
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(60, audioContext.currentTime + 0.1);
+        oscillator.frequency.linearRampToValueAtTime(40, audioContext.currentTime + 0.3);
+        
+        // Configure filter
+        biquadFilter.type = 'lowpass';
+        biquadFilter.frequency.setValueAtTime(1000, audioContext.currentTime);
+        biquadFilter.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.3);
+        biquadFilter.Q.value = 3;
+        
+        // Configure envelope for ribbit effect
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.03);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 0.15);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.4);
+        
+        // Play sound
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.4);
+        
+        // Add a second ribbit after a brief pause
+        setTimeout(() => {
+            const oscillator2 = audioContext.createOscillator();
+            const gainNode2 = audioContext.createGain();
+            const biquadFilter2 = audioContext.createBiquadFilter();
+            
+            oscillator2.connect(biquadFilter2);
+            biquadFilter2.connect(gainNode2);
+            gainNode2.connect(masterGainNode);
+            
+            oscillator2.type = 'triangle';
+            oscillator2.frequency.setValueAtTime(180, audioContext.currentTime);
+            oscillator2.frequency.linearRampToValueAtTime(40, audioContext.currentTime + 0.3);
+            
+            biquadFilter2.type = 'lowpass';
+            biquadFilter2.frequency.setValueAtTime(800, audioContext.currentTime);
+            biquadFilter2.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
+            biquadFilter2.Q.value = 2;
+            
+            gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode2.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.02);
+            gainNode2.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 0.1);
+            gainNode2.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+            
+            oscillator2.start();
+            oscillator2.stop(audioContext.currentTime + 0.3);
+        }, 300);
+    },
     
-    // Improved ghost mode activation sound - more ethereal
-    ghostMode: "data:audio/wav;base64,UklGRuACAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YbwCAABCLzg6PTk1MCorKikmIh0ZGx0eHiAiIyouMTc+RElOU1dbYGVqb3N4fYGGio6SlZmdoaSmqq2ws7W4ury+wcPFx8nLzc/R09TV19na3N3f4eLk5efp6uvt7u/x8vP09fb3+Pn6+/z9/v///////////////////////////////////////////////vz7+fj29PPx7+7s6ujm5OLg3tzZ19XT0M7Ly8rKysnJycnJycnKy8vMzc7P0NHT1NbX2drc3d/h4uTm6Onr7e7w8fP09vf5+vz9/////////////////////////////v38+/n49/b08/Hw7+3s6unn5ePh4N7c29nX1tTT0dDOzMvJyMbFw8LAvr28u7m4trW0s7GwrqEFDhciLDY/SVNeaXR/iZOdpq+4wcrT29zb29nW0s7JxL+5tK+qpaCblo+KhH96dW9pZF9aVVBLRkE8NzMuKiYhHhoVEQ4KBwQBcZGfoamxt7/Hy9HW2t7i5urv8/f7//////7++/n29PLv7Ojl4d3Z1tLOysXBvbm0sKynopqUjoiCfHdxbGZhW1ZPSUM9NzEvKiQfGRQPCgUAg4aJi42PkZOVl5mcnqChoqSlp6ipq6ytr7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7//////////////////////////////////////////////////////////////////v39/Pz7+/r6+fn5+Pj39/f29vb19fX09PTz8/Py8vLx8fHw8PDv7+/u7u7t7e3s7Ozr6+vq6urp6ejDBQwUGyIqMTk/RkxSWF1jaW5zeH2Ci4+UnKGmqq6ytbbAw8fLz9PW2t3h5Oju8fb6/v/////",
+    // Ghost mode - ethereal spooky sound
+    ghostMode: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const oscillator3 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        oscillator3.connect(gainNode);
+        gainNode.connect(biquadFilter);
+        biquadFilter.connect(masterGainNode);
+        
+        // Configure oscillators for ethereal effect
+        oscillator1.type = 'sine';
+        oscillator1.frequency.setValueAtTime(200, audioContext.currentTime);
+        oscillator1.frequency.linearRampToValueAtTime(300, audioContext.currentTime + 0.6);
+        
+        oscillator2.type = 'sine';
+        oscillator2.frequency.setValueAtTime(203, audioContext.currentTime);
+        oscillator2.frequency.linearRampToValueAtTime(306, audioContext.currentTime + 0.6);
+        
+        oscillator3.type = 'sine';
+        oscillator3.frequency.setValueAtTime(260, audioContext.currentTime);
+        oscillator3.frequency.linearRampToValueAtTime(380, audioContext.currentTime + 0.6);
+        
+        // Configure filter for ghostly effect
+        biquadFilter.type = 'bandpass';
+        biquadFilter.frequency.setValueAtTime(300, audioContext.currentTime);
+        biquadFilter.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.4);
+        biquadFilter.Q.value = 1.5;
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.2);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
+        
+        // Play sound
+        oscillator1.start();
+        oscillator2.start();
+        oscillator3.start();
+        oscillator1.stop(audioContext.currentTime + 0.7);
+        oscillator2.stop(audioContext.currentTime + 0.7);
+        oscillator3.stop(audioContext.currentTime + 0.7);
+    },
     
-    // New stork mode activation sound
-    storkMode: "data:audio/wav;base64,UklGRuQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YcACAAB0i5urvcbO1dnc3t/f3t3b2dfUz8vGwLqzraWdlIyDem9lW1FHPjQqIRgPBgAAAggPFx8oMDk/RktQVFdaXWBiZGZoaWtsbW5vcHFycnN0dHV1dnZ3d3h4eHl5eXp6enp7e3t7fHx8fHx8fHx8fHx8fHx8fHx8fHx7e3t7e3t7e3p6enp6enp6eXl5eXl5eXl4eHh4eHh4eHd3d3d3d3d3d3Z2dnZ2dnZ2dnV1dXV1dXV1dXV1dHR0dHR0dHR0dHRzc3NzcnJycnJycnJycnFxcXFxcXFwcHBwcHBwcHBwcHBvb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vbxseICIkJScpKiwuMDEzNDY3OTo8PT9AQUNERkdISktMTU5PUFJTVFVWVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v//////////////////////////////+/n39fTz8vHw7+7t7Ovq6ejn5uXk4+Lh4N/e3dzb2tnY19bV1NTT0tHQ0M/OzczLysnIx8bFxMPCwcC/vr28u7q5uLe2tbSzsrGwr66trKuqqainpqWko6KhoJ+enZybmpmYl5aVlJOSkZCPjo2Mi4qJiIeGhYSCOjY0AgkRGiQ9SGN6kKOpv87c6PP7//////////////////////////////////8=",
+    // Stork mode - bird-like call
+    storkMode: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator.connect(biquadFilter);
+        biquadFilter.connect(gainNode);
+        gainNode.connect(masterGainNode);
+        
+        // Configure oscillator for stork call
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.1);
+        oscillator.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.2);
+        oscillator.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.3);
+        
+        // Configure filter
+        biquadFilter.type = 'bandpass';
+        biquadFilter.frequency.setValueAtTime(500, audioContext.currentTime);
+        biquadFilter.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.1);
+        biquadFilter.frequency.linearRampToValueAtTime(500, audioContext.currentTime + 0.3);
+        biquadFilter.Q.value = 2;
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+        
+        // Play sound
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+        
+        // Add a second call after a brief pause
+        setTimeout(() => {
+            const oscillator2 = audioContext.createOscillator();
+            const gainNode2 = audioContext.createGain();
+            const biquadFilter2 = audioContext.createBiquadFilter();
+            
+            oscillator2.connect(biquadFilter2);
+            biquadFilter2.connect(gainNode2);
+            gainNode2.connect(masterGainNode);
+            
+            oscillator2.type = 'sawtooth';
+            oscillator2.frequency.setValueAtTime(650, audioContext.currentTime);
+            oscillator2.frequency.linearRampToValueAtTime(450, audioContext.currentTime + 0.15);
+            
+            biquadFilter2.type = 'bandpass';
+            biquadFilter2.frequency.setValueAtTime(550, audioContext.currentTime);
+            biquadFilter2.frequency.linearRampToValueAtTime(950, audioContext.currentTime + 0.15);
+            biquadFilter2.Q.value = 2;
+            
+            gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode2.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.03);
+            gainNode2.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.25);
+            
+            oscillator2.start();
+            oscillator2.stop(audioContext.currentTime + 0.25);
+        }, 400);
+    },
     
-    // New stork defeat sound
-    storkDefeat: "data:audio/wav;base64,UklGRpICAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YW4CAABRMy4wNCsmJCgrLjA1PERNVmBpdHyCh4mJiYR/eXNsZV5XUEk9OCwmIBwZFxYXGRsgJi02PUVMVFtja3J4foOIjZGUl5mcnqCio6Wmp6ipqqusra2urq+vsLCwsbGxsbKysrOzs7Ozs7S0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLOzs7Ozs7Ozs7KysrKysrKysrGxsbGxsbGxsLCwsLCwsLCwr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urqrMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7//////////////////////////////////////f39/Pz8+/v7+vr6+fn5+Pj49/f39vb29fX19PT08/Pz8vLy8fHx8PDw7+/v7u7u7e3t7Ozs6+vr6urq6enp6Ojo5+fn5ubm5eXl5OTk4+Pj4uLi4eHh4ODg39/f3t7e3d3d3Nzc29vb2tra2dnZ2NjY19fX1tbW1dXV1NTU09PT0tLS0dHR0NDQz8/PQk1WYGl0fIKHiYmJhH95c2xlXldQST04LCYgHBkXFhcZGyAmLTY9RUxUW2NrcnJ4",
+    // Stork defeat - dramatic collapse
+    storkDefeat: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(biquadFilter);
+        biquadFilter.connect(masterGainNode);
+        
+        // Configure oscillators
+        oscillator1.type = 'sawtooth';
+        oscillator1.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator1.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.3);
+        
+        oscillator2.type = 'sine';
+        oscillator2.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator2.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + 0.5);
+        
+        // Configure filter
+        biquadFilter.type = 'lowpass';
+        biquadFilter.frequency.setValueAtTime(2000, audioContext.currentTime);
+        biquadFilter.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.4);
+        
+        // Configure envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+        
+        // Play sound
+        oscillator1.start();
+        oscillator2.start();
+        oscillator1.stop(audioContext.currentTime + 0.5);
+        oscillator2.stop(audioContext.currentTime + 0.5);
+    },
     
-    // New frog coin collect sound
-    frogCoin: "data:audio/wav;base64,UklGRrQCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YZACAABqeoaRm6Wvusjc7v////z48+7n4NnSy8S9trCppJ+alZCMiISAe3h0cGtlXE5ALSEZEA0LCQgHBwgICQoMDhAUFxoeIicsLzI1Nzo9P0JFR0pMT1FTVVdZW11fYGJkZWdoaWprbG1ub3BxcXJzc3R0dXV2dnZ3d3d3eHh4eHl5eXl5eXl6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enl5eXl5eXl5eXl5eXl5eXl5eXl5eHh4eHh4eHh4eHh4eHh4eHh4eHd3d3d3d3d3d3d3d3d3d3d3dnZ2dnZ2dnZ2dnZ2dnZ2dnV1dXV1dXV1dXV1dXV1dHR0dHR0dHR0dHR0c3Nzc3Nzc3Nzc3Nzc3JycnJycnJycnJycnJycnJycQ8SEhUXGRocHh8hIyUmKCkrLC0vMDEzNDU3ODk6PD0+QEFCREVGR0lKS0xOT1BRUlNVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v//////////////////////////////////////+Pbz8O3r6OXi393a19TRzsvIxcK/vLm2s7Cvraoot7CrsaSdlYl7b189JAsA"
+    // Frog coin - unique bubbling sound
+    frogCoin: function() {
+        if (!audioContext) {
+            if (!initAudioSystem()) return;
+        }
+        
+        // Create nodes
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const biquadFilter = audioContext.createBiquadFilter();
+        
+        // Connect nodes
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(biquadFilter);
+        biquadFilter.connect(masterGainNode);
+        
+        // Configure oscillators
+        oscillator1.type = 'sine';
+        oscillator1.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator1.frequency.exponentialRampToValueAtTime(900, audioContext.currentTime + 0.1);
+        oscillator1.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.2);
+        
+        oscillator2.type = 'sine';
+        oscillator2.frequency.setValueAtTime(900, audioContext.currentTime);
+        oscillator2.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.15);
+        
+        // Configure filter for bubbling effect
+        biquadFilter.type = 'bandpass';
+        biquadFilter.frequency.setValueAtTime(800, audioContext.currentTime);
+        biquadFilter.frequency.linearRampToValueAtTime(1500, audioContext.currentTime + 0.2);
+        biquadFilter.Q.value = 4;
+        
+        // Configure envelope for watery effect
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.02);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.15);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+        
+        // Play sound
+        oscillator1.start();
+        oscillator2.start();
+        oscillator1.stop(audioContext.currentTime + 0.3);
+        oscillator2.stop(audioContext.currentTime + 0.3);
+    }
 };
 
-// Funkcja odtwarzania dźwięków
+// Main function to play a sound
 function playSound(soundName) {
-    // Tworzymy nowy element audio na żądanie
-    const sound = new Audio();
-    
-    // Ustawiamy źródło dźwięku
-    if (GAME_SOUNDS[soundName]) {
-        sound.src = GAME_SOUNDS[soundName];
+    // Check if the sound exists in our generator collection
+    if (soundGenerators[soundName]) {
+        try {
+            // Resume audio context if it was suspended (browser policy)
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Generate and play the sound
+            soundGenerators[soundName]();
+        } catch (err) {
+            console.error("Error playing sound:", soundName, err);
+        }
     } else {
-        console.error(`Dźwięk "${soundName}" nie istnieje.`);
-        return;
+        console.error(`Sound "${soundName}" not found in sound generators.`);
     }
-    
-    // Ustawiamy głośność i odtwarzamy
-    sound.volume = 0.7;
-    sound.play().catch(err => {
-        console.error("Błąd odtwarzania dźwięku:", err);
-    });
 }
+
+// Initialize the audio system when the script loads
+window.addEventListener('DOMContentLoaded', initAudioSystem);
+
+// Add user interaction handler to resume audio context (needed for some browsers)
+window.addEventListener('click', function() {
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+}, { once: true });
