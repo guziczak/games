@@ -885,6 +885,17 @@ function makeJump() {
     if (gameRunning) {
         velocity = jump;
         playSound('jump');
+        
+        // Aktywuj efekt jetpacka
+        const jetpackFlames = document.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.classList.add('active');
+            
+            // Deaktywuj efekt po 300ms (czas trwania animacji)
+            setTimeout(() => {
+                jetpackFlames.classList.remove('active');
+            }, 300);
+        }
     }
 }
 
