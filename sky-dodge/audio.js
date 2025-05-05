@@ -360,239 +360,232 @@ const soundGenerators = {
         twinkleOsc.stop(audioContext.currentTime + 0.35);
     },
     
-    // Game over - SZALONY POPIERDOLONY DŹWIĘK KOŃCA GRY
+    // Game over - PRZESMIEWCZE KACZKI KTÓRE ZAKWACZĄ GRACZA NA SMIERC
     gameOver: function() {
         if (!audioContext) {
             if (!initAudioSystem()) return;
         }
         
-        // Kontrola głośności - KREJZI ALE NIECO CICHSZY NIŻ POZOSTAŁE
+        // Kontrola głośności - głośniejsza niż inne dźwięki dla wyraźnych kaczek
         const gameOverMasterGain = audioContext.createGain();
-        gameOverMasterGain.gain.value = 0.4;  // 40% głośności - wyższa niż wcześniej!
+        gameOverMasterGain.gain.value = 0.5;  // 50% głośności - wyraźne kaczki!
         gameOverMasterGain.connect(masterGainNode);
         
-        // ======= KREJZI SPADAJĄCE TONY W STYLU KRESKÓWKI =======
-        const crazySlideOsc = audioContext.createOscillator();
-        const crazySlideGain = audioContext.createGain();
+        // Funkcja pomocnicza do tworzenia pojedynczego kwaczenia
+        function createQuack(startTime, pitch = 1.0, duration = 0.2, volume = 0.3, tone = 'mockingDuck') {
+            // Główny oscylator dla podstawy kwaczenia
+            const quackOsc = audioContext.createOscillator();
+            const quackGain = audioContext.createGain();
+            const quackFilter = audioContext.createBiquadFilter();
+            
+            quackOsc.connect(quackGain);
+            quackGain.connect(quackFilter);
+            
+            // Różne rodzaje "kaczkowania" dla różnorodności
+            if (tone === 'mockingDuck') {
+                quackOsc.type = 'sawtooth'; // Bogaty, nosowy dźwięk kaczki
+            } else if (tone === 'sillydDuck') {
+                quackOsc.type = 'square'; // Bardziej mechaniczne, dziwaczne kwakanie
+            } else {
+                quackOsc.type = 'triangle'; // Łagodniejsze kwakanie
+            }
+            
+            // Wzorzec częstotliwości kwaczenia - najpierw wyższy, potem niższy
+            const baseFreq = 300 * pitch;
+            quackOsc.frequency.setValueAtTime(baseFreq * 1.2, startTime);
+            quackOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, startTime + duration * 0.8);
+            
+            // Filtr dla kaczego charakteru
+            quackFilter.type = 'bandpass';
+            quackFilter.frequency.setValueAtTime(1200 * pitch, startTime);
+            quackFilter.frequency.exponentialRampToValueAtTime(800 * pitch, startTime + duration);
+            quackFilter.Q.value = 3; // Rezonans dla wyrazistości
+            
+            // Obwiednia kwakania
+            quackGain.gain.setValueAtTime(0, startTime);
+            quackGain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+            quackGain.gain.linearRampToValueAtTime(volume * 0.7, startTime + duration * 0.3);
+            quackGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            // Dodaj efekt modulacji dla "kaczkowania"
+            const modulatorOsc = audioContext.createOscillator();
+            const modulatorGain = audioContext.createGain();
+            
+            modulatorOsc.connect(modulatorGain);
+            modulatorGain.connect(quackOsc.frequency);
+            
+            modulatorOsc.frequency.value = 18 * pitch; // Szybka wibracja
+            modulatorGain.gain.value = baseFreq * 0.2; // Głębokość modulacji
+            
+            // Dodatkowy filtr formantowy dla kaczego brzmienia
+            const formantFilter = audioContext.createBiquadFilter();
+            formantFilter.type = 'peaking';
+            formantFilter.frequency.value = 1800 * pitch;
+            formantFilter.Q.value = 5;
+            formantFilter.gain.value = 15; // dB wzmocnienia w paśmie
+            
+            quackFilter.connect(formantFilter);
+            formantFilter.connect(gameOverMasterGain);
+            
+            // Harmoniczne dla bogatszego dźwięku (wyższa oktawa)
+            const harmonicOsc = audioContext.createOscillator();
+            const harmonicGain = audioContext.createGain();
+            
+            harmonicOsc.connect(harmonicGain);
+            
+            harmonicOsc.type = 'sawtooth';
+            harmonicOsc.frequency.setValueAtTime(baseFreq * 2, startTime);
+            harmonicOsc.frequency.exponentialRampToValueAtTime(baseFreq * 1.6, startTime + duration * 0.8);
+            
+            harmonicGain.gain.setValueAtTime(0, startTime);
+            harmonicGain.gain.linearRampToValueAtTime(volume * 0.2, startTime + 0.02);
+            harmonicGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            // Dodaj harmoniczne do głównego dźwięku
+            harmonicGain.connect(formantFilter);
+            
+            // Rozpoczęcie wszystkich dźwięków
+            quackOsc.start(startTime);
+            harmonicOsc.start(startTime);
+            modulatorOsc.start(startTime);
+            
+            // Zakończenie wszystkich dźwięków
+            const stopTime = startTime + duration + 0.05;
+            quackOsc.stop(stopTime);
+            harmonicOsc.stop(stopTime);
+            modulatorOsc.stop(stopTime);
+            
+            return stopTime; // Zwróć czas zakończenia kwakania
+        }
         
-        crazySlideOsc.connect(crazySlideGain);
+        // ======= SERIA PRZEŚMIEWCZYCH KACZYCH KWAKAŃ =======
         
-        // Szalone zmienne tony spadające
-        crazySlideOsc.type = 'sawtooth';  // Bardziej bogaty dźwięk
-        crazySlideOsc.frequency.setValueAtTime(600, audioContext.currentTime);
+        // Najpierw pojedyncze kwakania, potem seria szybszych (jak śmiech)
+        let currentTime = audioContext.currentTime;
         
-        // Wzorzec spadania z POPIERDOLONYMI skokami
-        for (let i = 0; i < 8; i++) {
-            const jumpTime = audioContext.currentTime + (i * 0.08);
-            // Skaczące w dół częstotliwości
-            crazySlideOsc.frequency.exponentialRampToValueAtTime(
-                600 - (i * 60) + (i % 2 === 0 ? 80 : -40), 
-                jumpTime
+        // Pierwsze pojedyncze kwakanie
+        currentTime = createQuack(currentTime, 1.2, 0.25, 0.4, 'mockingDuck');
+        currentTime += 0.1; // Krótka przerwa
+        
+        // Drugie kwakanie, nieco niższe
+        currentTime = createQuack(currentTime, 0.9, 0.22, 0.35, 'sillydDuck');
+        currentTime += 0.15; // Przerwa
+        
+        // Trzecie kwakanie, wyższe jak prześmiewczy śmiech
+        currentTime = createQuack(currentTime, 1.3, 0.2, 0.4, 'mockingDuck');
+        currentTime += 0.05; // Krótsza przerwa
+        
+        // Teraz seria 5-6 szybszych kwakań jak kaczki śmiejące się z gracza
+        for (let i = 0; i < 6; i++) {
+            // Zmieniające się tony dla efektu śmiechu
+            const pitch = 1.0 + (i % 3 === 0 ? 0.3 : (i % 2 === 0 ? -0.2 : 0.1));
+            const tone = i % 2 === 0 ? 'mockingDuck' : 'sillydDuck';
+            
+            // Krótsze kwakania w serii
+            currentTime = createQuack(currentTime, pitch, 0.12, 0.35, tone);
+            
+            // Bardzo krótkie przerwy między kwakaniami w serii
+            currentTime += 0.03;
+        }
+        
+        // Finałowe, nieco dłuższe kwakanie
+        currentTime += 0.1; // Nieco dłuższa przerwa przed finałem
+        createQuack(currentTime, 0.7, 0.4, 0.45, 'mockingDuck'); // Niskie, złośliwe kwakanie
+        
+        // ======= EFEKTY TRZEPOTU SKRZYDEŁ KACZEK =======
+        const flapTime = audioContext.currentTime + 0.4; // Zaczyna w trakcie kwakania
+        
+        for (let i = 0; i < 10; i++) {
+            const thisFlap = flapTime + (i * 0.12);
+            
+            // Generator trzepotu skrzydeł
+            const flapOsc = audioContext.createOscillator();
+            const flapGain = audioContext.createGain();
+            const flapFilter = audioContext.createBiquadFilter();
+            
+            flapOsc.connect(flapGain);
+            flapGain.connect(flapFilter);
+            
+            flapOsc.type = 'triangle';
+            flapOsc.frequency.setValueAtTime(randomBetween(500, 700), thisFlap);
+            flapOsc.frequency.exponentialRampToValueAtTime(
+                randomBetween(300, 400), 
+                thisFlap + 0.08
+            );
+            
+            // Filtr dla dźwięku trzepotu
+            flapFilter.type = 'lowpass';
+            flapFilter.frequency.value = 2000;
+            flapFilter.Q.value = 1;
+            
+            // Obwiednia trzepotu
+            flapGain.gain.setValueAtTime(0, thisFlap);
+            flapGain.gain.linearRampToValueAtTime(0.15, thisFlap + 0.01);
+            flapGain.gain.exponentialRampToValueAtTime(0.001, thisFlap + 0.08);
+            
+            flapFilter.connect(gameOverMasterGain);
+            
+            // Rozpoczęcie i zakończenie trzepotu
+            flapOsc.start(thisFlap);
+            flapOsc.stop(thisFlap + 0.1);
+        }
+        
+        // ======= DODATKOWE EFEKTY KACZEK (BEZ SZUMU) =======
+        const extraTime = audioContext.currentTime + 0.8;
+        
+        for (let i = 0; i < 6; i++) {
+            const effectTime = extraTime + (i * 0.15);
+            
+            // Generator efektu pluskania (bez szumu, tylko oscylatory)
+            const splashOsc = audioContext.createOscillator();
+            const splashGain = audioContext.createGain();
+            const splashFilter = audioContext.createBiquadFilter();
+            
+            splashOsc.connect(splashGain);
+            splashGain.connect(splashFilter);
+            
+            // Oscylator zamiast szumu
+            splashOsc.type = 'triangle';
+            splashOsc.frequency.setValueAtTime(
+                randomBetween(150, 250), 
+                effectTime
+            );
+            splashOsc.frequency.exponentialRampToValueAtTime(
+                randomBetween(100, 200), 
+                effectTime + 0.1
+            );
+            
+            // Filtr dla efektu
+            splashFilter.type = 'lowpass';
+            splashFilter.frequency.value = randomBetween(800, 1200);
+            splashFilter.Q.value = 1;
+            
+            // Obwiednia efektu
+            splashGain.gain.setValueAtTime(0, effectTime);
+            splashGain.gain.linearRampToValueAtTime(0.1, effectTime + 0.01);
+            splashGain.gain.exponentialRampToValueAtTime(0.001, effectTime + 0.15);
+            
+            splashFilter.connect(gameOverMasterGain);
+            
+            // Rozpoczęcie i zakończenie
+            splashOsc.start(effectTime);
+            splashOsc.stop(effectTime + 0.2);
+        }
+        
+        // ======= FINAŁOWE KWACZĄCE CHICHRANIE =======
+        const finalTime = audioContext.currentTime + 1.5;
+        
+        // Efekt chichrania się kaczek - szybkie, wysokie kwakania
+        for (let i = 0; i < 4; i++) {
+            const chuckleTime = finalTime + (i * 0.08);
+            createQuack(
+                chuckleTime,  
+                1.5 + (i * 0.1), // Rosnący pitch dla efektu chichrania
+                0.07, // Bardzo krótkie
+                0.25 - (i * 0.03), // Malejąca głośność
+                i % 2 === 0 ? 'mockingDuck' : 'sillydDuck'
             );
         }
-        
-        // Ostateczny spadek
-        crazySlideOsc.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.7);
-        
-        // Nieco szalona obwiednia
-        crazySlideGain.gain.setValueAtTime(0, audioContext.currentTime);
-        crazySlideGain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
-        
-        // Pulsujący efekt spadania
-        for (let i = 1; i < 8; i++) {
-            const pulseTime = audioContext.currentTime + (i * 0.08);
-            crazySlideGain.gain.linearRampToValueAtTime(
-                i % 2 === 0 ? 0.3 : 0.1, 
-                pulseTime
-            );
-        }
-        
-        crazySlideGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
-        
-        // Dziki filtr dla szalonego efektu
-        const crazyFilter = audioContext.createBiquadFilter();
-        crazyFilter.type = 'bandpass';
-        crazyFilter.frequency.value = 800;
-        crazyFilter.Q.value = 5;  // Wyższe Q dla szalonego efektu rezonansu
-        
-        // Automatyzacja filtra
-        crazyFilter.frequency.setValueAtTime(800, audioContext.currentTime);
-        
-        for (let i = 1; i < 5; i++) {
-            const filterTime = audioContext.currentTime + (i * 0.15);
-            crazyFilter.frequency.exponentialRampToValueAtTime(
-                i % 2 === 0 ? 1200 : 400, 
-                filterTime
-            );
-        }
-        
-        crazySlideGain.connect(crazyFilter);
-        crazyFilter.connect(gameOverMasterGain);
-        
-        // ======= SZALONY EFEKT WYBUCHU NA KOŃCU =======
-        const explosionTime = audioContext.currentTime + 0.65;
-        
-        // Biały szum dla wybuchu
-        const noiseNode = createNoiseNode(0.3);
-        const explosionGain = audioContext.createGain();
-        const explosionFilter = audioContext.createBiquadFilter();
-        
-        noiseNode.connect(explosionGain);
-        explosionGain.connect(explosionFilter);
-        
-        // Filtr dla efektu wybuchu
-        explosionFilter.type = 'bandpass';
-        explosionFilter.frequency.setValueAtTime(800, explosionTime);
-        explosionFilter.frequency.exponentialRampToValueAtTime(200, explosionTime + 0.3);
-        explosionFilter.Q.value = 1;
-        
-        // Obwiednia wybuchu
-        explosionGain.gain.setValueAtTime(0, explosionTime);
-        explosionGain.gain.linearRampToValueAtTime(0.5, explosionTime + 0.05);
-        explosionGain.gain.exponentialRampToValueAtTime(0.001, explosionTime + 0.3);
-        
-        explosionFilter.connect(gameOverMasterGain);
-        
-        // ======= KREJZI EFEKTY KRESKÓWKOWE =======
-        // Dodaj spadające "piski"
-        const squeakOsc = audioContext.createOscillator();
-        const squeakGain = audioContext.createGain();
-        
-        squeakOsc.connect(squeakGain);
-        
-        squeakOsc.type = 'triangle';
-        
-        // Wzorzec "wielokrotnych pisków"
-        for (let i = 0; i < 5; i++) {
-            const squeakTime = audioContext.currentTime + 0.1 + (i * 0.1);
-            squeakOsc.frequency.setValueAtTime(1200 - (i * 150), squeakTime);
-            squeakOsc.frequency.exponentialRampToValueAtTime(900 - (i * 150), squeakTime + 0.08);
-        }
-        
-        // Obwiednia pisków
-        squeakGain.gain.setValueAtTime(0, audioContext.currentTime);
-        
-        for (let i = 0; i < 5; i++) {
-            const squeakTime = audioContext.currentTime + 0.1 + (i * 0.1);
-            squeakGain.gain.setValueAtTime(0, squeakTime);
-            squeakGain.gain.linearRampToValueAtTime(0.2, squeakTime + 0.01);
-            squeakGain.gain.exponentialRampToValueAtTime(0.001, squeakTime + 0.08);
-        }
-        
-        // Dodaj efekty do pisków
-        addCrazyEffects(squeakGain, 0.7);
-        
-        // ======= SZALONE EFEKTY ZAKOŃCZENIA =======
-        // Efekt odbijania się po upadku
-        const bounceTime = audioContext.currentTime + 0.7;
-        const bounceOsc = audioContext.createOscillator();
-        const bounceGain = audioContext.createGain();
-        
-        bounceOsc.connect(bounceGain);
-        
-        bounceOsc.type = 'sine';
-        
-        // Wzorzec odbijania
-        const numBounces = 4;
-        for (let i = 0; i < numBounces; i++) {
-            const thisBounceTime = bounceTime + (i * 0.15);
-            const nextBounceTime = bounceTime + ((i+1) * 0.15);
-            
-            // Częstotliwość każdego odbicia jest niższa
-            const bounceFreq = 150 - (i * 20);
-            
-            bounceOsc.frequency.setValueAtTime(bounceFreq, thisBounceTime);
-            bounceOsc.frequency.setValueAtTime(bounceFreq + 50, thisBounceTime + 0.02);
-            bounceOsc.frequency.exponentialRampToValueAtTime(bounceFreq, nextBounceTime);
-            
-            // Głośność każdego odbicia jest mniejsza
-            bounceGain.gain.setValueAtTime(0, thisBounceTime);
-            bounceGain.gain.linearRampToValueAtTime(0.5 / (i+1), thisBounceTime + 0.02);
-            bounceGain.gain.exponentialRampToValueAtTime(0.001, thisBounceTime + 0.1);
-        }
-        
-        // Dodaj POPIERDOLONE efekty do odbijania
-        addCrazyEffects(bounceGain, 0.6);
-        
-        // ======= FINALNE SZALONE DŹWIĘKI =======
-        // Efekt dzwoniącego "game over" dzwonu
-        const bellTime = audioContext.currentTime + 1.2;
-        const bellOsc = audioContext.createOscillator();
-        const bellGain = audioContext.createGain();
-        
-        bellOsc.connect(bellGain);
-        
-        bellOsc.type = 'sine';
-        bellOsc.frequency.setValueAtTime(400, bellTime);
-        
-        // Obwiednia dzwonu
-        bellGain.gain.setValueAtTime(0, bellTime);
-        bellGain.gain.linearRampToValueAtTime(0.3, bellTime + 0.05);
-        bellGain.gain.exponentialRampToValueAtTime(0.001, bellTime + 0.8);
-        
-        // Dodaj efekt modulacji
-        const modulatorOsc = audioContext.createOscillator();
-        const modulatorGain = audioContext.createGain();
-        
-        modulatorOsc.connect(modulatorGain);
-        modulatorGain.connect(bellOsc.frequency);
-        
-        modulatorOsc.frequency.value = 8;  // 8 Hz modulacja
-        modulatorGain.gain.value = 30;  // Głębokość modulacji
-        
-        modulatorOsc.start(bellTime);
-        modulatorOsc.stop(bellTime + 0.8);
-        
-        // Dodaj efekty do dzwonu
-        addCrazyEffects(bellGain, 0.5);
-        
-        // ======= SUPER KREJZI KOŃCOWY EFEKT =======
-        // Efekt "szeleszczącego" dźwięku przewracania kartek
-        const shuffleTime = audioContext.currentTime + 1.5;
-        const shuffleNoise = createNoiseNode();
-        const shuffleGain = audioContext.createGain();
-        const shuffleFilter = audioContext.createBiquadFilter();
-        
-        shuffleNoise.connect(shuffleGain);
-        shuffleGain.connect(shuffleFilter);
-        
-        shuffleFilter.type = 'bandpass';
-        shuffleFilter.frequency.value = 2000;
-        shuffleFilter.Q.value = 1;
-        
-        // Obwiednia szeleszczenia
-        shuffleGain.gain.setValueAtTime(0, shuffleTime);
-        shuffleGain.gain.linearRampToValueAtTime(0.2, shuffleTime + 0.1);
-        
-        // Animacja szeleszczenia
-        for (let i = 0; i < 5; i++) {
-            const shufflePart = shuffleTime + 0.1 + (i * 0.05);
-            shuffleGain.gain.linearRampToValueAtTime(0.05, shufflePart);
-            shuffleGain.gain.linearRampToValueAtTime(0.2, shufflePart + 0.025);
-        }
-        
-        shuffleGain.gain.exponentialRampToValueAtTime(0.001, shuffleTime + 0.5);
-        
-        shuffleFilter.connect(gameOverMasterGain);
-        
-        // Start all sound generators
-        crazySlideOsc.start();
-        squeakOsc.start();
-        bounceOsc.start();
-        bellOsc.start();
-        
-        // Stop wszystkiego
-        const maxTime = 2.0; // Dłuższy efekt końca gry
-        crazySlideOsc.stop(audioContext.currentTime + maxTime);
-        squeakOsc.stop(audioContext.currentTime + maxTime);
-        bounceOsc.stop(audioContext.currentTime + maxTime);
-        bellOsc.stop(audioContext.currentTime + maxTime);
-        
-        // Zamknięcie generatorów szumu
-        setTimeout(() => {
-            if (noiseNode.stop) noiseNode.stop();
-            if (shuffleNoise.stop) shuffleNoise.stop();
-        }, maxTime * 1000);
     },
     
     // Frog mode - FUN CARTOON FROG TRANSFORMATION
