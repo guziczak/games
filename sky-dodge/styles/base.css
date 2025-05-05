@@ -1,0 +1,850 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Custom CSS variables for flame rotations */
+.flame.left {
+    --rotate: -12deg;
+}
+.flame.right {
+    --rotate: 12deg;
+}
+.flame-mini.left {
+    --rotate: -15deg;
+}
+.flame-mini.right {
+    --rotate: 15deg;
+}
+
+/* Game mode button icon filters */
+#frogModeButton .mode-button-icon {
+    filter: invert(52%) sepia(78%) saturate(385%) hue-rotate(101deg) brightness(93%) contrast(91%);
+}
+#ghostModeButton .mode-button-icon {
+    filter: invert(100%);
+}
+#storkModeButton .mode-button-icon {
+    filter: brightness(0) invert(1);
+}
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    background-color: #333;
+    overflow: hidden;
+    touch-action: none;
+}
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #87CEEB;
+}
+#gameArea {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+#bird {
+    width: 50px;
+    height: 40px;
+    position: absolute;
+    background: linear-gradient(135deg, #FFFF00, #FFA500, #FFD700);
+    border-radius: 50% 50% 30% 30%;
+    top: 50%;
+    left: 15%;
+    z-index: 2;
+    transition: left 0.3s ease, transform 0.3s ease; /* Płynne przesuwanie i lepsza animacja */
+    box-shadow: 0 2px 10px rgba(255, 215, 0, 0.7);
+    animation: crazyDuck 2s infinite alternate;
+    transform-origin: center center;
+}
+
+@keyframes crazyDuck {
+    0% { 
+        transform: scale(1); 
+        filter: hue-rotate(0deg); 
+        border-radius: 50% 50% 30% 30%;
+    }
+    25% { 
+        transform: scale(1.05) rotate(2deg); 
+        filter: hue-rotate(15deg); 
+        border-radius: 55% 45% 35% 25%;
+    }
+    50% { 
+        transform: scale(0.98) rotate(-1deg); 
+        filter: hue-rotate(30deg); 
+        border-radius: 45% 55% 25% 35%;
+    }
+    75% { 
+        transform: scale(1.03) rotate(1deg); 
+        filter: hue-rotate(15deg); 
+        border-radius: 50% 50% 35% 25%;
+    }
+    100% { 
+        transform: scale(1) rotate(0deg); 
+        filter: hue-rotate(0deg); 
+        border-radius: 50% 50% 30% 30%;
+    }
+}
+
+/* POPIERDOLONE oko kaczki */
+#bird:before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background: radial-gradient(circle, #FF0000 30%, #000 60%, #333 100%);
+    border-radius: 50%;
+    top: 5px;
+    right: 5px;
+    box-shadow: 0 0 8px rgba(255,0,0,0.8), inset -2px -2px 4px rgba(255,255,255,0.5);
+    animation: crazyEye 1s infinite alternate;
+}
+
+@keyframes crazyEye {
+    0% { 
+        transform: scale(1); 
+        background: radial-gradient(circle, #FF0000 30%, #000 60%, #333 100%); 
+    }
+    50% { 
+        transform: scale(1.1); 
+        background: radial-gradient(circle, #FF00FF 30%, #000 60%, #333 100%); 
+    }
+    100% { 
+        transform: scale(0.9); 
+        background: radial-gradient(circle, #FFFF00 30%, #000 60%, #333 100%); 
+    }
+}
+
+/* POPIERDOLONY dziób kaczki */
+#bird:after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 14px;
+    background: linear-gradient(to bottom, #FF5500, #FF0000);
+    border-radius: 50% 50% 30% 30%;
+    top: 12px;
+    right: -8px;
+    box-shadow: 0 0 10px rgba(255,0,0,0.6);
+    animation: crazyBeak 1.5s infinite alternate;
+}
+
+@keyframes crazyBeak {
+    0% { 
+        transform: scaleX(1); 
+        background: linear-gradient(to bottom, #FF5500, #FF0000); 
+    }
+    50% { 
+        transform: scaleX(1.1) scaleY(0.9); 
+        background: linear-gradient(to bottom, #FF9900, #FF5500); 
+    }
+    100% { 
+        transform: scaleX(0.9) scaleY(1.1); 
+        background: linear-gradient(to bottom, #FF5500, #FF0000); 
+    }
+}
+
+/* POPIERDOLONE skrzydło kaczki */
+#bird .wing {
+    position: absolute;
+    width: 25px;
+    height: 20px;
+    background: linear-gradient(to bottom, #FFC125, #FFD700);
+    border-radius: 60% 40% 70% 30%;
+    top: -2px;
+    left: 8px;
+    z-index: 1;
+    transform-origin: top left;
+    animation: crazyWing 0.5s infinite alternate;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+@keyframes crazyWing {
+    0% { transform: rotate(-5deg) scaleY(1); }
+    100% { transform: rotate(-25deg) scaleY(1.1); }
+}
+
+/* Kolorowa grzywa na głowie kaczki */
+#bird .mohawk {
+    position: absolute;
+    top: -10px;
+    left: 15px;
+    width: 20px;
+    height: 15px;
+    background: linear-gradient(to right, #FF00FF, #00FFFF, #FFFF00);
+    clip-path: polygon(
+        0% 100%, 20% 50%, 40% 100%, 60% 50%, 80% 100%, 100% 50%, 100% 100%
+    );
+    z-index: 3;
+    animation: crazyMohawk 0.3s infinite;
+}
+
+@keyframes crazyMohawk {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(90deg); }
+}
+/* Jetpack - ULTRA CRAZY wersja - ZAWSZE WIDOCZNY */
+.jetpack-flames {
+    position: absolute;
+    bottom: -10px;
+    left: -15px; 
+    width: 50px;
+    height: 45px;
+    z-index: 1;
+    transform: scale(0.8) rotate(-10deg);
+}
+/* Tylko płomienie są aktywowane podczas skoku */
+.jetpack-flames .flame,
+.jetpack-flames .flame-mini,
+.jetpack-flames .spark {
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+.jetpack-flames.active .flame,
+.jetpack-flames.active .flame-mini,
+.jetpack-flames.active .spark {
+    opacity: 1;
+}
+
+/* SUPER KREJZI efekt energii wokół ptaka podczas skoku */
+.bird-energy {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    z-index: -1;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transition: all 0.2s ease;
+    pointer-events: none;
+}
+
+.jetpack-flames.active + .bird-energy {
+    width: 140%;
+    height: 140%;
+    top: -20%;
+    left: -20%;
+    background: radial-gradient(circle, 
+                      rgba(255, 0, 255, 0.7) 0%, 
+                      rgba(0, 255, 255, 0.5) 30%, 
+                      rgba(255, 255, 0, 0.3) 50%,
+                      transparent 70%);
+    box-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
+    animation: superBirdEnergy 0.2s infinite alternate;
+    opacity: 1;
+}
+
+@keyframes superBirdEnergy {
+    0% {
+        transform: scale(1);
+        filter: hue-rotate(0deg) blur(5px);
+        box-shadow: 0 0 30px rgba(255, 0, 255, 0.8), 
+                    0 0 50px rgba(0, 255, 255, 0.5);
+    }
+    50% {
+        transform: scale(1.05);
+        filter: hue-rotate(90deg) blur(7px);
+        box-shadow: 0 0 40px rgba(255, 255, 0, 0.8), 
+                    0 0 60px rgba(255, 0, 255, 0.5);
+    }
+    100% {
+        transform: scale(1.1);
+        filter: hue-rotate(180deg) blur(5px);
+        box-shadow: 0 0 50px rgba(0, 255, 255, 0.8), 
+                    0 0 70px rgba(255, 255, 0, 0.5);
+    }
+}
+/* ULTRA FANCY KREJZI JETPACK */
+/* Chromowana futurystyczna obudowa jetpacka */
+.jetpack-flames:before {
+    content: '';
+    position: absolute;
+    width: 28px;
+    height: 25px;
+    background: linear-gradient(135deg, #00FFFF, #FF00FF, #FFA500, #00FF00);
+    border-radius: 8px;
+    top: -5px;
+    left: 11px;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 
+                inset 2px 2px 5px rgba(255, 255, 255, 0.9), 
+                inset -2px -2px 5px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+    animation: chromePulse 3s infinite alternate;
+}
+
+@keyframes chromePulse {
+    0% { background: linear-gradient(135deg, #00FFFF, #FF00FF, #FFA500, #00FF00); }
+    25% { background: linear-gradient(135deg, #FF00FF, #FFA500, #00FF00, #00FFFF); }
+    50% { background: linear-gradient(135deg, #FFA500, #00FF00, #00FFFF, #FF00FF); }
+    75% { background: linear-gradient(135deg, #00FF00, #00FFFF, #FF00FF, #FFA500); }
+    100% { background: linear-gradient(135deg, #00FFFF, #FF00FF, #FFA500, #00FF00); }
+}
+
+/* Super dysze jetpacka */
+.jetpack-flames:after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 15px;
+    background: linear-gradient(90deg, #FF0066, #FF9900);
+    border-radius: 50% 50% 0 0;
+    top: 10px;
+    left: 8px;
+    box-shadow: 24px 0 0 0 #FF0066;
+    filter: drop-shadow(0 0 5px #FF9900);
+    z-index: 1;
+    animation: nozzlePulse 0.5s infinite alternate;
+}
+
+@keyframes nozzlePulse {
+    0% { background: linear-gradient(90deg, #FF0066, #FF9900); box-shadow: 24px 0 0 0 #FF0066; }
+    100% { background: linear-gradient(90deg, #FF9900, #FF0066); box-shadow: 24px 0 0 0 #FF9900; }
+}
+
+/* Kryształy energii na jetpacku */
+.jetpack-flames .crystals {
+    position: absolute;
+    width: 8px;
+    height: 14px;
+    background: #00FFFF;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    top: -3px;
+    left: 14px;
+    z-index: 2;
+    box-shadow: 0 0 10px #00FFFF;
+    animation: crystalGlow 2s infinite alternate;
+    opacity: 0.8;
+}
+
+.jetpack-flames .crystals:before {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 14px;
+    background: #FF00FF;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    left: 13px;
+    box-shadow: 0 0 10px #FF00FF;
+    animation: crystalGlow 2s infinite alternate-reverse;
+    opacity: 0.8;
+}
+
+@keyframes crystalGlow {
+    0% { filter: brightness(1); transform: scale(1); }
+    50% { filter: brightness(1.7); transform: scale(1.1); }
+    100% { filter: brightness(1); transform: scale(1); }
+}
+
+/* Magiczne paski energetyczne */
+.jetpack-flames .energy-strap-left {
+    position: absolute;
+    width: 5px;
+    height: 25px;
+    background: linear-gradient(90deg, #FF00FF, transparent);
+    border-radius: 10px;
+    top: -25px;
+    left: 12px;
+    z-index: 3;
+    transform: rotate(-15deg);
+    box-shadow: 0 0 10px #FF00FF;
+    opacity: 0.7;
+    animation: energyPulse 1.5s infinite alternate;
+}
+
+.jetpack-flames .energy-strap-right {
+    position: absolute;
+    width: 5px;
+    height: 25px;
+    background: linear-gradient(90deg, transparent, #00FFFF);
+    border-radius: 10px;
+    top: -25px;
+    right: 12px;
+    z-index: 3;
+    transform: rotate(15deg);
+    box-shadow: 0 0 10px #00FFFF;
+    opacity: 0.7;
+    animation: energyPulse 1.5s infinite alternate-reverse;
+}
+
+@keyframes energyPulse {
+    0% { opacity: 0.5; height: 25px; filter: hue-rotate(0deg); }
+    100% { opacity: 0.9; height: 28px; filter: hue-rotate(90deg); }
+}
+
+/* Holograficzne kontrolki */
+.jetpack-flames .holo-controls {
+    position: absolute;
+    width: 20px;
+    height: 5px;
+    background: rgba(0, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+    top: 0px;
+    left: 15px;
+    z-index: 4;
+    box-shadow: 0 0 5px #00FFFF;
+    animation: holoFlicker 1s infinite;
+}
+
+@keyframes holoFlicker {
+    0% { opacity: 0.7; background: rgba(0, 255, 255, 0.3); }
+    50% { opacity: 1; background: rgba(255, 0, 255, 0.3); }
+    100% { opacity: 0.7; background: rgba(0, 255, 255, 0.3); }
+}
+
+/* Magiczne obramowanie jetpacka */
+.jetpack-flames .magic-border {
+    position: absolute;
+    width: 28px;
+    height: 25px;
+    border: 2px solid transparent;
+    border-image: linear-gradient(45deg, #FF00FF, #00FFFF, #FF8800, #00FF00) 1;
+    border-radius: 8px;
+    top: -5px;
+    left: 11px;
+    z-index: 5;
+    animation: borderRotate 3s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes borderRotate {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+/* Super-animowane diody LEDowe */
+.jetpack-flames .led-panel {
+    position: absolute;
+    right: 11px;
+    top: 2px;
+    width: 10px;
+    height: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    z-index: 3;
+}
+
+.jetpack-flames .led-light {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    animation: multiColorBlink 0.5s infinite;
+}
+
+.jetpack-flames .led-light:nth-child(1) { animation-delay: 0.1s; }
+.jetpack-flames .led-light:nth-child(2) { animation-delay: 0.2s; }
+.jetpack-flames .led-light:nth-child(3) { animation-delay: 0.3s; }
+.jetpack-flames .led-light:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes multiColorBlink {
+    0% { background: #F00; box-shadow: 0 0 3px #F00; }
+    25% { background: #0F0; box-shadow: 0 0 3px #0F0; }
+    50% { background: #00F; box-shadow: 0 0 3px #00F; }
+    75% { background: #FF0; box-shadow: 0 0 3px #FF0; }
+    100% { background: #F0F; box-shadow: 0 0 3px #F0F; }
+}
+/* SUPER MEGA ULTRA KREJZI PŁOMIENIE JETPACKA */
+.flame {
+    position: absolute;
+    width: 14px;
+    height: 45px;
+    background: linear-gradient(to bottom, #FF00FF, #9900FF, #0099FF);
+    border-radius: 0 0 50% 50%;
+    transform-origin: center bottom;
+    filter: blur(2px);
+    box-shadow: 0 0 15px 5px rgba(255, 0, 255, 0.7);
+    z-index: 0;
+    animation: megaFlame 0.2s infinite alternate;
+}
+
+.flame:before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), transparent);
+    border-radius: 0 0 50% 50%;
+    mix-blend-mode: screen;
+    animation: flameGlow 0.5s infinite alternate;
+}
+
+@keyframes flameGlow {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.flame.middle {
+    left: 18px;
+    height: 50px;
+    width: 16px;
+    background: linear-gradient(to bottom, #FF00FF, #FFFF00, #00FFFF);
+    box-shadow: 0 0 20px 8px rgba(255, 0, 255, 0.9);
+    animation: megaFlameMiddle 0.15s infinite alternate;
+    filter: blur(2px) hue-rotate(0deg);
+    animation-delay: -0.02s;
+}
+
+.flame.left {
+    left: 8px;
+    height: 40px;
+    width: 12px;
+    transform: rotate(-12deg);
+    background: linear-gradient(to bottom, #FF00FF, #FF9900, #00FFFF);
+    animation: megaFlameLeft 0.17s infinite alternate;
+    animation-delay: -0.05s;
+    filter: blur(2px);
+}
+
+.flame.right {
+    right: 8px;
+    height: 42px;
+    width: 12px;
+    transform: rotate(12deg);
+    background: linear-gradient(to bottom, #FF00FF, #FF9900, #00FFFF);
+    animation: megaFlameRight 0.18s infinite alternate;
+    animation-delay: -0.08s;
+    filter: blur(2px);
+}
+
+@keyframes megaFlame {
+    0% { 
+        height: 45px;
+        transform: scaleY(1) rotate(var(--rotate, 0deg)); 
+        filter: blur(2px) hue-rotate(0deg);
+    }
+    25% { 
+        height: 48px;
+        transform: scaleY(1.1) rotate(var(--rotate, 0deg)); 
+        filter: blur(3px) hue-rotate(15deg);
+    }
+    50% { 
+        height: 43px;
+        transform: scaleY(0.95) rotate(var(--rotate, 0deg)); 
+        filter: blur(2px) hue-rotate(30deg);
+    }
+    75% { 
+        height: 50px;
+        transform: scaleY(1.15) rotate(var(--rotate, 0deg)); 
+        filter: blur(4px) hue-rotate(45deg);
+    }
+    100% { 
+        height: 47px;
+        transform: scaleY(1.05) rotate(var(--rotate, 0deg)); 
+        filter: blur(3px) hue-rotate(60deg);
+    }
+}
+
+@keyframes megaFlameMiddle {
+    0% { 
+        height: 50px;
+        transform: scaleY(1); 
+        filter: blur(2px) hue-rotate(0deg);
+        width: 16px;
+    }
+    25% { 
+        height: 55px;
+        transform: scaleY(1.1); 
+        filter: blur(3px) hue-rotate(30deg);
+        width: 17px;
+    }
+    50% { 
+        height: 47px;
+        transform: scaleY(0.95); 
+        filter: blur(2px) hue-rotate(60deg);
+        width: 15px;
+    }
+    75% { 
+        height: 58px;
+        transform: scaleY(1.15); 
+        filter: blur(4px) hue-rotate(90deg);
+        width: 18px;
+    }
+    100% { 
+        height: 52px;
+        transform: scaleY(1.05); 
+        filter: blur(3px) hue-rotate(120deg);
+        width: 16px;
+    }
+}
+
+@keyframes megaFlameLeft {
+    0% { 
+        height: 40px;
+        transform: scaleY(1) rotate(-12deg); 
+        filter: blur(2px) hue-rotate(10deg);
+    }
+    25% { 
+        height: 43px;
+        transform: scaleY(1.05) rotate(-14deg); 
+        filter: blur(3px) hue-rotate(40deg);
+    }
+    50% { 
+        height: 38px;
+        transform: scaleY(0.9) rotate(-10deg); 
+        filter: blur(2px) hue-rotate(70deg);
+    }
+    75% { 
+        height: 45px;
+        transform: scaleY(1.1) rotate(-15deg); 
+        filter: blur(3px) hue-rotate(100deg);
+    }
+    100% { 
+        height: 42px;
+        transform: scaleY(1) rotate(-11deg); 
+        filter: blur(2px) hue-rotate(130deg);
+    }
+}
+
+@keyframes megaFlameRight {
+    0% { 
+        height: 42px;
+        transform: scaleY(1) rotate(12deg); 
+        filter: blur(2px) hue-rotate(20deg);
+    }
+    25% { 
+        height: 45px;
+        transform: scaleY(1.05) rotate(14deg); 
+        filter: blur(3px) hue-rotate(50deg);
+    }
+    50% { 
+        height: 40px;
+        transform: scaleY(0.9) rotate(10deg); 
+        filter: blur(2px) hue-rotate(80deg);
+    }
+    75% { 
+        height: 47px;
+        transform: scaleY(1.1) rotate(15deg); 
+        filter: blur(3px) hue-rotate(110deg);
+    }
+    100% { 
+        height: 44px;
+        transform: scaleY(1) rotate(11deg); 
+        filter: blur(2px) hue-rotate(140deg);
+    }
+}
+
+/* SUPER KREJZI MAŁE PŁOMIENIE */
+.flame-mini {
+    position: absolute;
+    width: 10px;
+    height: 20px;
+    border-radius: 40% 40% 60% 60%;
+    background: linear-gradient(to bottom, #FF00FF, #00FFFF);
+    filter: blur(2px);
+    animation: superFlickerMini 0.2s infinite alternate;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.flame-mini.left {
+    bottom: 5px;
+    left: 2px;
+    transform: rotate(-15deg);
+    animation-delay: -0.03s;
+}
+
+.flame-mini.right {
+    bottom: 5px;
+    right: 2px;
+    transform: rotate(15deg);
+    animation-delay: -0.07s;
+}
+
+@keyframes superFlickerMini {
+    0% { 
+        transform: scaleY(1) rotate(var(--rotate, 0deg)) scaleX(0.9); 
+        filter: blur(2px) hue-rotate(0deg);
+        height: 20px;
+    }
+    33% { 
+        transform: scaleY(1.4) rotate(var(--rotate, 0deg)) scaleX(1.2); 
+        filter: blur(3px) hue-rotate(60deg);
+        height: 22px;
+    }
+    66% { 
+        transform: scaleY(0.9) rotate(var(--rotate, 0deg)) scaleX(1.1); 
+        filter: blur(2px) hue-rotate(120deg);
+        height: 18px;
+    }
+    100% { 
+        transform: scaleY(1.3) rotate(var(--rotate, 0deg)) scaleX(1); 
+        filter: blur(3px) hue-rotate(180deg);
+        height: 23px;
+    }
+}
+
+/* SUPER KREJZI ISKRY */
+.spark {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #00FFFF;
+    filter: blur(1px);
+    opacity: 0;
+    z-index: 3;
+    box-shadow: 0 0 10px 2px rgba(0, 255, 255, 0.8);
+    animation: superSpark 0.8s infinite;
+}
+
+.spark:nth-child(1) {
+    bottom: 0;
+    left: 15px;
+    animation-delay: 0s;
+    background: #FF00FF;
+    box-shadow: 0 0 10px 2px rgba(255, 0, 255, 0.8);
+}
+
+.spark:nth-child(2) {
+    bottom: 0;
+    left: 25px;
+    animation-delay: 0.2s;
+    background: #FFFF00;
+    box-shadow: 0 0 10px 2px rgba(255, 255, 0, 0.8);
+}
+
+.spark:nth-child(3) {
+    bottom: 0;
+    left: 35px;
+    animation-delay: 0.1s;
+    background: #00FFFF;
+    box-shadow: 0 0 10px 2px rgba(0, 255, 255, 0.8);
+}
+
+@keyframes superSpark {
+    0% { 
+        opacity: 0; 
+        transform: translate(0, 0) scale(1); 
+        filter: hue-rotate(0deg);
+    }
+    10% { 
+        opacity: 0.8; 
+        transform: translate(2px, -5px) scale(1.5); 
+        filter: hue-rotate(60deg);
+    }
+    20% { 
+        opacity: 1; 
+        transform: translate(-3px, -10px) scale(1.2); 
+        filter: hue-rotate(120deg);
+    }
+    40% { 
+        opacity: 0.7; 
+        transform: translate(5px, -15px) scale(0.8); 
+        filter: hue-rotate(180deg);
+    }
+    60% { 
+        opacity: 0.9; 
+        transform: translate(-4px, -20px) scale(1.3); 
+        filter: hue-rotate(240deg);
+    }
+    80% { 
+        opacity: 0.6; 
+        transform: translate(3px, -25px) scale(0.7); 
+        filter: hue-rotate(300deg);
+    }
+    100% { 
+        opacity: 0; 
+        transform: translate(-2px, -30px) scale(0.5); 
+        filter: hue-rotate(360deg);
+    }
+}
+
+/* Dodanie efektu energetycznego upalenia pod jetpackiem */
+.jetpack-flames:after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 5px;
+    background: radial-gradient(ellipse at center, rgba(255, 0, 255, 0.8) 0%, rgba(0, 255, 255, 0) 70%);
+    bottom: 0;
+    left: 10px;
+    filter: blur(3px);
+    z-index: -1;
+    animation: energyPulseBottom 0.5s infinite alternate;
+}
+
+@keyframes energyPulseBottom {
+    0% { 
+        width: 30px; 
+        opacity: 0.7; 
+        filter: blur(3px) hue-rotate(0deg);
+    }
+    100% { 
+        width: 40px; 
+        opacity: 1; 
+        filter: blur(5px) hue-rotate(90deg);
+    }
+}
+.pipe {
+    position: absolute;
+    width: 80px;
+    background-color: #3CB371;
+    border: 3px solid #000;
+}
+.pipeUp {
+    bottom: 0;
+}
+.pipeDown {
+    top: 0;
+}
+.coin {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: #FFD700;
+    border-radius: 50%;
+    z-index: 1;
+    box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
+    animation: rotateCoin 2s linear infinite;
+}
+.purpleCoin {
+    background-color: #9932CC;
+    box-shadow: 0 0 15px 5px rgba(153, 50, 204, 0.7);
+    animation: rotatePurpleCoin 1.5s linear infinite;
+}
+@keyframes rotateCoin {
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(360deg); }
+}
+@keyframes rotatePurpleCoin {
+    0% { transform: rotateY(0deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(1.1); }
+    100% { transform: rotateY(360deg) scale(1); }
+}
+.coin:before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: #F0E68C;
+    border-radius: 50%;
+    top: 5px;
+    left: 5px;
+}
+.purpleCoin:before {
+    background-color: #BA55D3;
+}
+#startScreen, #gameOverScreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+#gameOverScreen {
+    display: none;

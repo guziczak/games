@@ -1,0 +1,870 @@
+}
+button {
+    margin-top: 20px;
+    padding: 15px 30px;
+    font-size: 24px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #45a049;
+}
+
+/* Style dla przycisków Start i Zagraj ponownie */
+#startButton, #restartButton {
+    margin-top: 20px;
+    padding: 15px 30px;
+    font-size: 24px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+#startButton:hover, #restartButton:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+#score {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+    z-index: 3;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+#bonusScore {
+    position: absolute;
+    top: 120px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: gold;
+    z-index: 3;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+#purpleCoinScore {
+    position: absolute;
+    top: 160px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #9932CC;
+    z-index: 3;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+#frogCoinScore {
+    position: absolute;
+    top: 200px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2E8B57;
+    z-index: 3;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Ulepszenie przycisków trybów */
+#frogModeButton, #ghostModeButton, #storkModeButton {
+    position: absolute;
+    width: 70px;
+    height: 70px;
+    right: 20px;
+    padding: 0;
+    font-size: 14px;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    z-index: 10;
+    display: none;
+    box-shadow: 0px 0px 15px rgba(0,0,0,0.7);
+    transition: all 0.3s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Wyśrodkowanie przycisków po prawej stronie */
+#frogModeButton {
+    bottom: 50%;
+    margin-bottom: -110px;
+    background-color: #3CB371;
+    color: white;
+}
+
+#ghostModeButton {
+    bottom: 50%;
+    margin-bottom: -30px;
+    background-color: #7B68EE;
+    color: white;
+}
+
+#storkModeButton {
+    bottom: 50%;
+    margin-bottom: -190px;
+    background-color: #FF4500;
+    color: white;
+}
+
+/* Większe ikony SVG */
+.mode-button-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 5px;
+}
+
+.mode-button-cost {
+    font-size: 10px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#frogModeButton:hover {
+    background-color: #2E8B57;
+    transform: scale(1.05);
+}
+
+#ghostModeButton:hover {
+    background-color: #6A5ACD;
+    transform: scale(1.05);
+}
+
+#storkModeButton:hover {
+    background-color: #E03D00;
+    transform: scale(1.05);
+}
+
+#frogModeButton:disabled, #ghostModeButton:disabled, #storkModeButton:disabled {
+    background-color: #808080;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Dostosowanie timerów */
+#frogModeTimer {
+    position: absolute;
+    bottom: 50%;
+    margin-bottom: -130px;
+    right: 100px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #3CB371;
+    z-index: 5;
+    display: none;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+#ghostModeTimer {
+    position: absolute;
+    bottom: 50%;
+    margin-bottom: -50px;
+    right: 100px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #7B68EE;
+    z-index: 5;
+    display: none;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+#storkModeTimer {
+    position: absolute;
+    bottom: 50%;
+    margin-bottom: -210px;
+    right: 100px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF4500;
+    z-index: 5;
+    display: none;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+/* ====== ANATOMICZNIE POPRAWNA ŻABA - WIDOK Z BOKU ====== */
+.frog-mode-active #bird {
+    /* Korpus żaby - realistyczny owalny kształt */
+    position: absolute;
+    width: 40px;
+    height: 18px;
+    background-color: #4CAF50; /* Zielony bazowy */
+    border-radius: 45% 55% 50% 50%; /* Naturalny kształt z profilu */
+    z-index: 5;
+    
+    /* Subtelny gradient dla minimalnej głębi */
+    background: linear-gradient(to bottom, #4CAF50, #388E3C);
+    
+    /* Resetowanie innych stylów kaczora */
+    filter: none;
+    transition: transform 0.2s ease-out;
+}
+
+/* Ukrywamy elementy kaczora */
+.frog-mode-active #bird::before,
+.frog-mode-active #bird::after {
+    content: normal !important;
+    display: none !important;
+}
+
+.frog-mode-active #bird .wing,
+.frog-mode-active #bird .mohawk,
+.frog-mode-active #bird .jetpack-flames,
+.frog-mode-active #bird .bird-energy {
+    display: none !important;
+}
+
+/* Głowa żaby - anatomicznie poprawna */
+.frog-mode-active .frog-head {
+    position: absolute;
+    width: 15px;
+    height: 12px;
+    background-color: #4CAF50;
+    background: linear-gradient(to bottom, #4CAF50, #388E3C); /* Ten sam gradient co ciało */
+    border-radius: 50% 40% 30% 40%; /* Bardziej naturalny kształt */
+    top: -4px; /* Lekko wystaje ponad ciało */
+    right: -2px; /* Wyraźne połączenie z ciałem */
+    z-index: 6;
+}
+
+/* Brzuszek żaby - jaśniejszy odcień, płaski */
+/* Brzuszek żaby - jaśniejszy charakterystyczny dla żab */
+.frog-mode-active .frog-belly {
+    position: absolute;
+    width: 30px;
+    height: 8px;
+    background-color: #8BC34A; /* Jaśniejszy zielonożółty */
+    border-radius: 40% 40% 50% 45%; /* Naturalny owal */
+    bottom: 0;
+    left: 5px;
+    z-index: 6;
+}
+
+/* Oko żaby - proste, płaskie */
+/* Oko żaby - duże i wypukłe, charakterystyczne dla żab */
+.frog-mode-active .frog-eye {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #FFEB3B; /* Złotawe oko charakterystyczne dla żab */
+    border-radius: 50%;
+    top: 0px; /* Na samym szczycie głowy */
+    right: 2px;
+    z-index: 8;
+    border: 1px solid #388E3C; /* Delikatna obwódka */
+}
+
+/* Źrenica oka - horyzontalna, owalna */
+.frog-mode-active .frog-pupil {
+    position: absolute;
+    width: 4px;
+    height: 2px; /* Typowo żabia horyzontalna źrenica */
+    background-color: black;
+    border-radius: 40%; /* Lekko zaokrąglona */
+    top: 3px;
+    left: 2px;
+    z-index: 9;
+}
+
+/* Błysk w oku */
+.frog-mode-active .frog-eye-highlight {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    top: 2px;
+    right: 2px;
+    z-index: 10;
+}
+
+/* Nos żaby */
+.frog-mode-active .frog-nose {
+    position: absolute;
+    width: 5px;
+    height: 3px;
+    background-color: #2E7D32;
+    border-radius: 50%;
+    top: 10px;
+    right: -2px;
+    z-index: 7;
+}
+
+/* ====== ANATOMICZNIE POPRAWNE NOGI ŻABY ====== */
+
+/* Przednia noga - krótka, podpierająca ciało w spoczynku */
+.frog-mode-active .frog-front-leg {
+    position: absolute;
+    width: 4px;
+    height: 10px; /* Proporcjonalnie krótsze od tylnych */
+    background-color: #43A047;
+    bottom: 0px; /* POPRAWKA: Przyczepiona dokładnie do ciała */
+    left: 10px; /* Umieszczona pod głową */
+    z-index: 3; /* Pod ciałem */
+    border-radius: 3px 3px 0 0; /* Zaokrąglone tylko na górze */
+    transform-origin: top center;
+    transform: rotate(10deg); /* Lekko pochylona do przodu */
+}
+
+/* Górna część przedniej nogi (udo) */
+.frog-mode-active .frog-front-thigh {
+    position: absolute;
+    width: 10px;
+    height: 15px;
+    background-color: #388E3C;
+    background-image: linear-gradient(180deg, #4CAF50, #2E7D32);
+    border-radius: 40% 40% 30% 30%;
+    top: 0;
+    left: 0;
+    transform: rotate(-20deg);
+    transform-origin: bottom center;
+    box-shadow: 
+-1px 2px 2px rgba(0, 0, 0, 0.2), 
+inset 2px -1px 3px rgba(27, 94, 32, 0.4);
+    
+    /* Dodajemy efekt stawu na dole uda */
+    position: relative;
+}
+
+.frog-mode-active .frog-front-thigh:after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #2E7D32;
+    border-radius: 50%;
+    bottom: -2px;
+    left: 2px;
+    box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.3);
+    z-index: 7;
+}
+
+/* Dolna część przedniej nogi (piszczel) */
+.frog-mode-active .frog-front-shin {
+    position: absolute;
+    width: 8px;
+    height: 12px;
+    background-color: #388E3C;
+    background-image: linear-gradient(180deg, #4CAF50, #2E7D32);
+    border-radius: 30% 30% 40% 40%;
+    top: 12px;
+    left: 5px;
+    transform: rotate(30deg);
+    transform-origin: top center;
+    box-shadow: 
+-1px 2px 2px rgba(0, 0, 0, 0.2), 
+inset 2px -1px 3px rgba(27, 94, 32, 0.4);
+}
+
+/* Stopa przedniej nogi */
+.frog-mode-active .frog-front-foot {
+    position: absolute;
+    width: 10px;
+    height: 5px;
+    background-color: #2E7D32;
+    border-radius: 40% 60% 20% 20%;
+    top: 22px;
+    left: 10px;
+    transform-origin: center left;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Przednia dłoń z palcami */
+.frog-mode-active .frog-front-foot {
+    position: absolute;
+    width: 5px;
+    height: 3px;
+    background-color: #388E3C;
+    border-radius: 3px;
+    bottom: -1px; /* Wystaje lekko poza nogę */
+    left: -1px;
+    z-index: 3;
+}
+
+/* ====== TYLNE NOGI - ANATOMICZNIE POPRAWNE ====== */
+
+/* ====== TYLNE NOGI - ANATOMICZNIE POPRAWNE ====== */
+
+/* Tylne udo - pierwsza część tylnej nogi */
+.frog-mode-active .frog-back-thigh {
+    position: absolute;
+    width: 6px;
+    height: 14px;
+    background-color: #43A047;
+    bottom: 0px; /* POPRAWKA: Przyczepiona dokładnie do ciała */
+    right: 10px; /* Z tyłu */
+    z-index: 3;
+    border-radius: 5px 5px 3px 3px; /* Zaokrąglone */
+    transform-origin: bottom center; /* Punkt obrotu u podstawy */
+    transform: rotate(-30deg); /* Wychodzi w górę/w bok od ciała */
+    background-image: linear-gradient(180deg, #4CAF50, #2E7D32);
+    box-shadow: 
+1px 2px 2px rgba(0, 0, 0, 0.2), 
+inset -2px -1px 3px rgba(27, 94, 32, 0.4);
+}
+
+/* Tylna łydka - środkowa część charakterystycznego Z */
+.frog-mode-active .frog-back-shin {
+    position: absolute;
+    width: 5px;
+    height: 14px; /* Dłuższa od uda */
+    background-color: #43A047;
+    background-image: linear-gradient(180deg, #4CAF50, #2E7D32);
+    top: 12px; /* Na końcu uda */
+    left: 0px;
+    z-index: 2; /* Za udem */
+    border-radius: 4px;
+    transform-origin: top center;
+    transform: rotate(80deg); /* Zgina się w przeciwnym kierunku - tworzy Z */
+    box-shadow: 
+1px 2px 2px rgba(0, 0, 0, 0.2), 
+inset -2px -1px 3px rgba(27, 94, 32, 0.4);
+}
+
+/* Tylna stopa - dłuższa, z charakterystyczną płetwą */
+.frog-mode-active .frog-back-foot {
+    position: absolute;
+    width: 10px;
+    height: 4px;
+    background-color: #2E7D32;
+    border-radius: 30% 60% 20% 20%;
+    bottom: -1px;
+    right: -8px;
+    z-index: 1; /* Za łydką */
+    transform-origin: left center;
+    transform: rotate(0deg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Realistyczna animacja żaby w spoczynku - oddychanie i delikatne ruchy ciała */
+@keyframes realisticFrogIdle {
+    0% { 
+transform: translateY(0) scale(1, 1); 
+box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2), inset 0 -10px 15px rgba(27, 94, 32, 0.3);
+    }
+    25% {
+transform: translateY(-1px) scale(1.01, 0.99) rotate(0.5deg);
+box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22), inset 0 -9px 14px rgba(27, 94, 32, 0.32);
+    }
+    50% { 
+transform: translateY(-2px) scale(1.02, 0.98) rotate(0deg);
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25), inset 0 -8px 13px rgba(27, 94, 32, 0.35);
+    }
+    75% {
+transform: translateY(-1px) scale(1.01, 0.99) rotate(-0.5deg);
+box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22), inset 0 -9px 14px rgba(27, 94, 32, 0.32);
+    }
+    100% { 
+transform: translateY(0) scale(1, 1) rotate(0deg);
+box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2), inset 0 -10px 15px rgba(27, 94, 32, 0.3);
+    }
+}
+
+/* Animacja mrugania oka żaby - charakterystyczne dla żab */
+.frog-mode-active .frog-eye {
+    animation: anatomicalFrogBlink 5s infinite;
+}
+
+@keyframes anatomicalFrogBlink {
+    0%, 49%, 51%, 95%, 97%, 100% { transform: scaleY(1); }
+    50%, 96% { transform: scaleY(0.2); } /* Krótkie, błyskawiczne mrugnięcie */
+}
+
+/* Animacja ruchu źrenicy - śledzącej otoczenie */
+.frog-mode-active .frog-pupil {
+    animation: realisticPupilMove 4s infinite alternate;
+}
+
+@keyframes realisticPupilMove {
+    0% { transform: translate(0, 0); }
+    20% { transform: translate(-1px, 1px); }
+    40% { transform: translate(1px, -1px); }
+    60% { transform: translate(1px, 1px); }
+    80% { transform: translate(-1px, 0); }
+    100% { transform: translate(0, -1px); }
+}
+
+/* Animacje części nóg w stanie spoczynku */
+.frog-mode-active .frog-front-thigh {
+    animation: frogFrontThighIdle 5s infinite alternate;
+}
+
+.frog-mode-active .frog-front-shin {
+    animation: frogFrontShinIdle 5s infinite alternate-reverse;
+}
+
+.frog-mode-active .frog-back-thigh {
+    animation: frogBackThighIdle 5s infinite alternate;
+}
+
+.frog-mode-active .frog-back-shin {
+    animation: frogBackShinIdle 5s infinite alternate-reverse;
+}
+
+@keyframes frogFrontThighIdle {
+    0% { transform: rotate(-20deg); }
+    100% { transform: rotate(-15deg); }
+}
+
+@keyframes frogFrontShinIdle {
+    0% { transform: rotate(30deg); }
+    100% { transform: rotate(35deg); }
+}
+
+@keyframes frogBackThighIdle {
+    0% { transform: rotate(20deg); }
+    100% { transform: rotate(25deg); }
+}
+
+@keyframes frogBackShinIdle {
+    0% { transform: rotate(-40deg); }
+    100% { transform: rotate(-35deg); }
+}
+
+/* ====== PRZYPISANIE ANATOMICZNIE POPRAWNYCH ANIMACJI ====== */
+.frog-mode-active #bird.jumping {
+    animation: anatomicalFrogJump 0.65s ease-in-out;
+}
+
+.frog-mode-active #bird.jumping .frog-front-leg {
+    animation: anatomicalFrontLegJump 0.65s ease-in-out;
+}
+
+.frog-mode-active #bird.jumping .frog-front-foot {
+    animation: anatomicalFrontFootJump 0.65s ease-in-out;
+}
+
+.frog-mode-active #bird.jumping .frog-back-thigh {
+    animation: anatomicalBackThighJump 0.65s ease-in-out;
+}
+
+.frog-mode-active #bird.jumping .frog-back-shin {
+    animation: anatomicalBackShinJump 0.65s ease-in-out;
+}
+
+.frog-mode-active #bird.jumping .frog-back-foot {
+    animation: anatomicalBackFootJump 0.65s ease-in-out;
+}
+
+/* Animacja tylnej łydki - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalBackShinJump {
+    0% { 
+height: 14px;
+transform: rotate(80deg); /* Zgięta w pozycji Z */
+    }
+    15% { 
+/* Przygotowanie - jeszcze bardziej zgięta */
+height: 13px;
+transform: rotate(100deg); /* Maksymalne zgięcie przed skokiem */
+    }
+    25% {
+/* Początek rozprostowania */
+height: 14px;
+transform: rotate(40deg); /* Rozpoczęcie rozprostowywania */
+    }
+    40% { 
+/* Szczyt skoku - CAŁKOWITE WYPROSTOWANIE */
+height: 18px; /* Maksymalnie wydłużona */
+transform: rotate(-20deg); /* Całkowicie wyprostowana z udem - jedna linia */
+    }
+    55% {
+/* Utrzymanie rozprostowania w powietrzu */
+height: 18px;
+transform: rotate(-15deg);
+    }
+    70% { 
+/* Opadanie - powolne zginanie */
+height: 15px;
+transform: rotate(40deg);
+    }
+    80% {
+/* Przygotowanie do lądowania */
+height: 13px;
+transform: rotate(75deg);
+    }
+    85% { 
+/* Lądowanie - CAŁKOWICIE schowana pod ciałem */
+height: 10px; /* Maksymalnie skrócona */
+transform: rotate(130deg); /* Mocniej podwinięta pod ciało */
+    }
+    92% {
+/* Przejściowy etap przed powrotem do pozycji normalnej */
+height: 12px;
+transform: rotate(100deg);
+    }
+    100% { 
+height: 14px;
+transform: rotate(80deg);
+    }
+}
+
+/* Animacja przedniej stopy - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalFrontFootJump {
+    0% { 
+transform: rotate(0deg);
+    }
+    15% { 
+/* Przygotowanie */
+transform: rotate(-5deg);
+    }
+    25% {
+/* Początek rozprostowania */
+transform: rotate(5deg);
+    }
+    40% { 
+/* Szczyt skoku - stopa maksymalnie rozprostowana */
+transform: rotate(25deg); /* Bardziej wyprostowana */
+    }
+    55% {
+/* Utrzymanie rozprostowania w powietrzu */
+transform: rotate(20deg);
+    }
+    70% { 
+/* Opadanie */
+transform: rotate(5deg);
+    }
+    80% {
+/* Przygotowanie do lądowania */
+transform: rotate(-5deg);
+    }
+    85% { 
+/* Lądowanie - idealnie schowana pod ciałem */
+transform: rotate(-20deg); /* Mocniej skręcona, zgodnie z kierunkiem nogi */
+    }
+    92% {
+/* Przejściowy etap stabilizacji */
+transform: rotate(-10deg);
+    }
+    100% { 
+transform: rotate(0deg);
+    }
+}
+
+/* Animacja tylnej stopy - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalBackFootJump {
+    0% { 
+transform: rotate(0deg);
+    }
+    15% { 
+/* Przygotowanie - ustawienie do wybicia */
+transform: rotate(-10deg);
+    }
+    25% {
+/* Początek rozprostowania */
+transform: rotate(15deg);
+    }
+    40% { 
+/* Szczyt skoku - maksymalne rozprostowanie do odepchnięcia */
+transform: rotate(40deg); /* Bardziej wyprostowana stopa */
+    }
+    55% {
+/* Utrzymanie rozprostowania w powietrzu */
+transform: rotate(38deg);
+    }
+    70% { 
+/* Opadanie */
+transform: rotate(15deg);
+    }
+    80% {
+/* Przygotowanie do lądowania */
+transform: rotate(0deg);
+    }
+    85% { 
+/* Lądowanie - idealnie schowana pod ciałem */
+transform: rotate(-25deg); /* Mocniej skręcona pod ciało, zgodnie z kierunkiem łydki */
+    }
+    92% {
+/* Dodatkowa faza stabilizacji po lądowaniu */
+transform: rotate(-10deg);
+    }
+    100% { 
+transform: rotate(0deg);
+    }
+}
+
+/* ====== ANATOMICZNIE POPRAWNE ANIMACJE SKOKU ŻABY ====== */
+
+/* Animacja przedniej nogi - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalFrontLegJump {
+    0% { 
+height: 10px;
+transform: rotate(10deg);
+    }
+    15% { 
+/* Przygotowanie - noga bardziej pod ciałem */
+height: 8px;
+transform: rotate(30deg);
+    }
+    25% {
+/* Początek rozprostowania */
+height: 10px;
+transform: rotate(0deg);
+    }
+    40% { 
+/* Szczyt skoku - noga MAKSYMALNIE wyciągnięta do przodu */
+height: 14px; /* Dłuższa dla efektu rozprostowania */
+transform: rotate(-50deg); /* Bardziej wyciągnięta DO PRZODU */
+    }
+    55% {
+/* Utrzymanie rozprostowania w powietrzu */
+height: 14px;
+transform: rotate(-45deg);
+    }
+    70% { 
+/* Opadanie - przygotowana do amortyzacji */
+height: 12px;
+transform: rotate(-20deg);
+    }
+    80% {
+/* Przygotowanie do lądowania */
+height: 9px;
+transform: rotate(20deg);
+    }
+    85% { 
+/* Lądowanie - CAŁKOWICIE schowana pod ciałem */
+height: 6px; /* Maksymalnie skrócona */
+transform: rotate(65deg); /* Mocniej podwinięta pod ciało */
+    }
+    92% {
+/* Dodatkowa faza stabilizacji po lądowaniu */
+height: 8px;
+transform: rotate(35deg);
+    }
+    100% { 
+height: 10px;
+transform: rotate(10deg);
+    }
+}
+
+/* Animacja tylnego uda - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalBackThighJump {
+    0% { 
+height: 14px;
+transform: rotate(-30deg);
+    }
+    15% { 
+/* Przygotowanie - maksymalne zgięcie nogi */
+height: 13px;
+transform: rotate(-60deg); /* Mocno zgięta przed skokiem */
+    }
+    25% {
+/* Początek rozprostowania */
+height: 14px;
+transform: rotate(0deg); /* Przejście do rozprostowania */
+    }
+    40% { 
+/* Szczyt skoku - PRAWDZIWA MECHANIKA: MAKSYMALNE ROZPROSTOWANIE */
+height: 17px; /* Wydłużone dla efektu rozprostowania */
+transform: rotate(60deg); /* Bardziej wyprostowane do tyłu */
+    }
+    55% {
+/* Utrzymanie rozprostowania w powietrzu */
+height: 17px;
+transform: rotate(55deg);
+    }
+    70% { 
+/* Opadanie - stopniowy powrót */
+height: 15px;
+transform: rotate(20deg);
+    }
+    80% {
+/* Przygotowanie do lądowania */
+height: 14px;
+transform: rotate(-20deg);
+    }
+    85% { 
+/* Lądowanie - poprawnie schowana pod ciałem */
+height: 12px;
+transform: rotate(-60deg); /* Mocniej schowana pod ciałem */
+    }
+    92% {
+/* Dodatkowa faza po lądowaniu - stabilizacja */
+height: 13px;
+transform: rotate(-45deg);
+    }
+    100% { 
+height: 14px;
+transform: rotate(-30deg);
+    }
+}
+
+.frog-mode-active #bird.jumping .frog-eye {
+    animation: frogEyeJump 0.6s ease;
+}
+
+/* Efekty dla części ciała przy skoku */
+.frog-mode-active #bird.jumping .frog-back-thigh,
+.frog-mode-active #bird.jumping .frog-back-shin,
+.frog-mode-active #bird.jumping .frog-front-leg {
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.4, 1.2); /* Bardziej naturalna dynamika */
+    filter: brightness(1.1); /* Subtelne rozjaśnienie nóg */
+}
+
+/* Dodatkowy efekt energii przy odbiciu */
+.frog-mode-active #bird.jumping::before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 3px;
+    background-color: rgba(76, 175, 80, 0.4);
+    border-radius: 50%;
+    bottom: -5px;
+    right: 10px;
+    z-index: 1;
+    opacity: 0;
+    animation: jumpEnergyEffect 0.65s ease-in-out;
+}
+
+@keyframes jumpEnergyEffect {
+    0% { opacity: 0; transform: scale(0.5); }
+    15% { opacity: 0.7; transform: scale(1.2); }
+    30% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 0; transform: scale(0.5); }
+}
+
+/* Podświetlenie stóp podczas skoku */
+.frog-mode-active #bird.jumping .frog-front-foot,
+.frog-mode-active #bird.jumping .frog-back-foot {
+    filter: brightness(1.1); /* Lekkie rozjaśnienie stóp */
+}
+
+/* Dodajemy prosty efekt śladu podczas skoku */
+.frog-mode-active #bird.jumping::before {
+    content: '';
+    position: absolute;
+    width: 25px;
+    height: 5px;
+    bottom: -5px;
+    left: 10px;
+    background: #4CAF50;
+    opacity: 0.3;
+    border-radius: 5px;
+    z-index: 1;
+    animation: flatJumpTraceEffect 0.6s ease;
+    pointer-events: none;
+}
+
+@keyframes flatJumpTraceEffect {
+    0%, 100% { opacity: 0; transform: scaleX(0.8); }
+    15% { opacity: 0.3; transform: scaleX(1.2); }
+    25% { opacity: 0; transform: scaleX(0.5); }
+}
+
+/* Sekwencyjna animacja skoku żaby - z realistycznymi fazami */
+@keyframes flatFrogIdle {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+/* Główna animacja całego ciała żaby - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalFrogJump {
