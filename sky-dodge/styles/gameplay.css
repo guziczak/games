@@ -1,4 +1,3 @@
-}
 button {
     margin-top: 20px;
     padding: 15px 30px;
@@ -865,6 +864,3 @@ transform: rotate(-30deg);
     50% { transform: scale(1.03); }
     100% { transform: scale(1); }
 }
-
-/* Główna animacja całego ciała żaby - ROZPROSTOWANIE PODCZAS SKOKU */
-@keyframes anatomicalFrogJump {

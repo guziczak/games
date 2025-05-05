@@ -1,29 +1,31 @@
+/* Główna animacja całego ciała żaby - ROZPROSTOWANIE PODCZAS SKOKU */
+@keyframes anatomicalFrogJump {
     0% { 
-transform: translateY(0) scale(1, 1);
+        transform: translateY(0) scale(1, 1);
     }
     15% { 
-/* Faza przygotowania do skoku - charakterystyczny przysiad */
-transform: translateY(4px) scale(1.1, 0.85);
+        /* Faza przygotowania do skoku - charakterystyczny przysiad */
+        transform: translateY(4px) scale(1.1, 0.85);
     }
     25% {
-/* Faza odbicia - początek rozprostowania */
-transform: translateY(-10px) scale(0.98, 1.0);
+        /* Faza odbicia - początek rozprostowania */
+        transform: translateY(-10px) scale(0.98, 1.0);
     }
     40% { 
-/* Faza maksymalnego rozprostowania - bardzo wydłużona sylwetka */
-transform: translateY(-20px) scale(0.9, 1.1); /* Bardziej wydłużona dla efektu rozprostowania */
+        /* Faza maksymalnego rozprostowania - bardzo wydłużona sylwetka */
+        transform: translateY(-20px) scale(0.9, 1.1); /* Bardziej wydłużona dla efektu rozprostowania */
     }
     55% { 
-/* Szczyt lotu - utrzymanie rozprostowania */
-transform: translateY(-22px) scale(0.92, 1.08);
+        /* Szczyt lotu - utrzymanie rozprostowania */
+        transform: translateY(-22px) scale(0.92, 1.08);
     }
     70% { 
-/* Faza opadania - powolne przygotowanie do lądowania */
-transform: translateY(-10px) scale(0.98, 1.02);
+        /* Faza opadania - powolne przygotowanie do lądowania */
+        transform: translateY(-10px) scale(0.98, 1.02);
     }
     80% {
-/* Faza przygotowania do lądowania */
-transform: translateY(-5px) scale(1.05, 0.9);
+        /* Faza przygotowania do lądowania */
+        transform: translateY(-5px) scale(1.05, 0.9);
     }
     85% { 
 /* Faza lądowania - maksymalna amortyzacja */
@@ -82,10 +84,21 @@ transform: translateY(0) scale(1, 1);
 @keyframes frogFrontThighJump {
     0% { transform: rotate(-20deg); }
     15% { transform: rotate(-5deg) translateY(3px) scaleY(1.05); } /* Przygotowanie */
-    40% { transform: rotate(-55deg) translateY(-4px) scaleY(1.1); } /* Szczyt skoku */
-    70% { transform: rotate(-35deg) translateY(-2px) scaleY(1.08); } /* Opadanie */
-    85% { transform: rotate(-10deg) translateY(2px) scaleY(1.05); } /* Lądowanie */
-    100% { transform: rotate(-20deg); }
+    40% { 
+        transform: rotate(-55deg) translateY(-4px) scaleY(1.1); 
+        /* Szczyt skoku */ 
+    }
+    70% { 
+        transform: rotate(-35deg) translateY(-2px) scaleY(1.08); 
+        /* Opadanie */ 
+    }
+    85% { 
+        transform: rotate(-10deg) translateY(2px) scaleY(1.05); 
+        /* Lądowanie */ 
+    }
+    100% { 
+        transform: rotate(-20deg); 
+    }
 }
 
 @keyframes frogFrontShinJump {
