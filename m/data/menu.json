@@ -1,0 +1,78 @@
+{
+  "menuItems": [
+    {
+      "id": "home",
+      "text": "Strona główna",
+      "link": "#",
+      "icon": "fa-home"
+    },
+    {
+      "id": "services",
+      "text": "Usługi",
+      "link": "#services",
+      "icon": "fa-briefcase"
+    },
+    {
+      "id": "about",
+      "text": "O nas",
+      "link": "#about",
+      "icon": "fa-info-circle"
+    },
+    {
+      "id": "contact",
+      "text": "Kontakt",
+      "link": "#contact",
+      "icon": "fa-envelope"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "call",
+      "text": "Zadzwoń",
+      "link": "tel:+48123456789",
+      "icon": "fa-phone-alt",
+      "color": "#4CAF50"
+    },
+    {
+      "id": "message",
+      "text": "Email",
+      "link": "mailto:kontakt@finbilans.pl",
+      "icon": "fa-envelope",
+      "color": "#2196F3"
+    },
+    {
+      "id": "location",
+      "text": "Mapa",
+      "link": "https://www.google.com/maps/search/?api=1&query=Warsaw+Spire,+Plac+Europejski+1,+00-844+Warszawa",
+      "icon": "fa-map-marker-alt",
+      "color": "#FF5722"
+    }
+  ],
+  "footerLinks": [
+    {
+      "id": "home",
+      "text": "Strona główna",
+      "link": "#"
+    },
+    {
+      "id": "services",
+      "text": "Usługi",
+      "link": "#services"
+    },
+    {
+      "id": "about",
+      "text": "O nas",
+      "link": "#about"
+    },
+    {
+      "id": "contact",
+      "text": "Kontakt",
+      "link": "#contact"
+    },
+    {
+      "id": "privacy",
+      "text": "Polityka prywatności",
+      "link": "#"
+    }
+  ]
+}

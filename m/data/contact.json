@@ -1,0 +1,50 @@
+{
+  "contactInfo": [
+    {
+      "id": "address",
+      "icon": "fa-map-marker-alt",
+      "title": "Adres biura",
+      "value": "Warsaw Spire, Plac Europejski 1, 00-844 Warszawa"
+    },
+    {
+      "id": "phone",
+      "icon": "fa-phone-alt",
+      "title": "Telefon",
+      "value": "+48 123 456 789"
+    },
+    {
+      "id": "email",
+      "icon": "fa-envelope",
+      "title": "Email",
+      "value": "kontakt@finbilans.pl"
+    },
+    {
+      "id": "hours",
+      "icon": "fa-clock",
+      "title": "Godziny otwarcia",
+      "value": "Pon - Pt: 8:00 - 16:00"
+    }
+  ],
+  "socialMedia": [
+    {
+      "id": "facebook",
+      "icon": "fab fa-facebook-f",
+      "url": "#"
+    },
+    {
+      "id": "linkedin",
+      "icon": "fab fa-linkedin-in",
+      "url": "#"
+    },
+    {
+      "id": "twitter",
+      "icon": "fab fa-twitter",
+      "url": "#"
+    },
+    {
+      "id": "instagram",
+      "icon": "fab fa-instagram",
+      "url": "#"
+    }
+  ]
+}

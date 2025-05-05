@@ -1,0 +1,24 @@
+{
+  "features": [
+    {
+      "id": "experience",
+      "icon": "fa-check",
+      "text": "Wieloletnie doświadczenie"
+    },
+    {
+      "id": "individual",
+      "icon": "fa-check",
+      "text": "Indywidualne podejście"
+    },
+    {
+      "id": "qualified",
+      "icon": "fa-check",
+      "text": "Wykwalifikowana kadra"
+    },
+    {
+      "id": "competitive",
+      "icon": "fa-check",
+      "text": "Konkurencyjne ceny"
+    }
+  ]
+}

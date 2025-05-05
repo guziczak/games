@@ -1,0 +1,46 @@
+{
+  "services": [
+    {
+      "id": "accounting",
+      "icon": "fa-book",
+      "title": "Pełna księgowość",
+      "description": "Kompleksowa obsługa ksiąg rachunkowych firm, przygotowanie sprawozdań finansowych, bilansu oraz rachunku zysków i strat.",
+      "link": "#contact"
+    },
+    {
+      "id": "tax-book",
+      "icon": "fa-calculator",
+      "title": "Księga przychodów i rozchodów",
+      "description": "Profesjonalne prowadzenie podatkowej księgi przychodów i rozchodów (KPiR), ewidencji przychodów oraz rozliczenia ryczałtu.",
+      "link": "#contact"
+    },
+    {
+      "id": "hr-payroll",
+      "icon": "fa-user-tie",
+      "title": "Kadry i płace",
+      "description": "Kompleksowa obsługa kadrowo-płacowa firm, rozliczanie wynagrodzeń, ZUS, przygotowanie dokumentów pracowniczych.",
+      "link": "#contact"
+    },
+    {
+      "id": "tax-returns",
+      "icon": "fa-file-invoice",
+      "title": "Rozliczenia podatkowe",
+      "description": "Przygotowanie i wysyłka deklaracji podatkowych VAT, CIT, PIT, sporządzanie sprawozdań do GUS i NBP.",
+      "link": "#contact"
+    },
+    {
+      "id": "tax-representation",
+      "icon": "fa-landmark",
+      "title": "Reprezentacja przed US i ZUS",
+      "description": "Profesjonalna reprezentacja przed urzędami skarbowymi, ZUS oraz innymi instytucjami państwowymi.",
+      "link": "#contact"
+    },
+    {
+      "id": "tax-consulting",
+      "icon": "fa-comments-dollar",
+      "title": "Doradztwo podatkowe",
+      "description": "Profesjonalne doradztwo w zakresie optymalizacji podatkowej oraz planowania finansowego dla Twojej firmy.",
+      "link": "#contact"
+    }
+  ]
+}
