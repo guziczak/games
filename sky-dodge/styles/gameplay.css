@@ -110,6 +110,123 @@ button:hover {
     }
 }
 
+/* Wskaźnik przeładowania skoku */
+#frogOverloadIndicator {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(255, 0, 0, 0.7);
+    border-radius: 10px;
+    padding: 5px 15px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    z-index: 6;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+    animation: overloadPulse 0.3s infinite alternate;
+}
+
+#frogOverloadIcon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+#frogOverloadText {
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Efekt wstrząsu ekranu dla dramatycznych momentów */
+@keyframes screenShake {
+    0% { transform: translate(0, 0); }
+    10% { transform: translate(-10px, -8px); }
+    20% { transform: translate(8px, 10px); }
+    30% { transform: translate(-8px, 5px); }
+    40% { transform: translate(5px, -5px); }
+    50% { transform: translate(-5px, 8px); }
+    60% { transform: translate(8px, 5px); }
+    70% { transform: translate(-7px, -5px); }
+    80% { transform: translate(6px, 4px); }
+    90% { transform: translate(-4px, -3px); }
+    100% { transform: translate(0, 0); }
+}
+
+.screen-shake {
+    animation: screenShake 0.5s linear;
+}
+
+@keyframes overloadPulse {
+    0% { transform: translateX(-50%) scale(1); }
+    100% { transform: translateX(-50%) scale(1.1); }
+}
+
+/* Kontener na narzekania żaby */
+#frogComplaint {
+    position: absolute;
+    top: 20%;
+    left: 25%;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    max-width: 200px;
+    display: none;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    border: 2px solid #2E8B57;
+}
+
+/* Wskaźnik trybu kauczuka */
+#rubberModeIndicator {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(to right, #FF00FF, #00FFFF);
+    border-radius: 15px;
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+    animation: rubberModePulse 0.8s infinite alternate;
+}
+
+#rubberModeIcon {
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+#rubberModeText {
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+#rubberModeTimer {
+    color: white;
+    font-size: 16px;
+    margin-top: 5px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+@keyframes rubberModePulse {
+    0% { 
+        transform: translateX(-50%) scale(1); 
+        background: linear-gradient(to right, #FF00FF, #00FFFF);
+    }
+    100% { 
+        transform: translateX(-50%) scale(1.05); 
+        background: linear-gradient(to right, #00FFFF, #FF00FF);
+    }
+}
+
 /* Ulepszenie przycisków trybów */
 #frogModeButton, #ghostModeButton, #storkModeButton {
     position: absolute;

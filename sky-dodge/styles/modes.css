@@ -236,6 +236,75 @@ transform: translateY(0) rotate(-2deg) scale(1, 1);
     100% { transform: scale(0.95) translateY(2px); }
 }
 
+/* Animacje dla przeładowanej żaby */
+.frog-mode-active #bird.overloaded {
+    animation: frogOverloaded 0.3s infinite alternate;
+    filter: saturate(1.5) hue-rotate(15deg);
+}
+
+@keyframes frogOverloaded {
+    0% { transform: scale(1) rotate(-2deg); }
+    100% { transform: scale(1.05) rotate(2deg); }
+}
+
+/* Tekstowe narzekania przeładowanej żaby */
+.frog-complaint-bubble {
+    position: absolute;
+    background-color: white;
+    border: 2px solid #2E8B57;
+    border-radius: 15px;
+    padding: 10px;
+    font-size: 16px;
+    color: #333;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    max-width: 150px;
+    text-align: center;
+    animation: complaintBubblePop 0.3s ease-out;
+}
+
+.frog-complaint-bubble:before {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 20px;
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: #2E8B57 transparent transparent;
+}
+
+@keyframes complaintBubblePop {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Animacje dla trybu kauczuka */
+.frog-mode-active #bird.rubber-mode {
+    animation: rubberModeAnimation 0.5s infinite alternate;
+    filter: hue-rotate(90deg) saturate(1.5);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+}
+
+@keyframes rubberModeAnimation {
+    0% { 
+        transform: scale(1) rotate(0deg); 
+        border-radius: 45% 55% 60% 40%;
+    }
+    30% { 
+        transform: scale(1.1, 0.9) rotate(-5deg); 
+        border-radius: 60% 40% 45% 55%;
+    }
+    70% { 
+        transform: scale(0.9, 1.1) rotate(5deg); 
+        border-radius: 40% 60% 55% 45%;
+    }
+    100% { 
+        transform: scale(1) rotate(0deg); 
+        border-radius: 55% 45% 40% 60%;
+    }
+}
+
 /* Tekstura skóry żaby na ciele */
 .frog-mode-active #bird::after {
     background-image: 
