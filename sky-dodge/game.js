@@ -178,6 +178,9 @@ function setupGame() {
     }
     
     function startGame() {
+        // Zatrzymaj wszystkie dźwięki przy restarcie gry
+        stopAllSounds();
+        
         setupGame();
         startScreen.style.display = 'none';
         gameOverScreen.style.display = 'none';
