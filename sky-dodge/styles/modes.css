@@ -226,6 +226,16 @@ transform: translateY(0) rotate(-2deg) scale(1, 1);
 30px 7px 0 2px rgba(255, 255, 255, 0.2);
 }
 
+/* Animacja dla żaby ładującej skok */
+.frog-mode-active #bird.charging {
+    animation: frogCharging 0.5s infinite alternate;
+}
+
+@keyframes frogCharging {
+    0% { transform: scale(1) translateY(0); }
+    100% { transform: scale(0.95) translateY(2px); }
+}
+
 /* Tekstura skóry żaby na ciele */
 .frog-mode-active #bird::after {
     background-image: 

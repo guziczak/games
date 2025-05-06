@@ -72,6 +72,44 @@ button:hover {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
 
+/* Wskaźnik ładowania skoku żaby */
+#frogJumpChargeIndicator {
+    position: absolute;
+    width: 200px;
+    height: 20px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: none;
+    overflow: hidden;
+    border: 2px solid #2E8B57;
+    box-shadow: 0 0 10px rgba(46, 139, 87, 0.7);
+}
+
+#frogJumpChargeBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
+    border-radius: 8px;
+    transition: width 0.05s linear;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.5);
+    animation: chargeBarPulse 0.5s infinite alternate;
+}
+
+@keyframes chargeBarPulse {
+    0% { 
+        background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
+        box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    100% { 
+        background: linear-gradient(90deg, #8BC34A, #4CAF50, #8BC34A);
+        box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.7);
+    }
+}
+
 /* Ulepszenie przycisków trybów */
 #frogModeButton, #ghostModeButton, #storkModeButton {
     position: absolute;

@@ -72,6 +72,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let frogSpeedMultiplier = 2; // Mnożnik prędkości dla trybu żaby
     let invincible = false; // Flaga nieśmiertelności dla trybu żaby
     
+    // Nowe zmienne dla realistycznego skoku żaby
+    let frogIsCharging = false; // Czy żaba ładuje skok
+    let frogChargeStart = 0; // Czas rozpoczęcia ładowania skoku
+    let frogChargeMax = 1500; // Maksymalny czas ładowania skoku (ms)
+    let frogJumpMinPower = -8; // Minimalna siła skoku żaby
+    let frogJumpMaxPower = -15; // Maksymalna siła skoku żaby
+    let frogIsOnGround = false; // Czy żaba jest na ziemi
+    let frogChargeIndicator = null; // Element wskaźnika naładowania
+    
     // TRYB DUCHA - zmienne
     let ghostModeActive = false;
     let ghostModeTime = 0;
@@ -127,6 +136,19 @@ function setupGame() {
         frogModeButton.style.display = 'flex';
         frogModeTimer.style.display = 'none';
         gameArea.classList.remove('frog-mode-active');
+        
+        // Reset zmiennych realistycznego skoku żaby
+        frogIsCharging = false;
+        frogChargeStart = 0;
+        frogIsOnGround = false;
+        frogChargeIndicator = document.getElementById('frogJumpChargeIndicator');
+        const frogChargeBar = document.getElementById('frogJumpChargeBar');
+        if (frogChargeIndicator) {
+            frogChargeIndicator.style.display = 'none';
+        }
+        if (frogChargeBar) {
+            frogChargeBar.style.width = '0%';
+        }
         
         // Reset TRYB DUCHA
         ghostModeActive = false;
@@ -221,6 +243,24 @@ function setupGame() {
         if (frogModeActive) {
             frogModeTime -= deltaTime / 60; // Odliczanie w sekundach
             frogModeTimer.textContent = `TRYB FROGA: ${Math.ceil(frogModeTime)}s`;
+            
+            // Aktualizuj wskaźnik ładowania skoku żaby
+            if (frogIsCharging) {
+                const chargeTime = Math.min(timestamp - frogChargeStart, frogChargeMax);
+                const chargePercent = (chargeTime / frogChargeMax) * 100;
+                
+                const frogChargeBar = document.getElementById('frogJumpChargeBar');
+                if (frogChargeBar) {
+                    frogChargeBar.style.width = `${chargePercent}%`;
+                }
+                
+                // Subtelna animacja dla żaby podczas ładowania
+                const backThigh = bird.querySelector('.frog-back-thigh');
+                if (backThigh) {
+                    const squatAmount = 5 + (chargePercent / 100) * 15; // Od 5 do 20 stopni
+                    backThigh.style.transform = `rotate(${squatAmount}deg)`;
+                }
+            }
             
             // Sprawdź, czy pokazać przycisk trybu bociana
             if (frogCoinScore >= frogStorkModeCost * frogCoinValue && 
@@ -791,6 +831,15 @@ function checkCollision() {
     const gameAreaRect = gameArea.getBoundingClientRect();
     const groundRect = ground.getBoundingClientRect();
     
+    // Sprawdzanie, czy żaba jest na ziemi
+    if (frogModeActive) {
+        if (birdRect.bottom >= groundRect.top - 2) {
+            frogIsOnGround = true;
+        } else {
+            frogIsOnGround = false;
+        }
+    }
+    
     // Jeśli jest nieśmiertelny dzięki trybowi froga, pozwól na przenikanie przez wszystko
     if (invincible) {
         // Tylko nie pozwól wylecieć poza ekran gry
@@ -884,61 +933,109 @@ function checkCollision() {
     return false;
 }
 
+function startFrogCharging() {
+    if (gameRunning && frogModeActive && frogIsOnGround && !frogIsCharging) {
+        frogIsCharging = true;
+        frogChargeStart = performance.now();
+        
+        // Pokaż wskaźnik ładowania
+        if (frogChargeIndicator) {
+            frogChargeIndicator.style.display = 'block';
+        }
+        
+        // Subtelna animacja przygotowania do skoku
+        bird.classList.add('charging');
+        
+        // Efekt dźwiękowy ładowania
+        playSound('jump'); // Możesz stworzyć nowy dźwięk ładowania
+    }
+}
+
+function stopFrogCharging() {
+    if (gameRunning && frogModeActive && frogIsCharging) {
+        // Oblicz czas ładowania i odpowiednią siłę skoku
+        const chargeTime = Math.min(performance.now() - frogChargeStart, frogChargeMax);
+        const chargePercent = chargeTime / frogChargeMax;
+        
+        // Zastosuj siłę skoku proporcjonalną do czasu ładowania
+        const jumpPower = frogJumpMinPower + (frogJumpMaxPower - frogJumpMinPower) * chargePercent;
+        velocity = jumpPower;
+        
+        // Ukryj wskaźnik ładowania
+        if (frogChargeIndicator) {
+            frogChargeIndicator.style.display = 'none';
+            const frogChargeBar = document.getElementById('frogJumpChargeBar');
+            if (frogChargeBar) {
+                frogChargeBar.style.width = '0%';
+            }
+        }
+        
+        // Przestań ładować
+        frogIsCharging = false;
+        
+        // Dźwięk skoku dla żaby
+        playSound('jump');
+        
+        // ====== ANATOMICZNIE POPRAWNA ANIMACJA SKOKU ŻABY ======
+        bird.classList.remove('charging');
+        bird.classList.add('jumping');
+        
+        // Resetujemy i uruchamiamy animacje wszystkich części anatomicznych
+        const frontLeg = bird.querySelector('.frog-front-leg');
+        const frontFoot = frontLeg ? frontLeg.querySelector('.frog-front-foot') : null;
+        const backThigh = bird.querySelector('.frog-back-thigh');
+        const backShin = backThigh ? backThigh.querySelector('.frog-back-shin') : null;
+        const backFoot = backShin ? backShin.querySelector('.frog-back-foot') : null;
+        
+        // Reset wszystkich animacji dla płynnego efektu
+        if (frontLeg) {
+            frontLeg.style.animation = 'none';
+            void frontLeg.offsetWidth; // Trigger reflow
+            frontLeg.style.animation = 'anatomicalFrontLegJump 0.65s ease-in-out';
+        }
+        
+        if (frontFoot) {
+            frontFoot.style.animation = 'none';
+            void frontFoot.offsetWidth;
+            frontFoot.style.animation = 'anatomicalFrontFootJump 0.65s ease-in-out';
+        }
+        
+        if (backThigh) {
+            backThigh.style.animation = 'none';
+            void backThigh.offsetWidth;
+            backThigh.style.animation = 'anatomicalBackThighJump 0.65s ease-in-out';
+        }
+        
+        if (backShin) {
+            backShin.style.animation = 'none';
+            void backShin.offsetWidth;
+            backShin.style.animation = 'anatomicalBackShinJump 0.65s ease-in-out';
+        }
+        
+        if (backFoot) {
+            backFoot.style.animation = 'none';
+            void backFoot.offsetWidth;
+            backFoot.style.animation = 'anatomicalBackFootJump 0.65s ease-in-out';
+        }
+        
+        // Usuń klasę po zakończeniu animacji
+        setTimeout(() => {
+            bird.classList.remove('jumping');
+        }, 600);
+    }
+}
+
 function makeJump() {
     if (gameRunning) {
-        velocity = jump;
-        
         if (frogModeActive) {
-            // Dźwięk skoku dla żaby
-            playSound('jump');
-            
-            // ====== ANATOMICZNIE POPRAWNA ANIMACJA SKOKU ŻABY ======
-            bird.classList.add('jumping');
-            
-            // Resetujemy i uruchamiamy animacje wszystkich części anatomicznych
-            const frontLeg = bird.querySelector('.frog-front-leg');
-            const frontFoot = frontLeg ? frontLeg.querySelector('.frog-front-foot') : null;
-            const backThigh = bird.querySelector('.frog-back-thigh');
-            const backShin = backThigh ? backThigh.querySelector('.frog-back-shin') : null;
-            const backFoot = backShin ? backShin.querySelector('.frog-back-foot') : null;
-            
-            // Reset wszystkich animacji dla płynnego efektu
-            if (frontLeg) {
-                frontLeg.style.animation = 'none';
-                void frontLeg.offsetWidth; // Trigger reflow
-                frontLeg.style.animation = 'anatomicalFrontLegJump 0.65s ease-in-out';
+            // W trybie żaby zaczynamy ładować skok
+            if (frogIsOnGround) {
+                startFrogCharging();
             }
-            
-            if (frontFoot) {
-                frontFoot.style.animation = 'none';
-                void frontFoot.offsetWidth;
-                frontFoot.style.animation = 'anatomicalFrontFootJump 0.65s ease-in-out';
-            }
-            
-            if (backThigh) {
-                backThigh.style.animation = 'none';
-                void backThigh.offsetWidth;
-                backThigh.style.animation = 'anatomicalBackThighJump 0.65s ease-in-out';
-            }
-            
-            if (backShin) {
-                backShin.style.animation = 'none';
-                void backShin.offsetWidth;
-                backShin.style.animation = 'anatomicalBackShinJump 0.65s ease-in-out';
-            }
-            
-            if (backFoot) {
-                backFoot.style.animation = 'none';
-                void backFoot.offsetWidth;
-                backFoot.style.animation = 'anatomicalBackFootJump 0.65s ease-in-out';
-            }
-            
-            // Usuń klasę po zakończeniu animacji
-            setTimeout(() => {
-                bird.classList.remove('jumping');
-            }, 600);
+            // Faktyczne wykonanie skoku obsługuje funkcja stopFrogCharging
         } else {
             // Standardowy skok z jetpackiem dla normalnego trybu
+            velocity = jump;
             playSound('jump');
             
             // Aktywuj efekt jetpacka
@@ -1127,6 +1224,14 @@ function deactivateFrogMode() {
         if (jetpackFlames) {
             jetpackFlames.style.display = '';
         }
+        
+        // Przywracamy normalny wygląd ptaka - resetujemy do kaczorka
+        bird.style.animation = 'crazyDuck 2s infinite alternate';
+        bird.style.background = 'linear-gradient(135deg, #FFFF00, #FFA500, #FFD700)';
+        bird.style.borderRadius = '50% 50% 30% 30%';
+        bird.style.boxShadow = '0 2px 10px rgba(255, 215, 0, 0.7)';
+        bird.style.filter = 'none';
+        bird.style.transform = 'rotate(0deg)';
     }, 300);
     
     frogModeTimer.style.display = 'none';
@@ -1344,6 +1449,21 @@ function deactivateGhostMode() {
     ghostModeTimer.style.display = 'none';
     ghostMode = false;
     
+    // Przywracamy normalny wygląd ptaka - resetujemy do kaczorka
+    bird.style.animation = 'crazyDuck 2s infinite alternate';
+    bird.style.background = 'linear-gradient(135deg, #FFFF00, #FFA500, #FFD700)';
+    bird.style.borderRadius = '50% 50% 30% 30%';
+    bird.style.boxShadow = '0 2px 10px rgba(255, 215, 0, 0.7)';
+    bird.style.filter = 'none';
+    bird.style.transform = 'rotate(0deg)';
+    bird.style.opacity = '1';
+    
+    // Przywróć widoczność jetpacka
+    const jetpackFlames = bird.querySelector('.jetpack-flames');
+    if (jetpackFlames) {
+        jetpackFlames.style.display = '';
+    }
+    
     // Pokaż komunikat o końcu trybu ducha
     const endModeMsg = document.createElement('div');
     endModeMsg.className = 'coinPop';
@@ -1402,6 +1522,35 @@ function activateStorkMode(event) {
             frogCoinElement.textContent = `Monety żabie: ${frogCoinScore / frogCoinValue}`;
         }
         
+        // Dezaktywuj tryb żaby przed aktywacją trybu bociana
+        frogModeActive = false;
+        frogModeTime = 0;
+        gameArea.classList.remove('frog-mode-active');
+        frogModeTimer.style.display = 'none';
+        
+        // Usuń elementy żaby
+        const frogElements = bird.querySelectorAll('.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh');
+        frogElements.forEach(element => {
+            if (element.parentNode === bird) {
+                // Usuwamy najpierw wszystkie dzieci elementu
+                const children = element.querySelectorAll('*');
+                children.forEach(child => {
+                    if (child.parentNode === element) {
+                        // Rekurencyjnie usuwamy dzieci dzieci (np. stopa w łydce)
+                        const grandchildren = child.querySelectorAll('*');
+                        grandchildren.forEach(grandchild => {
+                            if (grandchild.parentNode === child) {
+                                child.removeChild(grandchild);
+                            }
+                        });
+                        element.removeChild(child);
+                    }
+                });
+                // Potem usuwamy sam element
+                bird.removeChild(element);
+            }
+        });
+        
         // Aktywuj TRYB BOCIANA
         storkModeActive = true;
         storkModeTime = storkModeDuration;
@@ -1409,6 +1558,12 @@ function activateStorkMode(event) {
         storkModeTimer.style.display = 'block';
         storkModeTimer.textContent = `TRYB BOCIANA: ${storkModeDuration}s`;
         storkModeButton.disabled = true;
+        
+        // Przywróć widoczność jetpacka
+        const jetpackFlames = bird.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.style.display = '';
+        }
         
         // Efekt dźwiękowy
         playSound('storkMode');
@@ -1440,6 +1595,14 @@ function deactivateStorkMode() {
     storkModeTime = 0;
     gameArea.classList.remove('stork-mode-active');
     storkModeTimer.style.display = 'none';
+    
+    // Przywracamy normalny wygląd ptaka - resetujemy do kaczorka
+    bird.style.animation = 'crazyDuck 2s infinite alternate';
+    bird.style.background = 'linear-gradient(135deg, #FFFF00, #FFA500, #FFD700)';
+    bird.style.borderRadius = '50% 50% 30% 30%';
+    bird.style.boxShadow = '0 2px 10px rgba(255, 215, 0, 0.7)';
+    bird.style.filter = 'none';
+    bird.style.transform = 'rotate(0deg)';
     
     // Pokaż komunikat o końcu trybu bociana
     const endModeMsg = document.createElement('div');
@@ -1514,6 +1677,13 @@ gameArea.addEventListener('touchstart', function(event) {
     }
 });
 
+gameArea.addEventListener('touchend', function(event) {
+    event.preventDefault();
+    if (gameRunning && frogModeActive && frogIsCharging) {
+        stopFrogCharging();
+    }
+});
+
 document.addEventListener('keydown', function(event) {
     if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
         event.preventDefault();
@@ -1521,9 +1691,22 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-gameArea.addEventListener('click', function(event) {
+document.addEventListener('keyup', function(event) {
+    if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning && frogModeActive && frogIsCharging) {
+        event.preventDefault();
+        stopFrogCharging();
+    }
+});
+
+gameArea.addEventListener('mousedown', function(event) {
     if (gameRunning) {
         makeJump();
+    }
+});
+
+gameArea.addEventListener('mouseup', function(event) {
+    if (gameRunning && frogModeActive && frogIsCharging) {
+        stopFrogCharging();
     }
 });
 
