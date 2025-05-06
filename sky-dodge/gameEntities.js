@@ -620,10 +620,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const gameAreaRect = gameArea.getBoundingClientRect();
         const groundRect = ground.getBoundingClientRect();
         
-        // Sprawdzanie, czy żaba jest na ziemi
+        // Mała funkcja pomocnicza do logowania stanu wykrywania podłoża
+        const logGroundState = (reason) => {
+            // Możemy używać tej funkcji do debugowania w konsoli
+            if (window.debugGroundDetection) {
+                console.log(`Żaba na ziemi: ${frogIsOnGround ? 'TAK' : 'NIE'}, powód: ${reason}`, {
+                    birdBottomY: birdRect.bottom,
+                    groundTopY: groundRect.top,
+                    distanceToGround: groundRect.top - birdRect.bottom
+                });
+            }
+        };
+
+        // Główne sprawdzanie, czy żaba jest na ziemi - globalne dla wszystkich trybów
+        // Dodajemy 5px buforu dla lepszej detekcji
+        const groundProximityBuffer = 5; 
+        const isOnGround = birdRect.bottom >= groundRect.top - groundProximityBuffer;
+        
+        // Aktualizacja stanu globalnego - dostępnego dla całej gry
+        // Ale nie nadpisujemy jeszcze frogIsOnGround, robimy to później w zależności od trybu
+        
+        // Sprawdzanie, czy żaba jest na ziemi w trybie żaby
         if (frogModeActive) {
+            const prevGroundState = frogIsOnGround;
+            
             if (birdRect.bottom >= groundRect.top - 2) {
                 frogIsOnGround = true;
+                logGroundState("dotknięcie ziemi w trybie żaby");
                 
                 // Ustaw pozycję żaby na ziemi, aby nie przelatywała przez ekran
                 birdPosition = groundRect.top - birdRect.height;
@@ -671,9 +694,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
+                // Jeśli żaba właśnie weszła na teren podłoża (wcześniej była w powietrzu)
+                if (!prevGroundState && frogIsOnGround) {
+                    // Zatrzymaj animacje skoku
+                    bird.classList.remove('jumping');
+                    
+                    // Dodaj delikatną animację lądowania
+                    bird.classList.add('frog-landing');
+                    setTimeout(() => {
+                        bird.classList.remove('frog-landing');
+                    }, 200);
+                }
+                
                 return false; // Nie jest to kolizja, bo odbijamy się
             } else {
                 frogIsOnGround = false;
+                logGroundState("w powietrzu w trybie żaby");
                 
                 // Sprawdź kolizję z górą ekranu
                 if (birdRect.top <= gameAreaRect.top) {
@@ -740,20 +776,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 birdPosition = groundRect.top - birdRect.height;
                 bird.style.top = birdPosition + 'px';
                 // Nie ustawiamy velocity = 0, pozwalając na dalsze skoki
+                
+                // Aktualizuj flagę stanu ziemi (nawet jeśli tryb żaby nie jest aktywny)
+                frogIsOnGround = true;
+                logGroundState("tryb nieśmiertelności na ziemi");
             } else if (birdRect.top <= gameAreaRect.top) {
                 birdPosition = gameAreaRect.top + 5; // Trochę luzu od górnej krawędzi
                 bird.style.top = birdPosition + 'px';
                 velocity = 1; // Delikatny spadek w dół
+                
+                // W powietrzu ustaw flagę stanu ziemi
+                frogIsOnGround = false;
+                logGroundState("tryb nieśmiertelności w powietrzu");
+            } else {
+                // W innych przypadkach sprawdź normalną detekcję podłoża
+                frogIsOnGround = isOnGround;
+                logGroundState("tryb nieśmiertelności - standardowa detekcja");
             }
             return false; // Brak kolizji w trybie nieśmiertelności
         }
         
-        // Sprawdzanie, czy żaba jest na ziemi, nawet jeśli nie jest w trybie frog
-        if (birdRect.bottom >= groundRect.top - 5) { // dodajemy bufor 5px dla lepszej detekcji
-            frogIsOnGround = true;
-        } else {
-            frogIsOnGround = false;
-        }
+        // Sprawdzanie, czy gracz jest na ziemi, nawet jeśli nie jest w trybie frog
+        // To jest ogólna flaga dostępna dla innych trybów
+        frogIsOnGround = isOnGround;
+        logGroundState("standardowa detekcja podłoża");
         
         // Standardowe sprawdzanie kolizji z górą i dołem ekranu
         if (steelModeActive) {
@@ -838,6 +884,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     birdPosition = upPipeRect.top - birdRect.height / 2;
                     bird.style.top = birdPosition + 'px';
                     velocity = 0; // Zatrzymaj spadanie
+                    
+                    // Aktualizuj flagę stanu ziemi - pozwalając żabie skakać z rury
+                    frogIsOnGround = true;
+                    logGroundState("przyczepiona do rury");
+                    
                     return false; // Nie ma kolizji
                 }
                 

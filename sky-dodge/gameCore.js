@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.frogIsOverloaded = false; // Czy żaba jest przeładowana
     window.frogOverloadBounceCount = 0; // Licznik odbić przy przeładowaniu
     window.frogMaxBounces = 5; // Maksymalna liczba odbić
-    window.frogRubberModeChance = 0.10; // 10% szansa na tryb kauczuka (zwiększona)
+    window.frogRubberModeChance = 0.30; // 30% szansa na tryb kauczuka (znacznie zwiększona)
     window.rubberModeActive = false; // Czy tryb kauczuka jest aktywny
     window.rubberModeDuration = 20; // Czas trwania trybu kauczuka (sekundy) - znacznie dłuższy
     window.rubberModeTime = 0; // Pozostały czas trybu kauczuka
@@ -314,12 +314,22 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Aktualizuj wskaźnik ładowania skoku żaby
             if (frogIsCharging) {
-                const chargeTime = Math.min(timestamp - frogChargeStart, frogChargeMax);
+                const chargeTime = timestamp - frogChargeStart;
+                // Pozwalamy na wizualne przekroczenie 100% gdy żaba się przeładowuje dla efektu humorystycznego
+                const chargeMaxVisual = chargeTime > frogOverloadThreshold ? 130 : 100;
                 const chargePercent = (chargeTime / frogChargeMax) * 100;
                 
                 const frogChargeBar = document.getElementById('frogJumpChargeBar');
                 if (frogChargeBar) {
-                    frogChargeBar.style.width = `${chargePercent}%`;
+                    // Pozwól pasku wyjść za skalę przy przeładowaniu - efekt humorystyczny
+                    frogChargeBar.style.width = `${Math.min(chargePercent, chargeMaxVisual)}%`;
+                    
+                    // Dodajemy efekt pulsowania gdy przekraczamy normalny czas ładowania
+                    if (chargeTime > frogChargeMax) {
+                        frogChargeBar.style.animation = 'chargeBarPulse 0.2s infinite alternate';
+                    } else {
+                        frogChargeBar.style.animation = 'chargeBarPulse 0.5s infinite alternate';
+                    }
                 }
                 
                 // Subtelna animacja dla żaby podczas ładowania

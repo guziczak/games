@@ -140,8 +140,53 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deactivateFrogMode = function() {
         if (!frogModeActive) return;
         
+        console.log("Deaktywacja trybu żaby - rozpoczęcie czyszczenia");
+        
         frogModeActive = false;
         frogModeTime = 0;
+        
+        // Resetuj stan przeładowania
+        frogIsOverloaded = false;
+        frogOverloadBounceCount = 0;
+        frogIsCharging = false;
+        
+        // Upewnij się, że wskaźnik ładowania i przeładowania są ukryte
+        const chargeBar = document.getElementById('frogJumpChargeBar');
+        if (chargeBar) {
+            chargeBar.style.width = '0%';
+        }
+        
+        // Zatrzymaj wszelkie trwające animacje
+        if (bird.frogJumpAnimation) {
+            cancelAnimationFrame(bird.frogJumpAnimation);
+            bird.frogJumpAnimation = null;
+        }
+        
+        // Ukryj wskaźnik przeładowania
+        const overloadIndicator = document.getElementById('frogOverloadIndicator');
+        if (overloadIndicator) {
+            overloadIndicator.style.display = 'none';
+        }
+        
+        // Ukryj wskaźnik ładowania skoku
+        if (frogChargeIndicator) {
+            frogChargeIndicator.style.display = 'none';
+            const frogChargeBar = document.getElementById('frogJumpChargeBar');
+            if (frogChargeBar) {
+                frogChargeBar.style.width = '0%';
+                // Zatrzymaj wszystkie animacje na pasku ładowania
+                frogChargeBar.style.animation = 'none';
+            }
+        }
+        
+        // Resetuj stan wskaźnika ładowania
+        frogChargeIndicator = null;
+        
+        // Wyczyść timeout narzekań
+        if (frogComplaintTimeout) {
+            clearTimeout(frogComplaintTimeout);
+            frogComplaintTimeout = null;
+        }
         
         // Dodaj przejściową klasę dla efektu transformacji
         bird.classList.add('transforming-back');
@@ -157,7 +202,71 @@ document.addEventListener('DOMContentLoaded', function() {
         invincible = false; // Wyłącz nieśmiertelność
         currentPipeSpeed = pipeSpeed; // Normalna prędkość
         
-        // USUNIĘTE: Nie usuwamy rurek wokół kurczaka, bo tryb stali pozwala je rozwalić
+        // Usuń wszystkie dymki z narzekaniami, które mogły zostać
+        const complaintBubbles = document.querySelectorAll('.frog-complaint-bubble');
+        complaintBubbles.forEach(bubble => {
+            if (bubble && bubble.parentNode) {
+                bubble.parentNode.removeChild(bubble);
+            }
+        });
+        
+        // Dokładnie usuń wszystkie elementy żaby - teraz jeszcze dokładniej
+        const frogElements = bird.querySelectorAll('.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh');
+        console.log(`Znaleziono ${frogElements.length} elementów żaby do usunięcia`);
+        
+        frogElements.forEach(element => {
+            if (element && element.parentNode === bird) {
+                try {
+                    // Zatrzymaj wszystkie animacje na tym elemencie
+                    element.style.animation = 'none';
+                    
+                    // Usuwamy najpierw wszystkie dzieci elementu
+                    const children = element.querySelectorAll('*');
+                    children.forEach(child => {
+                        if (child && child.parentNode === element) {
+                            try {
+                                // Zatrzymaj animacje na dziecku
+                                child.style.animation = 'none';
+                                
+                                // Rekurencyjnie usuwamy dzieci dzieci (np. stopa w łydce)
+                                const grandchildren = child.querySelectorAll('*');
+                                grandchildren.forEach(grandchild => {
+                                    if (grandchild && grandchild.parentNode === child) {
+                                        // Zatrzymaj animacje na wnuku
+                                        grandchild.style.animation = 'none';
+                                        try {
+                                            child.removeChild(grandchild);
+                                        } catch (e) {
+                                            console.error("Błąd podczas usuwania wnuka elementu żaby:", e);
+                                        }
+                                    }
+                                });
+                                element.removeChild(child);
+                            } catch (e) {
+                                console.error("Błąd podczas usuwania dziecka elementu żaby:", e);
+                            }
+                        }
+                    });
+                    
+                    // Potem usuwamy sam element
+                    bird.removeChild(element);
+                } catch (e) {
+                    console.error("Błąd podczas usuwania elementu żaby:", e);
+                }
+            }
+        });
+        
+        // Usuń dodatkowe klasy
+        bird.classList.remove('charging', 'jumping', 'overloaded', 'rubber-mode');
+        
+        // Przywróć widoczność jetpacka
+        const jetpackFlames = bird.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.style.display = '';
+        }
+        
+        // Upewnij się, że wszystkie klasy są usunięte także z elementu gameArea
+        gameArea.classList.remove('frog-mode-active', 'screen-shake');
         
         // Pokaż komunikat o końcu trybu żaby i przejściu do trybu stali
         const endModeMsg = document.createElement('div');
@@ -183,6 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             updateFrogModeButton();
         }, 500);
+        
+        console.log("Deaktywacja trybu żaby - zakończono czyszczenie");
         
         // Aktywuj tryb stali jako przejściowy między żabą a duchem
         activateSteelMode();
@@ -224,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
             frogChargeIndicator = document.getElementById('frogJumpChargeIndicator');
         }
     
-        // Bardziej elastyczne warunki - nawet jeśli nie jest na ziemi, spróbuj załadować
+        // Zawsze pozwalamy na rozpoczęcie ładowania (pokazanie paska) niezależnie od tego czy frog jest na ziemi
         if (gameRunning && frogModeActive && !frogIsCharging) {
             frogIsCharging = true;
             frogChargeStart = performance.now();
@@ -257,16 +368,19 @@ document.addEventListener('DOMContentLoaded', function() {
             gameRunning,
             frogModeActive,
             frogIsCharging,
+            frogIsOnGround,
             chargeTime: frogChargeStart ? performance.now() - frogChargeStart : 0
         });
         
         // Bardziej liberalne warunki
         if (gameRunning && frogModeActive) {
             if (!frogIsCharging) {
-                console.log("Ładowanie nie było aktywne, ale i tak wykonuję skok");
-                // Jeśli ładowanie nie było aktywne, wykonaj minimalny skok
-                velocity = frogJumpMinPower;
-                playSound('jump');
+                console.log("Ładowanie nie było aktywne");
+                // Jeśli ładowanie nie było aktywne, sprawdź czy żaba jest na ziemi
+                if (frogIsOnGround) {
+                    velocity = frogJumpMinPower;
+                    playSound('jump');
+                }
                 return;
             }
             
@@ -275,40 +389,78 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Czas ładowania:", chargeTime, "ms, próg:", frogOverloadThreshold);
             
             // Sprawdź czy przekroczono próg przeładowania
-            if (chargeTime > frogOverloadThreshold) {
-                console.log("Przeładowanie!!!");
-                // Jest przeładowanie!
-                frogIsOverloaded = true;
-                
-                // Pokaż wskaźnik przeładowania
-                const overloadIndicator = document.getElementById('frogOverloadIndicator');
-                if (overloadIndicator) {
-                    overloadIndicator.style.display = 'flex';
+            const isOverloaded = chargeTime > frogOverloadThreshold;
+            
+            // Tutaj sprawdzamy czy żaba jest na ziemi - tylko wtedy faktycznie skacze
+            if (frogIsOnGround) {
+                if (isOverloaded) {
+                    console.log("Przeładowanie!!!");
+                    // Jest przeładowanie!
+                    frogIsOverloaded = true;
+                    
+                    // Pokaż wskaźnik przeładowania
+                    const overloadIndicator = document.getElementById('frogOverloadIndicator');
+                    if (overloadIndicator) {
+                        overloadIndicator.style.display = 'flex';
+                    }
+                    
+                    // Dodaj klasę przeładowania żaby
+                    bird.classList.add('overloaded');
+                    
+                    // Pokaż narzekanie żaby
+                    showFrogComplaint();
+                    
+                    // Zwiększona szansa na aktywację trybu kauczuka przy przeładowaniu (30% zamiast wcześniejszych wartości)
+                    if (Math.random() < 0.30) {
+                        console.log("TRYB KAUCZUKA AKTYWOWANY!");
+                        activateRubberMode();
+                    }
+                    
+                    // Nadaj ekstremalną siłę skoku
+                    velocity = frogJumpMaxPower * 1.5;
+                    
+                    // Ustaw liczbę odbić
+                    frogOverloadBounceCount = frogMaxBounces;
+                } else {
+                    // Normalne ładowanie - zastosuj proporcjonalną siłę skoku
+                    const chargePercent = Math.min(chargeTime / frogChargeMax, 1.0);
+                    const jumpPower = frogJumpMinPower + (frogJumpMaxPower - frogJumpMinPower) * chargePercent;
+                    velocity = jumpPower;
+                    console.log("Normalny skok z mocą:", jumpPower, "(", chargePercent * 100, "%)");
                 }
-                
-                // Dodaj klasę przeładowania żaby
-                bird.classList.add('overloaded');
-                
-                // Pokaż narzekanie żaby
-                showFrogComplaint();
-                
-                // Rzadka szansa na aktywację trybu kauczuka
-                if (Math.random() < frogRubberModeChance) {
-                    console.log("TRYB KAUCZUKA AKTYWOWANY!");
-                    activateRubberMode();
-                }
-                
-                // Nadaj ekstremalną siłę skoku
-                velocity = frogJumpMaxPower * 1.5;
-                
-                // Ustaw liczbę odbić
-                frogOverloadBounceCount = frogMaxBounces;
             } else {
-                // Normalne ładowanie - zastosuj proporcjonalną siłę skoku
-                const chargePercent = Math.min(chargeTime / frogChargeMax, 1.0);
-                const jumpPower = frogJumpMinPower + (frogJumpMaxPower - frogJumpMinPower) * chargePercent;
-                velocity = jumpPower;
-                console.log("Normalny skok z mocą:", jumpPower, "(", chargePercent * 100, "%)");
+                console.log("Żaba nie jest na ziemi - nie może skoczyć!");
+                
+                // Dodaj wizualne powiadomienie gdy żaba próbuje skoczyć w powietrzu
+                const midairJumpIndicator = document.createElement('div');
+                midairJumpIndicator.className = 'frog-midair-notice';
+                midairJumpIndicator.textContent = 'Nie mogę skakać w powietrzu!';
+                
+                // Pozycjonowanie względem żaby
+                const birdRect = bird.getBoundingClientRect();
+                midairJumpIndicator.style.left = (birdRect.left + birdRect.width / 2) + 'px';
+                midairJumpIndicator.style.top = (birdRect.top - 30) + 'px';
+                
+                // Dodaj do gry
+                gameArea.appendChild(midairJumpIndicator);
+                
+                // Dodaj subtelny efekt "drżenia" żaby by pokazać nieudaną próbę
+                bird.classList.add('frog-midair-attempt');
+                setTimeout(() => {
+                    bird.classList.remove('frog-midair-attempt');
+                }, 400);
+                
+                // Usuń powiadomienie po krótkim czasie
+                setTimeout(() => {
+                    if (midairJumpIndicator.parentNode) {
+                        midairJumpIndicator.style.opacity = '0';
+                        setTimeout(() => {
+                            if (midairJumpIndicator.parentNode) {
+                                gameArea.removeChild(midairJumpIndicator);
+                            }
+                        }, 300);
+                    }
+                }, 1500);
             }
             
             // Ukryj wskaźnik ładowania
@@ -454,10 +606,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             gameArea.classList.remove('screen-shake');
             
-            // Pokaż WULGARNY komunikat o trybie stali
+            // Pokaż komunikat o trybie stali (mniejszy tekst)
             const steelMsg = document.createElement('div');
             steelMsg.className = 'coinPop purpleCoinPop';
-            steelMsg.innerHTML = '<span style="font-size: 50px; font-weight: bold; color: #FF0000;">KACZKA KURWA ZE STALI!!!</span><br><span style="font-size: 24px; color: #DDDDDD;">MIAŻDŻ RURY I ZABIJAJ BOCIANY!</span>';
+            steelMsg.innerHTML = '<span style="font-size: 24px; font-weight: bold; color: #FF0000;">TRYB STALI</span><br><span style="font-size: 16px; color: #DDDDDD;">MIAŻDŻ RURY I ZABIJAJ BOCIANY!</span>';
             steelMsg.style.position = 'absolute';
             steelMsg.style.left = '50%';
             steelMsg.style.top = '50%';
@@ -550,7 +702,24 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deactivateSteelMode = function() {
         if (!steelModeActive) return;
         
+        console.log("Deaktywacja trybu stali - rozpoczęcie czyszczenia");
+        
         steelModeActive = false;
+        
+        // Zatrzymaj wszelkie animacje związane z trybem stali
+        if (bird.steelAnimation) {
+            cancelAnimationFrame(bird.steelAnimation);
+            bird.steelAnimation = null;
+        }
+        
+        // Usuń wszystkie efekty błysków i iskier
+        const steelEffects = document.querySelectorAll('[style*="steelFlash"], [class*="steelFlash"], [class*="spark"], [class*="debris"]');
+        steelEffects.forEach(effect => {
+            if (effect && effect.parentNode && effect !== bird) {
+                effect.style.animation = 'none';
+                effect.parentNode.removeChild(effect);
+            }
+        });
         
         // Przywróć wygląd kaczorka - ale nie odtwarzaj pełnej funkcji deactivateFrogMode
         // bo to już zostało zrobione wcześniej
@@ -561,10 +730,27 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.style.filter = 'none';
         bird.style.border = 'none'; // Usuwamy obramowanie stalowe
         
+        // Usuń wszystkie klasy związane z trybem stali
+        bird.classList.remove('steel-mode', 'metal-sheen', 'impervious');
+        
+        // Usuń efekty wibracji i inne efekty wizualne
+        gameArea.classList.remove('screen-shake');
+        
         // Przywróć normalną prędkość rur
         currentPipeSpeed = pipeSpeed;
         
+        // Usuń wszystkie efekty zniszczenia rur, które mogły pozostać
+        const destructionEffects = document.querySelectorAll('.coinPop[style*="CRUSH"], [class*="flash"], [class*="explosion"]');
+        destructionEffects.forEach(effect => {
+            if (effect && effect.parentNode) {
+                effect.style.animation = 'none';
+                effect.parentNode.removeChild(effect);
+            }
+        });
+        
         // Usuń rury o destroyed=true i te, które utknęły (mogą być w nieprawidłowym stanie)
+        console.log(`Sprawdzanie ${pipes.length} rur pod kątem uszkodzeń z powodu trybu stali`);
+        
         for (let i = pipes.length - 1; i >= 0; i--) {
             const pipe = pipes[i];
             
@@ -573,31 +759,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 !pipe.upPipe || !pipe.downPipe || 
                 !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
                 
-                // Usuń elementy DOM rury, jeśli jeszcze istnieją
-                if (pipe.upPipe && pipe.upPipe.parentNode) {
-                    gameArea.removeChild(pipe.upPipe);
+                try {
+                    // Usuń elementy DOM rury, jeśli jeszcze istnieją
+                    if (pipe.upPipe && pipe.upPipe.parentNode) {
+                        // Zatrzymaj wszystkie animacje
+                        pipe.upPipe.style.animation = 'none';
+                        pipe.upPipe.style.transition = 'none';
+                        gameArea.removeChild(pipe.upPipe);
+                    }
+                    if (pipe.downPipe && pipe.downPipe.parentNode) {
+                        // Zatrzymaj wszystkie animacje
+                        pipe.downPipe.style.animation = 'none';
+                        pipe.downPipe.style.transition = 'none';
+                        gameArea.removeChild(pipe.downPipe);
+                    }
+                    
+                    // Usuń rurę z tablicy
+                    pipes.splice(i, 1);
+                    console.log("Usunięto uszkodzoną rurę");
+                } catch (e) {
+                    console.error("Błąd podczas usuwania uszkodzonej rury:", e);
                 }
-                if (pipe.downPipe && pipe.downPipe.parentNode) {
-                    gameArea.removeChild(pipe.downPipe);
-                }
-                
-                // Usuń rurę z tablicy
-                pipes.splice(i, 1);
             } else {
-                // Upewnij się, że rura ma prawidłową pozycję i stylowanie
-                // (to powinno naprawić rury, które mogłyby być w nieprawidłowym stanie)
-                if (pipe.upPipe && pipe.downPipe) {
-                    pipe.upPipe.style.left = pipe.x + 'px';
-                    pipe.downPipe.style.left = pipe.x + 'px';
-                    
-                    // Upewnij się, że rura ma normalne stylowanie (bez efektów animacji)
-                    pipe.upPipe.style.transition = '';
-                    pipe.upPipe.style.transform = '';
-                    pipe.upPipe.style.opacity = '1';
-                    
-                    pipe.downPipe.style.transition = '';
-                    pipe.downPipe.style.transform = '';
-                    pipe.downPipe.style.opacity = '1';
+                try {
+                    // Upewnij się, że rura ma prawidłową pozycję i stylowanie
+                    // (to powinno naprawić rury, które mogłyby być w nieprawidłowym stanie)
+                    if (pipe.upPipe && pipe.downPipe) {
+                        // Resetuj style
+                        pipe.upPipe.style.left = pipe.x + 'px';
+                        pipe.downPipe.style.left = pipe.x + 'px';
+                        
+                        // Upewnij się, że rura ma normalne stylowanie (bez efektów animacji)
+                        pipe.upPipe.style.transition = '';
+                        pipe.upPipe.style.transform = '';
+                        pipe.upPipe.style.opacity = '1';
+                        pipe.upPipe.style.animation = '';
+                        
+                        pipe.downPipe.style.transition = '';
+                        pipe.downPipe.style.transform = '';
+                        pipe.downPipe.style.opacity = '1';
+                        pipe.downPipe.style.animation = '';
+                    }
+                } catch (e) {
+                    console.error("Błąd podczas naprawiania rur:", e);
                 }
             }
         }
@@ -605,17 +809,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Dodatkowe sprawdzenie po krótkim czasie, aby upewnić się, że nie ma problemów
         setTimeout(() => {
             for (let i = pipes.length - 1; i >= 0; i--) {
-                const pipe = pipes[i];
-                if (pipe.destroyed || !pipe.upPipe || !pipe.downPipe || 
-                    !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
-                    
-                    if (pipe.upPipe && pipe.upPipe.parentNode) {
-                        gameArea.removeChild(pipe.upPipe);
+                try {
+                    const pipe = pipes[i];
+                    if (pipe.destroyed || !pipe.upPipe || !pipe.downPipe || 
+                        !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
+                        
+                        if (pipe.upPipe && pipe.upPipe.parentNode) {
+                            gameArea.removeChild(pipe.upPipe);
+                        }
+                        if (pipe.downPipe && pipe.downPipe.parentNode) {
+                            gameArea.removeChild(pipe.downPipe);
+                        }
+                        pipes.splice(i, 1);
+                        console.log("Usunięto dodatkową uszkodzoną rurę");
                     }
-                    if (pipe.downPipe && pipe.downPipe.parentNode) {
-                        gameArea.removeChild(pipe.downPipe);
+                } catch (e) {
+                    console.error("Błąd podczas drugiego sprawdzenia rur:", e);
+                    // W przypadku wyjątku, bezpiecznie usuń rurę
+                    try {
+                        pipes.splice(i, 1);
+                    } catch (err) {
+                        console.error("Nie udało się usunąć rury z listy:", err);
                     }
-                    pipes.splice(i, 1);
                 }
             }
         }, 50);
@@ -636,6 +851,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 gameArea.removeChild(endSteelMsg);
             }
         }, 1000);
+        
+        console.log("Deaktywacja trybu stali - zakończono czyszczenie");
     }
     
     // Funkcja aktywująca Tryb Kauczuka
@@ -693,17 +910,49 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deactivateRubberMode = function() {
         if (!rubberModeActive) return;
         
+        console.log("Deaktywacja trybu kauczuka - rozpoczęcie czyszczenia");
+        
         rubberModeActive = false;
         rubberModeTime = 0;
         
+        // Zatrzymaj wszelkie animacje związane z kauczukiem
+        if (bird.rubberAnimation) {
+            cancelAnimationFrame(bird.rubberAnimation);
+            bird.rubberAnimation = null;
+        }
+        
         // Usuń klasę efektu wizualnego
         bird.classList.remove('rubber-mode');
+        
+        // Resetuj filter i inne modyfikacje wizualne
+        bird.style.filter = '';
         
         // Ukryj wskaźnik trybu kauczuka
         const rubberModeIndicator = document.getElementById('rubberModeIndicator');
         if (rubberModeIndicator) {
             rubberModeIndicator.style.display = 'none';
+            
+            // Zatrzymaj animacje wskaźnika
+            rubberModeIndicator.style.animation = 'none';
         }
+        
+        // Resetuj wskaźnik czasu trybu kauczuka
+        const rubberModeTimer = document.getElementById('rubberModeTimer');
+        if (rubberModeTimer) {
+            rubberModeTimer.textContent = '0s';
+        }
+        
+        // Usuń wszystkie efekty wizualne związane z kauczukiem
+        const rubberEffects = document.querySelectorAll('.rubber-effect, .bounce-effect');
+        rubberEffects.forEach(effect => {
+            if (effect && effect.parentNode) {
+                effect.style.animation = 'none';
+                effect.parentNode.removeChild(effect);
+            }
+        });
+        
+        // Usuń klasy wizualnych efektów
+        gameArea.classList.remove('screen-shake', 'rubber-filter');
         
         // Pokaż komunikat o końcu trybu kauczuka
         const endModeMsg = document.createElement('div');
@@ -724,6 +973,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Efekt dźwiękowy
         playSound('jump');
+        
+        console.log("Deaktywacja trybu kauczuka - zakończono czyszczenie");
     }
     
     // Funkcje TRYB DUCHA
@@ -790,11 +1041,28 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deactivateGhostMode = function() {
         if (!ghostModeActive) return;
         
+        console.log("Deaktywacja trybu ducha - rozpoczęcie czyszczenia");
+        
         ghostModeActive = false;
         ghostModeTime = 0;
         gameArea.classList.remove('ghost-mode-active');
         ghostModeTimer.style.display = 'none';
         ghostMode = false;
+        
+        // Zatrzymaj wszelkie animacje związane z duchem
+        if (bird.ghostAnimation) {
+            cancelAnimationFrame(bird.ghostAnimation);
+            bird.ghostAnimation = null;
+        }
+        
+        // Usuń wszystkie efekty ektoplazmy lub innych zjawisk duchowych
+        const ghostEffects = document.querySelectorAll('.ghost-effect, .ghost-trail');
+        ghostEffects.forEach(effect => {
+            if (effect && effect.parentNode) {
+                effect.style.animation = 'none';
+                effect.parentNode.removeChild(effect);
+            }
+        });
         
         // Przywracamy normalny wygląd ptaka - resetujemy do kaczorka
         bird.style.animation = 'crazyDuck 2s infinite alternate';
@@ -805,11 +1073,25 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.style.transform = 'rotate(0deg)';
         bird.style.opacity = '1';
         
+        // Usuń wszystkie klasy związane z duchem
+        bird.classList.remove('ghost-mode', 'ghost-floating', 'ghost-transparent');
+        
         // Przywróć widoczność jetpacka
         const jetpackFlames = bird.querySelector('.jetpack-flames');
         if (jetpackFlames) {
             jetpackFlames.style.display = '';
         }
+        
+        // Usuń wszystkie efekty poświaty
+        const glowEffects = document.querySelectorAll('.ghost-glow');
+        glowEffects.forEach(effect => {
+            if (effect && effect.parentNode) {
+                effect.parentNode.removeChild(effect);
+            }
+        });
+        
+        // Usuń klasy wizualnych efektów
+        gameArea.classList.remove('screen-shake', 'ghost-filter');
         
         // Pokaż komunikat o końcu trybu ducha
         const endModeMsg = document.createElement('div');
@@ -835,6 +1117,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             updateGhostModeButton();
         }, 500);
+        
+        console.log("Deaktywacja trybu ducha - zakończono czyszczenie");
     }
     
     window.updateGhostModeButton = function() {
@@ -897,18 +1181,18 @@ document.addEventListener('DOMContentLoaded', function() {
             gameArea.classList.remove('frog-mode-active');
             frogModeTimer.style.display = 'none';
             
-            // Usuń elementy żaby
+            // Dokładnie usuń wszystkie elementy żaby
             const frogElements = bird.querySelectorAll('.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh');
             frogElements.forEach(element => {
-                if (element.parentNode === bird) {
+                if (element && element.parentNode === bird) {
                     // Usuwamy najpierw wszystkie dzieci elementu
                     const children = element.querySelectorAll('*');
                     children.forEach(child => {
-                        if (child.parentNode === element) {
+                        if (child && child.parentNode === element) {
                             // Rekurencyjnie usuwamy dzieci dzieci (np. stopa w łydce)
                             const grandchildren = child.querySelectorAll('*');
                             grandchildren.forEach(grandchild => {
-                                if (grandchild.parentNode === child) {
+                                if (grandchild && grandchild.parentNode === child) {
                                     child.removeChild(grandchild);
                                 }
                             });
@@ -919,6 +1203,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     bird.removeChild(element);
                 }
             });
+            
+            // Usuń dodatkowe klasy żaby
+            bird.classList.remove('charging', 'jumping', 'overloaded', 'rubber-mode');
             
             // Aktywuj TRYB BOCIANA
             storkModeActive = true;
@@ -960,10 +1247,35 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deactivateStorkMode = function() {
         if (!storkModeActive) return;
         
+        console.log("Deaktywacja trybu bociana - rozpoczęcie czyszczenia");
+        
         storkModeActive = false;
         storkModeTime = 0;
         gameArea.classList.remove('stork-mode-active');
         storkModeTimer.style.display = 'none';
+        
+        // Wyczyść wszystkie dodatkowe elementy związane z trybem bociana
+        const windCoins = document.querySelectorAll('.windCoin');
+        windCoins.forEach(coin => {
+            if (coin && coin.parentNode) {
+                coin.parentNode.removeChild(coin);
+            }
+        });
+        
+        // Zatrzymaj wszelkie animacje związane z bocianem
+        if (bird.storkAnimation) {
+            cancelAnimationFrame(bird.storkAnimation);
+            bird.storkAnimation = null;
+        }
+        
+        // Usuń wszystkie elementy bociana, które mogły pozostać
+        const storkElements = bird.querySelectorAll('.wings, .cap');
+        storkElements.forEach(element => {
+            if (element && element.parentNode) {
+                element.style.animation = 'none';
+                element.parentNode.removeChild(element);
+            }
+        });
         
         // Przywracamy normalny wygląd ptaka - resetujemy do kaczorka
         bird.style.animation = 'crazyDuck 2s infinite alternate';
@@ -972,6 +1284,20 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.style.boxShadow = '0 2px 10px rgba(255, 215, 0, 0.7)';
         bird.style.filter = 'none';
         bird.style.transform = 'rotate(0deg)';
+        
+        // Usuń wszystkie klasy i style z animacji bociana
+        bird.classList.remove('stork-mode', 'stork-flying');
+        
+        // Usuń wszystkie efekty rozbłysku, które mogły zostać
+        const flashEffects = document.querySelectorAll('[class*="flash"]');
+        flashEffects.forEach(effect => {
+            if (effect && effect.parentNode && effect !== bird) {
+                effect.parentNode.removeChild(effect);
+            }
+        });
+        
+        // Usuń klasy wizualnych efektów
+        gameArea.classList.remove('screen-shake');
         
         // Pokaż komunikat o końcu trybu bociana
         const endModeMsg = document.createElement('div');
@@ -997,6 +1323,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             updateStorkModeButton();
         }, 500);
+        
+        console.log("Deaktywacja trybu bociana - zakończono czyszczenie");
         
         // Automatycznie aktywuj tryb ducha za darmo
         if (!ghostModeActive) {
@@ -1041,8 +1369,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (gameRunning) {
             if (frogModeActive) {
-                // W trybie żaby zaczynamy ładować skok
-                // Bardziej elastyczne warunki - zawsze próbuj ładować
+                // W trybie żaby zawsze pokazujemy pasek ładowania niezależnie czy żaba jest na ziemi
+                // Faktyczny skok wykona się tylko gdy żaba jest na ziemi - sprawdzane w stopFrogCharging
                 startFrogCharging();
                 // Faktyczne wykonanie skoku obsługuje funkcja stopFrogCharging
             } else if (steelModeActive) {

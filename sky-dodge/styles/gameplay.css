@@ -84,7 +84,7 @@ button:hover {
     transform: translateX(-50%);
     z-index: 5;
     display: none;
-    overflow: hidden;
+    /* Usuń overflow: hidden aby pasek mógł wyjść poza skalę - efekt humorystyczny */
     border: 2px solid #2E8B57;
     box-shadow: 0 0 10px rgba(46, 139, 87, 0.7);
 }
@@ -1018,4 +1018,62 @@ transform: rotate(-30deg);
     0% { transform: scale(1); }
     50% { transform: scale(1.03); }
     100% { transform: scale(1); }
+}
+
+/* Style dla komunikatu o niemożności skoku w powietrzu */
+.frog-midair-notice {
+    position: absolute;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #FF5722;
+    font-weight: bold;
+    font-size: 14px;
+    border-radius: 8px;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    transition: opacity 0.3s;
+    border: 2px solid #4CAF50;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Efekt dymku */
+.frog-midair-notice::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Animacja drżenia dla nieudanej próby skoku w powietrzu */
+@keyframes frogMidairAttempt {
+    0% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-3px) rotate(-2deg); }
+    50% { transform: translateX(3px) rotate(2deg); }
+    75% { transform: translateX(-2px) rotate(-1deg); }
+    100% { transform: translateX(0) rotate(0deg); }
+}
+
+.frog-midair-attempt {
+    animation: frogMidairAttempt 0.4s ease;
+}
+
+/* Animacja lądowania żaby na ziemi */
+@keyframes frogLanding {
+    0% { transform: scaleY(1.1) scaleX(0.9); }
+    40% { transform: scaleY(0.8) scaleX(1.2); }
+    70% { transform: scaleY(1.05) scaleX(0.95); }
+    100% { transform: scaleY(1) scaleX(1); }
+}
+
+.frog-landing {
+    animation: frogLanding 0.2s ease-out;
 }
