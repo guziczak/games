@@ -521,55 +521,113 @@ const soundGenerators = {
             }
         };
         
-        // Create game over duck sequence
+        // Create game over duck sequence - more dense laughing quacks
         let currentTime = audioContext.currentTime;
         
         // 1. First warning quack
         currentTime = createQuack(currentTime, 0.8, 0.4, 0.6);
+        currentTime += 0.2; // Shorter pause
+        if (!this.active) return;
+        
+        // 2. Left side duck sequence - more quacks, shorter pauses
+        currentTime = createDuckSequence(
+            currentTime,
+            5, // more quacks
+            [1.0, 1.4], // pitch range
+            [0.4, 0.7], // volume range
+            [0.05, 0.12] // much shorter pauses
+        );
+        currentTime += 0.1; // Shorter pause
+        if (!this.active) return;
+        
+        // 3. Overlapping right side duck sequence
+        // Start slightly before the previous sequence ends for overlapping effect
+        const rightSideTime = currentTime - 0.1;
+        setTimeout(() => {
+            if (this.active) {
+                createDuckSequence(
+                    rightSideTime,
+                    4, // more quacks
+                    [0.7, 1.1], // pitch range
+                    [0.5, 0.7], // volume range
+                    [0.06, 0.15] // shorter pauses
+                );
+            }
+        }, 10);
+        
+        // 4. More overlapping duck laughs from center
+        setTimeout(() => {
+            if (this.active) {
+                createDuckSequence(
+                    currentTime + 0.15,
+                    6, // more quacks
+                    [0.9, 1.2], // pitch range
+                    [0.4, 0.6], // volume range
+                    [0.04, 0.1] // very short pauses for rapid laughing effect
+                );
+            }
+        }, 20);
+        
         currentTime += 0.3;
         if (!this.active) return;
         
-        // 2. Left side duck sequence
-        currentTime = createDuckSequence(
-            currentTime,
-            3, // number of quacks
-            [1.0, 1.3], // pitch range
-            [0.4, 0.6], // volume range
-            [0.1, 0.2] // pause range
-        );
-        currentTime += 0.2;
-        if (!this.active) return;
+        // 5. Add wing flapping in the background
+        createWingFlaps(audioContext.currentTime + 0.3, 2.5, 2.0);
         
-        // 3. Right side duck sequence
-        currentTime = createDuckSequence(
-            currentTime,
-            2, // number of quacks
-            [0.7, 0.9], // pitch range
-            [0.5, 0.7], // volume range
-            [0.15, 0.25] // pause range
-        );
-        currentTime += 0.2;
-        if (!this.active) return;
+        // 6. High-pitched laughing ducks
+        setTimeout(() => {
+            if (this.active) {
+                createDuckSequence(
+                    currentTime + 0.1,
+                    7, // many quacks
+                    [1.2, 1.6], // higher pitched for laughing effect
+                    [0.3, 0.5], // moderate volume
+                    [0.03, 0.08] // very short pauses for rapid laughing
+                );
+            }
+        }, 30);
         
-        // 4. Add wing flapping in the background
-        createWingFlaps(audioContext.currentTime + 0.5, 2.0, 1.5);
+        // 7. Low-pitched laughing ducks (overlapping with high-pitched)
+        setTimeout(() => {
+            if (this.active) {
+                createDuckSequence(
+                    currentTime + 0.25,
+                    5, // several quacks
+                    [0.6, 0.8], // lower pitched
+                    [0.4, 0.65], // moderate volume
+                    [0.05, 0.1] // short pauses
+                );
+            }
+        }, 40);
         
-        // 5. Final duck calls
-        currentTime = createDuckSequence(
-            currentTime,
-            4, // number of quacks
-            [0.6, 1.4], // wider pitch range
-            [0.5, 0.8], // louder
-            [0.08, 0.15] // shorter pauses
-        );
+        currentTime += 0.5;
         
-        // 6. Final big quack
+        // 8. Chaotic duck laughter finale
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                if (this.active) {
+                    // Create overlapping duck sequences with random parameters
+                    const startOffset = randomBetween(0, 0.2);
+                    createDuckSequence(
+                        currentTime + startOffset,
+                        randomBetween(3, 6), // random number of quacks
+                        [randomBetween(0.7, 1.4), randomBetween(0.9, 1.6)], // random pitch range
+                        [0.3, 0.7], // volume range
+                        [0.02, 0.07] // very short pauses
+                    );
+                }
+            }, i * 50); // Stagger the start times
+        }
+        
+        currentTime += 0.6;
+        
+        // 9. Final big quack
         if (this.active) {
             const finalQuack = createQuack(
-                currentTime + 0.2,
+                currentTime + 0.3,
                 0.7, // lower pitch
                 0.5, // longer duration
-                0.9  // louder volume
+                1.0  // maximum volume
             );
         }
         
