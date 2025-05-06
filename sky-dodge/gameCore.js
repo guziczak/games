@@ -487,7 +487,26 @@ document.addEventListener('DOMContentLoaded', function() {
             lastCoinTime = timestamp;
         }
         
-        pipes.forEach((pipe, index) => {
+        // Usuń wszystkie zniszczone rury przed aktualizacją
+        for (let i = pipes.length - 1; i >= 0; i--) {
+            const pipe = pipes[i];
+            if (pipe.destroyed || pipe.scheduledForRemoval) {
+                // Usuń zniszczone rury z DOM i z tablicy
+                if (pipe.upPipe && pipe.upPipe.parentNode) {
+                    gameArea.removeChild(pipe.upPipe);
+                }
+                if (pipe.downPipe && pipe.downPipe.parentNode) {
+                    gameArea.removeChild(pipe.downPipe);
+                }
+                pipes.splice(i, 1);
+            }
+        }
+        
+        // Główna pętla aktualizacji rur - użyj standardowej pętli zamiast forEach
+        // Iterujemy od końca, aby bezpiecznie usuwać elementy
+        for (let i = pipes.length - 1; i >= 0; i--) {
+            const pipe = pipes[i];
+            
             pipe.x -= currentPipeSpeed * deltaTime;
             
             if (pipe.upPipe && pipe.downPipe) {
@@ -503,10 +522,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pipe.x + pipeWidth < 0) {
                     if (pipe.upPipe.parentNode) gameArea.removeChild(pipe.upPipe);
                     if (pipe.downPipe.parentNode) gameArea.removeChild(pipe.downPipe);
-                    pipes.splice(index, 1);
+                    pipes.splice(i, 1);
                 }
+            } else {
+                // Jeśli rura ma brakujące elementy, usuń ją
+                pipes.splice(i, 1);
             }
-        });
+        }
         
         // Obsługa bocianów
         for (let i = storks.length - 1; i >= 0; i--) {

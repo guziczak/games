@@ -157,70 +157,14 @@ document.addEventListener('DOMContentLoaded', function() {
         invincible = false; // Wyłącz nieśmiertelność
         currentPipeSpeed = pipeSpeed; // Normalna prędkość
         
-        // Usuń rurki wokół kurczaka, aby dać graczowi czas na reakcję
-        // po zakończeniu nieśmiertelności
-        const birdRect = bird.getBoundingClientRect();
-        let pipesToRemoveIndices = [];
-        let pipesBeforeCount = 0;
-        let pipesAfterCount = 0;
+        // USUNIĘTE: Nie usuwamy rurek wokół kurczaka, bo tryb stali pozwala je rozwalić
         
-        // Znajdź indeksy 2 rurek przed i 1 za kurczakiem
-        for (let i = 0; i < pipes.length; i++) {
-            if (!pipes[i].upPipe) continue;
-            
-            const pipeRect = pipes[i].upPipe.getBoundingClientRect();
-            
-            if (pipeRect.left > birdRect.right) {
-                // Rury przed kurczakiem (na prawo od niego)
-                if (pipesBeforeCount < 2) {
-                    pipesToRemoveIndices.push(i);
-                    pipesBeforeCount++;
-                }
-            } else if (pipeRect.right < birdRect.left) {
-                // Rury za kurczakiem (na lewo od niego)
-                if (pipesAfterCount < 1 && pipeRect.right > birdRect.left - 300) {
-                    // Tylko jeśli rura jest blisko (w odległości 300px)
-                    pipesToRemoveIndices.push(i);
-                    pipesAfterCount++;
-                }
-            }
-        }
-        
-        // Usuń rury w kolejności malejącej, aby indeksy się nie zmieniały podczas usuwania
-        pipesToRemoveIndices.sort((a, b) => b - a);
-        
-        // Pokaż efekt usuwania rurek
-        for (let index of pipesToRemoveIndices) {
-            if (index >= 0 && index < pipes.length) {
-                const pipe = pipes[index];
-                if (pipe.upPipe) {
-                    // Animacja usuwania rury
-                    pipe.upPipe.style.transition = 'opacity 0.5s';
-                    pipe.upPipe.style.opacity = '0';
-                    pipe.downPipe.style.transition = 'opacity 0.5s';
-                    pipe.downPipe.style.opacity = '0';
-                    
-                    // Usuń po zakończeniu animacji
-                    setTimeout(() => {
-                        if (pipe.upPipe && pipe.upPipe.parentNode) {
-                            gameArea.removeChild(pipe.upPipe);
-                        }
-                        if (pipe.downPipe && pipe.downPipe.parentNode) {
-                            gameArea.removeChild(pipe.downPipe);
-                        }
-                    }, 500);
-                }
-                // Usuń z tablicy pipes
-                pipes.splice(index, 1);
-            }
-        }
-        
-        // Pokaż komunikat o końcu trybu żaby
+        // Pokaż komunikat o końcu trybu żaby i przejściu do trybu stali
         const endModeMsg = document.createElement('div');
         endModeMsg.className = 'coinPop';
         endModeMsg.textContent = 'Koniec trybu froga!';
         endModeMsg.style.left = '50%';
-        endModeMsg.style.top = '50%';
+        endModeMsg.style.top = '40%';
         endModeMsg.style.transform = 'translate(-50%, -50%)';
         endModeMsg.style.color = 'red';
         endModeMsg.style.fontSize = '24px';
@@ -468,67 +412,138 @@ document.addEventListener('DOMContentLoaded', function() {
             jetpackFlames.style.display = '';
         }
         
-        // Zmień wygląd na stalowego ptaka
+        // Zmień wygląd na stalowego ptaka - bardziej metaliczny wygląd
         bird.style.animation = 'none';
-        bird.style.background = 'linear-gradient(135deg, #A9A9A9, #778899, #C0C0C0)';
+        bird.style.background = 'linear-gradient(135deg, #A9A9A9, #414549, #C0C0C0)';
         bird.style.borderRadius = '50% 50% 30% 30%';
         bird.style.boxShadow = '0 0 20px rgba(192, 192, 192, 0.9), inset 0 0 10px rgba(255, 255, 255, 0.8)';
-        bird.style.filter = 'brightness(1.2) contrast(1.2)';
+        bird.style.filter = 'brightness(1.3) contrast(1.3)';
+        bird.style.border = '1px solid #FFF';
         
         // Efekt odbicia od ziemi przy transformacji
         if (frogIsOnGround) {
-            velocity = -10; // Silny impuls do góry
+            velocity = -12; // Jeszcze silniejszy impuls do góry
             playSound('jump'); // Efekt dźwiękowy
         }
         
-        // Pokaż komunikat o trybie stali
-        const steelMsg = document.createElement('div');
-        steelMsg.className = 'coinPop purpleCoinPop';
-        steelMsg.textContent = 'TRYB STALI!';
-        steelMsg.style.left = '50%';
-        steelMsg.style.top = '50%';
-        steelMsg.style.transform = 'translate(-50%, -50%)';
-        steelMsg.style.color = '#C0C0C0';
-        steelMsg.style.fontSize = '30px';
-        steelMsg.style.textShadow = '0 0 10px #FFFFFF';
-        gameArea.appendChild(steelMsg);
+        // WULGARNY KOMUNIKAT O TRYBIE STALI - EPICKIE OGŁOSZENIE
         
-        // Efekt wibracji ekranu
-        gameArea.classList.add('screen-shake');
-        setTimeout(() => {
-            gameArea.classList.remove('screen-shake');
-        }, 300);
-        
-        // Błysk metaliczny
+        // Najpierw błysk metaliczny na całym ekranie
         const flashEffect = document.createElement('div');
         flashEffect.style.position = 'absolute';
         flashEffect.style.width = '100%';
         flashEffect.style.height = '100%';
-        flashEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+        flashEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
         flashEffect.style.zIndex = '1000';
         flashEffect.style.pointerEvents = 'none';
         gameArea.appendChild(flashEffect);
+        
+        // Mocny efekt wibracji ekranu
+        gameArea.classList.add('screen-shake');
+        
+        // Odtwórz kilka dźwięków dla większego efektu
+        playSound('storkDefeat');
+        setTimeout(() => {
+            playSound('jump');
+        }, 100);
         
         // Usuń błysk po chwili
         setTimeout(() => {
             if (flashEffect.parentNode) {
                 gameArea.removeChild(flashEffect);
             }
-        }, 100);
-        
-        setTimeout(() => {
-            if (steelMsg.parentNode) {
-                gameArea.removeChild(steelMsg);
-            }
+            gameArea.classList.remove('screen-shake');
             
-            // Po określonym czasie przejdź do trybu ducha
+            // Pokaż WULGARNY komunikat o trybie stali
+            const steelMsg = document.createElement('div');
+            steelMsg.className = 'coinPop purpleCoinPop';
+            steelMsg.innerHTML = '<span style="font-size: 50px; font-weight: bold; color: #FF0000;">KACZKA KURWA ZE STALI!!!</span><br><span style="font-size: 24px; color: #DDDDDD;">MIAŻDŻ RURY I ZABIJAJ BOCIANY!</span>';
+            steelMsg.style.position = 'absolute';
+            steelMsg.style.left = '50%';
+            steelMsg.style.top = '50%';
+            steelMsg.style.transform = 'translate(-50%, -50%) scale(0)';
+            steelMsg.style.transition = 'transform 0.3s';
+            steelMsg.style.textShadow = '0 0 10px #FF0000, 0 0 20px #FF0000';
+            steelMsg.style.textAlign = 'center';
+            steelMsg.style.zIndex = '1001';
+            steelMsg.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            steelMsg.style.padding = '20px';
+            steelMsg.style.borderRadius = '10px';
+            steelMsg.style.border = '3px solid #C0C0C0';
+            gameArea.appendChild(steelMsg);
+            
+            // Animuj tekst od małego do dużego
             setTimeout(() => {
-                deactivateSteelMode();
-                if (!ghostModeActive) {
-                    activateGhostMode(null, true);
+                steelMsg.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                
+                // Drugi silny efekt wibracji ekranu
+                gameArea.classList.add('screen-shake');
+                setTimeout(() => {
+                    gameArea.classList.remove('screen-shake');
+                    steelMsg.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 200);
+                
+                // Dodaj metaliczne błyski wokół kaczki
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const sparkle = document.createElement('div');
+                        sparkle.style.position = 'absolute';
+                        sparkle.style.width = '20px';
+                        sparkle.style.height = '20px';
+                        sparkle.style.borderRadius = '50%';
+                        sparkle.style.backgroundColor = '#FFFFFF';
+                        sparkle.style.boxShadow = '0 0 20px #FFFFFF, 0 0 40px #FFFF00';
+                        
+                        // Randomowa pozycja wokół kaczki
+                        const birdRect = bird.getBoundingClientRect();
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = 40 + Math.random() * 30;
+                        const x = birdRect.left + birdRect.width/2 + Math.cos(angle) * distance;
+                        const y = birdRect.top + birdRect.height/2 + Math.sin(angle) * distance;
+                        
+                        sparkle.style.left = x + 'px';
+                        sparkle.style.top = y + 'px';
+                        sparkle.style.transform = 'scale(0)';
+                        sparkle.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                        gameArea.appendChild(sparkle);
+                        
+                        // Animuj iskrę
+                        setTimeout(() => {
+                            sparkle.style.transform = 'scale(1)';
+                            setTimeout(() => {
+                                sparkle.style.opacity = '0';
+                                setTimeout(() => {
+                                    if (sparkle.parentNode) {
+                                        gameArea.removeChild(sparkle);
+                                    }
+                                }, 300);
+                            }, 200);
+                        }, 10);
+                    }, i * 150); // Rozłóż w czasie
                 }
-            }, steelModeDuration * 1000);
-        }, 1500);
+            }, 10);
+            
+            // Usuń komunikat po dłuższym czasie aby był bardziej widoczny
+            setTimeout(() => {
+                if (steelMsg.parentNode) {
+                    steelMsg.style.transform = 'translate(-50%, -50%) scale(0)';
+                    setTimeout(() => {
+                        if (steelMsg.parentNode) {
+                            gameArea.removeChild(steelMsg);
+                        }
+                    }, 300);
+                }
+            }, 2500);
+            
+        }, 300);
+        
+        // Po określonym czasie przejdź do trybu ducha
+        setTimeout(() => {
+            deactivateSteelMode();
+            if (!ghostModeActive) {
+                activateGhostMode(null, true);
+            }
+        }, steelModeDuration * 1000);
     }
     
     // Funkcja deaktywująca tryb stali
@@ -544,6 +559,66 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.style.borderRadius = '50% 50% 30% 30%';
         bird.style.boxShadow = '0 2px 10px rgba(255, 215, 0, 0.7)';
         bird.style.filter = 'none';
+        bird.style.border = 'none'; // Usuwamy obramowanie stalowe
+        
+        // Przywróć normalną prędkość rur
+        currentPipeSpeed = pipeSpeed;
+        
+        // Usuń rury o destroyed=true i te, które utknęły (mogą być w nieprawidłowym stanie)
+        for (let i = pipes.length - 1; i >= 0; i--) {
+            const pipe = pipes[i];
+            
+            // Sprawdź, czy rura jest zniszczona lub uszkodzona
+            if (pipe.destroyed || pipe.scheduledForRemoval || 
+                !pipe.upPipe || !pipe.downPipe || 
+                !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
+                
+                // Usuń elementy DOM rury, jeśli jeszcze istnieją
+                if (pipe.upPipe && pipe.upPipe.parentNode) {
+                    gameArea.removeChild(pipe.upPipe);
+                }
+                if (pipe.downPipe && pipe.downPipe.parentNode) {
+                    gameArea.removeChild(pipe.downPipe);
+                }
+                
+                // Usuń rurę z tablicy
+                pipes.splice(i, 1);
+            } else {
+                // Upewnij się, że rura ma prawidłową pozycję i stylowanie
+                // (to powinno naprawić rury, które mogłyby być w nieprawidłowym stanie)
+                if (pipe.upPipe && pipe.downPipe) {
+                    pipe.upPipe.style.left = pipe.x + 'px';
+                    pipe.downPipe.style.left = pipe.x + 'px';
+                    
+                    // Upewnij się, że rura ma normalne stylowanie (bez efektów animacji)
+                    pipe.upPipe.style.transition = '';
+                    pipe.upPipe.style.transform = '';
+                    pipe.upPipe.style.opacity = '1';
+                    
+                    pipe.downPipe.style.transition = '';
+                    pipe.downPipe.style.transform = '';
+                    pipe.downPipe.style.opacity = '1';
+                }
+            }
+        }
+        
+        // Dodatkowe sprawdzenie po krótkim czasie, aby upewnić się, że nie ma problemów
+        setTimeout(() => {
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const pipe = pipes[i];
+                if (pipe.destroyed || !pipe.upPipe || !pipe.downPipe || 
+                    !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
+                    
+                    if (pipe.upPipe && pipe.upPipe.parentNode) {
+                        gameArea.removeChild(pipe.upPipe);
+                    }
+                    if (pipe.downPipe && pipe.downPipe.parentNode) {
+                        gameArea.removeChild(pipe.downPipe);
+                    }
+                    pipes.splice(i, 1);
+                }
+            }
+        }, 50);
         
         // Komunikat o końcu trybu stali
         const endSteelMsg = document.createElement('div');

@@ -38,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
             x: gameArea.clientWidth,
             upPipe: upPipe,
             downPipe: downPipe,
-            passed: false
+            passed: false,
+            destroyed: false
         });
     }
     
@@ -1048,7 +1049,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         playSound('storkDefeat');
                     }, 100);
                     
-                    // Usuń rurę z gry po efekcie
+                    // Oznacz rurę jako zniszczoną
+                    pipe.destroyed = true;
+                    
+                    // Zamiast usuwać w setTimeout, oznaczamy rurę do usunięcia
+                    // i pozwalamy głównej pętli w gameCore.js obsłużyć usuwanie
                     setTimeout(() => {
                         if (pipe.upPipe && pipe.upPipe.parentNode) {
                             gameArea.removeChild(pipe.upPipe);
@@ -1056,8 +1061,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (pipe.downPipe && pipe.downPipe.parentNode) {
                             gameArea.removeChild(pipe.downPipe);
                         }
-                        // Usuń z tablicy
-                        pipes.splice(i, 1);
+                        // NIE usuwamy bezpośrednio z tablicy, zostanie to obsłużone w głównej pętli
+                        // pipe.scheduledForRemoval = true; - usuwanie zostaje obsłużone przez element DOM
                     }, 400);
                     
                     // Dodaj większy bonus punktowy za zniszczenie rury
