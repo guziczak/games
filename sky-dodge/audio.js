@@ -360,253 +360,112 @@ const soundGenerators = {
         twinkleOsc.stop(audioContext.currentTime + 0.35);
     },
     
-    // Game over - KACZKI KWACZĄ GRACZA NA ŚMIERĆ
+    // Game over - DUCK SOUNDS
     gameOver: function() {
         if (!audioContext) {
             if (!initAudioSystem()) return;
         }
         
-        // Ustaw flagę aktywności i utwórz metodę zatrzymującą dźwięk
+        // Set activity flag and create method to stop the sound
         this.active = true;
         
-        // Metoda zatrzymująca dźwięk końca gry
+        // Method to stop the game over sound
         this.stop = function() {
             this.active = false;
             stopAllSounds();
         };
         
-        // Wyczyść wszystkie istniejące dźwięki
+        // Clear all existing sounds
         stopAllSounds();
         
-        // Główny regulator głośności efektu końca gry - zwiększona głośność
+        // Main volume control for game over effect
         const gameOverMasterGain = audioContext.createGain();
-        gameOverMasterGain.gain.value = 0.8; // Zwiększona głośność
+        gameOverMasterGain.gain.value = 0.8; // Lower overall volume
         gameOverMasterGain.connect(masterGainNode);
         
-        // =========== FUNKCJA TWORZĄCA REALISTYCZNE KWAKANIE KACZKI ===========
-        
-        // Funkcja generująca bardzo realistyczne kacze kwakanie
-        const createQuack = (startTime, pitch = 1.0, duration = 0.2, volume = 0.5, mockLevel = 1) => {
-            // Sprawdź czy dźwięk można odtworzyć
+        // Simple function to create a duck quack
+        const createQuack = (startTime, pitch = 1.0, duration = 0.2, volume = 0.7) => {
+            // Check if sound can be played
             if (!this.active) return startTime;
             
-            // Trzy główne oscylatory dla realistycznego kaczego głosu
-            const quackOsc = audioContext.createOscillator();  // Główny ton krtaniowy
-            const nasalOsc = audioContext.createOscillator();  // Nosowy rezonans
-            const throatOsc = audioContext.createOscillator(); // Gardłowy rezonans
-            
+            // Main quack oscillator
+            const quackOsc = audioContext.createOscillator();
             const quackGain = audioContext.createGain();
-            const nasalGain = audioContext.createGain();
-            const throatGain = audioContext.createGain();
-            
-            // Śledzenie oscylatorów do późniejszego zatrzymania
             trackOscillator(quackOsc);
-            trackOscillator(nasalOsc);
-            trackOscillator(throatOsc);
             
-            // Typy fal dla każdego oscylatora - dopasowane do rzeczywistego spektrum kaczego kwakania
-            quackOsc.type = 'sawtooth';   // Główna tonacja kaczego kwaku
-            nasalOsc.type = 'triangle';   // Nosowe tony
-            throatOsc.type = 'square';    // Chrapliwe tony gardłowe
+            // Filter for duck sound
+            const quackFilter = audioContext.createBiquadFilter();
+            quackFilter.type = 'bandpass';
+            quackFilter.frequency.value = 600 * pitch;
+            quackFilter.Q.value = 2.0;
             
-            // Filtry do realistycznego ukształtowania dźwięku
-            // Rzeczywiste kacze kwakanie ma charakterystyczne pasma częstotliwości
+            // Configure for duck sound
+            quackOsc.type = 'sawtooth';
             
-            // Główny filtr formantowy dla kaczego "kwaa"
-            const mainFilter = audioContext.createBiquadFilter();
-            mainFilter.type = 'bandpass';
-            mainFilter.Q.value = 3.5; // Ostrzejsza krzywa dla wyraźniejszego kwakania
+            // Base frequency - ducks typically quack in 200-400 Hz range
+            const baseFreq = 280 * pitch;
             
-            // Filtr nosowy dla charakterystycznego kaczego brzmienia
-            const nasalFilter = audioContext.createBiquadFilter();
-            nasalFilter.type = 'bandpass';
-            nasalFilter.Q.value = 4.0;
+            // Quack frequency envelope - characteristic duck sound
+            quackOsc.frequency.setValueAtTime(baseFreq * 1.2, startTime);
+            quackOsc.frequency.linearRampToValueAtTime(baseFreq * 0.8, startTime + duration * 0.5);
+            quackOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, startTime + duration);
             
-            // Filtr gardłowy dla dolnych tonów
-            const throatFilter = audioContext.createBiquadFilter();
-            throatFilter.type = 'lowpass';
-            throatFilter.Q.value = 2.0;
-            
-            // Bazowa częstotliwość - kacze kwakanie oparte na rzeczywistym spektrum częstotliwości
-            const baseFreq = 250 * pitch;
-            
-            // ===== TYPOWY WZORZEC KACZEGO KWAKU =====
-            // Rzeczywiste kaczki mają charakterystyczną obwiednię częstotliwości "kwaa-kwaa"
-            
-            // 1. Główny ton krtaniowy - typowe "kwaa"
-            quackOsc.frequency.setValueAtTime(baseFreq * 1.3, startTime); // Wyższy ton na początku
-            quackOsc.frequency.linearRampToValueAtTime(baseFreq * 1.1, startTime + 0.02); // Szybki spadek
-            
-            // Charakterystyczny spadek w środku kwaku (chwilowa przerwa głosowa)
-            if (duration > 0.15) {
-                quackOsc.frequency.linearRampToValueAtTime(baseFreq * 0.9, startTime + duration * 0.3);
-                quackOsc.frequency.linearRampToValueAtTime(baseFreq * 1.1, startTime + duration * 0.4); // Ponowny wzrost
-                quackOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, startTime + duration * 0.8); // Finalne obniżenie
-            } else {
-                quackOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, startTime + duration * 0.7);
-            }
-            
-            // 2. Nosowy rezonans - wyższe częstotliwości dla charakterystycznej "kwakowości"
-            nasalOsc.frequency.setValueAtTime(baseFreq * 2.8, startTime);
-            nasalOsc.frequency.exponentialRampToValueAtTime(baseFreq * 2.0, startTime + duration * 0.6);
-            
-            // 3. Gardłowy rezonans - niskotonowe gardłowe dźwięki
-            throatOsc.frequency.setValueAtTime(baseFreq * 0.7, startTime);
-            throatOsc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, startTime + duration * 0.7);
-            
-            // Filtry formantowe - ustawione na charakterystyczne pasma kaczego głosu
-            mainFilter.frequency.value = baseFreq * 2.0;  // Główny formant około 500Hz
-            nasalFilter.frequency.value = baseFreq * 3.5; // Nosowy formant około 800-900Hz
-            throatFilter.frequency.value = baseFreq * 1.0; // Gardłowy formant około 250Hz
-            
-            // ===== OBWIEDNIE GŁOŚNOŚCI =====
-            // Typowe kacze kwakanie ma szybki atak i charakterystyczny zanik
-            
-            // 1. Główny ton - najgłośniejszy element
+            // Amplitude envelope
             quackGain.gain.setValueAtTime(0, startTime);
-            quackGain.gain.linearRampToValueAtTime(volume * 1.2, startTime + 0.01); // Szybki, głośny atak
-            
-            if (duration > 0.15) {
-                // Charakterystyczny wzorzec dwusylabowego "kwaa-kwaa"
-                quackGain.gain.linearRampToValueAtTime(volume * 0.6, startTime + duration * 0.25); // Spadek między sylabami
-                quackGain.gain.linearRampToValueAtTime(volume * 1.1, startTime + duration * 0.35); // Druga sylaba
-                quackGain.gain.linearRampToValueAtTime(volume * 0.5, startTime + duration * 0.7); // Stopniowy zanik
-            } else {
-                quackGain.gain.linearRampToValueAtTime(volume * 0.6, startTime + duration * 0.5);
-            }
-            
+            quackGain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+            quackGain.gain.linearRampToValueAtTime(volume * 0.7, startTime + duration * 0.3);
             quackGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
             
-            // 2. Nosowy element - dodaje charakterystyczne "ę" w kwaku
-            nasalGain.gain.setValueAtTime(0, startTime + 0.01); // Lekko opóźniony względem głównego
-            nasalGain.gain.linearRampToValueAtTime(volume * 0.7, startTime + 0.03);
-            nasalGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.9);
-            
-            // 3. Gardłowy element - dodaje głębi i realizmu
-            throatGain.gain.setValueAtTime(0, startTime);
-            throatGain.gain.linearRampToValueAtTime(volume * 0.6, startTime + 0.02);
-            throatGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.8);
-            
-            // ===== WIBRATO I DRŻENIE GŁOSU =====
-            // Prawdziwe kaczki mają lekkie wibracje w głosie
-            
-            const vibrato = audioContext.createOscillator();
+            // Add slight vibrato for realism
+            const vibratoOsc = audioContext.createOscillator();
             const vibratoGain = audioContext.createGain();
+            trackOscillator(vibratoOsc);
             
-            vibrato.frequency.value = 15 * mockLevel; // Szybsze wibracje dla bardziej natarczywego kwakania
-            vibratoGain.gain.value = baseFreq * 0.2 * mockLevel; // Silniejsze wibracje
+            vibratoOsc.frequency.value = 15;
+            vibratoGain.gain.value = baseFreq * 0.06;
             
-            vibrato.connect(vibratoGain);
-            vibratoGain.connect(quackOsc.frequency); // Modulacja głównego tonu
-            trackOscillator(vibrato);
+            vibratoOsc.connect(vibratoGain);
+            vibratoGain.connect(quackOsc.frequency);
             
-            // Dodanie lekkiego wibracji do nosowego tonu dla większego realizmu
-            const nasalVibrato = audioContext.createOscillator();
-            const nasalVibratoGain = audioContext.createGain();
-            
-            nasalVibrato.frequency.value = 20 * mockLevel; // Szybsze wibracje dla nosowego
-            nasalVibratoGain.gain.value = baseFreq * 0.1 * mockLevel;
-            
-            nasalVibrato.connect(nasalVibratoGain);
-            nasalVibratoGain.connect(nasalOsc.frequency);
-            trackOscillator(nasalVibrato);
-            
-            // ===== EFEKT STEREO I KOMPRESJA =====
-            
-            // Stereo panner dla efektu przestrzennego
-            const panner = audioContext.createStereoPanner();
-            panner.pan.value = randomBetween(-0.7, 0.7); // Szersze rozłożenie stereo
-            
-            // Kompresor dla uwydatnienia kwaku
-            const quackCompressor = audioContext.createDynamicsCompressor();
-            quackCompressor.threshold.value = -18;
-            quackCompressor.knee.value = 10;
-            quackCompressor.ratio.value = 4;
-            quackCompressor.attack.value = 0.002;
-            quackCompressor.release.value = 0.1;
-            
-            // ===== POŁĄCZENIA AUDIO =====
-            
+            // Sound routing
             quackOsc.connect(quackGain);
-            nasalOsc.connect(nasalGain);
-            throatOsc.connect(throatGain);
+            quackGain.connect(quackFilter);
             
-            quackGain.connect(mainFilter);
-            nasalGain.connect(nasalFilter);
-            throatGain.connect(throatFilter);
+            // Create stereo effect
+            const panner = audioContext.createStereoPanner();
+            panner.pan.value = randomBetween(-0.8, 0.8);
             
-            mainFilter.connect(quackCompressor);
-            nasalFilter.connect(quackCompressor);
-            throatFilter.connect(quackCompressor);
-            
-            quackCompressor.connect(panner);
+            quackFilter.connect(panner);
             panner.connect(gameOverMasterGain);
             
-            // ===== URUCHOMIENIE I ZATRZYMANIE =====
-            
+            // Start and stop
             quackOsc.start(startTime);
-            nasalOsc.start(startTime);
-            throatOsc.start(startTime);
-            vibrato.start(startTime);
-            nasalVibrato.start(startTime);
+            vibratoOsc.start(startTime);
             
-            const stopTime = startTime + duration + 0.1;
-            
+            const stopTime = startTime + duration + 0.05;
             quackOsc.stop(stopTime);
-            nasalOsc.stop(stopTime);
-            throatOsc.stop(stopTime);
-            vibrato.stop(stopTime);
-            nasalVibrato.stop(stopTime);
+            vibratoOsc.stop(stopTime);
             
             return stopTime;
         };
         
-        // Funkcja tworząca sekwencję kwakania - szereg dźwięków kaczek
-        const createDuckDialog = (startTime, type, numQuacks, mockLevel = 1) => {
-            // Sprawdź, czy dźwięk można odtworzyć
+        // Function to create a sequence of duck quacks
+        const createDuckSequence = (startTime, numQuacks, pitchRange, volumeRange, pauseRange) => {
             if (!this.active) return startTime;
             
             let currentTime = startTime;
             
-            // Proste ustawienia dla różnych typów kaczek
-            let pitchRange, volumeRange, pauseRange;
-            
-            if (type === 'high') {
-                // Wysoki głos kaczki
-                pitchRange = [1.2, 1.5];
-                volumeRange = [0.3, 0.4];
-                pauseRange = [0.08, 0.15];
-            } else if (type === 'low') {
-                // Niski głos kaczki
-                pitchRange = [0.7, 0.9];
-                volumeRange = [0.4, 0.6];
-                pauseRange = [0.12, 0.2];
-            } else {
-                // Standardowy głos kaczki
-                pitchRange = [0.9, 1.1];
-                volumeRange = [0.3, 0.5];
-                pauseRange = [0.1, 0.18];
-            }
-            
-            // Generuj sekwencję kwakań
             for (let i = 0; i < numQuacks; i++) {
                 if (!this.active) return currentTime;
                 
-                // Losowe wartości z zakresu dla naturalności
+                // Random values for natural variation
                 const pitch = randomBetween(pitchRange[0], pitchRange[1]);
                 const volume = randomBetween(volumeRange[0], volumeRange[1]);
-                const duration = randomBetween(0.15, 0.25);
+                const duration = randomBetween(0.15, 0.3);
                 
-                // Utwórz kwakanie
-                currentTime = createQuack(
-                    currentTime,
-                    pitch,
-                    duration,
-                    volume,
-                    mockLevel
-                );
+                currentTime = createQuack(currentTime, pitch, duration, volume);
                 
-                // Dodaj pauzę między kwakaniami
+                // Add pause between quacks
                 if (i < numQuacks - 1) {
                     currentTime += randomBetween(pauseRange[0], pauseRange[1]);
                 }
@@ -615,257 +474,117 @@ const soundGenerators = {
             return currentTime;
         };
         
-        // Funkcja tworząca realistyczny efekt trzepotu kaczych skrzydeł
-        const createWingFlaps = (startTime, endTime, intensity = 1) => {
-            // Sprawdź, czy dźwięk można odtworzyć
+        // Create wing flapping sound
+        const createWingFlaps = (startTime, duration, intensity = 1) => {
             if (!this.active) return;
             
-            const flapDuration = endTime - startTime;
-            const numFlaps = Math.min(12, Math.floor(flapDuration / 0.15) * intensity); // Więcej trzepotów
+            const numFlaps = Math.floor(duration / 0.2) * intensity;
             
-            // Kontrola głośności dla wszystkich trzepotów
-            const flapsGainNode = audioContext.createGain();
-            flapsGainNode.gain.value = 0.4 * intensity; // Głośniejsze trzepoty
-            flapsGainNode.connect(gameOverMasterGain);
+            // Create volume control node
+            const flapsGain = audioContext.createGain();
+            flapsGain.gain.value = 0.3 * intensity;
+            flapsGain.connect(gameOverMasterGain);
             
-            // Generowanie trzepotu skrzydeł
             for (let i = 0; i < numFlaps; i++) {
                 if (!this.active) return;
                 
-                // Tempo trzepotu zwiększa się z czasem dla dramatycznego efektu
-                const flapSpacing = 0.2 - ((i / numFlaps) * 0.1);
-                const flapTime = startTime + (i * flapSpacing);
+                const flapTime = startTime + (i * 0.2);
                 
-                // === RUCH SKRZYDŁA W DÓŁ ===
-                // Ruch skrzydła w dół generuje charakterystyczne "fwoop"
+                // Flap sound
+                const flapOsc = audioContext.createOscillator();
+                const flapGain = audioContext.createGain();
+                trackOscillator(flapOsc);
                 
-                const downFlapOsc = audioContext.createOscillator();
-                const downFlapGain = audioContext.createGain();
-                trackOscillator(downFlapOsc);
+                const flapFilter = audioContext.createBiquadFilter();
+                flapFilter.type = 'lowpass';
+                flapFilter.frequency.value = 1000;
                 
-                // Filtr dla przepływu powietrza przy ruchu w dół
-                const downFlapFilter = audioContext.createBiquadFilter();
-                downFlapFilter.type = 'lowpass';
-                downFlapFilter.frequency.value = 1200;
-                downFlapFilter.Q.value = 1.0;
+                flapOsc.type = 'triangle';
+                flapOsc.frequency.setValueAtTime(500, flapTime);
+                flapOsc.frequency.exponentialRampToValueAtTime(300, flapTime + 0.1);
                 
-                // Naturalny dźwięk uderzenia skrzydła - kombinacja fal
-                downFlapOsc.type = i % 2 === 0 ? 'triangle' : 'sawtooth';
+                flapGain.gain.setValueAtTime(0, flapTime);
+                flapGain.gain.linearRampToValueAtTime(0.2, flapTime + 0.01);
+                flapGain.gain.exponentialRampToValueAtTime(0.001, flapTime + 0.1);
                 
-                // Częstotliwość dźwięku trzepotu - charakterystyczny spadek
-                downFlapOsc.frequency.setValueAtTime(randomBetween(450, 650), flapTime);
-                downFlapOsc.frequency.exponentialRampToValueAtTime(randomBetween(300, 400), flapTime + 0.06);
+                // Create stereo effect
+                const panner = audioContext.createStereoPanner();
+                panner.pan.value = randomBetween(-0.6, 0.6);
                 
-                // Obwiednia głośności - szybki atak, średni zanik
-                downFlapGain.gain.setValueAtTime(0, flapTime);
-                downFlapGain.gain.linearRampToValueAtTime(0.25 * intensity, flapTime + 0.01);
-                downFlapGain.gain.exponentialRampToValueAtTime(0.001, flapTime + 0.08);
+                flapOsc.connect(flapGain);
+                flapGain.connect(flapFilter);
+                flapFilter.connect(panner);
+                panner.connect(flapsGain);
                 
-                // Efekt stereo dla naturalnego rozproszenia stada
-                const downPanner = audioContext.createStereoPanner();
-                downPanner.pan.value = randomBetween(-0.9, 0.9);
-                
-                // Połączenia
-                downFlapOsc.connect(downFlapGain);
-                downFlapGain.connect(downFlapFilter);
-                downFlapFilter.connect(downPanner);
-                downPanner.connect(flapsGainNode);
-                
-                // Uruchomienie i zatrzymanie
-                downFlapOsc.start(flapTime);
-                downFlapOsc.stop(flapTime + 0.1);
-                
-                // === RUCH SKRZYDŁA W GÓRĘ ===
-                // Ruch skrzydła w górę brzmi inaczej - szybszy "whoosh"
-                
-                if (!this.active) return; // Sprawdzenie czy należy kontynuować
-                
-                const upFlapTime = flapTime + 0.07; // Krótkie opóźnienie po ruchu w dół
-                
-                const upFlapOsc = audioContext.createOscillator();
-                const upFlapGain = audioContext.createGain();
-                trackOscillator(upFlapOsc);
-                
-                // Filtr dla przepływu powietrza przy ruchu w górę
-                const upFlapFilter = audioContext.createBiquadFilter();
-                upFlapFilter.type = 'bandpass';
-                upFlapFilter.frequency.value = 2000;
-                upFlapFilter.Q.value = 2.0;
-                
-                // Dźwięk ruchu w górę jest bardziej świszczący
-                upFlapOsc.type = 'sine';
-                
-                // Wyższe częstotliwości dla ruchu w górę
-                upFlapOsc.frequency.setValueAtTime(randomBetween(600, 800), upFlapTime);
-                upFlapOsc.frequency.linearRampToValueAtTime(randomBetween(800, 1000), upFlapTime + 0.04);
-                
-                // Obwiednia głośności - mniejsza głośność, szybszy zanik
-                upFlapGain.gain.setValueAtTime(0, upFlapTime);
-                upFlapGain.gain.linearRampToValueAtTime(0.15 * intensity, upFlapTime + 0.01);
-                upFlapGain.gain.exponentialRampToValueAtTime(0.001, upFlapTime + 0.05);
-                
-                // Ten sam efekt stereo co poprzednio dla spójności przestrzennej
-                const upPanner = audioContext.createStereoPanner();
-                upPanner.pan.value = downPanner.pan.value; // Ta sama kaczka, więc ten sam panning
-                
-                // Połączenia
-                upFlapOsc.connect(upFlapGain);
-                upFlapGain.connect(upFlapFilter);
-                upFlapFilter.connect(upPanner);
-                upPanner.connect(flapsGainNode);
-                
-                // Uruchomienie i zatrzymanie
-                upFlapOsc.start(upFlapTime);
-                upFlapOsc.stop(upFlapTime + 0.07);
-                
-                // === EFEKT POWIETRZA - DODATKOWY REALISTYCZNY ELEMENT ===
-                if (Math.random() < 0.3 && this.active) {
-                    const airTime = flapTime + randomBetween(0, 0.05);
-                    
-                    const airOsc = audioContext.createOscillator();
-                    const airGain = audioContext.createGain();
-                    trackOscillator(airOsc);
-                    
-                    // Filtr powietrza
-                    const airFilter = audioContext.createBiquadFilter();
-                    airFilter.type = 'highpass';
-                    airFilter.frequency.value = 3000;
-                    
-                    // Szum powietrza jest delikatny
-                    airOsc.type = 'triangle';
-                    airOsc.frequency.value = randomBetween(2000, 3000);
-                    
-                    airGain.gain.setValueAtTime(0, airTime);
-                    airGain.gain.linearRampToValueAtTime(0.05 * intensity, airTime + 0.01);
-                    airGain.gain.exponentialRampToValueAtTime(0.001, airTime + 0.04);
-                    
-                    // Połączenia
-                    airOsc.connect(airGain);
-                    airGain.connect(airFilter);
-                    airFilter.connect(upPanner); // Używamy tego samego pannera dla spójności
-                    
-                    airOsc.start(airTime);
-                    airOsc.stop(airTime + 0.05);
-                }
+                flapOsc.start(flapTime);
+                flapOsc.stop(flapTime + 0.15);
             }
         };
         
-        // =========== SEKWENCJA ZAKWAKANIA GRACZA NA ŚMIERĆ ===========
+        // Create game over duck sequence
         let currentTime = audioContext.currentTime;
-        let finalTime = currentTime;
         
-        // 1. Złowrogie, pierwsze ostrzegawcze kwakanie lidera stada
-        currentTime = createQuack(currentTime, 0.7, 0.5, 0.8, 3);  // Niski, długi, głośny kwak
-        currentTime += 0.4; // Dłuższa pauza dla dramatycznego efektu
-        if (!this.active) return;
-        
-        // 2. Seria kwakań z lewej strony - komunikacja w stadzie
-        const leftPanner = audioContext.createStereoPanner();
-        leftPanner.pan.value = -0.8; // Bardziej wyrazisty efekt lewo-prawo
-        leftPanner.connect(gameOverMasterGain);
-        
-        currentTime = createDuckDialog(currentTime, 'high', 4, 3); // Więcej kwakań, intensywniejsze
-        currentTime += 0.2;
-        if (!this.active) return;
-        
-        // 3. Odpowiedź z prawej strony - stado otacza gracza
-        const rightPanner = audioContext.createStereoPanner();
-        rightPanner.pan.value = 0.8;
-        rightPanner.connect(gameOverMasterGain);
-        
-        currentTime = createDuckDialog(currentTime, 'low', 3, 3);
+        // 1. First warning quack
+        currentTime = createQuack(currentTime, 0.8, 0.4, 0.6);
         currentTime += 0.3;
         if (!this.active) return;
         
-        // 4. Atak kaczek ze wszystkich stron - narastający
-        for (let i = 0; i < 6; i++) { // Więcej kaczek
-            if (!this.active) return;
-            
-            const pan = randomBetween(-0.8, 0.8);
-            const pitch = 0.8 + (i * 0.1);
-            const volume = 0.5 + (i * 0.08); // Wyższa głośność narastająca
-            
-            // Przyspieszające tempo ataku - kaczki kwaczą coraz szybciej
-            currentTime = createQuack(
-                currentTime + (0.15 / (i + 1)), // Malejące odstępy
-                pitch,
-                0.2,
-                volume,
-                2 + (i * 0.3) // Narastające mockLevel
-            );
-        }
-        
-        // Krótka pauza przed kulminacją ataku
-        currentTime += 0.1;
+        // 2. Left side duck sequence
+        currentTime = createDuckSequence(
+            currentTime,
+            3, // number of quacks
+            [1.0, 1.3], // pitch range
+            [0.4, 0.6], // volume range
+            [0.1, 0.2] // pause range
+        );
+        currentTime += 0.2;
         if (!this.active) return;
         
-        // 5. Finałowy chaos kaczego stada - prawdziwy atak
-        // Symulacja wielu kaczek kwaczących jednocześnie z różnych pozycji
+        // 3. Right side duck sequence
+        currentTime = createDuckSequence(
+            currentTime,
+            2, // number of quacks
+            [0.7, 0.9], // pitch range
+            [0.5, 0.7], // volume range
+            [0.15, 0.25] // pause range
+        );
+        currentTime += 0.2;
+        if (!this.active) return;
         
-        // Przygotowanie bardziej chaotycznego finału
-        const numFinalDucks = 8; // Więcej kaczek w finale
-        const maxOverlap = 0.05; // Więcej nakładających się dźwięków
+        // 4. Add wing flapping in the background
+        createWingFlaps(audioContext.currentTime + 0.5, 2.0, 1.5);
         
-        // Głośniejszy efekt kompresji dla finału
-        const finalCompressor = audioContext.createDynamicsCompressor();
-        finalCompressor.threshold.value = -15;
-        finalCompressor.knee.value = 5;
-        finalCompressor.ratio.value = 5;
-        finalCompressor.attack.value = 0.001;
-        finalCompressor.release.value = 0.1;
-        finalCompressor.connect(gameOverMasterGain);
+        // 5. Final duck calls
+        currentTime = createDuckSequence(
+            currentTime,
+            4, // number of quacks
+            [0.6, 1.4], // wider pitch range
+            [0.5, 0.8], // louder
+            [0.08, 0.15] // shorter pauses
+        );
         
-        for (let i = 0; i < numFinalDucks; i++) {
-            if (!this.active) return;
-            
-            // Zróżnicowane czasy dla realizmu
-            const duckTime = currentTime + (i * maxOverlap);
-            
-            // Większa wariacja parametrów dla naturalnego chaosu
-            const duckPitch = randomBetween(0.6, 1.6);
-            const duckVolume = randomBetween(0.5, 0.9); // Głośniejszy finał
-            const duckDuration = randomBetween(0.2, 0.4); // Dłuższe kwaki
-            
-            const end = createQuack(duckTime, duckPitch, duckDuration, duckVolume, 4);
-            finalTime = Math.max(finalTime, end);
-        }
-        
-        // 6. Ostatnie triumfalne kwakanie - zwycięstwo stada
+        // 6. Final big quack
         if (this.active) {
             const finalQuack = createQuack(
-                finalTime + 0.2, // Dłuższa pauza przed ostatecznym kwakaniem
-                0.6,            // Bardzo niski ton - dominujący kwak
-                0.6,            // Najdłuższe kwakanie
-                1.0,            // Maksymalna głośność
-                5               // Najwyższy poziom intensywności
+                currentTime + 0.2,
+                0.7, // lower pitch
+                0.5, // longer duration
+                0.9  // louder volume
             );
-            finalTime = finalQuack + 0.2;
         }
         
-        // Dodaj intensywny trzepot skrzydeł w tle przez całą sekwencję
-        if (this.active) {
-            createWingFlaps(audioContext.currentTime + 0.2, finalTime, 2.5);
-        }
+        // Add simple reverb effect
+        const delay = audioContext.createDelay();
+        delay.delayTime.value = 0.2;
         
-        // Końcowe echo i reverb
-        const convolver = audioContext.createConvolver();
-        const reverbGain = audioContext.createGain();
-        reverbGain.gain.value = 0.2;
+        const feedback = audioContext.createGain();
+        feedback.gain.value = 0.15;
         
-        // Symulacja pogłosu dla atmosferycznego zakończenia
-        if (this.active) {
-            const finalDelay = audioContext.createDelay();
-            finalDelay.delayTime.value = 0.3;
-            
-            const feedback = audioContext.createGain();
-            feedback.gain.value = 0.2;
-            
-            finalDelay.connect(feedback);
-            feedback.connect(finalDelay);
-            finalDelay.connect(gameOverMasterGain);
-        }
+        delay.connect(feedback);
+        feedback.connect(delay);
+        delay.connect(gameOverMasterGain);
         
-        return finalTime;
+        return currentTime + 1.0;
     },
     
     // Frog mode - FUN CARTOON FROG TRANSFORMATION
