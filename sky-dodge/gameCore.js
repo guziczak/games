@@ -287,6 +287,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.endGame = function() {
+        // Jeśli tryb kauczuka jest aktywny, nie kończymy gry (dodatkowe zabezpieczenie)
+        if (rubberModeActive || invincible) {
+            console.log("Próba zakończenia gry podczas niezniszczalności zablokowana!");
+            return;
+        }
+        
         gameRunning = false;
         cancelAnimationFrame(animationId);
         finalScoreElement.textContent = score;
@@ -477,6 +483,46 @@ document.addEventListener('DOMContentLoaded', function() {
         if (velocity > velocityLimit) velocity = velocityLimit;
         
         birdPosition += velocity * deltaTime;
+        
+        // Enforce boundaries here, before setting the position
+        const birdRect = bird.getBoundingClientRect();
+        const gameAreaRect = gameArea.getBoundingClientRect();
+        const groundRect = ground.getBoundingClientRect();
+        
+        // Boundary check - bottom (ground)
+        if (birdPosition + birdRect.height >= groundRect.top) {
+            birdPosition = groundRect.top - birdRect.height;
+            
+            // Add bounce effect in rubber or steel mode
+            if (rubberModeActive) {
+                velocity = velocity < 0 ? velocity : -velocity * 0.8;
+            } else if (steelModeActive) {
+                velocity = -Math.abs(velocity) * 0.9;
+            } else if (frogModeActive && frogIsOverloaded && frogOverloadBounceCount > 0) {
+                // Logic for frog overloaded bounce is handled in checkCollision
+            } else if (frogModeActive) {
+                velocity = 0; // Just stop at ground for regular frog mode
+            }
+            
+            frogIsOnGround = true;
+        }
+        
+        // Boundary check - top (ceiling)
+        if (birdPosition <= gameAreaRect.top) {
+            birdPosition = gameAreaRect.top + 2; // Slight offset
+            
+            // Add bounce effect in rubber or steel mode
+            if (rubberModeActive) {
+                velocity = velocity > 0 ? velocity : -velocity * 0.8;
+            } else if (steelModeActive) {
+                velocity = Math.abs(velocity) * 0.9;
+            } else {
+                velocity = 1; // Slight downward velocity in other modes
+            }
+            
+            frogIsOnGround = false;
+        }
+        
         bird.style.top = birdPosition + 'px';
         
         let rotation = velocity * 2;
@@ -560,8 +606,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Normalne odbicie przy pokonaniu bociana z góry
                             velocity = jump * 0.7; // Odbicie w górę po pokonaniu bociana
                         }
-                    } else if (!invincible && !steelModeActive) {
-                        // Przegrana, gdy dotknięcie z boku lub dołu i nie jest nieśmiertelny ani w trybie stali
+                    } else if (!invincible && !steelModeActive && !rubberModeActive) {
+                        // Przegrana, gdy dotknięcie z boku lub dołu i nie jest nieśmiertelny, w trybie stali, ani w trybie kauczuka
                         endGame();
                         return;
                     }
@@ -601,7 +647,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        if (checkCollision()) {
+        // Sprawdź kolizję tylko jeśli gracz nie ma niezniszczalności
+        if (!invincible && !rubberModeActive && checkCollision()) {
             endGame();
             return;
         }

@@ -632,237 +632,424 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
 
-        // Główne sprawdzanie, czy żaba jest na ziemi - globalne dla wszystkich trybów
-        // Dodajemy 5px buforu dla lepszej detekcji
-        const groundProximityBuffer = 5; 
-        const isOnGround = birdRect.bottom >= groundRect.top - groundProximityBuffer;
+        // WAŻNE: Najpierw ograniczamy pozycję ptaka, aby nigdy nie wychodził poza ekran
+        // To działa niezależnie od trybu gry
         
-        // Aktualizacja stanu globalnego - dostępnego dla całej gry
-        // Ale nie nadpisujemy jeszcze frogIsOnGround, robimy to później w zależności od trybu
-        
-        // Sprawdzanie, czy żaba jest na ziemi w trybie żaby
-        if (frogModeActive) {
-            const prevGroundState = frogIsOnGround;
+        // Ograniczenie dolne (ziemia)
+        if (birdRect.bottom >= groundRect.top) {
+            // Ustaw pozycję na ziemi
+            birdPosition = groundRect.top - birdRect.height;
+            bird.style.top = birdPosition + 'px';
             
-            if (birdRect.bottom >= groundRect.top - 2) {
-                frogIsOnGround = true;
-                logGroundState("dotknięcie ziemi w trybie żaby");
+            // Ustaw flagę, że ptak jest na ziemi
+            frogIsOnGround = true;
+            logGroundState("Globalne ograniczenie - ziemia");
+            
+            // Dodaj odbicie w trybie kauczuka lub przeładowanej żaby
+            if (rubberModeActive) {
+                // Sprężyste odbicie 
+                velocity = velocity < 0 ? velocity : -velocity * 0.8;
+            } else if (frogModeActive && frogIsOverloaded && frogOverloadBounceCount > 0) {
+                // Odbij z siłą proporcjonalną do pozostałych odbić
+                velocity = frogJumpMaxPower * (0.7 + (frogOverloadBounceCount / frogMaxBounces) * 0.5);
                 
-                // Ustaw pozycję żaby na ziemi, aby nie przelatywała przez ekran
-                birdPosition = groundRect.top - birdRect.height;
-                bird.style.top = birdPosition + 'px';
+                // Zmniejsz licznik odbić
+                frogOverloadBounceCount--;
                 
-                // Jeśli była przeładowana i dotknęła ziemi, obsłuż odbicie
-                if (frogIsOverloaded && frogOverloadBounceCount > 0) {
-                    // Odbij z siłą proporcjonalną do pozostałych odbić
-                    velocity = frogJumpMaxPower * (0.7 + (frogOverloadBounceCount / frogMaxBounces) * 0.5);
+                // Efekt dźwiękowy odbicia
+                playSound('jump');
+                
+                // Animacja odbicia
+                bird.classList.add('jumping');
+                setTimeout(() => {
+                    bird.classList.remove('jumping');
+                }, 300);
+                
+                // Pokaż narzekanie żaby
+                showFrogComplaint();
+                
+                // Jeśli to było ostatnie odbicie, zakończ przeładowanie
+                if (frogOverloadBounceCount <= 0) {
+                    // Zakończ przeładowanie
+                    frogIsOverloaded = false;
                     
-                    // Zmniejsz licznik odbić
-                    frogOverloadBounceCount--;
+                    // Ukryj wskaźnik przeładowania
+                    const overloadIndicator = document.getElementById('frogOverloadIndicator');
+                    if (overloadIndicator) {
+                        overloadIndicator.style.display = 'none';
+                    }
                     
-                    // Efekt dźwiękowy odbicia
+                    // Usuń klasę przeładowania
+                    bird.classList.remove('overloaded');
+                    
+                    // Wyczyść timeout narzekań
+                    if (frogComplaintTimeout) {
+                        clearTimeout(frogComplaintTimeout);
+                        frogComplaintTimeout = null;
+                    }
+                }
+            } else if (steelModeActive) {
+                // W trybie stali odbijamy się od ziemi
+                velocity = -Math.abs(velocity) * 0.9;
+                
+                // Efekt dźwiękowy odbicia
+                playSound('jump');
+            }
+            
+            // Dodaj animację lądowania w trybie żaby
+            if (frogModeActive) {
+                // Zatrzymaj animacje skoku
+                bird.classList.remove('jumping');
+                
+                // Dodaj delikatną animację lądowania
+                bird.classList.add('frog-landing');
+                setTimeout(() => {
+                    bird.classList.remove('frog-landing');
+                }, 200);
+            }
+            
+            // W zwykłym trybie to będzie kolizja kończąca grę
+            if (!invincible && !frogModeActive && !ghostModeActive && !storkModeActive && !steelModeActive && !rubberModeActive) {
+                console.log("Kolizja z ziemią w normalnym trybie");
+                return true;
+            }
+        } 
+        // Ograniczenie górne (sufit)
+        else if (birdRect.top <= gameAreaRect.top) {
+            // Wyraźnie ograniczamy, aby ptak nie wychodził ponad sufit
+            birdPosition = gameAreaRect.top + 2; // Minimalny odstęp
+            bird.style.top = birdPosition + 'px';
+            
+            // W powietrzu ustaw flagę stanu ziemi
+            frogIsOnGround = false;
+            logGroundState("Globalne ograniczenie - sufit");
+            
+            // Odbicie od sufitu w różnych trybach
+            if (rubberModeActive) {
+                // Sprężyste odbicie w trybie kauczuka
+                velocity = velocity > 0 ? velocity : -velocity * 0.8;
+                
+                // Efekt dźwiękowy odbicia
+                playSound('jump');
+            } else if ((frogModeActive && frogIsOverloaded && frogOverloadBounceCount > 0)) {
+                // Odbij w dół
+                velocity = Math.abs(velocity) * 0.9;
+                
+                // Animacja odbicia
+                bird.classList.add('jumping');
+                setTimeout(() => {
+                    bird.classList.remove('jumping');
+                }, 300);
+                
+                // Efekt dźwiękowy odbicia
+                playSound('jump');
+                
+                // Pokaż narzekanie żaby
+                showFrogComplaint();
+            } else if (steelModeActive) {
+                // W trybie stali odbijamy się od sufitu
+                velocity = Math.abs(velocity) * 0.9;
+                
+                // Efekt dźwiękowy odbicia
+                playSound('jump');
+            } else {
+                // W innych trybach delikatny spadek w dół
+                velocity = 1;
+            }
+            
+            // W zwykłym trybie to będzie kolizja kończąca grę
+            if (!invincible && !frogModeActive && !ghostModeActive && !storkModeActive && !steelModeActive && !rubberModeActive) {
+                console.log("Kolizja z sufitem w normalnym trybie");
+                return true;
+            }
+        } else {
+            // Główne sprawdzanie, czy żaba jest na ziemi - globalne dla wszystkich trybów
+            // Dodajemy 5px buforu dla lepszej detekcji
+            const groundProximityBuffer = 5; 
+            const isOnGround = birdRect.bottom >= groundRect.top - groundProximityBuffer;
+            
+            // W innych przypadkach sprawdź normalną detekcję podłoża
+            frogIsOnGround = isOnGround;
+            logGroundState("Standardowa detekcja");
+        }
+        
+        // Obsługa trybu kauczuka - pozwól odbijać się od wszystkiego z lepszym efektem
+        if (rubberModeActive) {
+            // Współczynnik odbijania dla trybu kauczuka
+            const bounceFactor = window.rubberBounciness || 1.2;
+            
+            // Współczynnik tłumienia prędkości - im bliżej 1, tym mniejsze tłumienie
+            const dampingFactor = window.rubberDamping || 0.98;
+            
+            // Efekt wizualny odbicia przy dotknięciu ziemi lub sufitu
+            if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
+                const bounceStrength = Math.min(Math.abs(velocity) / 30, 1);
+                if (bounceStrength > 0.3) {
+                    // Dodaj efekt "rozbłysku energii"
+                    const bounceBurst = document.createElement('div');
+                    bounceBurst.className = 'rubber-bounce-effect';
+                    
+                    const gameAreaRect = gameArea.getBoundingClientRect();
+                    
+                    bounceBurst.style.position = 'absolute';
+                    bounceBurst.style.width = (30 + bounceStrength * 50) + 'px';
+                    bounceBurst.style.height = (10 + bounceStrength * 20) + 'px';
+                    bounceBurst.style.borderRadius = '50%';
+                    bounceBurst.style.backgroundColor = `rgba(255, 0, 255, ${0.2 + bounceStrength * 0.3})`;
+                    bounceBurst.style.boxShadow = `0 0 ${10 + bounceStrength * 20}px rgba(255, 0, 255, 0.6)`;
+                    
+                    // Pozycja efektu jest różna dla odbicia od ziemi i sufitu
+                    if (birdRect.bottom >= groundRect.top) {
+                        bounceBurst.style.left = (birdRect.left + birdRect.width/2 - gameAreaRect.left - (15 + bounceStrength * 25)) + 'px';
+                        bounceBurst.style.top = (groundRect.top - 10 - gameAreaRect.top) + 'px';
+                    } else {
+                        bounceBurst.style.left = (birdRect.left + birdRect.width/2 - gameAreaRect.left - (15 + bounceStrength * 25)) + 'px';
+                        bounceBurst.style.top = (gameAreaRect.top + 10 - gameAreaRect.top) + 'px';
+                    }
+                    
+                    bounceBurst.style.transform = 'scale(0, 0.5)';
+                    bounceBurst.style.transition = 'transform 0.2s, opacity 0.4s';
+                    bounceBurst.style.zIndex = '80';
+                    gameArea.appendChild(bounceBurst);
+                    
+                    // Animuj efekt
+                    setTimeout(() => {
+                        bounceBurst.style.transform = 'scale(1, 0.5)';
+                        setTimeout(() => {
+                            bounceBurst.style.opacity = '0';
+                            setTimeout(() => {
+                                if (bounceBurst.parentNode) {
+                                    gameArea.removeChild(bounceBurst);
+                                }
+                            }, 400);
+                        }, 150);
+                    }, 10);
+                    
+                    // Dodaj efekt wibracji przy dużej sile
+                    if (bounceStrength > 0.7) {
+                        gameArea.classList.add('screen-shake');
+                        setTimeout(() => {
+                            gameArea.classList.remove('screen-shake');
+                        }, 200);
+                    }
+                }
+            }
+            
+            // Dodajemy odbijanie od rur w trybie kauczuka
+            for (let pipe of pipes) {
+                if (!pipe.upPipe || !pipe.downPipe) continue;
+                
+                const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                
+                // Odbicie od lewej strony rury
+                if (birdRect.right >= upPipeRect.left && birdRect.right <= upPipeRect.left + 10 &&
+                    ((birdRect.bottom >= upPipeRect.top) || (birdRect.top <= downPipeRect.bottom))) {
+                    
+                    // Odbicie w lewo
+                    velocity = velocity * 0.8; // Zachowaj część prędkości pionowej
+                    birdRect.left = upPipeRect.left - birdRect.width - 5;
+                    
+                    // Efekt dźwiękowy
                     playSound('jump');
                     
-                    // Animacja odbicia
-                    bird.classList.add('jumping');
+                    // Efekt wizualny - podobny jak przy innych odbiciach
+                    const bounceBurst = document.createElement('div');
+                    bounceBurst.className = 'rubber-bounce-effect';
+                    bounceBurst.style.position = 'absolute';
+                    bounceBurst.style.width = '20px';
+                    bounceBurst.style.height = '40px';
+                    bounceBurst.style.borderRadius = '50%';
+                    bounceBurst.style.backgroundColor = 'rgba(255, 0, 255, 0.4)';
+                    bounceBurst.style.boxShadow = '0 0 15px rgba(255, 0, 255, 0.6)';
+                    bounceBurst.style.left = upPipeRect.left + 'px';
+                    bounceBurst.style.top = (birdRect.top + birdRect.height/2) + 'px';
+                    bounceBurst.style.transform = 'scale(0, 1)';
+                    bounceBurst.style.transition = 'transform 0.2s, opacity 0.3s';
+                    bounceBurst.style.zIndex = '80';
+                    gameArea.appendChild(bounceBurst);
+                    
+                    // Animuj efekt
                     setTimeout(() => {
-                        bird.classList.remove('jumping');
-                    }, 300);
-                    
-                    // Pokaż narzekanie żaby
-                    showFrogComplaint();
-                    
-                    // Jeśli to było ostatnie odbicie, zakończ przeładowanie
-                    if (frogOverloadBounceCount <= 0) {
-                        // Zakończ przeładowanie
-                        frogIsOverloaded = false;
-                        
-                        // Ukryj wskaźnik przeładowania
-                        const overloadIndicator = document.getElementById('frogOverloadIndicator');
-                        if (overloadIndicator) {
-                            overloadIndicator.style.display = 'none';
-                        }
-                        
-                        // Usuń klasę przeładowania
-                        bird.classList.remove('overloaded');
-                        
-                        // Wyczyść timeout narzekań
-                        if (frogComplaintTimeout) {
-                            clearTimeout(frogComplaintTimeout);
-                            frogComplaintTimeout = null;
-                        }
-                    }
-                }
-                
-                // Jeśli żaba właśnie weszła na teren podłoża (wcześniej była w powietrzu)
-                if (!prevGroundState && frogIsOnGround) {
-                    // Zatrzymaj animacje skoku
-                    bird.classList.remove('jumping');
-                    
-                    // Dodaj delikatną animację lądowania
-                    bird.classList.add('frog-landing');
-                    setTimeout(() => {
-                        bird.classList.remove('frog-landing');
-                    }, 200);
-                }
-                
-                return false; // Nie jest to kolizja, bo odbijamy się
-            } else {
-                frogIsOnGround = false;
-                logGroundState("w powietrzu w trybie żaby");
-                
-                // Sprawdź kolizję z górą ekranu
-                if (birdRect.top <= gameAreaRect.top) {
-                    // Jeśli żaba jest przeładowana lub w trybie kauczuka, odbij od sufitu
-                    if ((frogIsOverloaded && frogOverloadBounceCount > 0) || rubberModeActive) {
-                        // Odbij w dół
-                        velocity = Math.abs(velocity) * 0.9;
-                        birdPosition = gameAreaRect.top + 5;
-                        bird.style.top = birdPosition + 'px';
-                        
-                        // Animacja odbicia
-                        bird.classList.add('jumping');
+                        bounceBurst.style.transform = 'scale(1, 1)';
                         setTimeout(() => {
-                            bird.classList.remove('jumping');
-                        }, 300);
-                        
-                        // Efekt dźwiękowy odbicia
-                        playSound('jump');
-                        
-                        // Pokaż narzekanie żaby jeśli jest przeładowana
-                        if (frogIsOverloaded) {
-                            showFrogComplaint();
-                        }
-                        
-                        return false; // Nie jest to kolizja, bo odbijamy się
-                    }
+                            bounceBurst.style.opacity = '0';
+                            setTimeout(() => {
+                                if (bounceBurst.parentNode) {
+                                    gameArea.removeChild(bounceBurst);
+                                }
+                            }, 300);
+                        }, 100);
+                    }, 10);
+                    
+                    return false;
                 }
             }
         }
         
-        // Obsługa trybu kauczuka - pozwól odbijać się od wszystkiego
-        if (rubberModeActive) {
-            // Od dołu ekranu
-            if (birdRect.bottom >= groundRect.top) {
-                velocity = -Math.abs(velocity) * 0.9;
-                birdPosition = groundRect.top - birdRect.height - 2;
-                bird.style.top = birdPosition + 'px';
-                
-                // Efekt dźwiękowy odbicia
-                playSound('jump');
-                
-                return false;
-            }
-            
-            // Od góry ekranu
-            if (birdRect.top <= gameAreaRect.top) {
-                velocity = Math.abs(velocity) * 0.9;
-                birdPosition = gameAreaRect.top + 5;
-                bird.style.top = birdPosition + 'px';
-                
-                // Efekt dźwiękowy odbicia
-                playSound('jump');
-                
-                return false;
-            }
-        }
-        
-        // Jeśli jest nieśmiertelny dzięki trybowi froga, pozwól na przenikanie przez wszystko
+        // Jeśli jest nieśmiertelny dzięki trybowi froga lub trybowi kauczuka, pozwól na przenikanie przez wszystko
         if (invincible) {
-            // Tylko nie pozwól wylecieć poza ekran gry
-            if (birdRect.bottom >= groundRect.top) {
-                // Ustaw pozycję tuż nad ziemią ale nie resetuj velocity do 0
-                // dzięki czemu kurczak będzie mógł nadal skakać
-                birdPosition = groundRect.top - birdRect.height;
-                bird.style.top = birdPosition + 'px';
-                // Nie ustawiamy velocity = 0, pozwalając na dalsze skoki
-                
-                // Aktualizuj flagę stanu ziemi (nawet jeśli tryb żaby nie jest aktywny)
-                frogIsOnGround = true;
-                logGroundState("tryb nieśmiertelności na ziemi");
-            } else if (birdRect.top <= gameAreaRect.top) {
-                birdPosition = gameAreaRect.top + 5; // Trochę luzu od górnej krawędzi
-                bird.style.top = birdPosition + 'px';
-                velocity = 1; // Delikatny spadek w dół
-                
-                // W powietrzu ustaw flagę stanu ziemi
-                frogIsOnGround = false;
-                logGroundState("tryb nieśmiertelności w powietrzu");
-            } else {
-                // W innych przypadkach sprawdź normalną detekcję podłoża
-                frogIsOnGround = isOnGround;
-                logGroundState("tryb nieśmiertelności - standardowa detekcja");
-            }
-            return false; // Brak kolizji w trybie nieśmiertelności
-        }
-        
-        // Sprawdzanie, czy gracz jest na ziemi, nawet jeśli nie jest w trybie frog
-        // To jest ogólna flaga dostępna dla innych trybów
-        frogIsOnGround = isOnGround;
-        logGroundState("standardowa detekcja podłoża");
-        
-        // Standardowe sprawdzanie kolizji z górą i dołem ekranu
-        if (steelModeActive) {
-            // W trybie stali nie giniemy od uderzenia w sufit ani ziemię
-            // Odbijamy się od ziemi
-            if (birdRect.bottom >= groundRect.top) {
-                velocity = -Math.abs(velocity) * 0.9;
-                birdPosition = groundRect.top - birdRect.height - 2;
-                bird.style.top = birdPosition + 'px';
-                
-                // Efekt dźwiękowy i wizualny odbicia
-                playSound('jump');
-                
-                // Dodaj efekt metalicznego uderzenia
-                const metalFlash = document.createElement('div');
-                metalFlash.style.position = 'absolute';
-                metalFlash.style.width = '100%';
-                metalFlash.style.height = '10px';
-                metalFlash.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-                metalFlash.style.bottom = '0';
-                metalFlash.style.left = '0';
-                metalFlash.style.zIndex = '999';
-                gameArea.appendChild(metalFlash);
-                
-                setTimeout(() => {
-                    if (metalFlash.parentNode) {
-                        gameArea.removeChild(metalFlash);
+            // Dodajmy specjalny komunikat dla trybu niezniszczalności przy kolizji
+            if (rubberModeActive) {
+                // Sprawdź czy jest kolizja z przeszkodą do efektu wizualnego
+                let collisionWithObstacle = false;
+                for (let pipe of pipes) {
+                    if (!pipe.upPipe || !pipe.downPipe) continue;
+                    
+                    const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                    const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                    
+                    if (
+                        (birdRect.right >= upPipeRect.left && 
+                        birdRect.left <= upPipeRect.right && 
+                        birdRect.bottom >= upPipeRect.top) ||
+                        (birdRect.right >= downPipeRect.left && 
+                        birdRect.left <= downPipeRect.right && 
+                        birdRect.top <= downPipeRect.bottom)
+                    ) {
+                        collisionWithObstacle = true;
+                        
+                        // Efekt wizualny przenikania - tylko jeśli nie było niedawno efektu
+                        if (!window.lastRubberPhaseEffect || performance.now() - window.lastRubberPhaseEffect > 500) {
+                            window.lastRubberPhaseEffect = performance.now();
+                            
+                            // Efekt przenikania
+                            bird.classList.add('rubber-phasing');
+                            
+                            // Efekt cząsteczek
+                            for (let i = 0; i < 8; i++) {
+                                const particle = document.createElement('div');
+                                particle.className = 'rubber-phase-particle';
+                                particle.style.position = 'absolute';
+                                particle.style.width = '6px';
+                                particle.style.height = '6px';
+                                particle.style.borderRadius = '50%';
+                                particle.style.backgroundColor = 'rgba(255, 0, 255, 0.7)';
+                                particle.style.boxShadow = '0 0 5px rgba(255, 0, 255, 0.5)';
+                                
+                                const birdCenterX = birdRect.left + birdRect.width / 2;
+                                const birdCenterY = birdRect.top + birdRect.height / 2;
+                                
+                                const angle = Math.random() * Math.PI * 2;
+                                const distance = birdRect.width * 0.7;
+                                
+                                particle.style.left = (birdCenterX + Math.cos(angle) * distance) + 'px';
+                                particle.style.top = (birdCenterY + Math.sin(angle) * distance) + 'px';
+                                particle.style.transform = 'scale(0)';
+                                particle.style.transition = 'transform 0.2s, opacity 0.4s';
+                                document.body.appendChild(particle);
+                                
+                                // Animuj cząsteczkę
+                                setTimeout(() => {
+                                    particle.style.transform = 'scale(1)';
+                                    
+                                    setTimeout(() => {
+                                        particle.style.opacity = '0';
+                                        
+                                        setTimeout(() => {
+                                            if (particle.parentNode) {
+                                                particle.parentNode.removeChild(particle);
+                                            }
+                                        }, 400);
+                                    }, 200);
+                                }, 10);
+                            }
+                            
+                            // Usuń efekt po krótkim czasie
+                            setTimeout(() => {
+                                bird.classList.remove('rubber-phasing');
+                            }, 300);
+                            
+                            // Efekt dźwiękowy
+                            playSound('jump');
+                        }
+                        
+                        break;
                     }
-                }, 100);
-                
-                return false; // Nie ma kolizji, odbijamy się
+                }
             }
             
-            // Gdy uderzamy w sufit, odbijamy się
-            if (birdRect.top <= gameAreaRect.top) {
-                velocity = Math.abs(velocity) * 0.9;
-                birdPosition = gameAreaRect.top + 5;
-                bird.style.top = birdPosition + 'px';
+            return false; // Brak kolizji w trybie nieśmiertelności
+        } else if (!frogModeActive && !ghostModeActive && !storkModeActive && !steelModeActive && !rubberModeActive) {
+            // W normalnym trybie (po zakończeniu trybu froga, ale nie w innych trybach specjalnych)
+            // Sprawdź kolizję z rurami
+            for (let pipe of pipes) {
+                if (!pipe.upPipe || !pipe.downPipe) continue;
                 
-                // Efekt dźwiękowy i wizualny odbicia
-                playSound('jump');
+                const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                const downPipeRect = pipe.downPipe.getBoundingClientRect();
                 
-                // Dodaj efekt metalicznego uderzenia
-                const metalFlash = document.createElement('div');
-                metalFlash.style.position = 'absolute';
-                metalFlash.style.width = '100%';
-                metalFlash.style.height = '10px';
-                metalFlash.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-                metalFlash.style.top = '0';
-                metalFlash.style.left = '0';
-                metalFlash.style.zIndex = '999';
-                gameArea.appendChild(metalFlash);
+                if (
+                    birdRect.right >= upPipeRect.left && 
+                    birdRect.left <= upPipeRect.right && 
+                    birdRect.bottom >= upPipeRect.top
+                ) {
+                    console.log("Kolizja z górną rurą w normalnym trybie");
+                    return true;
+                }
                 
-                setTimeout(() => {
-                    if (metalFlash.parentNode) {
-                        gameArea.removeChild(metalFlash);
-                    }
-                }, 100);
-                
-                return false; // Nie ma kolizji, odbijamy się
+                if (
+                    birdRect.right >= downPipeRect.left && 
+                    birdRect.left <= downPipeRect.right && 
+                    birdRect.top <= downPipeRect.bottom
+                ) {
+                    console.log("Kolizja z dolną rurą w normalnym trybie");
+                    return true;
+                }
             }
-        } else if (birdRect.bottom >= groundRect.top || birdRect.top <= gameAreaRect.top) {
-            return true;
+        }
+        
+        // Sprawdzanie kolizji w trybie stali z rurami - niszczenie rur
+        if (steelModeActive) {
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const pipe = pipes[i];
+                if (!pipe.upPipe || !pipe.downPipe) continue;
+
+                const upPipeRect = pipe.upPipe.getBoundingClientRect();
+                const downPipeRect = pipe.downPipe.getBoundingClientRect();
+                
+                if (
+                    (birdRect.right >= upPipeRect.left && 
+                    birdRect.left <= upPipeRect.right && 
+                    birdRect.bottom >= upPipeRect.top) ||
+                    (birdRect.right >= downPipeRect.left && 
+                    birdRect.left <= downPipeRect.right && 
+                    birdRect.top <= downPipeRect.bottom)
+                ) {
+                    // Zniszcz rurę - bardziej rozbudowany efekt wizualny
+                    if (pipe.upPipe && pipe.upPipe.parentNode) {
+                        // Animacja zniszczenia
+                        pipe.upPipe.style.transition = 'opacity 0.4s, transform 0.4s';
+                        pipe.upPipe.style.opacity = '0';
+                        pipe.upPipe.style.transform = 'scale(1.5) rotate(20deg) translate(30px, -50px)';
+                    }
+                    
+                    if (pipe.downPipe && pipe.downPipe.parentNode) {
+                        pipe.downPipe.style.transition = 'opacity 0.4s, transform 0.4s';
+                        pipe.downPipe.style.opacity = '0';
+                        pipe.downPipe.style.transform = 'scale(1.5) rotate(-20deg) translate(-30px, 50px)';
+                    }
+                    
+                    // Efekt dźwiękowy
+                    playSound('storkDefeat');
+                    
+                    // Oznacz rurę jako zniszczoną
+                    pipe.destroyed = true;
+                    
+                    // Odbij się od rury
+                    velocity = jump * 0.5;
+                    
+                    // Zamiast usuwać w setTimeout, oznaczamy rurę do usunięcia
+                    setTimeout(() => {
+                        if (pipe.upPipe && pipe.upPipe.parentNode) {
+                            gameArea.removeChild(pipe.upPipe);
+                        }
+                        if (pipe.downPipe && pipe.downPipe.parentNode) {
+                            gameArea.removeChild(pipe.downPipe);
+                        }
+                    }, 400);
+                }
+            }
         }
         
         // W trybie żaby, jeśli dotyka góry rury, przyklej się
@@ -1010,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     crashEffect.style.color = '#FF0000';
                     crashEffect.style.fontSize = '40px';
                     crashEffect.style.fontWeight = 'bold';
-                    crashEffect.style.textShadow = '0 0 10px rgba(255, 255, 0, 0.8)';
+                    crashEffect.style.textShadow = '0 0 10px rgba(255, 200, 0, 0.8)';
                     crashEffect.style.transform = 'scale(0)';
                     crashEffect.style.transition = 'transform 0.2s';
                     gameArea.appendChild(crashEffect);
