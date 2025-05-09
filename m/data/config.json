@@ -1,11 +1,11 @@
 {
   "company": {
-    "name": "FinBilans",
+    "name": "JM Księgowość",
     "logo": "fa-chart-pie",
     "tagline": "Profesjonalne Biuro Rachunkowe",
     "description": "Profesjonalne biuro rachunkowe oferujące kompleksową obsługę księgową i podatkową dla firm z różnych branż.",
     "copyrightYear": 2025,
-    "email": "kontakt@finbilans.pl"
+    "email": "kontakt@jm-ksiegowosc.pl"
   },
   "hero": {
     "title": "Profesjonalna obsługa księgowa dla Twojego biznesu",
@@ -17,7 +17,7 @@
   "about": {
     "title": "Twój zaufany partner w księgowości",
     "subtitle": "O nas",
-    "paragraph1": "FinBilans to profesjonalne biuro rachunkowe z wieloletnim doświadczeniem w obsłudze firm z różnych branż. Nasz zespół tworzą wykwalifikowani księgowi i doradcy podatkowi, którzy nieustannie podnoszą swoje kwalifikacje.",
+    "paragraph1": "JM Księgowość to profesjonalne biuro rachunkowe z wieloletnim doświadczeniem w obsłudze firm z różnych branż. Nasz zespół tworzą wykwalifikowani księgowi i doradcy podatkowi, którzy nieustannie podnoszą swoje kwalifikacje.",
     "paragraph2": "Naszą misją jest zapewnienie kompleksowej obsługi księgowej i podatkowej, która pozwoli naszym klientom skupić się na rozwoju własnego biznesu. Łączymy profesjonalizm z indywidualnym podejściem do każdego klienta.",
     "image": "https://img.freepik.com/free-vector/accounting-concept-illustration_114360-1423.jpg?w=826&t=st=1715019375~exp=1715019975~hmac=a3f5ef7fb51d617dd2efc10f03e48f4d2fc1f28b52c8d1fe5e95b53fcb050ee3",
     "buttonText": "Skontaktuj się z nami"
