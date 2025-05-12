@@ -1,0 +1,456 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #222222, #111111);
+    color: #f0f0f0;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.container {
+    max-width: 800px;
+    width: 90%;
+    background-color: rgba(30, 30, 30, 0.8);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+h1 {
+    margin-top: 0;
+    font-size: 2.5rem;
+    color: #f5c542;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.control-group {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: #f5c542;
+    color: #222;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+button:after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(30deg);
+    transition: transform 0.5s;
+    opacity: 0;
+}
+
+button:hover {
+    background-color: #f7d567;
+    transform: translateY(-2px);
+}
+
+button:hover:after {
+    transform: rotate(30deg) translate(10%, 10%);
+    opacity: 0.3;
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button.active {
+    background-color: #f57167;
+    color: white;
+}
+
+.main-button {
+    background-color: #f55142;
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.main-button:hover {
+    background-color: #f57167;
+}
+
+/* Animacja przycisku */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 81, 66, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(245, 81, 66, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 81, 66, 0);
+    }
+}
+
+/* Animacja improvise */
+@keyframes improvise {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+button.improvising {
+    background: linear-gradient(270deg, #f55142, #f5c542, #42b0f5, #a142f5);
+    background-size: 800% 800%;
+    animation: improvise 8s ease infinite;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.visualizer-container {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    margin-top: 2rem;
+    overflow: hidden;
+}
+
+.visualizer {
+    width: 100%;
+    height: 100px;
+    background-color: rgba(20, 20, 20, 0.5);
+    position: relative;
+    overflow: hidden;
+    border-radius: 5px;
+}
+
+.key {
+    position: absolute;
+    bottom: 0;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.1s, opacity 0.5s;
+}
+
+.status {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #aaa;
+}
+
+.chord-display {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #f5c542;
+    margin-top: 0.5rem;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mood-display {
+    font-size: 1.2rem;
+    color: #aaa;
+    margin-top: 0.5rem;
+    height: 30px;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.slider-container label {
+    min-width: 120px;
+    text-align: right;
+}
+
+input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 5px;
+    background: #444;
+    border-radius: 5px;
+    background-image: linear-gradient(#f5c542, #f5c542);
+    background-repeat: no-repeat;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    background: #f5c542;
+    cursor: pointer;
+    box-shadow: 0 0 2px 0 #555;
+    transition: background .3s ease-in-out;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #f7d567;
+}
+
+.value-display {
+    min-width: 50px;
+    text-align: left;
+}
+
+/* Komunikat o błędzie */
+.error-message {
+    color: #f55142;
+    font-weight: bold;
+    padding: 0.5rem;
+    margin-top: 1rem;
+    border: 1px solid #f55142;
+    border-radius: 5px;
+    display: none;
+}
+
+/* Notes Animation */
+.notes-animation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.note {
+    position: absolute;
+    font-size: 20px;
+    animation: float 4s ease-in forwards;
+    opacity: 0;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(20px) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.8;
+    }
+    100% {
+        transform: translateY(-100px) rotate(20deg);
+        opacity: 0;
+    }
+}
+
+/* Auto-Jazz Mode */
+.auto-jazz-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1rem;
+    position: relative;
+    padding: 1rem;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.auto-jazz-active {
+    background: rgba(245, 81, 66, 0.1);
+    box-shadow: 0 0 10px rgba(245, 81, 66, 0.3);
+}
+
+.auto-jazz-button {
+    background: linear-gradient(135deg, #f55142, #f5c542);
+    color: white;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    padding: 0.8rem 1.2rem;
+    border-radius: 5px;
+    margin-bottom: 0.5rem;
+    width: 100%;
+}
+
+.auto-jazz-button:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+}
+
+.auto-jazz-meter {
+    width: 100%;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.auto-jazz-progress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #f55142, #f5c542);
+    transition: width 0.2s;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Swing text effect */
+.swing-text {
+    display: inline-block;
+    animation: swingText 2s ease-in-out infinite alternate;
+    transform-origin: center;
+}
+
+@keyframes swingText {
+    0% {
+        transform: rotate(-5deg);
+    }
+    100% {
+        transform: rotate(5deg);
+    }
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #f55142, #f5c542, #42b0f5, #a142f5);
+    background-size: 300% 300%;
+    animation: gradientBG 6s ease infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: bold;
+}
+
+/* Dodano animacje aktywności */
+@keyframes pulse-key {
+    0% {
+        transform: scaleY(1);
+    }
+    50% {
+        transform: scaleY(1.1);
+    }
+    100% {
+        transform: scaleY(1);
+    }
+}
+
+.key.active {
+    animation: pulse-key 0.3s infinite;
+}
+
+/* Responsywny layout dla urządzeń mobilnych */
+@media screen and (max-width: 768px) {
+    .container {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 0;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .visualizer-container {
+        height: 120px;
+    }
+
+    .visualizer {
+        height: 80px;
+    }
+
+    .chord-display {
+        font-size: 1.5rem;
+        height: 30px;
+    }
+
+    .control-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .control-group button {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .slider-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .slider-container label {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 0.3rem;
+    }
+
+    .value-display {
+        margin-top: 0.3rem;
+    }
+
+    /* Zmniejszona ilość animacji dla oszczędności CPU na mobilnych */
+    .note {
+        animation: float 3s ease-in forwards;
+    }
+}
