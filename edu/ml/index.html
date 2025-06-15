@@ -21,32 +21,75 @@
             --light: #f3f4f6;
             --white: #ffffff;
             --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            
+            /* Dark mode variables */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        /* Dark mode */
+        body.dark-mode {
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+            --white: #1f2937;
+            --light: #111827;
+            --dark: #f3f4f6;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--light);
-            color: var(--dark);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
             line-height: 1.6;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .header {
             background: var(--primary);
-            color: var(--white);
+            color: white;
             padding: 1rem;
             box-shadow: var(--shadow);
             position: sticky;
             top: 0;
             z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .header h1 {
             font-size: 1.5rem;
-            text-align: center;
             font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            transition: background 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         .container {
@@ -58,7 +101,7 @@
         }
 
         .stats-bar {
-            background: var(--white);
+            background: var(--bg-primary);
             border-radius: 12px;
             padding: 1rem;
             margin-bottom: 1rem;
@@ -81,12 +124,42 @@
 
         .stat-label {
             font-size: 0.75rem;
-            color: #6b7280;
+            color: var(--text-secondary);
             text-transform: uppercase;
         }
 
+        .timer-container {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+            display: none;
+        }
+
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .timer.warning {
+            color: var(--warning);
+        }
+
+        .timer.danger {
+            color: var(--danger);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .mode-selector {
-            background: var(--white);
+            background: var(--bg-primary);
             border-radius: 12px;
             padding: 1rem;
             margin-bottom: 1rem;
@@ -100,7 +173,7 @@
             padding: 0.75rem;
             border: 2px solid var(--primary);
             border-radius: 8px;
-            background: var(--white);
+            background: var(--bg-primary);
             color: var(--primary);
             font-weight: 600;
             cursor: pointer;
@@ -109,11 +182,11 @@
 
         .mode-btn.active {
             background: var(--primary);
-            color: var(--white);
+            color: white;
         }
 
         .quiz-card {
-            background: var(--white);
+            background: var(--bg-primary);
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: var(--shadow);
@@ -147,32 +220,32 @@
 
         .answer {
             padding: 1rem;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--border-color);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
             position: relative;
-            background: var(--white);
+            background: var(--bg-primary);
         }
 
         .answer:hover {
             border-color: var(--primary);
-            background: #eff6ff;
+            background: rgba(59, 130, 246, 0.05);
         }
 
         .answer.selected {
             border-color: var(--primary);
-            background: #eff6ff;
+            background: rgba(59, 130, 246, 0.1);
         }
 
         .answer.correct {
             border-color: var(--success);
-            background: #d1fae5;
+            background: rgba(16, 185, 129, 0.1);
         }
 
         .answer.incorrect {
             border-color: var(--danger);
-            background: #fee2e2;
+            background: rgba(239, 68, 68, 0.1);
         }
 
         .answer-text {
@@ -183,9 +256,9 @@
             display: none;
             margin-top: 0.5rem;
             padding-top: 0.5rem;
-            border-top: 1px solid rgba(0,0,0,0.1);
+            border-top: 1px solid var(--border-color);
             font-size: 0.85rem;
-            color: #374151;
+            color: var(--text-secondary);
         }
 
         .answer.show-feedback .answer-feedback {
@@ -203,13 +276,13 @@
         }
 
         .feedback-correct {
-            background: #d1fae5;
+            background: rgba(16, 185, 129, 0.1);
             color: #065f46;
             border: 2px solid var(--success);
         }
 
         .feedback-incorrect {
-            background: #fee2e2;
+            background: rgba(239, 68, 68, 0.1);
             color: #991b1b;
             border: 2px solid var(--danger);
         }
@@ -233,7 +306,7 @@
 
         .btn-primary {
             background: var(--primary);
-            color: var(--white);
+            color: white;
         }
 
         .btn-primary:hover {
@@ -241,12 +314,16 @@
         }
 
         .btn-secondary {
-            background: #e5e7eb;
-            color: var(--dark);
+            background: var(--border-color);
+            color: var(--text-primary);
         }
 
         .btn-secondary:hover {
             background: #d1d5db;
+        }
+
+        body.dark-mode .btn-secondary:hover {
+            background: #4b5563;
         }
 
         .btn:disabled {
@@ -255,7 +332,7 @@
         }
 
         .progress-bar {
-            background: #e5e7eb;
+            background: var(--border-color);
             height: 8px;
             border-radius: 4px;
             margin-bottom: 1rem;
@@ -293,7 +370,7 @@
             font-weight: bold;
             color: var(--primary);
             position: relative;
-            background: var(--white);
+            background: var(--bg-primary);
         }
 
         .category-stats {
@@ -305,7 +382,7 @@
             display: flex;
             justify-content: space-between;
             padding: 0.75rem;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .category-name {
@@ -325,7 +402,7 @@
         .menu-screen h2 {
             font-size: 1.5rem;
             margin-bottom: 2rem;
-            color: var(--dark);
+            color: var(--text-primary);
         }
 
         .menu-options {
@@ -338,7 +415,7 @@
 
         .menu-option {
             padding: 1.5rem;
-            background: var(--white);
+            background: var(--bg-primary);
             border-radius: 12px;
             box-shadow: var(--shadow);
             cursor: pointer;
@@ -360,7 +437,71 @@
 
         .menu-option p {
             font-size: 0.9rem;
-            color: #6b7280;
+            color: var(--text-secondary);
+        }
+
+        .settings-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .settings-section h3 {
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
         }
 
         .tooltip {
@@ -381,6 +522,11 @@
         }
 
         @media (max-width: 640px) {
+            .header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
             .header h1 {
                 font-size: 1.2rem;
             }
@@ -437,7 +583,7 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid var(--light);
+            border: 4px solid var(--border-color);
             border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -446,11 +592,58 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Accessibility improvements */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Focus styles */
+        button:focus-visible,
+        .answer:focus-visible,
+        .menu-option:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* Loading message */
+        .init-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        /* Error styles */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid var(--danger);
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Testownik Machine Learning</h1>
+        <div class="header-controls">
+            <button class="theme-toggle" id="themeToggle" aria-label="Przełącz tryb ciemny">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
     </div>
 
     <div class="container">
@@ -469,1575 +662,66 @@
             </div>
         </div>
 
+        <div class="timer-container" id="timerContainer">
+            <div class="timer" id="timer">0:00</div>
+            <div class="stat-label">Pozostały czas</div>
+        </div>
+
         <div id="appContent">
-            <!-- Dynamic content -->
+            <div class="init-loading">
+                <div class="spinner"></div>
+            </div>
         </div>
     </div>
 
     <div class="tooltip" id="tooltip"></div>
 
-    <script>
-        // Pytania z teorii Machine Learning
-        const questions = [
-            // Podstawy ML
-            {
-                category: "Podstawy ML",
-                question: "Czym jest problem klasyfikacji w uczeniu maszynowym?",
-                answers: [
-                    "Przewidywanie wartości ciągłej na podstawie cech wejściowych",
-                    "Przypisywanie przykładów do jednej z predefiniowanych klas",
-                    "Grupowanie podobnych przykładów bez etykiet",
-                    "Redukcja wymiarowości danych"
-                ],
-                correct: 1,
-                explanation: "Klasyfikacja to przypisywanie przykładów do jednej z predefiniowanych klas (kategorii)."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Czym jest problem regresji w uczeniu maszynowym?",
-                answers: [
-                    "Przypisywanie przykładów do klas",
-                    "Przewidywanie wartości ciągłej na podstawie cech wejściowych",
-                    "Grupowanie danych bez nadzoru",
-                    "Wykrywanie anomalii w danych"
-                ],
-                correct: 1,
-                explanation: "Regresja to przewidywanie wartości ciągłej (np. cena, temperatura) na podstawie cech."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest uczenie nadzorowane?",
-                answers: [
-                    "Uczenie bez użycia etykiet",
-                    "Uczenie z wykorzystaniem danych treningowych zawierających etykiety",
-                    "Uczenie poprzez interakcję ze środowiskiem",
-                    "Uczenie tylko na danych testowych"
-                ],
-                correct: 1,
-                explanation: "W uczeniu nadzorowanym model uczy się na przykładach z etykietami (znanymi odpowiedziami)."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest uczenie nienadzorowane?",
-                answers: [
-                    "Uczenie z etykietami",
-                    "Uczenie poprzez nagrody i kary",
-                    "Uczenie na danych bez etykiet, odkrywanie struktury w danych",
-                    "Uczenie tylko offline"
-                ],
-                correct: 2,
-                explanation: "Uczenie nienadzorowane odkrywa struktury w danych bez znanych etykiet."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest zbiór treningowy?",
-                answers: [
-                    "Dane używane do oceny finalnej modelu",
-                    "Dane używane do uczenia modelu",
-                    "Dane używane tylko do walidacji",
-                    "Dane syntetyczne"
-                ],
-                correct: 1,
-                explanation: "Zbiór treningowy to dane używane do nauczenia modelu rozpoznawania wzorców."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest zbiór testowy?",
-                answers: [
-                    "Dane używane do trenowania modelu",
-                    "Dane używane do doboru hiperparametrów",
-                    "Dane używane do finalnej oceny modelu",
-                    "Dane walidacyjne"
-                ],
-                correct: 2,
-                explanation: "Zbiór testowy służy do finalnej, niezależnej oceny wytrenowanego modelu."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest overfitting (przeuczenie)?",
-                answers: [
-                    "Model ma zbyt małą złożoność",
-                    "Model zbyt dobrze dopasowuje się do danych treningowych, tracąc zdolność generalizacji",
-                    "Model uczy się zbyt wolno",
-                    "Model ma za mało parametrów"
-                ],
-                correct: 1,
-                explanation: "Overfitting występuje gdy model 'zapamiętuje' dane treningowe zamiast uczyć się ogólnych wzorców."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to jest underfitting (niedouczenie)?",
-                answers: [
-                    "Model jest zbyt złożony",
-                    "Model ma za dużo parametrów",
-                    "Model jest zbyt prosty i nie potrafi uchwycić wzorców w danych",
-                    "Model uczy się zbyt szybko"
-                ],
-                correct: 2,
-                explanation: "Underfitting występuje gdy model jest zbyt prosty by nauczyć się wzorców w danych."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Co to są hiperparametry?",
-                answers: [
-                    "Parametry uczone podczas treningu",
-                    "Parametry ustawiane przed treningiem, kontrolujące proces uczenia",
-                    "Wagi w sieci neuronowej",
-                    "Parametry tylko modeli liniowych"
-                ],
-                correct: 1,
-                explanation: "Hiperparametry to parametry kontrolujące proces uczenia, ustawiane przed treningiem."
-            },
-            {
-                category: "Podstawy ML",
-                question: "Czym jest bias-variance tradeoff?",
-                answers: [
-                    "Kompromis między szybkością a dokładnością",
-                    "Kompromis między błędem systematycznym a wariancją modelu",
-                    "Kompromis między rozmiarem modelu a pamięcią",
-                    "Kompromis między precyzją a czułością"
-                ],
-                correct: 1,
-                explanation: "Bias-variance tradeoff to fundamentalny kompromis między prostotą modelu (bias) a jego elastycznością (variance)."
-            },
+    <!-- Module imports -->
+    <script type="module">
+        import { QuizApp } from './js/quiz.js';
 
-            // Sztuczny neuron i perceptron
-            {
-                category: "Sztuczny neuron",
-                question: "Co wchodzi w skład modelu sztucznego neuronu?",
-                answers: [
-                    "Tylko wagi",
-                    "Wejścia, wagi, bias, funkcja aktywacji i wyjście",
-                    "Tylko funkcja aktywacji",
-                    "Tylko wejścia i wyjścia"
-                ],
-                correct: 1,
-                explanation: "Sztuczny neuron składa się z: wejść (x), wag (w), biasu (b), funkcji aktywacji (f) i wyjścia."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Jak obliczana jest suma ważona w sztucznym neuronie?",
-                answers: [
-                    "Mnożenie wejść",
-                    "Suma iloczynów wejść i odpowiadających im wag plus bias",
-                    "Średnia wejść",
-                    "Maksimum z wejść"
-                ],
-                correct: 1,
-                explanation: "Suma ważona = Σ(xi * wi) + b, gdzie xi to wejścia, wi to wagi, b to bias."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Po co stosuje się funkcję aktywacji w neuronie?",
-                answers: [
-                    "Aby przyspieszyć obliczenia",
-                    "Aby zmniejszyć rozmiar modelu",
-                    "Aby wprowadzić nieliniowość do modelu",
-                    "Aby znormalizować wejścia"
-                ],
-                correct: 2,
-                explanation: "Funkcja aktywacji wprowadza nieliniowość, pozwalając modelować złożone zależności."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Która funkcja aktywacji zwraca wartości w przedziale (0,1)?",
-                answers: [
-                    "ReLU",
-                    "Tangens hiperboliczny",
-                    "Funkcja sigmoida",
-                    "Funkcja liniowa"
-                ],
-                correct: 2,
-                explanation: "Funkcja sigmoida: f(x) = 1/(1+e^(-x)) zwraca wartości między 0 a 1."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Co to jest perceptron?",
-                answers: [
-                    "Wielowarstwowa sieć neuronowa",
-                    "Pojedynczy sztuczny neuron z binarną funkcją aktywacji",
-                    "Algorytm grupowania",
-                    "Metoda redukcji wymiarów"
-                ],
-                correct: 1,
-                explanation: "Perceptron to najprostszy model neuronu z binarną funkcją aktywacji (próg)."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Jakie problemy może rozwiązać pojedynczy perceptron?",
-                answers: [
-                    "Wszystkie problemy klasyfikacji",
-                    "Tylko problemy liniowo separowalne",
-                    "Problemy nieliniowe",
-                    "Tylko problemy regresji"
-                ],
-                correct: 1,
-                explanation: "Pojedynczy perceptron może rozwiązać tylko problemy liniowo separowalne."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Co to jest perceptron wielowarstwowy (MLP)?",
-                answers: [
-                    "Pojedynczy neuron z wieloma wejściami",
-                    "Sieć neuronowa z warstwą wejściową, ukrytymi i wyjściową",
-                    "Perceptron z wieloma funkcjami aktywacji",
-                    "Algorytm uczenia perceptronu"
-                ],
-                correct: 1,
-                explanation: "MLP to sieć z co najmniej jedną warstwą ukrytą między wejściem a wyjściem."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Dlaczego MLP może rozwiązywać problemy nieliniowe?",
-                answers: [
-                    "Ma więcej wag",
-                    "Używa szybszych algorytmów",
-                    "Warstwy ukryte z nieliniowymi funkcjami aktywacji",
-                    "Ma więcej neuronów wyjściowych"
-                ],
-                correct: 2,
-                explanation: "Warstwy ukryte z nieliniowymi funkcjami aktywacji pozwalają modelować złożone zależności."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Co to jest bias w kontekście neuronu?",
-                answers: [
-                    "Błąd modelu",
-                    "Dodatkowy parametr pozwalający przesunąć funkcję aktywacji",
-                    "Waga połączenia",
-                    "Typ funkcji aktywacji"
-                ],
-                correct: 1,
-                explanation: "Bias to parametr pozwalający przesunąć próg aktywacji neuronu."
-            },
-            {
-                category: "Sztuczny neuron",
-                question: "Co to jest funkcja ReLU?",
-                answers: [
-                    "f(x) = 1/(1+e^(-x))",
-                    "f(x) = tanh(x)",
-                    "f(x) = max(0, x)",
-                    "f(x) = x"
-                ],
-                correct: 2,
-                explanation: "ReLU (Rectified Linear Unit) zwraca 0 dla wartości ujemnych i x dla dodatnich."
-            },
-
-            // Drzewa decyzyjne
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co reprezentuje drzewo decyzyjne?",
-                answers: [
-                    "Sieć neuronową",
-                    "Hierarchiczną strukturę decyzji opartą na cechach",
-                    "Graf cykliczny",
-                    "Macierz wag"
-                ],
-                correct: 1,
-                explanation: "Drzewo decyzyjne to hierarchiczna struktura if-then reguł decyzyjnych."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co znajduje się w węzłach wewnętrznych drzewa decyzyjnego?",
-                answers: [
-                    "Klasy końcowe",
-                    "Wartości predykcji",
-                    "Warunki podziału oparte na cechach",
-                    "Tylko liczby"
-                ],
-                correct: 2,
-                explanation: "Węzły wewnętrzne zawierają warunki podziału typu 'cecha < próg'."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co znajduje się w liściach drzewa decyzyjnego?",
-                answers: [
-                    "Warunki podziału",
-                    "Cechy",
-                    "Predykcje (klasy lub wartości)",
-                    "Kolejne drzewa"
-                ],
-                correct: 2,
-                explanation: "Liście zawierają finalne predykcje - klasy w klasyfikacji lub wartości w regresji."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Jak działa algorytm CART?",
-                answers: [
-                    "Dzieli losowo dane",
-                    "Rekurencyjnie dzieli dane wybierając najlepszy podział według kryterium",
-                    "Używa gradientu",
-                    "Grupuje podobne przykłady"
-                ],
-                correct: 1,
-                explanation: "CART rekurencyjnie wybiera najlepszy podział maksymalizujący zysk informacyjny."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co to jest zysk informacyjny (information gain)?",
-                answers: [
-                    "Liczba przykładów w węźle",
-                    "Redukcja entropii po podziale",
-                    "Głębokość drzewa",
-                    "Liczba liści"
-                ],
-                correct: 1,
-                explanation: "Zysk informacyjny mierzy jak bardzo podział redukuje niepewność (entropię)."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co to jest kryterium Gini w drzewach decyzyjnych?",
-                answers: [
-                    "Miara głębokości drzewa",
-                    "Miara nieczystości węzła",
-                    "Liczba przykładów",
-                    "Typ funkcji aktywacji"
-                ],
-                correct: 1,
-                explanation: "Indeks Gini mierzy jak często losowo wybrany element byłby źle sklasyfikowany."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Jakie są zalety drzew decyzyjnych?",
-                answers: [
-                    "Zawsze dają najlepsze wyniki",
-                    "Łatwa interpretacja, brak potrzeby normalizacji danych",
-                    "Zawsze są małe",
-                    "Nie wymagają żadnych parametrów"
-                ],
-                correct: 1,
-                explanation: "Drzewa są interpretowalne i nie wymagają skalowania czy normalizacji cech."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co to jest przycinanie drzewa (pruning)?",
-                answers: [
-                    "Dodawanie nowych węzłów",
-                    "Usuwanie węzłów aby zapobiec przeuczeniu",
-                    "Zmiana kolejności węzłów",
-                    "Łączenie drzew"
-                ],
-                correct: 1,
-                explanation: "Pruning redukuje złożoność drzewa usuwając węzły, co zapobiega overfittingowi."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Co kontroluje parametr max_depth w drzewach?",
-                answers: [
-                    "Liczbę cech",
-                    "Maksymalną głębokość drzewa",
-                    "Liczbę klas",
-                    "Minimalną liczbę próbek"
-                ],
-                correct: 1,
-                explanation: "max_depth ogranicza jak głębokie może być drzewo, kontrolując złożoność."
-            },
-            {
-                category: "Drzewa decyzyjne",
-                question: "Kiedy drzewo decyzyjne przestaje się rozrastać?",
-                answers: [
-                    "Zawsze po 10 poziomach",
-                    "Gdy węzeł jest czysty lub osiągnięto kryteria stopu",
-                    "Nigdy",
-                    "Po 1 godzinie"
-                ],
-                correct: 1,
-                explanation: "Drzewo przestaje rosnąć gdy węzły są czyste lub spełnione są kryteria jak max_depth."
-            },
-
-            // Regresja logistyczna
-            {
-                category: "Regresja logistyczna",
-                question: "Do czego służy regresja logistyczna?",
-                answers: [
-                    "Tylko do regresji",
-                    "Do klasyfikacji binarnej i obliczania prawdopodobieństw",
-                    "Do grupowania danych",
-                    "Do redukcji wymiarów"
-                ],
-                correct: 1,
-                explanation: "Regresja logistyczna to algorytm klasyfikacji obliczający prawdopodobieństwa przynależności do klas."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Jaka funkcja jest używana w regresji logistycznej?",
-                answers: [
-                    "Funkcja liniowa",
-                    "Funkcja kwadratowa",
-                    "Funkcja sigmoida (logistyczna)",
-                    "Funkcja skokowa"
-                ],
-                correct: 2,
-                explanation: "Funkcja sigmoida przekształca wartości liniowe na prawdopodobieństwa (0,1)."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Co zwraca regresja logistyczna?",
-                answers: [
-                    "Zawsze 0 lub 1",
-                    "Wartości ujemne",
-                    "Prawdopodobieństwo przynależności do klasy",
-                    "Tylko liczby całkowite"
-                ],
-                correct: 2,
-                explanation: "Regresja logistyczna zwraca prawdopodobieństwo między 0 a 1."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Jak interpretujemy wynik 0.8 z regresji logistycznej?",
-                answers: [
-                    "80% cech ma wartość 1",
-                    "80% prawdopodobieństwo przynależności do klasy pozytywnej",
-                    "Model ma 80% dokładność",
-                    "80% danych treningowych"
-                ],
-                correct: 1,
-                explanation: "Wynik 0.8 oznacza 80% prawdopodobieństwo że przykład należy do klasy pozytywnej."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Co to jest próg decyzyjny w regresji logistycznej?",
-                answers: [
-                    "Maksymalna wartość cechy",
-                    "Wartość prawdopodobieństwa do klasyfikacji (np. 0.5)",
-                    "Liczba iteracji",
-                    "Rozmiar danych"
-                ],
-                correct: 1,
-                explanation: "Próg decyzyjny (np. 0.5) określa od jakiego prawdopodobieństwa przypisujemy do klasy pozytywnej."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Czy regresja logistyczna może być używana do klasyfikacji wieloklasowej?",
-                answers: [
-                    "Nie, tylko binarna",
-                    "Tak, używając strategii one-vs-rest lub softmax",
-                    "Tylko dla 3 klas",
-                    "Tylko z drzewami decyzyjnymi"
-                ],
-                correct: 1,
-                explanation: "Regresja logistyczna może być rozszerzona na wiele klas używając różnych strategii."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Co to jest regularyzacja w regresji logistycznej?",
-                answers: [
-                    "Normalizacja danych",
-                    "Technika zapobiegająca przeuczeniu przez karanie dużych wag",
-                    "Typ funkcji aktywacji",
-                    "Metoda inicjalizacji"
-                ],
-                correct: 1,
-                explanation: "Regularyzacja (L1/L2) dodaje karę za duże wagi, zapobiegając overfittingowi."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Jaka jest główna różnica między regresją liniową a logistyczną?",
-                answers: [
-                    "Nie ma różnicy",
-                    "Regresja liniowa dla wartości ciągłych, logistyczna dla klasyfikacji",
-                    "Tylko nazwa",
-                    "Regresja logistyczna jest szybsza"
-                ],
-                correct: 1,
-                explanation: "Regresja liniowa przewiduje wartości ciągłe, logistyczna prawdopodobieństwa klas."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Co to jest log-loss w kontekście regresji logistycznej?",
-                answers: [
-                    "Typ regularyzacji",
-                    "Funkcja kosztu mierząca błąd predykcji prawdopodobieństw",
-                    "Metoda optymalizacji",
-                    "Typ kernela"
-                ],
-                correct: 1,
-                explanation: "Log-loss (cross-entropy) to funkcja kosztu dla klasyfikacji probabilistycznej."
-            },
-            {
-                category: "Regresja logistyczna",
-                question: "Dlaczego regresja logistyczna jest 'liniowa'?",
-                answers: [
-                    "Zawsze daje liniowe wyniki",
-                    "Granica decyzyjna jest liniowa w przestrzeni cech",
-                    "Używa tylko jednej cechy",
-                    "Jest wolniejsza od innych"
-                ],
-                correct: 1,
-                explanation: "Mimo nieliniowej funkcji sigmoid, granica decyzyjna jest liniowa."
-            },
-
-            // K-means i clustering
-            {
-                category: "Clustering",
-                question: "Co to jest clustering (grupowanie)?",
-                answers: [
-                    "Typ klasyfikacji z etykietami",
-                    "Uczenie nienadzorowane grupujące podobne przykłady",
-                    "Metoda regresji",
-                    "Algorytm redukcji szumu"
-                ],
-                correct: 1,
-                explanation: "Clustering to uczenie nienadzorowane odkrywające grupy podobnych przykładów."
-            },
-            {
-                category: "Clustering",
-                question: "Jak działa algorytm K-means?",
-                answers: [
-                    "Losowo przypisuje punkty do grup",
-                    "Iteracyjnie przypisuje punkty do najbliższych centroidów i aktualizuje centroidy",
-                    "Używa drzew decyzyjnych",
-                    "Działa tylko na 2 wymiarach"
-                ],
-                correct: 1,
-                explanation: "K-means iteracyjnie: 1) przypisuje punkty do najbliższych centroidów, 2) przesuwa centroidy."
-            },
-            {
-                category: "Clustering",
-                question: "Co to jest centroid w K-means?",
-                answers: [
-                    "Najdalszy punkt w klastrze",
-                    "Środek (średnia) punktów w klastrze",
-                    "Pierwszy punkt klastra",
-                    "Losowy punkt"
-                ],
-                correct: 1,
-                explanation: "Centroid to punkt reprezentujący środek klastra (średnia współrzędnych)."
-            },
-            {
-                category: "Clustering",
-                question: "Jak wybiera się liczbę klastrów K w K-means?",
-                answers: [
-                    "Zawsze K=2",
-                    "Metoda łokcia, silhouette score lub wiedza domenowa",
-                    "Losowo",
-                    "K = liczba cech"
-                ],
-                correct: 1,
-                explanation: "Liczbę klastrów wybiera się analizując metryki jak inercja (metoda łokcia) lub silhouette."
-            },
-            {
-                category: "Clustering",
-                question: "Co to jest inercja w K-means?",
-                answers: [
-                    "Liczba iteracji",
-                    "Suma kwadratów odległości punktów od ich centroidów",
-                    "Liczba klastrów",
-                    "Typ odległości"
-                ],
-                correct: 1,
-                explanation: "Inercja mierzy jak zwarte są klastry - mniejsza wartość oznacza lepsze grupowanie."
-            },
-            {
-                category: "Clustering",
-                question: "Jakie są ograniczenia K-means?",
-                answers: [
-                    "Działa na każdych danych",
-                    "Zakłada sferyczne klastry, wrażliwy na inicjalizację",
-                    "Nie ma ograniczeń",
-                    "Działa tylko na tekście"
-                ],
-                correct: 1,
-                explanation: "K-means najlepiej działa na sferycznych klastrach i jest wrażliwy na początkowe centroidy."
-            },
-            {
-                category: "Clustering",
-                question: "Co to jest K-means++?",
-                answers: [
-                    "Szybsza wersja K-means",
-                    "Metoda inteligentnej inicjalizacji centroidów",
-                    "K-means dla dużych danych",
-                    "K-means z większą liczbą klastrów"
-                ],
-                correct: 1,
-                explanation: "K-means++ wybiera początkowe centroidy tak, aby były od siebie oddalone."
-            },
-            {
-                category: "Clustering",
-                question: "Czym różni się DBSCAN od K-means?",
-                answers: [
-                    "Nie ma różnicy",
-                    "DBSCAN znajduje klastry o dowolnych kształtach i wykrywa szum",
-                    "DBSCAN jest wolniejszy",
-                    "DBSCAN wymaga więcej pamięci"
-                ],
-                correct: 1,
-                explanation: "DBSCAN opiera się na gęstości, znajduje klastry dowolnych kształtów i oznacza outliers."
-            },
-            {
-                category: "Clustering",
-                question: "Co to jest hierarchiczne grupowanie?",
-                answers: [
-                    "Grupowanie w wielu wymiarach",
-                    "Budowanie drzewa klastrów przez łączenie lub dzielenie",
-                    "Grupowanie tylko 2 klastrów",
-                    "Grupowanie z etykietami"
-                ],
-                correct: 1,
-                explanation: "Hierarchiczne grupowanie tworzy drzewo (dendrogram) łącząc lub dzieląc klastry."
-            },
-            {
-                category: "Clustering",
-                question: "Co pokazuje dendrogram?",
-                answers: [
-                    "Tylko końcowe klastry",
-                    "Hierarchię łączenia klastrów i odległości między nimi",
-                    "Centroidy klastrów",
-                    "Błędy grupowania"
-                ],
-                correct: 1,
-                explanation: "Dendrogram wizualizuje proces łączenia klastrów i pozwala wybrać liczbę grup."
-            },
-
-            // KNN i Nearest Neighbors
-            {
-                category: "Nearest Neighbors",
-                question: "Jak działa algorytm K-Nearest Neighbors (KNN)?",
-                answers: [
-                    "Trenuje złożony model",
-                    "Klasyfikuje na podstawie K najbliższych sąsiadów",
-                    "Używa drzew decyzyjnych",
-                    "Działa tylko online"
-                ],
-                correct: 1,
-                explanation: "KNN przypisuje klasę na podstawie głosowania K najbliższych przykładów treningowych."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Czy KNN wymaga fazy treningu?",
-                answers: [
-                    "Tak, długiego treningu",
-                    "Nie, to algorytm lazy learning",
-                    "Tylko dla dużych danych",
-                    "Zależy od K"
-                ],
-                correct: 1,
-                explanation: "KNN to 'lazy learning' - nie buduje modelu, tylko zapamiętuje dane treningowe."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Jak K wpływa na działanie KNN?",
-                answers: [
-                    "Nie ma wpływu",
-                    "Małe K - bardziej złożona granica, duże K - gładsza granica",
-                    "K określa liczbę cech",
-                    "K określa liczbę klas"
-                ],
-                correct: 1,
-                explanation: "Małe K daje bardziej elastyczny model, duże K bardziej wygładzoną granicę decyzyjną."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Dlaczego normalizacja jest ważna w KNN?",
-                answers: [
-                    "Nie jest ważna",
-                    "KNN opiera się na odległościach, skala cech ma znaczenie",
-                    "Przyspiesza algorytm",
-                    "Zmniejsza K"
-                ],
-                correct: 1,
-                explanation: "Cechy o większej skali zdominowałyby obliczanie odległości bez normalizacji."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Jaka jest złożoność predykcji w KNN?",
-                answers: [
-                    "O(1)",
-                    "O(n) gdzie n to liczba próbek treningowych",
-                    "O(log n)",
-                    "O(K)"
-                ],
-                correct: 1,
-                explanation: "KNN musi obliczyć odległość do wszystkich n punktów treningowych przy predykcji."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Co to jest 'curse of dimensionality' w kontekście KNN?",
-                answers: [
-                    "KNN działa lepiej w wysokich wymiarach",
-                    "W wysokich wymiarach wszystkie punkty stają się podobnie odległe",
-                    "Więcej wymiarów to szybsze działanie",
-                    "Problem z pamięcią"
-                ],
-                correct: 1,
-                explanation: "W wysokowymiarowych przestrzeniach odległości tracą znaczenie - wszystko jest 'daleko'."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Jak KNN radzi sobie z niezbalansowanymi klasami?",
-                answers: [
-                    "Bardzo dobrze",
-                    "Słabo - może być zdominowany przez liczniejszą klasę",
-                    "Automatycznie balansuje",
-                    "Nie ma tego problemu"
-                ],
-                correct: 1,
-                explanation: "KNN może faworyzować liczniejsze klasy - można użyć ważonego głosowania."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Co to jest KNN z ważonym głosowaniem?",
-                answers: [
-                    "Każdy sąsiad ma taki sam głos",
-                    "Bliżsi sąsiedzi mają większy wpływ na decyzję",
-                    "Tylko najdalszy sąsiad głosuje",
-                    "Losowe wagi sąsiadów"
-                ],
-                correct: 1,
-                explanation: "W ważonym KNN głos sąsiada jest proporcjonalny do 1/odległość."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Czy KNN może być używany do regresji?",
-                answers: [
-                    "Nie, tylko klasyfikacja",
-                    "Tak, przewiduje średnią K najbliższych sąsiadów",
-                    "Tylko dla danych binarnych",
-                    "Tylko z innymi algorytmami"
-                ],
-                correct: 1,
-                explanation: "W regresji KNN zwraca średnią (lub ważoną średnią) wartości K sąsiadów."
-            },
-            {
-                category: "Nearest Neighbors",
-                question: "Jakie metryki odległości można użyć w KNN?",
-                answers: [
-                    "Tylko euklidesowa",
-                    "Euklidesowa, Manhattan, Minkowski i inne",
-                    "Nie używa odległości",
-                    "Tylko Manhattan"
-                ],
-                correct: 1,
-                explanation: "KNN może używać różnych metryk odległości zależnie od charakteru danych."
-            },
-
-            // Metryki i walidacja
-            {
-                category: "Metryki",
-                question: "Co to jest accuracy (dokładność)?",
-                answers: [
-                    "Stosunek fałszywie pozytywnych do wszystkich",
-                    "Stosunek poprawnych predykcji do wszystkich predykcji",
-                    "Tylko dla klasy pozytywnej",
-                    "Średni błąd"
-                ],
-                correct: 1,
-                explanation: "Accuracy = (TP + TN) / (TP + TN + FP + FN) - procent poprawnych predykcji."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest precision (precyzja)?",
-                answers: [
-                    "Stosunek prawdziwie pozytywnych do wszystkich przewidzianych jako pozytywne",
-                    "Stosunek prawdziwie pozytywnych do wszystkich rzeczywiście pozytywnych",
-                    "Dokładność modelu",
-                    "Błąd średniokwadratowy"
-                ],
-                correct: 0,
-                explanation: "Precision = TP / (TP + FP) - jaka część przewidzianych pozytywnych jest poprawna."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest recall (czułość)?",
-                answers: [
-                    "To samo co precision",
-                    "Stosunek prawdziwie pozytywnych do wszystkich rzeczywiście pozytywnych",
-                    "Błąd modelu",
-                    "Liczba fałszywie negatywnych"
-                ],
-                correct: 1,
-                explanation: "Recall = TP / (TP + FN) - jaka część rzeczywistych pozytywnych została wykryta."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest F1-score?",
-                answers: [
-                    "Średnia arytmetyczna precision i recall",
-                    "Średnia harmoniczna precision i recall",
-                    "Maksimum z precision i recall",
-                    "Różnica precision i recall"
-                ],
-                correct: 1,
-                explanation: "F1 = 2 * (precision * recall) / (precision + recall) - balansuje obie metryki."
-            },
-            {
-                category: "Metryki",
-                question: "Kiedy accuracy może być mylącą metryką?",
-                answers: [
-                    "Zawsze jest dobra",
-                    "Przy niezbalansowanych klasach",
-                    "Przy małych danych",
-                    "Przy dużych danych"
-                ],
-                correct: 1,
-                explanation: "Przy niezbalansowanych klasach model przewidujący tylko liczniejszą klasę może mieć wysoką accuracy."
-            },
-            {
-                category: "Metryki",
-                question: "Co pokazuje macierz pomyłek (confusion matrix)?",
-                answers: [
-                    "Tylko błędy modelu",
-                    "Rozkład prawdziwych i przewidzianych klas",
-                    "Wagi modelu",
-                    "Czas treningu"
-                ],
-                correct: 1,
-                explanation: "Macierz pomyłek pokazuje ile przykładów każdej klasy zostało zaklasyfikowanych do każdej klasy."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest cross-validation (walidacja krzyżowa)?",
-                answers: [
-                    "Podział na train/test",
-                    "Wielokrotna ocena modelu na różnych podzbiorach danych",
-                    "Typ regularyzacji",
-                    "Metoda treningu"
-                ],
-                correct: 1,
-                explanation: "Cross-validation dzieli dane na K części i K razy trenuje/testuje na różnych podzbiorach."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest stratified cross-validation?",
-                answers: [
-                    "Losowy podział danych",
-                    "Zachowanie proporcji klas w każdym podzbiorze",
-                    "Używanie tylko 2 foldów",
-                    "Walidacja tylko na klasie pozytywnej"
-                ],
-                correct: 1,
-                explanation: "Stratified CV zachowuje proporcje klas w każdym foldzie, ważne przy niezbalansowanych danych."
-            },
-            {
-                category: "Metryki",
-                question: "Co to jest ROC curve?",
-                answers: [
-                    "Wykres błędu w czasie",
-                    "Wykres TPR vs FPR dla różnych progów",
-                    "Wykres dokładności",
-                    "Histogram predykcji"
-                ],
-                correct: 1,
-                explanation: "ROC pokazuje kompromis między True Positive Rate a False Positive Rate."
-            },
-            {
-                category: "Metryki",
-                question: "Co oznacza AUC (Area Under Curve)?",
-                answers: [
-                    "Dokładność modelu",
-                    "Pole pod krzywą ROC - miara jakości klasyfikatora",
-                    "Średni błąd",
-                    "Liczba parametrów"
-                ],
-                correct: 1,
-                explanation: "AUC mierzy zdolność modelu do rozróżniania klas - 1.0 to idealny klasyfikator."
-            },
-
-            // Preprocessing i feature engineering
-            {
-                category: "Preprocessing",
-                question: "Dlaczego stosuje się normalizację danych?",
-                answers: [
-                    "Zawsze poprawia wyniki",
-                    "Wyrównuje skale cech dla algorytmów wrażliwych na odległości",
-                    "Przyspiesza tylko",
-                    "Usuwa outliers"
-                ],
-                correct: 1,
-                explanation: "Normalizacja zapewnia że cechy o różnych skalach mają podobny wpływ na model."
-            },
-            {
-                category: "Preprocessing",
-                question: "Czym różni się standaryzacja od normalizacji Min-Max?",
-                answers: [
-                    "Nie ma różnicy",
-                    "Standaryzacja: średnia=0, std=1; Min-Max: zakres [0,1]",
-                    "Standaryzacja jest szybsza",
-                    "Min-Max usuwa więcej danych"
-                ],
-                correct: 1,
-                explanation: "Standaryzacja centruje dane wokół 0, Min-Max skaluje do określonego zakresu."
-            },
-            {
-                category: "Preprocessing",
-                question: "Co to jest one-hot encoding?",
-                answers: [
-                    "Kodowanie liczb na binarne",
-                    "Przekształcenie zmiennej kategorycznej na binarne kolumny",
-                    "Kompresja danych",
-                    "Typ normalizacji"
-                ],
-                correct: 1,
-                explanation: "One-hot tworzy osobną kolumnę binarną dla każdej kategorii."
-            },
-            {
-                category: "Preprocessing",
-                question: "Kiedy używamy ordinal encoding zamiast one-hot?",
-                answers: [
-                    "Zawsze",
-                    "Gdy kategorie mają naturalny porządek",
-                    "Dla danych numerycznych",
-                    "Nigdy"
-                ],
-                correct: 1,
-                explanation: "Ordinal encoding dla kategorii z porządkiem (np. niski/średni/wysoki)."
-            },
-            {
-                category: "Preprocessing",
-                question: "Jak postępować z brakującymi danymi?",
-                answers: [
-                    "Zawsze usuwać",
-                    "Usunąć, wypełnić średnią/medianą/modą lub użyć zaawansowanych metod",
-                    "Ignorować",
-                    "Zastąpić zerami"
-                ],
-                correct: 1,
-                explanation: "Strategia zależy od charakteru i ilości braków - od prostego wypełnienia po imputację."
-            },
-            {
-                category: "Preprocessing",
-                question: "Co to jest feature scaling?",
-                answers: [
-                    "Tworzenie nowych cech",
-                    "Przekształcenie cech do podobnego zakresu wartości",
-                    "Usuwanie cech",
-                    "Selekcja cech"
-                ],
-                correct: 1,
-                explanation: "Feature scaling to normalizacja lub standaryzacja cech."
-            },
-            {
-                category: "Preprocessing",
-                question: "Dlaczego wykrywanie outliers jest ważne?",
-                answers: [
-                    "Nie jest ważne",
-                    "Outliers mogą znacząco wpłynąć na uczenie modelu",
-                    "Tylko dla wizualizacji",
-                    "Przyspiesza trening"
-                ],
-                correct: 1,
-                explanation: "Outliers mogą zaburzać proces uczenia, szczególnie w algorytmach wrażliwych na wartości ekstremalne."
-            },
-            {
-                category: "Preprocessing",
-                question: "Co to jest feature engineering?",
-                answers: [
-                    "Usuwanie wszystkich cech",
-                    "Tworzenie nowych cech na podstawie istniejących",
-                    "Tylko normalizacja",
-                    "Kompresja danych"
-                ],
-                correct: 1,
-                explanation: "Feature engineering to proces tworzenia informatywnych cech z surowych danych."
-            },
-            {
-                category: "Preprocessing",
-                question: "Co to jest binning (dyskretyzacja)?",
-                answers: [
-                    "Kodowanie binarne",
-                    "Podział zmiennej ciągłej na przedziały",
-                    "Usuwanie duplikatów",
-                    "Typ klasyfikacji"
-                ],
-                correct: 1,
-                explanation: "Binning przekształca zmienną ciągłą w kategoryczną dzieląc na przedziały."
-            },
-            {
-                category: "Preprocessing",
-                question: "Kiedy stosuje się logarytmiczne przekształcenie danych?",
-                answers: [
-                    "Zawsze",
-                    "Dla danych skośnych lub o dużym zakresie wartości",
-                    "Tylko dla ujemnych wartości",
-                    "Nigdy"
-                ],
-                correct: 1,
-                explanation: "Log transform redukuje skośność i kompresuje duże wartości."
-            },
-
-            // Zaawansowane tematy
-            {
-                category: "Zaawansowane",
-                question: "Co to jest ensemble learning?",
-                answers: [
-                    "Uczenie jednego modelu",
-                    "Łączenie predykcji wielu modeli dla lepszych wyników",
-                    "Typ sieci neuronowej",
-                    "Metoda redukcji wymiarów"
-                ],
-                correct: 1,
-                explanation: "Ensemble łączy wiele modeli (np. voting, bagging, boosting) dla lepszej generalizacji."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Czym jest Random Forest?",
-                answers: [
-                    "Jedno duże drzewo",
-                    "Zespół drzew decyzyjnych trenowanych na losowych podzbiorach",
-                    "Las w danych",
-                    "Typ regresji"
-                ],
-                correct: 1,
-                explanation: "Random Forest to ensemble drzew trenowanych na bootstrapowanych próbkach z losowymi cechami."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest gradient boosting?",
-                answers: [
-                    "Typ gradientu",
-                    "Sekwencyjne dodawanie modeli korygujących błędy poprzednich",
-                    "Równoległe trenowanie",
-                    "Optymalizacja wag"
-                ],
-                correct: 1,
-                explanation: "Gradient boosting buduje modele sekwencyjnie, każdy uczy się na błędach poprzednich."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest bagging?",
-                answers: [
-                    "Pakowanie modelu",
-                    "Bootstrap aggregating - trenowanie modeli na różnych próbkach",
-                    "Typ torby",
-                    "Kompresja modelu"
-                ],
-                correct: 1,
-                explanation: "Bagging trenuje wiele modeli na bootstrapowanych próbkach i uśrednia predykcje."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest regularyzacja L1 i L2?",
-                answers: [
-                    "Typy funkcji aktywacji",
-                    "L1 - suma wartości bezwzględnych wag, L2 - suma kwadratów wag",
-                    "Metody inicjalizacji",
-                    "Typy optymalizatorów"
-                ],
-                correct: 1,
-                explanation: "L1 prowadzi do rzadkich wag (selekcja cech), L2 do małych ale niezerowych wag."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest Grid Search?",
-                answers: [
-                    "Wyszukiwanie w sieci",
-                    "Systematyczne przeszukiwanie przestrzeni hiperparametrów",
-                    "Typ algorytmu",
-                    "Metoda treningu"
-                ],
-                correct: 1,
-                explanation: "Grid Search testuje wszystkie kombinacje zadanych wartości hiperparametrów."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Czym różni się Random Search od Grid Search?",
-                answers: [
-                    "Nie ma różnicy",
-                    "Random Search losowo próbkuje przestrzeń hiperparametrów",
-                    "Random Search jest zawsze gorszy",
-                    "Grid Search jest losowy"
-                ],
-                correct: 1,
-                explanation: "Random Search często znajduje dobre rozwiązania szybciej próbkując losowo."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest pipeline w ML?",
-                answers: [
-                    "Rura z danymi",
-                    "Sekwencja kroków przetwarzania od surowych danych do predykcji",
-                    "Typ modelu",
-                    "Baza danych"
-                ],
-                correct: 1,
-                explanation: "Pipeline automatyzuje przepływ: preprocessing -> feature engineering -> model."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest transfer learning?",
-                answers: [
-                    "Kopiowanie kodu",
-                    "Wykorzystanie wiedzy z jednego zadania w innym podobnym zadaniu",
-                    "Przesyłanie modelu",
-                    "Typ regularyzacji"
-                ],
-                correct: 1,
-                explanation: "Transfer learning wykorzystuje wytrenowany model jako punkt startowy dla nowego zadania."
-            },
-            {
-                category: "Zaawansowane",
-                question: "Co to jest autoencoder?",
-                answers: [
-                    "Automatyczny koder",
-                    "Sieć neuronowa ucząca się kompresji i rekonstrukcji danych",
-                    "Typ klasyfikatora",
-                    "Algorytm sortowania"
-                ],
-                correct: 1,
-                explanation: "Autoencoder uczy się efektywnej reprezentacji danych przez kompresję i odtwarzanie."
-            }
-        ];
-
-        // Stan aplikacji
-        let appState = {
-            currentMode: 'menu',
-            currentQuestionIndex: 0,
-            selectedAnswer: null,
-            answers: [],
-            showingFeedback: false,
-            stats: {
-                totalQuestions: 0,
-                correctAnswers: 0,
-                categoryStats: {}
-            },
-            learningMode: {
-                incorrectQuestions: [],
-                isReviewMode: false
-            }
-        };
-
-        // Local Storage
-        function saveProgress() {
-            const saveData = {
-                ...appState,
-                learningMode: {
-                    incorrectQuestions: appState.learningMode.incorrectQuestions.map(q => ({
-                        category: q.category,
-                        question: q.question,
-                        answers: q.answers,
-                        correct: q.correct,
-                        explanation: q.explanation
-                    })),
-                    isReviewMode: appState.learningMode.isReviewMode
-                }
-            };
-            localStorage.setItem('mlQuizProgress', JSON.stringify(saveData));
-        }
-
-        function loadProgress() {
-            const saved = localStorage.getItem('mlQuizProgress');
-            if (saved) {
-                const loadedData = JSON.parse(saved);
-                appState = {
-                    ...loadedData,
-                    currentMode: 'menu', // Zawsze zaczynaj od menu
-                    currentQuestionIndex: 0,
-                    selectedAnswer: null,
-                    showingFeedback: false
-                };
-            }
-            updateStats();
-        }
-
-        // Inicjalizacja kategorii
-        function initializeCategories() {
-            const categories = [...new Set(questions.map(q => q.category))];
-            categories.forEach(cat => {
-                if (!appState.stats.categoryStats[cat]) {
-                    appState.stats.categoryStats[cat] = {
-                        total: 0,
-                        correct: 0
-                    };
-                }
-            });
-        }
-
-        // Mieszanie pytań
-        function shuffleArray(array) {
-            const newArray = [...array];
-            for (let i = newArray.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-            }
-            return newArray;
-        }
-
-        // Renderowanie
-        function renderMenu() {
-            const content = document.getElementById('appContent');
-            content.innerHTML = `
-                <div class="quiz-card menu-screen">
-                    <h2>Wybierz tryb nauki</h2>
-                    <div class="menu-options">
-                        <div class="menu-option" onclick="startQuiz('all')">
-                            <h3>Wszystkie pytania</h3>
-                            <p>Przejdź przez wszystkie ${questions.length} pytań z teorii ML</p>
+        // Error handling for module loading
+        window.addEventListener('error', (event) => {
+            console.error('Application error:', event.error);
+            const appContent = document.getElementById('appContent');
+            if (appContent) {
+                appContent.innerHTML = `
+                    <div class="quiz-card">
+                        <div class="error-message">
+                            <h2>Błąd ładowania aplikacji</h2>
+                            <p>Sprawdź czy wszystkie pliki zostały poprawnie załadowane.</p>
+                            <p style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                ${event.error?.message || 'Nieznany błąd'}
+                            </p>
                         </div>
-                        <div class="menu-option" onclick="startQuiz('random')">
-                            <h3>Losowe pytania</h3>
-                            <p>20 losowo wybranych pytań z różnych kategorii</p>
-                        </div>
-                        <div class="menu-option" onclick="startQuiz('review')">
-                            <h3>Powtórka błędów</h3>
-                            <p>${appState.learningMode.incorrectQuestions.length} pytań, na które odpowiedziałeś błędnie</p>
-                            ${appState.learningMode.incorrectQuestions.length > 0 ? 
-                                `<div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--danger); color: white; border-radius: 6px; font-size: 0.85rem; text-align: center;">
-                                    ${appState.learningMode.incorrectQuestions.length} ${appState.learningMode.incorrectQuestions.length === 1 ? 'pytanie' : 'pytań'} do powtórki
-                                </div>` : 
-                                '<div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--success); color: white; border-radius: 6px; font-size: 0.85rem; text-align: center;">Brak błędów! 🎉</div>'
-                            }
-                        </div>
-                        <div class="menu-option" onclick="showCategories()">
-                            <h3>Wybierz kategorię</h3>
-                            <p>Ucz się pytań z wybranej kategorii</p>
-                        </div>
+                        <button class="btn btn-primary" onclick="location.reload()">
+                            Odśwież stronę
+                        </button>
                     </div>
-                    <button class="btn btn-secondary" style="margin-top: 2rem" onclick="resetProgress()">
-                        Resetuj postępy
-                    </button>
-                </div>
-            `;
-        }
-
-        function showCategories() {
-            const categories = [...new Set(questions.map(q => q.category))];
-            const content = document.getElementById('appContent');
-            
-            content.innerHTML = `
-                <div class="quiz-card">
-                    <h2>Wybierz kategorię</h2>
-                    <div class="category-stats" style="margin-top: 1rem">
-                        ${categories.map(cat => {
-                            const stats = appState.stats.categoryStats[cat] || { total: 0, correct: 0 };
-                            const percentage = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-                            const questionCount = questions.filter(q => q.category === cat).length;
-                            return `
-                                <div class="category-stat" style="cursor: pointer; padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; background: var(--white); border: 2px solid #e5e7eb;" 
-                                     onclick="startQuiz('category', '${cat}')"
-                                     onmouseover="this.style.borderColor='var(--primary)'"
-                                     onmouseout="this.style.borderColor='#e5e7eb'">
-                                    <div>
-                                        <div class="category-name">${cat}</div>
-                                        <div style="font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem">
-                                            ${questionCount} pytań • ${stats.total > 0 ? `Odpowiedzi: ${stats.correct}/${stats.total}` : 'Jeszcze nie odpowiadałeś'}
-                                        </div>
-                                    </div>
-                                    <div class="category-score" style="display: flex; align-items: center; gap: 0.5rem;">
-                                        ${percentage}%
-                                        ${percentage === 100 && stats.total > 0 ? '<span style="color: var(--success);">✓</span>' : ''}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    <button class="btn btn-secondary" style="margin-top: 1rem" onclick="renderMenu()">
-                        Powrót
-                    </button>
-                </div>
-            `;
-        }
-
-        function startQuiz(mode, category = null) {
-            appState.currentMode = 'quiz';
-            appState.currentQuestionIndex = 0;
-            appState.selectedAnswer = null;
-            appState.showingFeedback = false;
-            
-            let selectedQuestions = [];
-            
-            if (mode === 'all') {
-                selectedQuestions = shuffleArray(questions);
-            } else if (mode === 'random') {
-                selectedQuestions = shuffleArray(questions).slice(0, 20);
-            } else if (mode === 'review') {
-                if (appState.learningMode.incorrectQuestions.length === 0) {
-                    alert('Nie masz żadnych błędnych odpowiedzi do powtórki!');
-                    renderMenu();
-                    return;
-                }
-                selectedQuestions = appState.learningMode.incorrectQuestions;
-                appState.learningMode.isReviewMode = true;
-            } else if (mode === 'category' && category) {
-                selectedQuestions = shuffleArray(questions.filter(q => q.category === category));
+                `;
             }
-            
-            appState.currentQuestions = selectedQuestions;
-            appState.answers = new Array(selectedQuestions.length).fill(null);
-            
-            renderQuestion();
-        }
-
-        function renderQuestion() {
-            if (appState.currentQuestionIndex >= appState.currentQuestions.length) {
-                showResults();
-                return;
-            }
-
-            const question = appState.currentQuestions[appState.currentQuestionIndex];
-            const content = document.getElementById('appContent');
-            
-            // Mieszamy odpowiedzi, ale zapamiętujemy poprawny indeks
-            const answersWithIndices = question.answers.map((answer, index) => ({ answer, originalIndex: index }));
-            const shuffledAnswers = shuffleArray(answersWithIndices);
-            
-            content.innerHTML = `
-                <div class="quiz-card">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${((appState.currentQuestionIndex + 1) / appState.currentQuestions.length) * 100}%"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-                        <span style="color: #6b7280; font-size: 0.9rem;">
-                            ${appState.learningMode.isReviewMode ? 'Powtórka -' : ''} Pytanie ${appState.currentQuestionIndex + 1} z ${appState.currentQuestions.length}
-                        </span>
-                        <span style="color: var(--primary); font-weight: 600; font-size: 0.9rem;">${question.category}</span>
-                    </div>
-                    <div class="question">${question.question}</div>
-                    <div id="feedbackMessage"></div>
-                    <div class="answers">
-                        ${shuffledAnswers.map((item, index) => `
-                            <div class="answer ${appState.selectedAnswer === index ? 'selected' : ''}" 
-                                 data-index="${index}"
-                                 data-original-index="${item.originalIndex}"
-                                 onclick="selectAnswer(${index}, ${item.originalIndex})">
-                                <div class="answer-text">${item.answer}</div>
-                                <div class="answer-feedback">${question.explanation || ''}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="controls">
-                        ${appState.showingFeedback ? 
-                            `<button class="btn btn-primary" onclick="nextQuestion()">
-                                ${appState.currentQuestionIndex < appState.currentQuestions.length - 1 ? 'Następne pytanie' : 'Zobacz wyniki'}
-                            </button>` :
-                            `<button class="btn btn-primary" onclick="checkAnswer()" ${appState.selectedAnswer === null ? 'disabled' : ''}>
-                                Sprawdź odpowiedź
-                            </button>`
-                        }
-                    </div>
-                </div>
-            `;
-        }
-
-        function selectAnswer(displayIndex, originalIndex) {
-            if (appState.showingFeedback) return;
-            
-            appState.selectedAnswer = displayIndex;
-            appState.answers[appState.currentQuestionIndex] = originalIndex;
-            
-            // Aktualizacja UI
-            document.querySelectorAll('.answer').forEach((el, idx) => {
-                el.classList.toggle('selected', idx === displayIndex);
-            });
-            
-            // Włączenie przycisku
-            document.querySelector('.btn-primary').disabled = false;
-        }
-
-        function checkAnswer() {
-            const question = appState.currentQuestions[appState.currentQuestionIndex];
-            const selectedOriginalIndex = parseInt(document.querySelector('.answer.selected').dataset.originalIndex);
-            const isCorrect = selectedOriginalIndex === question.correct;
-            
-            appState.showingFeedback = true;
-            
-            // Aktualizacja statystyk
-            appState.stats.totalQuestions++;
-            const category = question.category;
-            if (!appState.stats.categoryStats[category]) {
-                appState.stats.categoryStats[category] = { total: 0, correct: 0 };
-            }
-            appState.stats.categoryStats[category].total++;
-            
-            if (isCorrect) {
-                appState.stats.correctAnswers++;
-                appState.stats.categoryStats[category].correct++;
-                
-                // Usuń z błędnych jeśli było
-                const incorrectIndex = appState.learningMode.incorrectQuestions.findIndex(
-                    q => q.question === question.question
-                );
-                if (incorrectIndex !== -1) {
-                    appState.learningMode.incorrectQuestions.splice(incorrectIndex, 1);
-                }
-            } else {
-                // Dodaj do błędnych jeśli nie ma
-                if (!appState.learningMode.incorrectQuestions.find(q => q.question === question.question)) {
-                    appState.learningMode.incorrectQuestions.push(question);
-                }
-            }
-            
-            // Pokaż wyraźny komunikat
-            const feedbackDiv = document.getElementById('feedbackMessage');
-            const correctMessages = [
-                '✓ Świetnie! Dobra odpowiedź!',
-                '✓ Brawo! Dokładnie tak!',
-                '✓ Super! Masz rację!',
-                '✓ Doskonale! Poprawna odpowiedź!',
-                '✓ Bardzo dobrze! Tak trzymaj!'
-            ];
-            const incorrectMessages = [
-                '✗ Niestety, to nie jest poprawna odpowiedź.',
-                '✗ Ups! Spróbuj zapamiętać poprawną odpowiedź.',
-                '✗ Nie tym razem. Zobacz wyjaśnienie poniżej.',
-                '✗ Błędna odpowiedź. Przeczytaj wyjaśnienie.',
-                '✗ Niestety nie. Sprawdź poprawną odpowiedź.'
-            ];
-            
-            const randomCorrect = correctMessages[Math.floor(Math.random() * correctMessages.length)];
-            const randomIncorrect = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
-            
-            feedbackDiv.innerHTML = isCorrect ? 
-                `<div class="feedback-message feedback-correct">${randomCorrect}</div>` :
-                `<div class="feedback-message feedback-incorrect">${randomIncorrect}</div>`;
-            
-            // Wibracja na urządzeniach mobilnych (jeśli obsługiwana)
-            if ('vibrate' in navigator) {
-                if (isCorrect) {
-                    navigator.vibrate(200); // Krótka wibracja dla dobrej odpowiedzi
-                } else {
-                    navigator.vibrate([100, 50, 100]); // Podwójna wibracja dla złej
-                }
-            }
-            
-            // Pokaż feedback na odpowiedziach
-            document.querySelectorAll('.answer').forEach((el) => {
-                const origIndex = parseInt(el.dataset.originalIndex);
-                if (origIndex === question.correct) {
-                    el.classList.add('correct', 'show-feedback');
-                } else if (el.classList.contains('selected') && !isCorrect) {
-                    el.classList.add('incorrect', 'show-feedback');
-                }
-            });
-            
-            updateStats();
-            saveProgress();
-            
-            // Odśwież widok z przyciskiem "Następne pytanie"
-            const controlsDiv = document.querySelector('.controls');
-            controlsDiv.innerHTML = `
-                <button class="btn btn-primary" onclick="nextQuestion()">
-                    ${appState.currentQuestionIndex < appState.currentQuestions.length - 1 ? 'Następne pytanie' : 'Zobacz wyniki'}
-                </button>
-            `;
-        }
-
-        function nextQuestion() {
-            appState.currentQuestionIndex++;
-            appState.selectedAnswer = null;
-            appState.showingFeedback = false;
-            renderQuestion();
-        }
-
-        function showResults() {
-            const totalQuestions = appState.currentQuestions.length;
-            const correctAnswers = appState.answers.filter((answer, index) => 
-                answer === appState.currentQuestions[index].correct
-            ).length;
-            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-            
-            const content = document.getElementById('appContent');
-            content.innerHTML = `
-                <div class="quiz-card results-screen">
-                    <h2>Wyniki quizu</h2>
-                    <div class="score-circle">
-                        ${percentage}%
-                    </div>
-                    <p style="font-size: 1.2rem; margin-bottom: 2rem;">
-                        Odpowiedziałeś poprawnie na ${correctAnswers} z ${totalQuestions} pytań
-                    </p>
-                    
-                    <div class="category-stats">
-                        <h3 style="margin-bottom: 1rem;">Wyniki według kategorii:</h3>
-                        ${Object.entries(appState.stats.categoryStats)
-                            .filter(([cat, _]) => appState.currentQuestions.some(q => q.category === cat))
-                            .map(([cat, stats]) => {
-                                const catQuestions = appState.currentQuestions.filter(q => q.category === cat).length;
-                                const catCorrect = appState.currentQuestions
-                                    .filter((q, i) => q.category === cat && appState.answers[i] === q.correct).length;
-                                const catPercentage = catQuestions > 0 ? Math.round((catCorrect / catQuestions) * 100) : 0;
-                                return `
-                                    <div class="category-stat">
-                                        <span class="category-name">${cat}</span>
-                                        <span class="category-score">${catCorrect}/${catQuestions} (${catPercentage}%)</span>
-                                    </div>
-                                `;
-                            }).join('')}
-                    </div>
-                    
-                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                        <button class="btn btn-primary" onclick="renderMenu()">Menu główne</button>
-                        ${appState.learningMode.incorrectQuestions.length > 0 ? 
-                            `<button class="btn btn-secondary" onclick="startQuiz('review')">
-                                Powtórz błędy (${appState.learningMode.incorrectQuestions.length})
-                            </button>` : ''
-                        }
-                    </div>
-                </div>
-            `;
-            
-            appState.learningMode.isReviewMode = false;
-        }
-
-        function updateStats() {
-            document.getElementById('totalQuestions').textContent = appState.stats.totalQuestions;
-            document.getElementById('correctAnswers').textContent = appState.stats.correctAnswers;
-            const accuracy = appState.stats.totalQuestions > 0 
-                ? Math.round((appState.stats.correctAnswers / appState.stats.totalQuestions) * 100)
-                : 0;
-            document.getElementById('accuracy').textContent = accuracy + '%';
-        }
-
-        function resetProgress() {
-            if (confirm('Czy na pewno chcesz zresetować wszystkie postępy?')) {
-                localStorage.removeItem('mlQuizProgress');
-                appState = {
-                    currentMode: 'menu',
-                    currentQuestionIndex: 0,
-                    selectedAnswer: null,
-                    answers: [],
-                    showingFeedback: false,
-                    stats: {
-                        totalQuestions: 0,
-                        correctAnswers: 0,
-                        categoryStats: {}
-                    },
-                    learningMode: {
-                        incorrectQuestions: [],
-                        isReviewMode: false
-                    }
-                };
-                initializeCategories();
-                updateStats();
-                renderMenu();
-            }
-        }
-
-        // Touch support dla mobilnych
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        document.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
         });
 
-        document.addEventListener('touchend', e => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        });
-
-        function handleSwipe() {
-            if (appState.currentMode !== 'quiz') return;
-            
-            const swipeThreshold = 50;
-            const diff = touchStartX - touchEndX;
-            
-            if (Math.abs(diff) > swipeThreshold) {
-                if (diff > 0 && appState.showingFeedback) {
-                    // Swipe left - next question
-                    nextQuestion();
-                }
-            }
-        }
-
-        // Inicjalizacja
+        // Initialize application
         document.addEventListener('DOMContentLoaded', () => {
-            loadProgress();
-            initializeCategories();
-            renderMenu();
+            try {
+                const app = new QuizApp();
+                app.init();
+                
+                // Make app globally available for debugging
+                window.quizApp = app;
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+                document.getElementById('appContent').innerHTML = `
+                    <div class="quiz-card">
+                        <div class="error-message">
+                            <h2>Błąd inicjalizacji</h2>
+                            <p>${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
         });
-
-        // Zapisuj postępy przy zamknięciu
-        window.addEventListener('beforeunload', saveProgress);
     </script>
 </body>
 </html>
