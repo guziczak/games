@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Ultra-realistyczna Ziemia 3D</title>
+  <style>body{margin:0;overflow:hidden;background:#000}</style>
+</head>
+<body>
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(25, innerWidth/innerHeight, 1, 1e7);
+camera.position.set(0, 0, 30000);     // 30 000 km od środka Ziemi
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+//––––– ŚWIATŁO SŁONECZNE –––––
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(1, 0.3, 1).normalize();
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x222244, 0.5));
+
+//––––– ZIEMIA –––––
+const EARTH_R = 6371; // km
+const texLoader = new THREE.TextureLoader();
+const earthGeo = new THREE.SphereGeometry(EARTH_R, 256, 256);
+
+const earthMat = new THREE.MeshPhongMaterial({
+  map: texLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/planets/earth_atmos_2048.jpg'),
+  bumpMap: texLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/planets/earth_normal_2048.jpg'),
+  bumpScale: 15,
+  specularMap: texLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/planets/earth_specular_2048.jpg'),
+  specular: new THREE.Color(0x333333),
+  shininess: 30
+});
+const earth = new THREE.Mesh(earthGeo, earthMat);
+scene.add(earth);
+
+//––––– ATMOSFERA (shader) –––––
+const atmGeo = new THREE.SphereGeometry(EARTH_R + 30, 128, 128);
+const atmMat = new THREE.ShaderMaterial({
+  vertexShader: `
+    varying vec3 vNormal;
+    void main(){
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    varying vec3 vNormal;
+    void main(){
+      float intensity = pow(0.7 - dot(vNormal, vec3(0,0,1.0)), 2.0);
+      gl_FragColor = vec4(0.3,0.6,1.0,1.0) * intensity;
+    }`,
+  blending: THREE.AdditiveBlending,
+  side: THREE.BackSide,
+  transparent: true
+});
+const atmosphere = new THREE.Mesh(atmGeo, atmMat);
+scene.add(atmosphere);
+
+//––––– CHMURY –––––
+const cloudGeo = new THREE.SphereGeometry(EARTH_R + 10, 128, 128);
+const cloudMat = new THREE.MeshLambertMaterial({
+  map: texLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/planets/earth_clouds_1024.png'),
+  transparent: true,
+  opacity: 0.6
+});
+const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+scene.add(clouds);
+
+//––––– STEROWANIE –––––
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = EARTH_R + 50;
+controls.maxDistance = 100000;
+
+//––––– PĘTLA –––––
+function animate(){
+  requestAnimationFrame(animate);
+  earth.rotation.y += 0.0005;
+  clouds.rotation.y += 0.0007;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+//––––– RESPONSYWNOŚĆ –––––
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
