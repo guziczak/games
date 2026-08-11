@@ -1,4 +1,4 @@
-import type { GameEvent } from '../simulation/GameEvents';
+import type { GameEvent, ModeAction } from '../simulation/GameEvents';
 import type { MutationModeId } from '../simulation/GameState';
 
 interface Voice {
@@ -295,12 +295,14 @@ export class AudioEngine {
   }
 
   private playFlap(): void {
-    const voice = this.createVoice(0.2, 2);
+    const voice = this.createVoice(0.42, 2);
     if (!voice) return;
-    // The short nasal "kwak" deliberately keeps the identity of the classic.
-    this.tone(voice, { type: 'sawtooth', frequency: 360, endFrequency: 230, duration: 0.14, gain: 0.14, filter: { type: 'bandpass', frequency: 710, q: 2.4 } });
-    this.tone(voice, { at: 0.025, type: 'triangle', frequency: 180, endFrequency: 420, duration: 0.13, gain: 0.055 });
-    this.noise(voice, 0, 0.045, 0.035, 1400);
+    // Keep the pre-5431449 tap identity: rising sawtooth thrust, a falling
+    // cartoon boing, a very short upward zip and the papery noise puff.
+    this.tone(voice, { type: 'sawtooth', frequency: 150, endFrequency: 250, duration: 0.3, gain: 0.22, filter: { type: 'bandpass', frequency: 950, q: 2 } });
+    this.tone(voice, { type: 'sine', frequency: 450, endFrequency: 275, duration: 0.2, gain: 0.27, filter: { type: 'bandpass', frequency: 1500, q: 2.8 } });
+    this.tone(voice, { type: 'sine', frequency: 300, endFrequency: 1200, duration: 0.1, gain: 0.11 });
+    this.noise(voice, 0, 0.25, 0.075, 800);
   }
 
   private playCoin(): void {
@@ -337,12 +339,15 @@ export class AudioEngine {
       stork: [720, 1120, 'triangle'],
     };
     const [start, end, type] = motifs[mode];
-    this.tone(voice, { type, frequency: start, endFrequency: end, duration: 0.42, gain: 0.15, filter: mode === 'frog' ? { type: 'lowpass', frequency: 650, q: 1.8 } : undefined });
+    const transformTone: ToneOptions = mode === 'frog'
+      ? { type, frequency: start, endFrequency: end, duration: 0.42, gain: 0.15, filter: { type: 'lowpass', frequency: 650, q: 1.8 } }
+      : { type, frequency: start, endFrequency: end, duration: 0.42, gain: 0.15 };
+    this.tone(voice, transformTone);
     this.tone(voice, { at: 0.23, type: 'sine', frequency: end, endFrequency: end * 1.45, duration: 0.27, gain: 0.07 });
     if (mode === 'steel' || mode === 'stork') this.noise(voice, 0, 0.08, 0.1, mode === 'steel' ? 2200 : 1700);
   }
 
-  private playModeAction(action: GameEvent & { type: 'mode-action' }['action']): void {
+  private playModeAction(action: ModeAction): void {
     if (action === 'rubber-bounce') this.playRubberBounce();
     else if (action === 'steel-critical' || action === 'steel-overheat') this.playSteelImpact();
     else if (action === 'stork-lock' || action === 'stork-vault-start' || action === 'stork-vault-end') this.playStorkAction(action);

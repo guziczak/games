@@ -594,7 +594,7 @@ kbd {
   }
 
   .dna-panel {
-    top: calc(78px + var(--safe-top));
+    top: calc(104px + var(--safe-top));
     width: min(310px, calc(100vw - 32px));
   }
 
@@ -604,11 +604,11 @@ kbd {
   }
 
   .mutation-prompt {
-    top: calc(130px + var(--safe-top));
+    top: calc(176px + var(--safe-top));
   }
 
   .combo-output {
-    top: calc(123px + var(--safe-top));
+    top: calc(158px + var(--safe-top));
   }
 
   .stork-action {
@@ -647,7 +647,21 @@ kbd {
   .stork-action {
     width: 82px;
     height: 82px;
+    right: calc(84px + var(--safe-right));
     bottom: calc(14px + var(--safe-bottom));
+  }
+
+  .dna-panel {
+    top: calc(12px + var(--safe-top));
+    width: min(220px, 34vw);
+  }
+
+  .mutation-prompt {
+    top: calc(70px + var(--safe-top));
+  }
+
+  .combo-output {
+    top: calc(68px + var(--safe-top));
   }
 }
 

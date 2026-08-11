@@ -454,6 +454,7 @@ function launchFrog(state: GameState, events: GameEvent[], config: GameConfig): 
   frog.phase = 'airborne';
   frog.releasedObstacleId = obstacleId;
   frog.clingObstacleId = null;
+  frog.clingOffsetX = 0;
   frog.surfaceNormalY = 0;
   frog.charge = 0;
   frog.phaseTime = 0;
@@ -681,8 +682,24 @@ function updatePlayerPhysics(state: GameState, config: GameConfig, dt: number): 
     state.player.x += state.player.vx * dt;
     state.mode.rubber.vx = state.player.vx;
   } else {
-    state.player.x = config.player.startX;
-    state.player.vx = 0;
+    const distanceToRail = config.player.startX - state.player.x;
+    if (Math.abs(distanceToRail) <= 0.002) {
+      state.player.x = config.player.startX;
+      state.player.vx = 0;
+    } else {
+      state.player.vx = clamp(
+        distanceToRail * config.player.horizontalRecovery,
+        -config.player.maxHorizontalRecoverySpeed,
+        config.player.maxHorizontalRecoverySpeed,
+      );
+      const movement = state.player.vx * dt;
+      if (Math.abs(movement) >= Math.abs(distanceToRail)) {
+        state.player.x = config.player.startX;
+        state.player.vx = 0;
+      } else {
+        state.player.x += movement;
+      }
+    }
   }
 }
 
@@ -743,6 +760,7 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     if (frog.releasedObstacleId === entityId) return;
     frog.phase = 'clinging';
     frog.clingObstacleId = entityId;
+    frog.clingOffsetX = 0;
     frog.surfaceNormalY = normalY;
     frog.charge = 0;
     frog.phaseTime = 0;
@@ -870,6 +888,43 @@ function playerOverlapsObstacle(state: GameState, obstacle: ObstacleState, confi
   return playerBottom < gapBottom || playerTop > gapTop;
 }
 
+/** Keep an attached frog on the same physical point of the scrolling gate. */
+function updateFrogAnchorAfterWorld(
+  state: GameState,
+  events: GameEvent[],
+  config: GameConfig,
+): void {
+  if (state.mode.active !== 'frog') return;
+  const frog = state.mode.frog;
+  if ((frog.phase !== 'clinging' && frog.phase !== 'charging') || !frog.clingObstacleId) return;
+  if (frog.clingObstacleId.startsWith('boundary-')) return;
+
+  const obstacle = state.world.obstacles.find((candidate) => candidate.id === frog.clingObstacleId);
+  if (!obstacle || obstacle.destroyed) {
+    launchFrog(state, events, config);
+    return;
+  }
+
+  const desiredX = obstacle.x + frog.clingOffsetX;
+  const safeInset = config.player.radiusX + 0.08;
+  const minimumX = safeInset;
+  const maximumX = config.world.width - safeInset;
+  if (desiredX < minimumX || desiredX > maximumX) {
+    state.player.x = clamp(desiredX, minimumX, maximumX);
+    launchFrog(state, events, config);
+    return;
+  }
+
+  const previousX = state.player.x;
+  state.player.x = desiredX;
+  state.player.vx = (desiredX - previousX) / config.fixedStep;
+  const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
+  const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
+  state.player.y = frog.surfaceNormalY > 0
+    ? gapBottom + config.player.radiusY
+    : gapTop - config.player.radiusY;
+}
+
 function clearReleasedFrogSurface(state: GameState, config: GameConfig): void {
   if (state.mode.active !== 'frog' || !state.mode.frog.releasedObstacleId) return;
   const released = state.mode.frog.releasedObstacleId;
@@ -907,6 +962,7 @@ function resolveObstacleCollision(
     const lowerCollision = state.player.y < obstacle.gapCenter;
     frog.phase = 'clinging';
     frog.clingObstacleId = obstacle.id;
+    frog.clingOffsetX = state.player.x - obstacle.x;
     frog.surfaceNormalY = lowerCollision ? 1 : -1;
     frog.charge = 0;
     frog.phaseTime = 0;
@@ -971,7 +1027,17 @@ function resolveObstacleCollision(
   if (state.mode.active === 'stork'
     && state.mode.stork.phase === 'vaulting'
     && state.mode.stork.lockedTargetId === obstacle.id) {
-    events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'vault' });
+    if (!obstacle.collisionResolved) {
+      obstacle.collisionResolved = true;
+      events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'vault' });
+    }
+    return;
+  }
+
+  // A completed vault owns its target until both bodies separate. Otherwise
+  // the stork could finish a successful arc inside the thick 3D gate and die
+  // on the very next fixed tick.
+  if (state.mode.active === 'stork' && obstacle.storkVaultAwarded) {
     return;
   }
 
@@ -1074,6 +1140,7 @@ function tick(state: GameState, events: GameEvent[], config: GameConfig, actions
   if (state.status !== 'running') return;
 
   updateWorld(state, events, config, config.fixedStep);
+  updateFrogAnchorAfterWorld(state, events, config);
   collectCoins(state, events, config);
   processObstacleInteractions(state, events, config);
   if (state.status !== 'running') return;

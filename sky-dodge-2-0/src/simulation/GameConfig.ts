@@ -26,6 +26,8 @@ export interface GameConfig {
     readonly flapVelocity: number;
     readonly minVelocityY: number;
     readonly maxVelocityY: number;
+    readonly horizontalRecovery: number;
+    readonly maxHorizontalRecoverySpeed: number;
   };
   readonly obstacle: {
     readonly width: number;
@@ -142,6 +144,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     flapVelocity: 6,
     minVelocityY: -9,
     maxVelocityY: 7,
+    horizontalRecovery: 8,
+    maxHorizontalRecoverySpeed: 4.5,
   }),
   obstacle: Object.freeze({
     width: 0.9,
@@ -195,7 +199,10 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
       maxClingTime: 1.1,
       minLaunchVelocity: 5,
       maxLaunchVelocity: 9,
-      worldScaleWhileClinging: 0.6,
+      // The gate must remain under the frog for the complete charge window.
+      // A gentle crawl preserves motion without recreating the classic bug in
+      // which scrolling carried a clinging frog out of the viewport.
+      worldScaleWhileClinging: 0.15,
     }),
     rubber: Object.freeze({
       duration: 8,

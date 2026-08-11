@@ -8,6 +8,7 @@
     "build": "npm run typecheck && node scripts/build-standalone.mjs",
     "build:bundle": "vite build",
     "preview": "vite preview",
+    "smoke:file": "node scripts/smoke-file-url.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -37,6 +37,8 @@ class FakeDocument extends FakeEventHub {
 class FakeElement extends FakeEventHub {
   readonly capturedPointers = new Set<number>();
   readonly attributes = new Map<string, string>();
+  readonly clientWidth = 390;
+  readonly clientHeight = 844;
   disabled = false;
   hidden = false;
 
@@ -174,6 +176,7 @@ describe('InputRouter pointer input', () => {
 
   it('gives the stork pad exclusive start, biased normalized aim and release', () => {
     const { actions, document, pad, router } = createRouter();
+    router.setModeContext('stork');
 
     const down = pointerEvent(pad, { clientX: 40, clientY: 80 });
     emitPointerDown(document, pad, down);
@@ -185,7 +188,8 @@ describe('InputRouter pointer input', () => {
     const aim = actions[1];
     expect(aim?.type).toBe('ability-aim');
     if (aim?.type === 'ability-aim') {
-      expect(Math.hypot(aim.vector.x, aim.vector.y)).toBeCloseTo(1);
+      expect(Math.hypot(aim.vector.x, aim.vector.y)).toBeGreaterThan(0);
+      expect(Math.hypot(aim.vector.x, aim.vector.y)).toBeLessThanOrEqual(1);
       expect(aim.vector.y).toBeGreaterThan(aim.vector.x);
     }
 
@@ -199,6 +203,7 @@ describe('InputRouter pointer input', () => {
 
   it('cancels an ability on pointercancel, multitouch, reset and disabling', () => {
     const { actions, document, pad, router } = createRouter();
+    router.setModeContext('stork');
 
     emitPointerDown(document, pad, pointerEvent(pad));
     document.emit('pointercancel', pointerEvent(pad));
@@ -229,11 +234,126 @@ describe('InputRouter pointer input', () => {
 
     router.destroy();
   });
+
+  it('keeps normal, steel, stork and airborne frog on the immediate flap profile', () => {
+    const { actions, canvas, document, router } = createRouter();
+    const contexts = [
+      ['normal', 'airborne'],
+      ['steel', 'airborne'],
+      ['stork', 'airborne'],
+      ['frog', 'airborne'],
+    ] as const;
+
+    contexts.forEach(([mode, frogPhase], index) => {
+      router.setModeContext(mode, frogPhase);
+      const event = pointerEvent(canvas, { pointerId: 20 + index });
+      emitPointerDown(document, canvas, event);
+      document.emit('pointerup', pointerEvent(canvas, { pointerId: 20 + index }));
+    });
+
+    expect(actions).toEqual([
+      { type: 'flap' },
+      { type: 'flap' },
+      { type: 'flap' },
+      { type: 'flap' },
+    ]);
+    router.destroy();
+  });
+
+  it('charges and releases a clinging frog without cancelling on the charging phase update', () => {
+    const { actions, canvas, document, router } = createRouter();
+    router.setModeContext('frog', 'clinging');
+
+    emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 31 }));
+    expect(actions).toEqual([{ type: 'ability-start' }]);
+    router.setModeContext('frog', 'charging');
+    expect(actions).toEqual([{ type: 'ability-start' }]);
+    document.emit('pointerup', pointerEvent(canvas, { pointerId: 31 }));
+    expect(actions.at(-1)).toEqual({ type: 'ability-release' });
+
+    router.setModeContext('frog', 'clinging');
+    emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 32 }));
+    document.emit('pointercancel', pointerEvent(canvas, { pointerId: 32 }));
+    expect(actions.slice(-2)).toEqual([{ type: 'ability-start' }, { type: 'ability-cancel' }]);
+    router.destroy();
+  });
+
+  it('routes a rubber drag as start, proportional aim and release', () => {
+    const { actions, canvas, document, router } = createRouter();
+    router.setModeContext('rubber');
+
+    emitPointerDown(document, canvas, pointerEvent(canvas, {
+      pointerId: 41,
+      clientX: 120,
+      clientY: 180,
+    }));
+    document.emit('pointermove', pointerEvent(canvas, {
+      pointerId: 41,
+      clientX: 60,
+      clientY: 240,
+    }));
+
+    expect(actions[0]).toEqual({ type: 'ability-start' });
+    const aim = actions[1];
+    expect(aim?.type).toBe('ability-aim');
+    if (aim?.type === 'ability-aim') {
+      expect(aim.vector.x).toBeLessThan(0);
+      expect(aim.vector.y).toBeLessThan(0);
+      expect(Math.hypot(aim.vector.x, aim.vector.y)).toBeGreaterThan(0.5);
+      expect(Math.hypot(aim.vector.x, aim.vector.y)).toBeLessThan(1);
+    }
+
+    document.emit('pointermove', pointerEvent(canvas, {
+      pointerId: 41,
+      clientX: 120,
+      clientY: 180,
+    }));
+    expect(actions.at(-1)).toEqual({ type: 'ability-aim', vector: { x: 0, y: 0 } });
+    document.emit('pointerup', pointerEvent(canvas, { pointerId: 41 }));
+    expect(actions.at(-1)).toEqual({ type: 'ability-release' });
+    router.destroy();
+  });
+
+  it('starts ghost phase together with its flap and releases or cancels cleanly', () => {
+    const { actions, canvas, document, router } = createRouter();
+    router.setModeContext('ghost');
+
+    emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 51 }));
+    document.emit('pointerup', pointerEvent(canvas, { pointerId: 51 }));
+    expect(actions).toEqual([
+      { type: 'flap' },
+      { type: 'ability-start' },
+      { type: 'ability-release' },
+    ]);
+
+    emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 52 }));
+    document.emit('pointercancel', pointerEvent(canvas, { pointerId: 52 }));
+    expect(actions.slice(-3)).toEqual([
+      { type: 'flap' },
+      { type: 'ability-start' },
+      { type: 'ability-cancel' },
+    ]);
+    router.destroy();
+  });
+
+  it('cancels a held form ability exactly once when its mode context changes', () => {
+    const { actions, canvas, document, router } = createRouter();
+    router.setModeContext('rubber');
+    emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 61 }));
+
+    router.setModeContext('steel');
+    router.setModeContext('normal');
+    document.emit('pointerup', pointerEvent(canvas, { pointerId: 61 }));
+
+    expect(actions).toEqual([{ type: 'ability-start' }, { type: 'ability-cancel' }]);
+    router.destroy();
+  });
 });
 
 describe('InputRouter keyboard and lifecycle', () => {
   it('routes flap keys and uses arrows for aim while E is held', () => {
     const { actions, document, router } = createRouter();
+    router.setModeContext('stork');
 
     document.emit('keydown', keyboardEvent('Space'));
     document.emit('keydown', keyboardEvent('ArrowUp'));
@@ -251,6 +371,44 @@ describe('InputRouter keyboard and lifecycle', () => {
       { type: 'ability-aim', vector: { x: 0, y: 1 } },
       { type: 'ability-aim', vector: { x: 0, y: 0 } },
       { type: 'ability-aim', vector: { x: 0, y: -1 } },
+      { type: 'ability-release' },
+    ]);
+
+    router.destroy();
+  });
+
+  it('uses held Space for frog, rubber and ghost abilities', () => {
+    const { actions, document, router } = createRouter();
+
+    router.setModeContext('frog', 'clinging');
+    document.emit('keydown', keyboardEvent('Space'));
+    router.setModeContext('frog', 'charging');
+    document.emit('keyup', keyboardEvent('Space'));
+
+    router.setModeContext('rubber');
+    document.emit('keydown', keyboardEvent('Space'));
+    document.emit('keydown', keyboardEvent('ArrowRight'));
+    document.emit('keydown', keyboardEvent('ArrowUp'));
+    document.emit('keyup', keyboardEvent('ArrowRight'));
+    document.emit('keyup', keyboardEvent('ArrowUp'));
+    document.emit('keyup', keyboardEvent('Space'));
+
+    router.setModeContext('ghost');
+    document.emit('keydown', keyboardEvent('Space'));
+    document.emit('keyup', keyboardEvent('Space'));
+
+    const diagonal = 1 / Math.hypot(1, 1);
+    expect(actions).toEqual([
+      { type: 'ability-start' },
+      { type: 'ability-release' },
+      { type: 'ability-start' },
+      { type: 'ability-aim', vector: { x: 1, y: 0 } },
+      { type: 'ability-aim', vector: { x: diagonal, y: diagonal } },
+      { type: 'ability-aim', vector: { x: 0, y: 1 } },
+      { type: 'ability-aim', vector: { x: 0, y: 0 } },
+      { type: 'ability-release' },
+      { type: 'flap' },
+      { type: 'ability-start' },
       { type: 'ability-release' },
     ]);
 

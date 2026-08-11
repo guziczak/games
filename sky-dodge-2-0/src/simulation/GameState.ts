@@ -53,6 +53,7 @@ export interface CoinState {
 export interface FrogModeState {
   phase: 'airborne' | 'clinging' | 'charging';
   clingObstacleId: string | null;
+  clingOffsetX: number;
   releasedObstacleId: string | null;
   surfaceNormalY: -1 | 0 | 1;
   charge: number;
@@ -171,6 +172,7 @@ export function createInitialModeState(config: GameConfig = DEFAULT_GAME_CONFIG)
     frog: {
       phase: 'airborne',
       clingObstacleId: null,
+      clingOffsetX: 0,
       releasedObstacleId: null,
       surfaceNormalY: 0,
       charge: 0,
