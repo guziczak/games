@@ -88,12 +88,14 @@ interface MicroWaveDefinition {
 }
 
 const GERSTNER_WAVES: readonly GerstnerWaveDefinition[] = Object.freeze([
-  Object.freeze({ directionX: 0.977, directionZ: 0.215, amplitude: 0.028, wavelength: 8.2, speed: 0.84, phase: 0.2, steepness: 0.38 }),
-  Object.freeze({ directionX: 0.702, directionZ: 0.712, amplitude: 0.017, wavelength: 5.1, speed: 1.02, phase: 1.7, steepness: 0.33 }),
-  Object.freeze({ directionX: -0.378, directionZ: 0.926, amplitude: 0.01, wavelength: 3.2, speed: 0.92, phase: 3, steepness: 0.28 }),
-  Object.freeze({ directionX: 0.921, directionZ: -0.39, amplitude: 0.006, wavelength: 2.1, speed: 1.14, phase: 0.8, steepness: 0.23 }),
-  Object.freeze({ directionX: -0.76, directionZ: 0.65, amplitude: 0.004, wavelength: 1.55, speed: 0.88, phase: 2.3, steepness: 0.18 }),
-  Object.freeze({ directionX: 0.181, directionZ: 0.984, amplitude: 0.0028, wavelength: 1.15, speed: 1.24, phase: 4.2, steepness: 0.14 }),
+  // The broad swell travels roughly along the flight rail, so its crests cut
+  // across the 3/4 view instead of collapsing into the perspective direction.
+  Object.freeze({ directionX: 0.805, directionZ: -0.593, amplitude: 0.082, wavelength: 9.4, speed: 0.8, phase: 0.2, steepness: 0.58 }),
+  Object.freeze({ directionX: 0.97, directionZ: 0.243, amplitude: 0.044, wavelength: 5.8, speed: 0.98, phase: 1.7, steepness: 0.52 }),
+  Object.freeze({ directionX: -0.342, directionZ: 0.94, amplitude: 0.023, wavelength: 3.9, speed: 0.9, phase: 3, steepness: 0.46 }),
+  Object.freeze({ directionX: 0.89, directionZ: -0.456, amplitude: 0.012, wavelength: 2.8, speed: 1.1, phase: 0.8, steepness: 0.38 }),
+  Object.freeze({ directionX: -0.76, directionZ: 0.65, amplitude: 0.006, wavelength: 2, speed: 0.86, phase: 2.3, steepness: 0.3 }),
+  Object.freeze({ directionX: 0.181, directionZ: 0.984, amplitude: 0.0035, wavelength: 1.45, speed: 1.2, phase: 4.2, steepness: 0.24 }),
 ]);
 
 const MICRO_WAVES: readonly MicroWaveDefinition[] = Object.freeze([
@@ -104,7 +106,9 @@ const MICRO_WAVES: readonly MicroWaveDefinition[] = Object.freeze([
 const WATER_WIDTH = 64;
 const WATER_DEPTH = 54;
 const WATER_CENTRE_Z = -7.2;
-const WATER_LEVEL_OFFSET = -0.08;
+// Keep the mean plane below the simulation floor. Even a coincident maximum
+// crest stays below the flight rail, while the collision truth remains y = 0.
+const WATER_LEVEL_OFFSET = -0.13;
 const FOG_DENSITY = 0.0105;
 
 const clamp = (value: number, minimum: number, maximum: number): number => (
@@ -225,15 +229,37 @@ function createFragmentRippleCalls(profile: Readonly<WaterQualityProfile>): stri
 export function createWaterShaderSources(
   profile: Readonly<WaterQualityProfile>,
 ): Readonly<WaterShaderSources> {
+  const primaryWave = GERSTNER_WAVES[0];
+  if (!primaryWave) throw new Error('WaterSurface requires one primary wave');
+  const primaryWaveNumber = 2 * Math.PI / primaryWave.wavelength;
+  const primaryWaveOmega = Math.sqrt(9.81 * primaryWaveNumber) * primaryWave.speed;
   const gerstnerCalls = createGerstnerCalls(profile);
   const microWaveCalls = createMicroWaveCalls(profile);
   const vertexRippleCalls = createVertexRippleCalls(profile);
   const fragmentRippleCalls = createFragmentRippleCalls(profile);
   const crestFoam = profile.crestFoam
     ? `
-    float foamPattern = 0.5 + 0.5 * sin(vWorldPosition.x * 2.15 + sin(vWorldPosition.z * 1.77 - uTime * 0.8));
-    foamPattern *= 0.72 + 0.28 * sin(vWorldPosition.z * 4.1 - vWorldPosition.x * 2.8 + uTime * 1.1);
-    float crestFoam = smoothstep(0.16, 0.48, vCrest) * smoothstep(0.22, 0.72, foamPattern);
+    // Patchy, narrow white water only on the strongest normalized crests.
+    // Reusing foamDrift for spacing, gating and width avoids an extra sample.
+    float foamDrift = sin(
+      vSurfacePosition.x * 1.17 - vSurfacePosition.y * 0.83 - uTime * 0.52
+    );
+    float foamDrift01 = 0.5 + 0.5 * foamDrift;
+    float foamBreakup = sin(
+      vSurfacePosition.x * 4.6 + vSurfacePosition.y * 6.2
+      + foamDrift * 2.1
+    );
+    // analytic-breaking-crest: evaluate the broad swell per fragment so its
+    // narrow foam lip stays curved instead of following the mesh triangles.
+    float breakingPhase = ${glslNumber(primaryWaveNumber)} * dot(
+      vec2(${glslNumber(primaryWave.directionX)}, ${glslNumber(primaryWave.directionZ)}),
+      vSurfacePosition
+    ) - ${glslNumber(primaryWaveOmega)} * uTime + ${glslNumber(primaryWave.phase)};
+    float breakingThreshold = mix(0.995, 0.965, foamDrift01);
+    float breakingCrest = smoothstep(breakingThreshold, 0.9997, sin(breakingPhase));
+    float crestFoam = breakingCrest
+      * smoothstep(0.55, 0.82, foamDrift01)
+      * smoothstep(0.15, 0.88, foamBreakup);
   `
     : '\n    float crestFoam = 0.0;\n';
 
@@ -250,8 +276,10 @@ export function createWaterShaderSources(
 
     varying vec3 vWorldPosition;
     varying vec3 vWorldNormal;
+    varying vec2 vSurfacePosition;
     varying float vViewDistance;
     varying float vCrest;
+    varying float vWaveHeight;
 
     const float WATER_PI = 3.141592653589793;
 
@@ -286,7 +314,12 @@ export function createWaterShaderSources(
       tangentZ.x -= qak * direction.x * direction.y * waveSin;
       tangentZ.y += scaledAmplitude * k * direction.y * waveCos;
       tangentZ.z -= qak * direction.y * direction.y * waveSin;
-      crest += max(scaledAmplitude * k * k * waveSin, 0.0);
+
+      // A normalized crest signal is stable across wavelength and quality.
+      // The former dimensional value never reached the fragment foam threshold.
+      float crestSignal = max(waveSin, 0.0);
+      float scaleWeight = mix(0.42, 1.0, smoothstep(0.008, 0.075, scaledAmplitude));
+      crest = max(crest, crestSignal * scaleWeight * mix(0.82, 1.0, steepness));
     }
 
     void applyRippleDisplacement(vec4 ripple, inout vec3 displaced) {
@@ -302,6 +335,7 @@ export function createWaterShaderSources(
 
     void main() {
       vec3 displaced = position;
+      float restHeight = position.y;
       vec3 tangentX = vec3(1.0, 0.0, 0.0);
       vec3 tangentZ = vec3(0.0, 0.0, 1.0);
       float crest = 0.0;
@@ -318,8 +352,10 @@ export function createWaterShaderSources(
       vec4 viewPosition = viewMatrix * worldPosition;
       vWorldPosition = worldPosition.xyz;
       vWorldNormal = normalize(mat3(modelMatrix) * localNormal);
+      vSurfacePosition = position.xz + uSurfaceOrigin;
       vViewDistance = length(viewPosition.xyz);
       vCrest = crest;
+      vWaveHeight = displaced.y - restHeight;
       gl_Position = projectionMatrix * viewPosition;
     }
   `;
@@ -339,8 +375,10 @@ export function createWaterShaderSources(
 
     varying vec3 vWorldPosition;
     varying vec3 vWorldNormal;
+    varying vec2 vSurfacePosition;
     varying float vViewDistance;
     varying float vCrest;
+    varying float vWaveHeight;
 
     float saturateValue(float value) {
       return clamp(value, 0.0, 1.0);
@@ -425,10 +463,16 @@ export function createWaterShaderSources(
       float noL = max(dot(normal, sunDirection), 0.0);
 
       float distanceBlend = smoothstep(3.0, 31.0, vViewDistance);
-      vec3 nearColour = vec3(0.035, 0.31, 0.37);
-      vec3 deepColour = vec3(0.008, 0.095, 0.19);
+      vec3 nearColour = vec3(0.022, 0.225, 0.3);
+      vec3 deepColour = vec3(0.006, 0.072, 0.155);
       vec3 refracted = mix(nearColour, deepColour, distanceBlend);
-      refracted += vec3(0.018, 0.08, 0.085) * max(normal.y * 0.8 + noL * 0.2, 0.0);
+      refracted += vec3(0.014, 0.058, 0.067) * max(normal.y * 0.8 + noL * 0.2, 0.0);
+
+      // Height tint separates the lit ridge from its darker trough at a
+      // shallow camera angle without another fragment-space wave evaluation.
+      float heightLight = smoothstep(-0.16, 0.16, vWaveHeight);
+      refracted *= mix(0.88, 1.06, heightLight);
+      refracted += vec3(0.012, 0.048, 0.055) * heightLight;
 
       vec3 reflectionDirection = reflect(-viewDirection, normal);
       vec3 reflectedSky = analyticSky(reflectionDirection, sunDirection);
@@ -448,11 +492,20 @@ export function createWaterShaderSources(
       );
       colour += vec3(1.0, 0.91, 0.69) * specular * 0.72;
 
+      // crest-ridge-lighting: a restrained turquoise shoulder keeps every
+      // quality tier legible in 3/4 view, including low where foam is disabled.
+      float troughShade = 1.0 - smoothstep(-0.14, -0.015, vWaveHeight);
+      colour *= 1.0 - troughShade * 0.06;
+      float crestRidge = smoothstep(0.34, 0.78, vCrest);
+      float ridgeLight = crestRidge * (0.62 + noL * 0.38);
+      colour = mix(colour, vec3(0.15, 0.55, 0.62), ridgeLight * 0.18);
+      colour += vec3(0.025, 0.06, 0.07) * ridgeLight;
+
       ${crestFoam}
       float rippleFoam = 0.0;
       ${fragmentRippleCalls}
       float wakeFoam = kelvinDownwash(vWorldPosition.xz);
-      float foam = saturateValue(crestFoam * 0.32 + rippleFoam * 0.62 + wakeFoam * 0.34);
+      float foam = saturateValue(crestFoam * 0.1 + rippleFoam * 0.62 + wakeFoam * 0.34);
       colour = mix(colour, vec3(0.72, 0.94, 0.98), foam);
 
       float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vViewDistance * vViewDistance);

@@ -41,6 +41,14 @@ describe('WaterSurface quality contract', () => {
     expect(low.fragmentShader.match(/fragment-ripple-/g)).toHaveLength(1);
     expect(high.fragmentShader.match(/fragment-ripple-/g)).toHaveLength(3);
     expect(`${high.vertexShader}\n${high.fragmentShader}`).not.toMatch(/sampler|texture2D|texture\s*\(/);
+    expect(low.vertexShader).toContain('float crestSignal = max(waveSin, 0.0)');
+    expect(low.vertexShader).toContain('vWaveHeight = displaced.y - restHeight');
+    expect(low.vertexShader).toContain('vSurfacePosition = position.xz + uSurfaceOrigin');
+    expect(low.fragmentShader).toContain('crest-ridge-lighting');
+    expect(low.fragmentShader).toContain('float crestFoam = 0.0');
+    expect(high.fragmentShader).toContain('float foamBreakup = sin(');
+    expect(high.fragmentShader).toContain('analytic-breaking-crest');
+    expect(high.fragmentShader).toContain('float breakingThreshold = mix(0.995, 0.965, foamDrift01)');
     expect(high.fragmentShader).toContain('#include <tonemapping_fragment>');
     expect(high.fragmentShader).toContain('#include <colorspace_fragment>');
   });
@@ -90,7 +98,14 @@ describe('WaterSurface lifecycle', () => {
   it('owns one mesh and releases it idempotently', () => {
     const scene = new THREE.Scene();
     const water = new WaterSurface(scene, 'medium');
-    expect(scene.getObjectByName('procedural-water-surface')).toBeDefined();
+    const mesh = scene.getObjectByName('procedural-water-surface') as THREE.Mesh<
+      THREE.PlaneGeometry,
+      THREE.ShaderMaterial
+    >;
+    expect(mesh).toBeDefined();
+    expect(mesh.material.transparent).toBe(false);
+    expect(mesh.material.depthWrite).toBe(true);
+    expect(mesh.material.uniforms).not.toHaveProperty('map');
     expect(water.getDebugSnapshot().ripples).toHaveLength(0);
 
     water.reset();

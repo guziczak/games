@@ -3,6 +3,11 @@ import * as THREE from 'three';
 import { DEFAULT_GAME_CONFIG, getDifficultyTier } from '../simulation/GameConfig';
 import type { GameEvent } from '../simulation/GameEvents';
 import type { GameState, MutationModeId, ObstacleState } from '../simulation/GameState';
+import {
+  createGateDressing,
+  getGateDressingQualityProfile,
+} from './GateDressing';
+import type { GateDressing, GateDressingQualityProfile } from './GateDressing';
 import { WaterSurface } from './WaterSurface';
 
 export type RenderQuality = 'low' | 'medium' | 'high';
@@ -161,19 +166,33 @@ class GateView {
   private readonly upperCollisionEdge: THREE.Mesh;
   private readonly safeGapPane: THREE.Mesh;
   private readonly rivets: THREE.InstancedMesh;
+  private readonly rustMarks: THREE.InstancedMesh;
+  private readonly rustBands: THREE.InstancedMesh;
+  private readonly algaeBand: THREE.Mesh;
+  private readonly plants: THREE.InstancedMesh;
+  private readonly rustMaterials: readonly THREE.Material[];
+  private readonly plantMaterials: readonly THREE.Material[];
+  private readonly dressingQuality: RenderQuality;
   private readonly collisionMaterial: THREE.MeshBasicMaterial;
   private readonly paneMaterial: THREE.MeshBasicMaterial;
   private readonly matrix = new THREE.Matrix4();
   private readonly position = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
+  private readonly twistQuaternion = new THREE.Quaternion();
   private readonly scale = new THREE.Vector3();
+  private readonly surfaceNormal = new THREE.Vector3();
+  private readonly geometryNormal = new THREE.Vector3(0, 0, 1);
+  private readonly plantEuler = new THREE.Euler();
   private readonly focusColour = new THREE.Color();
+  private dressing: Readonly<GateDressing> | null = null;
 
   constructor(
     columnGeometry: THREE.BufferGeometry,
     detailGeometry: THREE.BufferGeometry,
     nodeGeometry: THREE.BufferGeometry,
     lockGeometry: THREE.BufferGeometry,
+    rustGeometry: THREE.BufferGeometry,
+    plantGeometry: THREE.BufferGeometry,
     columnMaterial: THREE.Material,
     faceMaterial: THREE.Material,
     backFaceMaterial: THREE.Material,
@@ -182,18 +201,27 @@ class GateView {
     lockMaterial: THREE.Material,
     collisionMaterial: THREE.MeshBasicMaterial,
     paneMaterial: THREE.MeshBasicMaterial,
+    rustMaterials: readonly THREE.Material[],
+    plantMaterials: readonly THREE.Material[],
+    algaeMaterial: THREE.Material,
+    dressingProfile: Readonly<GateDressingQualityProfile>,
+    dressingQuality: RenderQuality,
   ) {
     this.root.name = 'gate-view';
     this.root.visible = false;
 
     this.lowerColumn = new THREE.Mesh(columnGeometry, columnMaterial);
+    this.lowerColumn.name = 'gate-lower-cylinder';
     this.upperColumn = new THREE.Mesh(columnGeometry, columnMaterial);
+    this.upperColumn.name = 'gate-upper-cylinder';
     this.lowerFace = new THREE.Mesh(columnGeometry, faceMaterial);
     this.upperFace = new THREE.Mesh(columnGeometry, faceMaterial);
     this.lowerBackFace = new THREE.Mesh(columnGeometry, backFaceMaterial);
     this.upperBackFace = new THREE.Mesh(columnGeometry, backFaceMaterial);
     this.lowerRim = new THREE.Mesh(columnGeometry, detailMaterial);
+    this.lowerRim.name = 'gate-lower-gap-collar';
     this.upperRim = new THREE.Mesh(columnGeometry, detailMaterial);
+    this.upperRim.name = 'gate-upper-gap-collar';
     this.lowerConduit = new THREE.Mesh(columnGeometry, nodeMaterial);
     this.upperConduit = new THREE.Mesh(columnGeometry, nodeMaterial);
     this.lowerNode = new THREE.Mesh(nodeGeometry, nodeMaterial);
@@ -211,6 +239,39 @@ class GateView {
     this.rivets = new THREE.InstancedMesh(detailGeometry, detailMaterial, 8);
     this.rivets.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.rivets.count = 8;
+    this.rustMaterials = rustMaterials;
+    this.plantMaterials = plantMaterials;
+    this.dressingQuality = dressingQuality;
+    this.rustMarks = new THREE.InstancedMesh(
+      rustGeometry,
+      rustMaterials[0] ?? detailMaterial,
+      dressingProfile.maximumRustMarks,
+    );
+    this.rustMarks.name = 'gate-rust-marks';
+    this.rustMarks.count = 0;
+    this.rustMarks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.rustMarks.frustumCulled = false;
+    this.rustBands = new THREE.InstancedMesh(
+      columnGeometry,
+      rustMaterials[0] ?? detailMaterial,
+      2,
+    );
+    this.rustBands.name = 'gate-rust-bands';
+    this.rustBands.count = 0;
+    this.rustBands.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.rustBands.frustumCulled = false;
+    this.algaeBand = new THREE.Mesh(columnGeometry, algaeMaterial);
+    this.algaeBand.name = 'gate-algae-waterline-band';
+    this.algaeBand.visible = false;
+    this.plants = new THREE.InstancedMesh(
+      plantGeometry,
+      plantMaterials[0] ?? detailMaterial,
+      dressingProfile.maximumPlantBlades,
+    );
+    this.plants.name = 'gate-water-plants';
+    this.plants.count = 0;
+    this.plants.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.plants.frustumCulled = false;
 
     this.lowerLock.visible = false;
     this.upperLock.visible = false;
@@ -236,6 +297,10 @@ class GateView {
       this.lowerCollisionEdge,
       this.upperCollisionEdge,
       this.rivets,
+      this.rustMarks,
+      this.rustBands,
+      this.algaeBand,
+      this.plants,
     );
   }
 
@@ -247,6 +312,7 @@ class GateView {
     focusStrength: number,
     transitPhase: GateTransitPhase,
     time: number,
+    showDressing: boolean,
   ): void {
     const gapBottom = clamp(obstacle.gapCenter - obstacle.gapSize / 2, 0, DEFAULT_GAME_CONFIG.world.height);
     const gapTop = clamp(obstacle.gapCenter + obstacle.gapSize / 2, 0, DEFAULT_GAME_CONFIG.world.height);
@@ -256,9 +322,9 @@ class GateView {
     const crossWidth = clamp(0.9 + pathDepth * 0.22, 0.96, 1.18);
     const rimHeight = 0.24;
     const leadingZ = -pathDepth * 0.51;
-    const trailingZ = pathDepth * 0.51;
 
     this.root.visible = true;
+    this.root.userData.obstacleId = obstacle.id;
     this.root.position.set(projection.mapX(visualX), 0, projection.depthAt(visualX));
     this.root.rotation.y = projection.pathYaw
       + Math.sin(time * 0.8 + obstacle.motionPhase) * 0.012;
@@ -271,19 +337,12 @@ class GateView {
     this.upperColumn.position.set(0, projection.mapY(gapTop + upperHeight / 2), 0);
     this.upperColumn.scale.set(crossWidth, Math.max(0.001, upperHeight), pathDepth);
 
-    this.lowerFace.visible = lowerHeight > 0.01;
-    this.lowerFace.position.set(0, projection.mapY(lowerHeight / 2), leadingZ - 0.012);
-    this.lowerFace.scale.set(crossWidth * 0.87, Math.max(0.001, lowerHeight - 0.08), 0.04);
-    this.upperFace.visible = upperHeight > 0.01;
-    this.upperFace.position.set(0, projection.mapY(gapTop + upperHeight / 2), leadingZ - 0.012);
-    this.upperFace.scale.set(crossWidth * 0.87, Math.max(0.001, upperHeight - 0.08), 0.04);
-
-    this.lowerBackFace.visible = lowerHeight > 0.01;
-    this.lowerBackFace.position.set(0, projection.mapY(lowerHeight / 2), trailingZ + 0.012);
-    this.lowerBackFace.scale.set(crossWidth * 0.82, Math.max(0.001, lowerHeight - 0.12), 0.035);
-    this.upperBackFace.visible = upperHeight > 0.01;
-    this.upperBackFace.position.set(0, projection.mapY(gapTop + upperHeight / 2), trailingZ + 0.012);
-    this.upperBackFace.scale.set(crossWidth * 0.82, Math.max(0.001, upperHeight - 0.12), 0.035);
+    // The old broad front/back plates flattened the silhouette. Keep these
+    // pooled meshes disabled: corrosion now supplies readable surface breakup.
+    this.lowerFace.visible = false;
+    this.upperFace.visible = false;
+    this.lowerBackFace.visible = false;
+    this.upperBackFace.visible = false;
 
     this.lowerRim.position.set(0, projection.mapY(gapBottom) - rimHeight / 2, 0.08);
     this.lowerRim.scale.set(crossWidth * 1.34, rimHeight, pathDepth * 1.18);
@@ -352,17 +411,156 @@ class GateView {
       this.rivets.setMatrixAt(index, this.matrix);
     }
     this.rivets.instanceMatrix.needsUpdate = true;
+    this.updateDressing(
+      obstacle.id,
+      projection,
+      lowerHeight,
+      upperHeight,
+      gapTop,
+      crossWidth,
+      pathDepth,
+      showDressing,
+    );
+  }
+
+  private updateDressing(
+    obstacleId: string,
+    projection: WorldProjection,
+    lowerHeight: number,
+    upperHeight: number,
+    gapTop: number,
+    crossWidth: number,
+    pathDepth: number,
+    visible: boolean,
+  ): void {
+    if (!this.dressing) this.dressing = createGateDressing(obstacleId, this.dressingQuality);
+    const dressing = this.dressing;
+    this.rustMarks.visible = visible;
+    this.rustBands.visible = visible;
+    this.algaeBand.visible = visible && lowerHeight > 0.28;
+    this.plants.visible = visible && lowerHeight > 0.2;
+    if (!visible) return;
+
+    const rustMaterial = this.rustMaterials[dressing.rustVariant];
+    if (rustMaterial) {
+      this.rustMarks.material = rustMaterial;
+      this.rustBands.material = rustMaterial;
+    }
+    const plantMaterial = this.plantMaterials[dressing.plantVariant];
+    if (plantMaterial) this.plants.material = plantMaterial;
+
+    const halfWidth = crossWidth * 0.5;
+    const halfDepth = pathDepth * 0.5;
+
+    const algaeHeight = Math.min(0.34, Math.max(0, lowerHeight - 0.24));
+    this.algaeBand.position.set(0, projection.mapY(-0.035 + algaeHeight / 2), 0);
+    this.algaeBand.scale.set(crossWidth * 1.075, algaeHeight, pathDepth * 1.075);
+
+    const flangeBands = dressing.bandVariant === 1;
+    const bandHeight = flangeBands ? 0.075 : 0.11 + dressing.bandVariant * 0.02;
+    this.rustBands.count = 2;
+    for (let index = 0; index < 2; index += 1) {
+      const upper = index === 1;
+      const columnHeight = upper ? upperHeight : lowerHeight;
+      const baseY = upper ? gapTop : 0;
+      let localY: number;
+      if (flangeBands) {
+        localY = upper ? 0.055 : columnHeight - 0.055;
+      } else if (dressing.bandVariant === 0) {
+        localY = upper ? Math.min(0.28, columnHeight * 0.22) : Math.min(0.3, columnHeight * 0.24);
+      } else {
+        localY = columnHeight * (upper ? 0.42 : 0.58);
+      }
+      localY = clamp(localY, bandHeight / 2 + 0.025, columnHeight - bandHeight / 2 - 0.025);
+      this.position.set(0, projection.mapY(baseY + localY), 0);
+      this.quaternion.identity();
+      const bandScale = flangeBands ? 1.315 : 1.045;
+      const depthScale = flangeBands ? 1.16 : 1.045;
+      const visibilityScale = columnHeight > bandHeight + 0.08 ? 1 : 0;
+      this.scale.set(
+        crossWidth * bandScale * visibilityScale,
+        bandHeight * visibilityScale,
+        pathDepth * depthScale * visibilityScale,
+      );
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      this.rustBands.setMatrixAt(index, this.matrix);
+    }
+    this.rustBands.instanceMatrix.needsUpdate = true;
+
+    this.rustMarks.count = dressing.rustMarks.length;
+    for (let index = 0; index < dressing.rustMarks.length; index += 1) {
+      const mark = dressing.rustMarks[index];
+      if (!mark) continue;
+      const columnHeight = mark.upper ? upperHeight : lowerHeight;
+      const baseY = mark.upper ? gapTop : 0;
+      const angleCos = Math.cos(mark.angle);
+      const angleSin = Math.sin(mark.angle);
+      this.surfaceNormal.set(
+        angleCos / Math.max(0.001, halfWidth),
+        0,
+        angleSin / Math.max(0.001, halfDepth),
+      ).normalize();
+      const verticalInset = Math.min(0.12, columnHeight * 0.2);
+      const usableHeight = Math.max(0, columnHeight - verticalInset * 2);
+      this.position.set(
+        halfWidth * angleCos + this.surfaceNormal.x * 0.012,
+        projection.mapY(baseY + verticalInset + usableHeight * mark.heightRatio),
+        halfDepth * angleSin + this.surfaceNormal.z * 0.012,
+      );
+      this.quaternion.setFromUnitVectors(this.geometryNormal, this.surfaceNormal);
+      this.twistQuaternion.setFromAxisAngle(this.surfaceNormal, mark.rotation);
+      this.quaternion.premultiply(this.twistQuaternion);
+      const markScale = columnHeight > 0.12 ? Math.min(1, columnHeight / 0.46) : 0;
+      this.scale.set(mark.width * markScale, mark.height * markScale, 1);
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      this.rustMarks.setMatrixAt(index, this.matrix);
+    }
+    this.rustMarks.instanceMatrix.needsUpdate = true;
+
+    this.plants.count = dressing.plantBlades.length;
+    for (let index = 0; index < dressing.plantBlades.length; index += 1) {
+      const blade = dressing.plantBlades[index];
+      if (!blade) continue;
+      const plantBaseHeight = 0.12;
+      const bladeHeight = Math.max(
+        0,
+        Math.min(blade.height, lowerHeight - plantBaseHeight - 0.2),
+      );
+      this.position.set(
+        halfWidth * blade.radius * Math.cos(blade.angle),
+        projection.mapY(plantBaseHeight),
+        halfDepth * blade.radius * Math.sin(blade.angle),
+      );
+      // Camera-facing crossed cards keep every blade readable from the flight
+      // camera; their positions still alternate around both sides of the pipe.
+      const crossedYaw = index % 2 === 0 ? -0.22 : 0.22;
+      this.plantEuler.set(0, crossedYaw, blade.lean);
+      this.quaternion.setFromEuler(this.plantEuler);
+      this.scale.set(blade.width, bladeHeight, 1);
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      this.plants.setMatrixAt(index, this.matrix);
+    }
+    this.plants.instanceMatrix.needsUpdate = true;
   }
 
   release(): void {
     this.id = null;
     this.seenRevision = -1;
     this.root.visible = false;
+    delete this.root.userData.obstacleId;
     this.lowerLock.visible = false;
     this.upperLock.visible = false;
     this.lowerCollisionEdge.visible = false;
     this.upperCollisionEdge.visible = false;
     this.safeGapPane.visible = false;
+    this.rustMarks.visible = false;
+    this.rustMarks.count = 0;
+    this.rustBands.visible = false;
+    this.rustBands.count = 0;
+    this.algaeBand.visible = false;
+    this.plants.visible = false;
+    this.plants.count = 0;
+    this.dressing = null;
   }
 }
 
@@ -498,6 +696,7 @@ export class WorldViews {
   private readonly geometries = new Set<THREE.BufferGeometry>();
   private readonly materials = new Set<THREE.Material>();
   private readonly budget: QualityBudget;
+  private readonly gateDressingProfile: Readonly<GateDressingQualityProfile>;
   private readonly gatePool: GateView[] = [];
   private readonly freeGates: GateView[] = [];
   private readonly gatesById = new Map<string, GateView>();
@@ -527,6 +726,7 @@ export class WorldViews {
   constructor(parent: THREE.Object3D, quality: RenderQuality) {
     this.root.name = 'world-views';
     this.budget = QUALITY_BUDGET[quality];
+    this.gateDressingProfile = getGateDressingQualityProfile(quality);
     parent.add(this.root);
 
     const skyGeometry = this.trackGeometry(new THREE.SphereGeometry(42, 28, 16));
@@ -709,29 +909,63 @@ export class WorldViews {
     this.debris.frustumCulled = false;
     this.root.add(this.debris);
 
-    const gateGeometry = this.trackGeometry(new THREE.BoxGeometry(1, 1, 1));
+    const gateGeometry = this.trackGeometry(new THREE.CylinderGeometry(
+      0.5,
+      0.5,
+      1,
+      this.gateDressingProfile.cylinderSegments,
+      1,
+      false,
+    ));
     const rivetGeometry = this.trackGeometry(new THREE.SphereGeometry(1, 7, 5));
     const nodeGeometry = this.trackGeometry(new THREE.OctahedronGeometry(0.14, 1));
     const lockGeometry = this.trackGeometry(new THREE.TorusGeometry(0.18, 0.02, 6, 24));
+    const rustGeometry = this.trackGeometry(new THREE.BufferGeometry());
+    const rustOutline: readonly (readonly [number, number])[] = [
+      [-0.34, 0.5],
+      [0.26, 0.46],
+      [0.42, 0.18],
+      [0.18, -0.08],
+      [0.08, -0.5],
+      [-0.16, -0.31],
+      [-0.4, -0.06],
+    ];
+    const rustVertices: number[] = [];
+    for (let index = 0; index < rustOutline.length; index += 1) {
+      const current = rustOutline[index];
+      const next = rustOutline[(index + 1) % rustOutline.length];
+      if (!current || !next) continue;
+      rustVertices.push(0, 0, 0, current[0], current[1], 0, next[0], next[1], 0);
+    }
+    rustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rustVertices, 3));
+    rustGeometry.computeVertexNormals();
+    const plantGeometry = this.trackGeometry(new THREE.PlaneGeometry(1, 1, 1, 2));
+    plantGeometry.translate(0, 0.5, 0);
+    const plantPositions = plantGeometry.getAttribute('position');
+    for (let index = 0; index < plantPositions.count; index += 1) {
+      const y = plantPositions.getY(index);
+      const taper = 1 - y * 0.78;
+      plantPositions.setX(index, plantPositions.getX(index) * taper);
+      plantPositions.setZ(index, Math.sin(y * Math.PI) * 0.12);
+    }
+    plantPositions.needsUpdate = true;
+    plantGeometry.computeVertexNormals();
     const gateMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
-      color: 0x315f68,
-      roughness: 0.58,
-      metalness: 0.48,
-      flatShading: true,
+      color: 0x446f70,
+      roughness: 0.7,
+      metalness: 0.38,
     }));
     const gateDetailMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
-      color: 0x8db2b3,
-      roughness: 0.32,
-      metalness: 0.76,
-      flatShading: true,
+      color: 0x8aa6a0,
+      roughness: 0.48,
+      metalness: 0.62,
     }));
     const gateFaceMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
-      color: 0x2a7279,
-      emissive: 0x082d36,
-      emissiveIntensity: 0.44,
-      roughness: 0.4,
-      metalness: 0.62,
-      flatShading: true,
+      color: 0x4c8580,
+      emissive: 0x092d2a,
+      emissiveIntensity: 0.3,
+      roughness: 0.58,
+      metalness: 0.48,
     }));
     const gateBackMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0x183743,
@@ -739,7 +973,57 @@ export class WorldViews {
       emissiveIntensity: 0.26,
       roughness: 0.68,
       metalness: 0.42,
-      flatShading: true,
+    }));
+    const rustMaterials: readonly THREE.Material[] = [
+      this.trackMaterial(new THREE.MeshStandardMaterial({
+        color: 0x74361f,
+        roughness: 0.96,
+        metalness: 0.08,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+      })),
+      this.trackMaterial(new THREE.MeshStandardMaterial({
+        color: 0x9a5128,
+        roughness: 0.92,
+        metalness: 0.06,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+      })),
+      this.trackMaterial(new THREE.MeshStandardMaterial({
+        color: 0x532a21,
+        roughness: 1,
+        metalness: 0.04,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+      })),
+    ];
+    const plantMaterials: readonly THREE.Material[] = [
+      this.trackMaterial(new THREE.MeshStandardMaterial({
+        color: 0x3fa66c,
+        emissive: 0x0c2418,
+        emissiveIntensity: 0.32,
+        roughness: 0.94,
+        metalness: 0,
+        side: THREE.DoubleSide,
+      })),
+      this.trackMaterial(new THREE.MeshStandardMaterial({
+        color: 0x6d9c52,
+        emissive: 0x20230d,
+        emissiveIntensity: 0.28,
+        roughness: 0.98,
+        metalness: 0,
+        side: THREE.DoubleSide,
+      })),
+    ];
+    const algaeMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0x174c37,
+      emissive: 0x09291d,
+      emissiveIntensity: 0.34,
+      roughness: 0.98,
+      metalness: 0.03,
     }));
     const nodeMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0xffa629,
@@ -779,6 +1063,8 @@ export class WorldViews {
         rivetGeometry,
         nodeGeometry,
         lockGeometry,
+        rustGeometry,
+        plantGeometry,
         gateMaterial,
         gateFaceMaterial,
         gateBackMaterial,
@@ -787,6 +1073,11 @@ export class WorldViews {
         lockMaterial,
         collisionMaterial,
         safePaneMaterial,
+        rustMaterials,
+        plantMaterials,
+        algaeMaterial,
+        this.gateDressingProfile,
+        quality,
       );
       this.gatePool.push(view);
       this.root.add(view.root);
@@ -1054,10 +1345,17 @@ export class WorldViews {
       + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
     let focusedId: string | null = null;
     let focusedDelta = Number.POSITIVE_INFINITY;
+    let nearestDressedId: string | null = null;
+    let nearestDressedDelta = Number.POSITIVE_INFINITY;
     for (const obstacle of state.world.obstacles) {
-      if (!obstacle.active || obstacle.destroyed) continue;
+      if (obstacle.destroyed) continue;
       const visualX = interpolatedObstacleX(state, obstacle, alpha);
       const delta = visualX - playerVisualX;
+      if (delta >= -obstacle.width * 0.72 && delta < nearestDressedDelta) {
+        nearestDressedId = obstacle.id;
+        nearestDressedDelta = delta;
+      }
+      if (!obstacle.active) continue;
       if (delta < -obstacle.width * 0.72 || delta >= focusedDelta) continue;
       focusedId = obstacle.id;
       focusedDelta = delta;
@@ -1087,7 +1385,17 @@ export class WorldViews {
       const focusStrength = focused
         ? clamp(1 - Math.max(0, delta - halfWidth) / 5.4, 0.16, 1)
         : 0;
-      view.update(obstacle, visualX, projection, locked, focusStrength, transitPhase, time);
+      view.update(
+        obstacle,
+        visualX,
+        projection,
+        locked,
+        focusStrength,
+        transitPhase,
+        time,
+        obstacle.id === nearestDressedId
+          || Math.abs(delta) <= this.gateDressingProfile.detailDistance,
+      );
       this.rememberEntity(
         obstacle.id,
         projection.mapX(visualX),
