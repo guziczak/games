@@ -2100,8 +2100,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const bar = document.getElementById('storkGrabEnergyBar');
         const hint = document.getElementById('storkGrabHint');
         if (indicator) {
-            indicator.style.display = storkModeActive ? 'block' : 'none';
+            indicator.style.display = storkModeActive ? '' : 'none';
             indicator.setAttribute('aria-hidden', String(!storkModeActive));
+            indicator.classList.toggle('is-active', Boolean(storkModeActive));
+            indicator.classList.toggle('is-grabbing', active);
+            indicator.classList.toggle('is-exhausted', storkModeActive
+                && energy < STORK_GRAB_MIN_ENERGY);
         }
         if (bar) {
             bar.style.width = energyPercent.toFixed(1) + '%';
