@@ -39,7 +39,7 @@
         storkGrabExhausted: { duration: 0.32, cooldown: 480, priority: 4, group: 'stork', maxGroup: 2 },
         storkGrabReady: { duration: 0.19, cooldown: 650, priority: 2, group: 'stork',   maxGroup: 2 },
         storkDefeat:  { duration: 0.56, cooldown: 180, priority: 6, group: 'impact',   maxGroup: 1, replace: true },
-        gameOver:     { duration: 0.96, cooldown: 0,   priority: 100, group: 'terminal', maxGroup: 1, replace: true }
+        gameOver:     { duration: 6.8,  cooldown: 0,   priority: 100, group: 'terminal', maxGroup: 1, replace: true }
     });
 
     // Friendly aliases keep older callers working and make mode names forgiving.
@@ -504,10 +504,132 @@
         },
 
         gameOver(voice) {
-            [392, 330, 262, 196].forEach((frequency, index) => {
-                tone(voice, { start: index * 0.16, type: 'triangle', gain: 0.13, duration: 0.22, frequency });
-            });
-            tone(voice, { start: 0.56, type: 'sawtooth', gain: 0.09, duration: 0.34, pitches: [[0, 230], [0.17, 165], [0.34, 112]], filter: { type: 'bandpass', frequency: 520, q: 1.7 } });
+            // Restore the pre-5431449 finale: a whole flock of overlapping,
+            // taunting duck laughs instead of a short descending game-over cue.
+            const origin = audioContext.currentTime;
+            const randomBetween = (minimum, maximum) => minimum + Math.random() * (maximum - minimum);
+            const gameOverBus = audioContext.createGain();
+            gameOverBus.gain.value = 0.8;
+            gameOverBus.connect(voice.output);
+
+            const createPanner = pan => {
+                if (typeof audioContext.createStereoPanner !== 'function') return audioContext.createGain();
+                const panner = audioContext.createStereoPanner();
+                panner.pan.value = pan;
+                return panner;
+            };
+
+            const createQuack = (startAt, pitch = 1, duration = 0.2, volume = 0.7) => {
+                const quackOscillator = audioContext.createOscillator();
+                const quackGain = audioContext.createGain();
+                const quackFilter = audioContext.createBiquadFilter();
+                const vibratoOscillator = audioContext.createOscillator();
+                const vibratoGain = audioContext.createGain();
+                const panner = createPanner(randomBetween(-0.8, 0.8));
+                const baseFrequency = 280 * pitch;
+                const stopAt = startAt + duration + 0.05;
+
+                quackOscillator.type = 'sawtooth';
+                quackOscillator.frequency.setValueAtTime(baseFrequency * 1.2, startAt);
+                quackOscillator.frequency.linearRampToValueAtTime(baseFrequency * 0.8, startAt + duration * 0.5);
+                quackOscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 0.6, startAt + duration);
+
+                quackGain.gain.setValueAtTime(0, startAt);
+                quackGain.gain.linearRampToValueAtTime(volume, startAt + 0.01);
+                quackGain.gain.linearRampToValueAtTime(volume * 0.7, startAt + duration * 0.3);
+                quackGain.gain.exponentialRampToValueAtTime(SILENCE, startAt + duration);
+
+                quackFilter.type = 'bandpass';
+                quackFilter.frequency.value = 600 * pitch;
+                quackFilter.Q.value = 2;
+                vibratoOscillator.frequency.value = 15;
+                vibratoGain.gain.value = baseFrequency * 0.06;
+
+                vibratoOscillator.connect(vibratoGain);
+                vibratoGain.connect(quackOscillator.frequency);
+                quackOscillator.connect(quackGain);
+                quackGain.connect(quackFilter);
+                quackFilter.connect(panner);
+                panner.connect(gameOverBus);
+
+                quackOscillator.start(startAt);
+                vibratoOscillator.start(startAt);
+                quackOscillator.stop(stopAt);
+                vibratoOscillator.stop(stopAt);
+                voice.sources.add(quackOscillator);
+                voice.sources.add(vibratoOscillator);
+                return stopAt;
+            };
+
+            const createDuckSequence = (startAt, count, pitchRange, volumeRange, pauseRange) => {
+                let cursor = startAt;
+                for (let index = 0; index < count; index += 1) {
+                    cursor = createQuack(
+                        cursor,
+                        randomBetween(pitchRange[0], pitchRange[1]),
+                        randomBetween(0.15, 0.3),
+                        randomBetween(volumeRange[0], volumeRange[1])
+                    );
+                    if (index < count - 1) cursor += randomBetween(pauseRange[0], pauseRange[1]);
+                }
+                return cursor;
+            };
+
+            const createWingFlaps = (startAt, duration, intensity = 1) => {
+                const flapBus = audioContext.createGain();
+                flapBus.gain.value = 0.3 * intensity;
+                flapBus.connect(gameOverBus);
+                const flapCount = Math.floor(duration / 0.2) * intensity;
+
+                for (let index = 0; index < flapCount; index += 1) {
+                    const flapAt = startAt + index * 0.2;
+                    const flapOscillator = audioContext.createOscillator();
+                    const flapGain = audioContext.createGain();
+                    const flapFilter = audioContext.createBiquadFilter();
+                    const panner = createPanner(randomBetween(-0.6, 0.6));
+
+                    flapOscillator.type = 'triangle';
+                    flapOscillator.frequency.setValueAtTime(500, flapAt);
+                    flapOscillator.frequency.exponentialRampToValueAtTime(300, flapAt + 0.1);
+                    flapGain.gain.setValueAtTime(0, flapAt);
+                    flapGain.gain.linearRampToValueAtTime(0.2, flapAt + 0.01);
+                    flapGain.gain.exponentialRampToValueAtTime(SILENCE, flapAt + 0.1);
+                    flapFilter.type = 'lowpass';
+                    flapFilter.frequency.value = 1000;
+
+                    flapOscillator.connect(flapGain);
+                    flapGain.connect(flapFilter);
+                    flapFilter.connect(panner);
+                    panner.connect(flapBus);
+                    flapOscillator.start(flapAt);
+                    flapOscillator.stop(flapAt + 0.15);
+                    voice.sources.add(flapOscillator);
+                }
+            };
+
+            let cursor = createQuack(origin, 0.8, 0.4, 0.6) + 0.2;
+            cursor = createDuckSequence(cursor, 5, [1, 1.4], [0.4, 0.7], [0.05, 0.12]) + 0.1;
+            createDuckSequence(cursor - 0.1, 4, [0.7, 1.1], [0.5, 0.7], [0.06, 0.15]);
+            createDuckSequence(cursor + 0.15, 6, [0.9, 1.2], [0.4, 0.6], [0.04, 0.1]);
+
+            cursor += 0.3;
+            createWingFlaps(origin + 0.3, 2.5, 2);
+            createDuckSequence(cursor + 0.1, 7, [1.2, 1.6], [0.3, 0.5], [0.03, 0.08]);
+            createDuckSequence(cursor + 0.25, 5, [0.6, 0.8], [0.4, 0.65], [0.05, 0.1]);
+
+            cursor += 0.5;
+            for (let index = 0; index < 3; index += 1) {
+                createDuckSequence(
+                    cursor + randomBetween(0, 0.2),
+                    randomBetween(3, 6),
+                    [randomBetween(0.7, 1.4), randomBetween(0.9, 1.6)],
+                    [0.3, 0.7],
+                    [0.02, 0.07]
+                );
+            }
+
+            cursor += 0.6;
+            createQuack(cursor + 0.3, 0.7, 0.5, 1);
         }
     };
 
