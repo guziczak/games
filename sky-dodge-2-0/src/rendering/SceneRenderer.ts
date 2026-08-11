@@ -60,7 +60,7 @@ export class SceneRenderer {
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(43, 1, 0.1, 110);
+  private readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 110);
   private readonly character: CharacterRig;
   private readonly worldViews: WorldViews;
   private readonly particles: ParticleField;
@@ -246,7 +246,7 @@ export class SceneRenderer {
       DEFAULT_GAME_CONFIG.world.height,
     );
     const altitude = playerY / DEFAULT_GAME_CONFIG.world.height;
-    const depth = this.projection.depthAt(playerX) + 0.56;
+    const depth = this.projection.depthAt(playerX);
     this.blobShadow.position.set(
       this.projection.mapX(playerX),
       this.projection.mapY(0) + 0.025,
@@ -272,23 +272,40 @@ export class SceneRenderer {
     const baseDistance = (
       this.projection.viewHeight
       / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2))
-    ) * 1.1;
-    const yaw = THREE.MathUtils.degToRad(22);
-    const pitch = THREE.MathUtils.degToRad(13);
+    ) * 1.08;
+    const chaseYaw = THREE.MathUtils.degToRad(18);
+    const pitch = THREE.MathUtils.degToRad(10);
     const horizontalDistance = baseDistance * Math.cos(pitch);
-    const playerX = this.projection.mapX(state.player.x);
     const playerY = this.projection.mapY(state.player.y);
     const drift = this.reducedMotion ? 0 : Math.sin(time * 0.32) * 0.055;
+    const lookAhead = clamp(
+      this.projection.viewWidth / this.projection.xScale * 0.28,
+      3,
+      4.7,
+    );
+    const targetSimulationX = clamp(
+      state.player.x + lookAhead,
+      0,
+      DEFAULT_GAME_CONFIG.world.width,
+    );
+    const pathForwardX = Math.sin(this.projection.pathYaw);
+    const pathForwardZ = Math.cos(this.projection.pathYaw);
+    const pathSideX = Math.cos(this.projection.pathYaw);
+    const pathSideZ = -Math.sin(this.projection.pathYaw);
+    const viewDirectionX = -pathForwardX * Math.cos(chaseYaw)
+      - pathSideX * Math.sin(chaseYaw);
+    const viewDirectionZ = -pathForwardZ * Math.cos(chaseYaw)
+      - pathSideZ * Math.sin(chaseYaw);
 
     this.cameraTarget.set(
-      playerX + this.projection.viewWidth * 0.265,
-      0.12 + playerY * 0.045,
-      -2.35,
+      this.projection.mapX(targetSimulationX),
+      0.08 + playerY * 0.045,
+      this.projection.depthAt(targetSimulationX),
     );
     this.camera.position.set(
-      this.cameraTarget.x - Math.sin(yaw) * horizontalDistance + drift,
+      this.cameraTarget.x + viewDirectionX * horizontalDistance + drift,
       this.cameraTarget.y + Math.sin(pitch) * baseDistance,
-      this.cameraTarget.z + Math.cos(yaw) * horizontalDistance,
+      this.cameraTarget.z + viewDirectionZ * horizontalDistance,
     );
     this.camera.lookAt(this.cameraTarget);
   }

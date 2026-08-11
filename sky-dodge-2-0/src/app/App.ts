@@ -98,6 +98,8 @@ export class App {
   private animationFrame = 0;
   private previousFrameTime = 0;
   private runGeneration = 0;
+  private startRequestGeneration = 0;
+  private audioFaulted = false;
   private destroyed = false;
   private debugBridge: DebugBridge | null = null;
 
@@ -168,6 +170,7 @@ export class App {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.startRequestGeneration += 1;
     this.stopAnimationLoop();
     this.phase = 'destroyed';
     this.root.dataset.phase = this.phase;
@@ -176,7 +179,11 @@ export class App {
     this.input = null;
     this.renderer?.destroy();
     this.renderer = null;
-    this.audio.destroy();
+    try {
+      this.audio.destroy();
+    } catch {
+      // Audio must never prevent renderer/input cleanup.
+    }
     this.unbindEvents();
     this.removeDebugBridge();
   }
@@ -252,11 +259,24 @@ export class App {
 
   private async startRun(): Promise<void> {
     if (this.destroyed || !this.renderer || !this.input) return;
-    await this.audio.unlock();
+    const requestGeneration = this.startRequestGeneration + 1;
+    this.startRequestGeneration = requestGeneration;
+    this.audioFaulted = false;
+    try {
+      await this.audio.unlock();
+    } catch (error) {
+      if (requestGeneration === this.startRequestGeneration) this.disableAudio(error);
+    }
+    if (this.destroyed
+      || requestGeneration !== this.startRequestGeneration
+      || !this.renderer
+      || !this.input) return;
     this.runGeneration += 1;
     this.stopAnimationLoop();
-    this.audio.reset();
-    this.audio.beginRun();
+    this.useAudio(() => {
+      this.audio.reset();
+      this.audio.beginRun();
+    });
     this.input.reset();
     this.inputQueue.length = 0;
     this.simulation.reset(createRunSeed() ^ this.runGeneration);
@@ -279,7 +299,7 @@ export class App {
   private pauseRun(): void {
     if (this.phase !== 'running') return;
     this.stopAnimationLoop();
-    this.audio.setPaused(true);
+    this.useAudio(() => this.audio.setPaused(true));
     // Drop stale actions first, then preserve the cancellation produced by
     // reset so a held phase/charge cannot continue after resume.
     this.inputQueue.length = 0;
@@ -297,7 +317,7 @@ export class App {
   private resumeRun(): void {
     if (this.phase !== 'paused' || this.destroyed) return;
     setPanelVisibility(this.elements.pauseScreen, false);
-    this.audio.setPaused(false);
+    this.useAudio(() => this.audio.setPaused(false));
     this.phase = 'running';
     this.root.dataset.phase = this.phase;
     this.updateInterface(this.simulation.state);
@@ -309,7 +329,7 @@ export class App {
   private endRun(): void {
     if (this.phase !== 'running') return;
     this.stopAnimationLoop();
-    this.audio.finishRun();
+    this.useAudio(() => this.audio.finishRun());
     this.input?.reset();
     this.inputQueue.length = 0;
     this.phase = 'game-over';
@@ -334,8 +354,10 @@ export class App {
   private forceMode(mode: MutationModeId): void {
     if (this.phase !== 'running') return;
     const result = this.simulation.startMode(mode);
-    this.audio.update(result.state);
-    this.audio.handle(result.events, result.state);
+    this.useAudio(() => {
+      this.audio.update(result.state);
+      this.audio.handle(result.events, result.state);
+    });
     this.consumeEvents(result.events);
     this.updateInterface(result.state);
     this.renderer?.render(result.state, 0, result.events);
@@ -355,8 +377,10 @@ export class App {
     const result = this.simulation.step(delta, actions);
     const interpolation = result.state.clock.accumulator / this.simulation.config.fixedStep;
     this.renderer.render(result.state, clamp01(interpolation), result.events);
-    this.audio.update(result.state);
-    this.audio.handle(result.events, result.state);
+    this.useAudio(() => {
+      this.audio.update(result.state);
+      this.audio.handle(result.events, result.state);
+    });
     this.consumeEvents(result.events);
     this.updateInterface(result.state);
 
@@ -558,6 +582,25 @@ export class App {
     });
   }
 
+  private useAudio(action: () => void): void {
+    if (this.audioFaulted) return;
+    try {
+      action();
+    } catch (error) {
+      this.disableAudio(error);
+    }
+  }
+
+  private disableAudio(error: unknown): void {
+    if (!this.audioFaulted) console.warn('Sky Dodge 2.0 audio was disabled for this run.', error);
+    this.audioFaulted = true;
+    try {
+      this.audio.destroy();
+    } catch {
+      // The visual simulation stays authoritative even after an audio failure.
+    }
+  }
+
   private readonly handleStart = (): void => {
     void this.startRun();
   };
@@ -575,7 +618,13 @@ export class App {
   };
 
   private readonly handleMute = (): void => {
-    const muted = this.audio.toggleMuted();
+    let muted = true;
+    this.audioFaulted = false;
+    try {
+      muted = this.audio.toggleMuted();
+    } catch (error) {
+      this.disableAudio(error);
+    }
     this.elements.muteButton.setAttribute('aria-pressed', String(muted));
     this.elements.muteButton.setAttribute('aria-label', muted ? 'Włącz dźwięk' : 'Wycisz dźwięk');
     this.elements.muteButton.textContent = muted ? '♩' : '♫';

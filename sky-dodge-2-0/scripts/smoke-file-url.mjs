@@ -166,6 +166,91 @@ async function waitForValue(client, expression, predicate, timeout = 10_000) {
   throw new Error(`Timed out waiting for: ${expression}; last value: ${JSON.stringify(value)}`);
 }
 
+async function restartInMode(client, mode) {
+  await evaluate(client, '__SKY_DODGE_2__.restart()');
+  await waitForValue(client, '__SKY_DODGE_2__.phase()', (value) => value === 'running');
+  await evaluate(client, `__SKY_DODGE_2__.forceMode(${JSON.stringify(mode)})`);
+  await waitForValue(client, '__SKY_DODGE_2__.snapshot().mode.active', (value) => value === mode);
+}
+
+async function assertModeMechanics(client) {
+  await restartInMode(client, 'frog');
+  await waitForValue(
+    client,
+    '__SKY_DODGE_2__.snapshot().mode.frog.phase',
+    (value) => value === 'clinging',
+    6_000,
+  );
+  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-start" })');
+  await waitForValue(client, '__SKY_DODGE_2__.snapshot().mode.frog.phase', (value) => value === 'charging');
+  await delay(180);
+  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-release" })');
+  const frogLaunch = await waitForValue(
+    client,
+    '({ phase: __SKY_DODGE_2__.snapshot().mode.frog.phase, vy: __SKY_DODGE_2__.snapshot().player.vy })',
+    (value) => value?.phase === 'airborne' && value.vy > 0,
+  );
+  assert(frogLaunch.vy > 0, 'frog did not launch away from the floor');
+
+  await restartInMode(client, 'rubber');
+  await evaluate(client, `(() => {
+    __SKY_DODGE_2__.dispatch({ type: 'ability-start' });
+    __SKY_DODGE_2__.dispatch({ type: 'ability-aim', vector: { x: -0.72, y: 0.46 } });
+    __SKY_DODGE_2__.dispatch({ type: 'ability-release' });
+  })()`);
+  const rubberLaunch = await waitForValue(
+    client,
+    '({ phase: __SKY_DODGE_2__.snapshot().mode.rubber.phase, vx: __SKY_DODGE_2__.snapshot().player.vx, vy: __SKY_DODGE_2__.snapshot().player.vy })',
+    (value) => value?.phase === 'flying' && Math.abs(value.vx) > 0.5 && Math.abs(value.vy) > 0.5,
+  );
+  assert(rubberLaunch.vx > 0 && rubberLaunch.vy < 0, 'rubber launch vector does not oppose the pull');
+
+  await restartInMode(client, 'steel');
+  const steelImpact = await waitForValue(
+    client,
+    '({ status: __SKY_DODGE_2__.snapshot().status, heat: __SKY_DODGE_2__.snapshot().mode.steel.heat })',
+    (value) => value?.status === 'running' && value.heat > 0,
+    6_000,
+  );
+  assert(steelImpact.heat > 0, 'steel did not convert an impact into heat');
+
+  await restartInMode(client, 'ghost');
+  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-start" })');
+  const ghostStart = await waitForValue(
+    client,
+    '({ phase: __SKY_DODGE_2__.snapshot().mode.ghost.phase, energy: __SKY_DODGE_2__.snapshot().mode.ghost.energy })',
+    (value) => value?.phase === 'phasing',
+  );
+  await delay(180);
+  const ghostEnergy = await evaluate(client, '__SKY_DODGE_2__.snapshot().mode.ghost.energy');
+  assert(ghostEnergy < ghostStart.energy, 'ghost phase did not drain energy');
+  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-release" })');
+  await waitForValue(client, '__SKY_DODGE_2__.snapshot().mode.ghost.phase', (value) => value === 'material');
+
+  await restartInMode(client, 'stork');
+  await evaluate(client, `globalThis.__sky2StorkPilot = setInterval(() => {
+    const state = __SKY_DODGE_2__.snapshot();
+    if (state.player.y < 4.4) __SKY_DODGE_2__.dispatch({ type: 'flap' });
+  }, 90)`);
+  try {
+    await waitForValue(client, '!document.querySelector("#storkActionButton").disabled', (value) => value === true, 7_000);
+    await evaluate(client, `(() => {
+      __SKY_DODGE_2__.dispatch({ type: 'ability-start' });
+      __SKY_DODGE_2__.dispatch({ type: 'ability-aim', vector: { x: 0, y: 0.72 } });
+    })()`);
+    await waitForValue(client, '__SKY_DODGE_2__.snapshot().mode.stork.phase', (value) => value === 'aiming');
+    await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-release" })');
+    const storkVault = await waitForValue(
+      client,
+      '({ phase: __SKY_DODGE_2__.snapshot().mode.stork.phase, uses: __SKY_DODGE_2__.snapshot().mode.stork.uses })',
+      (value) => value?.phase === 'vaulting' && value.uses === 2,
+    );
+    assert(storkVault.uses === 2, 'stork PIK did not consume exactly one use');
+  } finally {
+    await evaluate(client, 'clearInterval(globalThis.__sky2StorkPilot); delete globalThis.__sky2StorkPilot');
+  }
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -336,12 +421,46 @@ async function main() {
       assert(activeMode === mode, `failed to enter ${mode}`);
     }
 
+    await assertModeMechanics(client);
+
     for (let restart = 0; restart < 12; restart += 1) {
       await evaluate(client, '__SKY_DODGE_2__.restart()');
     }
     await waitForValue(client, '__SKY_DODGE_2__.phase()', (value) => value === 'running');
     const resetState = await evaluate(client, '({ score: __SKY_DODGE_2__.snapshot().score.total, mode: __SKY_DODGE_2__.snapshot().mode.active })');
     assert(resetState.score === 0 && resetState.mode === 'normal', 'restart did not fully reset the run');
+
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 3,
+      mobile: true,
+      screenWidth: 390,
+      screenHeight: 844,
+    });
+    await waitForValue(client, '__SKY_DODGE_2__.phase()', (value) => value === 'game-over', 8_000);
+    const gameOverTypography = await evaluate(client, `(() => {
+      const title = document.querySelector('.game-over-title');
+      const card = document.querySelector('.game-over-card');
+      const results = document.querySelector('.results');
+      const titleRect = title.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const resultsRect = results.getBoundingClientRect();
+      const style = getComputedStyle(title);
+      return {
+        text: title.textContent.trim(),
+        letterSpacing: Number.parseFloat(style.letterSpacing),
+        wordSpacing: Number.parseFloat(style.wordSpacing),
+        inside: titleRect.left >= cardRect.left && titleRect.right <= cardRect.right,
+        separated: titleRect.bottom <= resultsRect.top,
+        scrollWidth: document.documentElement.scrollWidth,
+      };
+    })()`);
+    assert(gameOverTypography.text === 'KONIEC LOTU', 'game-over title changed unexpectedly');
+    assert(gameOverTypography.letterSpacing > 0 && gameOverTypography.wordSpacing > 0, 'game-over title spacing is not explicit');
+    assert(gameOverTypography.inside && gameOverTypography.separated, 'game-over title overflows or overlaps results');
+    assert(gameOverTypography.scrollWidth === 390, 'game-over screen causes mobile overflow');
+    await captureScreenshot(client, 'sky-dodge-2-game-over.png');
 
     await delay(150);
     const runtimeExceptions = client.events('Runtime.exceptionThrown');

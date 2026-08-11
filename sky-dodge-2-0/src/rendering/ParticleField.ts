@@ -146,10 +146,11 @@ export class ParticleField {
     worldViews: WorldViews,
   ): void {
     if (this.destroyed || events.length === 0) return;
+    const playerX = state.player.x + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * alpha;
     this.playerPosition.set(
-      projection.mapX(state.player.x + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * alpha),
+      projection.mapX(playerX),
       projection.mapY(state.player.y + state.player.vy * DEFAULT_GAME_CONFIG.fixedStep * alpha),
-      projection.depthAt(state.player.x) + 0.76,
+      projection.depthAt(playerX),
     );
 
     for (const event of events) {

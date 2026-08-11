@@ -77,6 +77,7 @@ export class AudioEngine {
   private paused = false;
   private runActive = false;
   private noiseBuffer: AudioBuffer | null = null;
+  private impulseBuffer: AudioBuffer | null = null;
   private ambience: AmbienceLayer | null = null;
   private lastAmbienceUpdateAt = -Infinity;
   private lastCueAt = new Map<string, number>();
@@ -122,6 +123,7 @@ export class AudioEngine {
     if (muted) {
       this.stopAllVoices();
       this.stopAmbience(0.025);
+      if (this.context) this.rebuildReverb(this.context);
     }
     if (!this.context || !this.master) {
       if (!muted) void this.unlock();
@@ -250,6 +252,7 @@ export class AudioEngine {
     this.paused = false;
     this.stopAllVoices();
     this.stopAmbience(0.008);
+    if (this.context) this.rebuildReverb(this.context);
     this.lastCueAt.clear();
     this.lastAmbienceUpdateAt = -Infinity;
   }
@@ -259,6 +262,7 @@ export class AudioEngine {
     const context = this.context;
     this.clearMixerReferences();
     this.noiseBuffer = null;
+    this.impulseBuffer = null;
     if (context && context.state !== 'closed') void context.close();
   }
 
@@ -280,13 +284,27 @@ export class AudioEngine {
     this.master.connect(this.compressor);
     this.compressor.connect(context.destination);
 
+    this.rebuildReverb(context);
+  }
+
+  /** Disconnecting the old convolver is the only reliable way to flush its
+   * internal tail. This prevents a loud cue from one run bleeding into the
+   * next run (or reappearing after a quick mute/unmute). */
+  private rebuildReverb(context: AudioContext): void {
+    try { this.reverb?.disconnect(); } catch { /* already disconnected */ }
+    try { this.reverbGain?.disconnect(); } catch { /* already disconnected */ }
+    this.reverb = null;
+    this.reverbGain = null;
+    const master = this.master;
+    if (!master) return;
     try {
       this.reverb = context.createConvolver();
-      this.reverb.buffer = this.createImpulse(context, 0.72, 2.8);
+      this.impulseBuffer ??= this.createImpulse(context, 0.72, 2.8);
+      this.reverb.buffer = this.impulseBuffer;
       this.reverbGain = context.createGain();
       this.reverbGain.gain.value = 0.21;
       this.reverb.connect(this.reverbGain);
-      this.reverbGain.connect(this.master);
+      this.reverbGain.connect(master);
     } catch {
       this.reverb = null;
       this.reverbGain = null;
@@ -416,6 +434,7 @@ export class AudioEngine {
     if (terminal) {
       this.stopAllVoices();
       this.stopAmbience(0.055);
+      this.rebuildReverb(context);
     } else {
       const terminalVoice = [...this.voices].find((voice) => voice.terminal);
       if (terminalVoice) this.stopVoice(terminalVoice, 0.012);

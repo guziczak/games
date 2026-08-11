@@ -156,10 +156,16 @@ export class CharacterRig {
     this.object.position.set(
       projection.mapX(playerX),
       projection.mapY(playerY),
-      projection.depthAt(playerX) + 0.72,
+      projection.depthAt(playerX),
     );
     this.object.scale.setScalar(0.78);
-    this.object.rotation.set(-0.025, -0.1, clamp(state.player.vy / 16, -0.34, 0.34));
+    // The model's local +X points forward. Align it with the same diagonal rail
+    // used by gates so its beak, trail and collision motion never disagree.
+    this.object.rotation.set(
+      -0.025,
+      projection.pathYaw - Math.PI / 2,
+      clamp(state.player.vy / 16, -0.34, 0.34),
+    );
 
     form.root.position.set(0, 0, 0);
     form.root.rotation.set(0, 0, 0);
