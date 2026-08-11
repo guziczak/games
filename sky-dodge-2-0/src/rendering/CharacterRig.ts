@@ -411,6 +411,12 @@ export class CharacterRig {
       eye.position.set(0.78, 0.7, z + 0.055);
       eye.scale.setScalar(0.42);
       root.add(eye);
+      const glint = new THREE.Mesh(
+        this.trackGeometry(new THREE.SphereGeometry(0.018, 6, 4)),
+        this.standard(0xffffff, 0.18, 0),
+      );
+      glint.position.set(0.81, 0.73, z + 0.105);
+      root.add(glint);
     }
 
     const legs: THREE.Object3D[] = [];
@@ -420,6 +426,10 @@ export class CharacterRig {
       leg.rotation.z = Math.PI / 3;
       root.add(leg);
       legs.push(leg);
+      const pad = new THREE.Mesh(eyeGeometry, belly);
+      pad.position.set(-0.65, -0.67, z);
+      pad.scale.set(1.35, 0.5, 1.55);
+      root.add(pad);
     }
 
     const chargeGeometry = this.trackGeometry(new THREE.TorusGeometry(0.78, 0.035, 8, 40));
@@ -610,6 +620,11 @@ export class CharacterRig {
     body.scale.set(1.2, 0.68, 0.72);
     root.add(body);
 
+    const chest = new THREE.Mesh(sphere, this.standard(0xdce9e7, 0.78, 0, true));
+    chest.position.set(0.34, -0.08, 0.47);
+    chest.scale.set(0.58, 0.45, 0.18);
+    root.add(chest);
+
     const neck = new THREE.Mesh(neckGeometry, white);
     neck.position.set(0.65, 0.53, 0);
     neck.rotation.z = -0.64;
@@ -628,6 +643,13 @@ export class CharacterRig {
     pupil.position.set(1.2, 0.98, 0.28);
     root.add(pupil);
 
+    const eyeGlint = new THREE.Mesh(
+      this.trackGeometry(new THREE.SphereGeometry(0.018, 7, 5)),
+      this.standard(0xffffff, 0.15, 0),
+    );
+    eyeGlint.position.set(1.22, 1.005, 0.326);
+    root.add(eyeGlint);
+
     const wings: THREE.Object3D[] = [];
     for (const z of [-0.48, 0.48]) {
       const wing = new THREE.Mesh(sphere, shadow);
@@ -641,6 +663,22 @@ export class CharacterRig {
       const leg = new THREE.Mesh(legGeometry, red);
       leg.position.set(x, -0.7, 0.05);
       root.add(leg);
+      const foot = new THREE.Mesh(
+        this.trackGeometry(new THREE.CapsuleGeometry(0.028, 0.28, 3, 6)),
+        red,
+      );
+      foot.position.set(x + 0.1, -1.1, 0.06);
+      foot.rotation.z = Math.PI / 2;
+      root.add(foot);
+    }
+
+    const tailGeometry = this.trackGeometry(new THREE.ConeGeometry(0.13, 0.72, 5));
+    tailGeometry.rotateZ(Math.PI / 2);
+    for (let index = 0; index < 3; index += 1) {
+      const feather = new THREE.Mesh(tailGeometry, index === 1 ? white : shadow);
+      feather.position.set(-0.91, (index - 1) * 0.16, -0.12 + index * 0.1);
+      feather.rotation.x = (index - 1) * 0.18;
+      root.add(feather);
     }
 
     const aimGuide = new THREE.Group();
