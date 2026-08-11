@@ -18,7 +18,7 @@
     let lastPlayedTime = Object.create(null);
 
     const policies = Object.freeze({
-        jump:         { duration: 0.19, cooldown: 65,  priority: 2, group: 'movement', maxGroup: 2 },
+        jump:         { duration: 0.42, cooldown: 80,  priority: 2, group: 'movement', maxGroup: 2 },
         coin:         { duration: 0.18, cooldown: 45,  priority: 1, group: 'pickup',   maxGroup: 3 },
         purpleCoin:   { duration: 0.38, cooldown: 110, priority: 3, group: 'pickup',   maxGroup: 3 },
         frogCoin:     { duration: 0.28, cooldown: 90,  priority: 2, group: 'pickup',   maxGroup: 3 },
@@ -283,8 +283,107 @@
 
     const generators = {
         jump(voice) {
-            tone(voice, { type: 'triangle', gain: 0.16, duration: 0.16, pitches: [[0, 260], [0.07, 430], [0.16, 330]] });
-            noise(voice, { gain: 0.045, duration: 0.08, filter: { type: 'highpass', frequency: 900, q: 0.6 } });
+            // Preserve the original tap sound from before 5431449: its layered
+            // sawtooth thrust, falling "boing", rising zip and short noise puff
+            // are what made the jump read as a tiny cartoon quack.
+            const now = audioContext.currentTime;
+            const jumpBus = audioContext.createGain();
+            jumpBus.gain.value = 0.82;
+            jumpBus.connect(voice.output);
+            const randomBetween = (minimum, maximum) => minimum + Math.random() * (maximum - minimum);
+            const coinFlip = () => Math.random() > 0.5;
+            const connectCartoonEffect = (node, intensity) => {
+                const filter = audioContext.createBiquadFilter();
+                filter.type = ['lowpass', 'bandpass', 'highpass'][Math.floor(Math.random() * 3)];
+                filter.frequency.value = randomBetween(600, 5000);
+                filter.Q.value = randomBetween(1, 8);
+
+                if (coinFlip() && intensity > 0.5) {
+                    node.connect(filter);
+                    if (coinFlip() && typeof audioContext.createDelay === 'function') {
+                        const delay = audioContext.createDelay();
+                        delay.delayTime.value = randomBetween(0.01, 0.15) * intensity;
+                        filter.connect(delay);
+                        delay.connect(jumpBus);
+                    } else {
+                        filter.connect(jumpBus);
+                    }
+                } else if (coinFlip()) {
+                    node.connect(filter);
+                    filter.connect(jumpBus);
+                } else {
+                    node.connect(jumpBus);
+                }
+            };
+
+            const jetpackOsc = audioContext.createOscillator();
+            const jetpackGain = audioContext.createGain();
+            const jetpackFilter = audioContext.createBiquadFilter();
+            jetpackOsc.type = 'sawtooth';
+            jetpackOsc.frequency.setValueAtTime(randomBetween(120, 180), now);
+            jetpackOsc.frequency.exponentialRampToValueAtTime(
+                randomBetween(200, 300),
+                now + randomBetween(0.1, 0.2)
+            );
+            jetpackFilter.type = 'bandpass';
+            jetpackFilter.frequency.setValueAtTime(800, now);
+            jetpackFilter.frequency.linearRampToValueAtTime(1200, now + 0.2);
+            jetpackFilter.Q.value = 2;
+            jetpackGain.gain.setValueAtTime(SILENCE, now);
+            jetpackGain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+            jetpackGain.gain.linearRampToValueAtTime(0.1, now + 0.15);
+            jetpackGain.gain.linearRampToValueAtTime(0.2, now + 0.2);
+            jetpackGain.gain.exponentialRampToValueAtTime(SILENCE, now + 0.3);
+            jetpackOsc.connect(jetpackGain);
+            jetpackGain.connect(jetpackFilter);
+            jetpackFilter.connect(jumpBus);
+
+            const boingOsc = audioContext.createOscillator();
+            const boingGain = audioContext.createGain();
+            boingOsc.type = 'sine';
+            boingOsc.frequency.setValueAtTime(randomBetween(400, 500), now);
+            boingOsc.frequency.exponentialRampToValueAtTime(randomBetween(250, 300), now + 0.15);
+            boingGain.gain.setValueAtTime(SILENCE, now);
+            boingGain.gain.linearRampToValueAtTime(0.4, now + 0.01);
+            boingGain.gain.exponentialRampToValueAtTime(SILENCE, now + 0.2);
+            boingOsc.connect(boingGain);
+            connectCartoonEffect(boingGain, 0.6);
+
+            const zipOsc = audioContext.createOscillator();
+            const zipGain = audioContext.createGain();
+            zipOsc.type = 'sine';
+            zipOsc.frequency.setValueAtTime(300, now);
+            zipOsc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+            zipGain.gain.setValueAtTime(SILENCE, now);
+            zipGain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+            zipGain.gain.exponentialRampToValueAtTime(SILENCE, now + 0.1);
+            zipOsc.connect(zipGain);
+            connectCartoonEffect(zipGain, 0.4);
+
+            const noiseNode = audioContext.createBufferSource();
+            const noiseGain = audioContext.createGain();
+            const noiseFilter = audioContext.createBiquadFilter();
+            noiseNode.buffer = getNoiseBuffer();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.value = 800;
+            noiseFilter.Q.value = 2;
+            noiseGain.gain.setValueAtTime(SILENCE, now);
+            noiseGain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+            noiseGain.gain.linearRampToValueAtTime(0.05, now + 0.1);
+            noiseGain.gain.linearRampToValueAtTime(0.1, now + 0.15);
+            noiseGain.gain.exponentialRampToValueAtTime(SILENCE, now + 0.25);
+            noiseNode.connect(noiseGain);
+            noiseGain.connect(noiseFilter);
+            noiseFilter.connect(jumpBus);
+
+            for (const oscillator of [jetpackOsc, boingOsc, zipOsc]) {
+                oscillator.start(now);
+                oscillator.stop(now + 0.4);
+                voice.sources.add(oscillator);
+            }
+            noiseNode.start(now, Math.random() * 0.2);
+            noiseNode.stop(now + 0.3);
+            voice.sources.add(noiseNode);
         },
 
         coin(voice) {
