@@ -2105,7 +2105,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (bar) {
             bar.style.width = energyPercent.toFixed(1) + '%';
-            bar.setAttribute('aria-valuenow', String(Math.round(energyPercent)));
+            const progressbar = bar.closest('[role="progressbar"]') || bar;
+            progressbar.setAttribute('aria-valuenow', String(Math.round(energyPercent)));
         }
         if (label) {
             label.textContent = active
