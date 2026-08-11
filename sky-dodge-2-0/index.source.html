@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07172c" />
+    <meta name="description" content="Sky Dodge 2.0 — trójwymiarowa podniebna ewolucja." />
+    <title>Sky Dodge 2.0</title>
+  </head>
+  <body>
+    <main id="app" class="app" data-phase="loading">
+      <canvas id="gameCanvas" aria-hidden="true"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <section id="loadingScreen" class="screen loading-screen" aria-live="polite">
+        <div class="brand-mark" aria-hidden="true">SD<span>2</span></div>
+        <p class="eyebrow">URUCHAMIAMY TURBINY</p>
+        <div class="loader" aria-hidden="true"><span></span></div>
+        <p id="loadingText">Budowanie podniebnego świata…</p>
+      </section>
+
+      <section id="startScreen" class="screen start-screen" hidden>
+        <div class="hero-copy">
+          <p class="eyebrow">BIOLOGICZNIE NIESTABILNY LOT 3D</p>
+          <h1>SKY DODGE <span>2.0</span></h1>
+          <p class="lead">Przetrwaj podniebne złomowisko, wybieraj mutacje i naucz bociana pikować jak włócznia.</p>
+          <ul class="controls-copy" aria-label="Sterowanie">
+            <li><kbd>Tap</kbd><span>machnięcie</span></li>
+            <li><kbd>Przytrzymaj</kbd><span>zdolność formy</span></li>
+            <li><kbd>E</kbd><span>dziób-kotwica</span></li>
+          </ul>
+          <button id="startButton" class="primary-button" type="button">LECIMY</button>
+          <p class="audio-note">Dźwięk włączy się po starcie. Słuchawki robią robotę.</p>
+        </div>
+      </section>
+
+      <section id="fallbackScreen" class="screen fallback-screen" hidden>
+        <div class="glass-card">
+          <p class="eyebrow">BRAK WEBGL2</p>
+          <h1>Ten sprzęt nie wyrenderuje nieba 2.0</h1>
+          <p>Możesz nadal zagrać w klasycznego Sky Dodge.</p>
+          <a class="primary-button" href="../sky-dodge/index.html">SKY DODGE CLASSIC</a>
+        </div>
+      </section>
+
+      <section id="hud" class="hud" aria-label="Stan gry" hidden>
+        <div class="hud-cluster score-cluster">
+          <span class="hud-kicker">WYNIK</span>
+          <output id="scoreOutput" aria-label="Wynik">0</output>
+          <output id="coinOutput" class="coin-output" aria-label="Monety">0 ◉</output>
+        </div>
+        <section class="dna-panel" aria-labelledby="dnaLabel">
+          <div class="dna-heading"><span id="dnaLabel">NIESTABILNOŚĆ DNA</span><output id="dnaValue">25%</output></div>
+          <div id="dnaTrack" class="dna-track" role="progressbar" aria-labelledby="dnaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="25"><span id="dnaBar"></span></div>
+        </section>
+        <div class="hud-cluster mode-cluster">
+          <span id="modeName">KACZOR</span>
+          <output id="modeTimer" aria-label="Pozostały czas trybu"></output>
+          <div id="modeResource" class="mode-resource" hidden><span id="modeResourceBar"></span></div>
+        </div>
+        <output id="comboOutput" class="combo-output" aria-live="polite"></output>
+        <button id="muteButton" class="icon-button" type="button" aria-label="Wycisz dźwięk" aria-pressed="false">♪</button>
+        <button id="pauseButton" class="icon-button pause-button" type="button" aria-label="Pauza">Ⅱ</button>
+      </section>
+
+      <div id="mutationPrompt" class="mutation-prompt" role="status" aria-live="polite" hidden><span>DNA PEŁNE</span><strong>WLEĆ W JEDEN Z PORTALI</strong></div>
+      <button id="storkActionButton" class="stork-action" type="button" aria-label="Przytrzymaj, aby namierzyć słaby punkt" aria-pressed="false" hidden disabled>
+        <span class="stork-action-icon" aria-hidden="true">⌁</span><strong>PIK</strong><span id="storkUses">3</span>
+      </button>
+
+      <section id="pauseScreen" class="screen compact-screen" hidden>
+        <div class="glass-card"><p class="eyebrow">LOT WSTRZYMANY</p><h1>Pauza</h1><button id="resumeButton" class="primary-button" type="button">WRACAM</button></div>
+      </section>
+      <section id="gameOverScreen" class="screen compact-screen" hidden>
+        <div class="glass-card game-over-card">
+          <p class="eyebrow">STADO JUŻ SIĘ ŚMIEJE</p><h1>KONIEC LOTU</h1>
+          <dl class="results">
+            <div><dt>Wynik</dt><dd id="finalScore">0</dd></div>
+            <div><dt>Najlepsze combo</dt><dd id="finalCombo">×1</dd></div>
+            <div><dt>Bramy</dt><dd id="finalGates">0</dd></div>
+          </dl>
+          <button id="restartButton" class="primary-button" type="button">JESZCZE RAZ</button>
+        </div>
+      </section>
+      <p id="gameStatus" class="sr-only" role="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
