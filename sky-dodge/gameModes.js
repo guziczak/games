@@ -2037,7 +2037,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function storkGrabReady() {
         return Boolean(
-            storkModeActive
+            gameRunning
+            && storkModeActive
             && !window.storkGrabActive
             && finiteStorkValue(window.storkGrabCooldown, 0) <= 0
             && finiteStorkValue(window.storkGrabEnergy, 0) >= STORK_GRAB_MIN_ENERGY
@@ -2087,10 +2088,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function syncStorkGrabUi(reason) {
+        const modeVisible = Boolean(gameRunning && storkModeActive);
         const maxEnergy = Math.max(1, finiteStorkValue(window.storkGrabMaxEnergy, 100));
         const energy = Math.max(0, Math.min(maxEnergy, finiteStorkValue(window.storkGrabEnergy, maxEnergy)));
         const cooldown = Math.max(0, finiteStorkValue(window.storkGrabCooldown, 0));
-        const active = Boolean(storkModeActive && window.storkGrabActive);
+        const active = Boolean(modeVisible && window.storkGrabActive);
         const ready = storkGrabReady();
         const hasCandidate = ready && storkGrabCandidates().length > 0;
         const energyPercent = (energy / maxEnergy) * 100;
@@ -2100,11 +2102,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const bar = document.getElementById('storkGrabEnergyBar');
         const hint = document.getElementById('storkGrabHint');
         if (indicator) {
-            indicator.style.display = storkModeActive ? '' : 'none';
-            indicator.setAttribute('aria-hidden', String(!storkModeActive));
-            indicator.classList.toggle('is-active', Boolean(storkModeActive));
+            indicator.style.display = modeVisible ? '' : 'none';
+            indicator.setAttribute('aria-hidden', String(!modeVisible));
+            indicator.classList.toggle('is-active', modeVisible);
             indicator.classList.toggle('is-grabbing', active);
-            indicator.classList.toggle('is-exhausted', storkModeActive
+            indicator.classList.toggle('is-exhausted', modeVisible
                 && energy < STORK_GRAB_MIN_ENERGY);
         }
         if (bar) {
@@ -2131,14 +2133,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         gameArea.classList.toggle('stork-grab-active', active);
         gameArea.classList.toggle('stork-grab-ready', ready && hasCandidate);
-        gameArea.classList.toggle('stork-grab-cooldown', storkModeActive && cooldown > 0);
+        gameArea.classList.toggle('stork-grab-cooldown', modeVisible && cooldown > 0);
         bird.classList.toggle('stork-grabbing', active);
         updateStorkPipeRangeClasses(ready);
         if (active) setStorkPipeClass(window.storkGrabbedPipe, 'pipe-grabbed', true);
         updateStorkGrabActionButton(ready, hasCandidate);
 
         const signature = [
-            storkModeActive ? 1 : 0,
+            modeVisible ? 1 : 0,
             active ? 1 : 0,
             Math.round(energy),
             Math.ceil(cooldown * 10),
@@ -2345,6 +2347,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const pipe = window.storkGrabbedPipe;
             if (!isStorkPipeUsable(pipe)) {
                 window.releaseStorkPipeGrab('pipe-invalid');
+                return;
+            }
+            if (!storkPipeCandidateInfo(pipe)) {
+                window.releaseStorkPipeGrab('range-exit');
                 return;
             }
 

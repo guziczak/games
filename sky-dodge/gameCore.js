@@ -397,10 +397,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.endGame = function() {
+        gameRunning = false;
         if (typeof window.resetStorkPipeGrab === 'function') {
             window.resetStorkPipeGrab({ reason: 'game-ended', silent: true });
         }
-        gameRunning = false;
         cancelAnimationFrame(animationId);
         const session = runtimeSession();
         if (session) {
@@ -683,10 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 releaseStorkPipeForLifecycle(pipe, 'pipe-invalid');
             }
             
-            const heldByStork = storkModeActive
-                && window.storkGrabActive
-                && pipe === window.storkGrabbedPipe;
-            pipe.x -= (worldPausedByFrog || heldByStork) ? 0 : currentPipeSpeed * deltaTime;
+            pipe.x -= worldPausedByFrog ? 0 : currentPipeSpeed * deltaTime;
             
             if (pipe.upPipe && pipe.downPipe) {
                 pipe.upPipe.style.left = pipe.x + 'px';
@@ -779,28 +776,160 @@ document.addEventListener('DOMContentLoaded', function() {
     frogModeButton.addEventListener('click', activateFrogMode);
     ghostModeButton.addEventListener('click', activateGhostMode);
     storkModeButton.addEventListener('click', activateStorkMode);
-    
-    gameArea.addEventListener('touchstart', function(event) {
-        if (event.target.closest('button, a')) return;
-        event.preventDefault();
-        if (typeof window.tryStartStorkPipeGrab === 'function'
-            && window.tryStartStorkPipeGrab(event)) return;
-        if (gameRunning && !rubberModeActive) {
-            makeJump();
+
+    const gameplayControlSelector = [
+        'button', 'a', 'input', 'textarea', 'select', 'option', 'label',
+        '[contenteditable="true"]', '[role="button"]'
+    ].join(', ');
+    let activeGameplayInput = null;
+    let ignoreCompatibilityMouseUntil = 0;
+
+    function gameplayInputTargetsControl(event) {
+        let target = event && event.target;
+        if (target && target.nodeType !== 1) target = target.parentElement;
+        return Boolean(target && typeof target.closest === 'function'
+            && target.closest(gameplayControlSelector));
+    }
+
+    function cancelFrogCharge() {
+        if (!frogIsCharging) return;
+        frogIsCharging = false;
+        frogChargeStart = 0;
+        bird.classList.remove('charging');
+        if (frogChargeIndicator) frogChargeIndicator.style.display = 'none';
+        const chargeBar = document.getElementById('frogJumpChargeBar');
+        if (chargeBar) chargeBar.style.width = '0%';
+    }
+
+    function beginGameplayInput(event, source, id) {
+        if (!gameRunning || rubberModeActive || gameplayInputTargetsControl(event)
+            || activeGameplayInput) return false;
+
+        activeGameplayInput = { source, id };
+        const storkConsumed = typeof window.tryStartStorkPipeGrab === 'function'
+            && window.tryStartStorkPipeGrab(event);
+        activeGameplayInput.stork = Boolean(storkConsumed);
+
+        if (!storkConsumed) makeJump();
+        return true;
+    }
+
+    function moveGameplayInput(event, source, id) {
+        if (!activeGameplayInput || activeGameplayInput.source !== source
+            || activeGameplayInput.id !== id) return;
+        if (pointerStorkGrabActive() && typeof window.moveStorkPipeGrab === 'function') {
+            window.moveStorkPipeGrab(event);
         }
-    });
-    
-    gameArea.addEventListener('touchend', function(event) {
-        if (event.target.closest('button, a')) return;
-        event.preventDefault();
+    }
+
+    function finishGameplayInput(event, source, id, cancelled = false) {
+        if (!activeGameplayInput || activeGameplayInput.source !== source
+            || activeGameplayInput.id !== id) return;
+
+        // Clear first: releasing pointer capture can synchronously emit
+        // lostpointercapture in some engines.
+        activeGameplayInput = null;
         if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
-            window.releaseStorkPipeGrab('drop');
-            return;
-        }
-        if (gameRunning && frogModeActive && frogIsCharging) {
+            window.releaseStorkPipeGrab(cancelled ? 'cancel' : 'drop');
+        } else if (cancelled) {
+            // A browser gesture (for example pinch zoom) must not launch a frog.
+            cancelFrogCharge();
+        } else if (gameRunning && frogModeActive && frogIsCharging) {
             stopFrogCharging();
         }
-    });
+
+        if (source === 'pointer' && event && Number.isFinite(event.pointerId)
+            && typeof gameArea.hasPointerCapture === 'function'
+            && gameArea.hasPointerCapture(event.pointerId)) {
+            try {
+                gameArea.releasePointerCapture(event.pointerId);
+            } catch (error) {
+                // The browser may already have released capture on pointercancel.
+            }
+        }
+    }
+
+    function cancelActiveGameplayInput(reason) {
+        if (!activeGameplayInput) return;
+        const active = activeGameplayInput;
+        finishGameplayInput(null, active.source, active.id, true);
+    }
+
+    if ('PointerEvent' in window) {
+        gameArea.addEventListener('pointerdown', function(event) {
+            if (event.pointerType === 'touch' && activeGameplayInput
+                && activeGameplayInput.id !== event.pointerId) {
+                // Leave a multi-touch gesture entirely to the browser.
+                cancelActiveGameplayInput('multitouch');
+                return;
+            }
+            if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+            if (!beginGameplayInput(event, 'pointer', event.pointerId)) return;
+
+            if (typeof gameArea.setPointerCapture === 'function') {
+                try {
+                    gameArea.setPointerCapture(event.pointerId);
+                } catch (error) {
+                    // Global pointerup remains a reliable release fallback.
+                }
+            }
+        });
+
+        document.addEventListener('pointermove', function(event) {
+            moveGameplayInput(event, 'pointer', event.pointerId);
+        });
+        document.addEventListener('pointerup', function(event) {
+            finishGameplayInput(event, 'pointer', event.pointerId);
+        });
+        document.addEventListener('pointercancel', function(event) {
+            finishGameplayInput(event, 'pointer', event.pointerId, true);
+        });
+        gameArea.addEventListener('lostpointercapture', function(event) {
+            finishGameplayInput(event, 'pointer', event.pointerId, true);
+        });
+    } else {
+        // Safari before Pointer Events: keep touch and compatibility mouse as a
+        // fallback, but never install both paths on modern browsers.
+        gameArea.addEventListener('touchstart', function(event) {
+            ignoreCompatibilityMouseUntil = Date.now() + 900;
+            if (event.touches.length !== 1) {
+                cancelActiveGameplayInput('multitouch');
+                return;
+            }
+            const touch = event.changedTouches[0] || event.touches[0];
+            beginGameplayInput(event, 'touch', touch.identifier);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function(event) {
+            if (!activeGameplayInput || activeGameplayInput.source !== 'touch') return;
+            if (event.touches.length !== 1) {
+                cancelActiveGameplayInput('multitouch');
+                return;
+            }
+            moveGameplayInput(event, 'touch', activeGameplayInput.id);
+        }, { passive: true });
+        document.addEventListener('touchend', function(event) {
+            if (!activeGameplayInput || activeGameplayInput.source !== 'touch') return;
+            const activeId = activeGameplayInput.id;
+            const ended = Array.from(event.changedTouches || [])
+                .some(touch => touch.identifier === activeId);
+            if (ended) finishGameplayInput(event, 'touch', activeId);
+        }, { passive: true });
+        document.addEventListener('touchcancel', function() {
+            cancelActiveGameplayInput('touchcancel');
+        }, { passive: true });
+
+        gameArea.addEventListener('mousedown', function(event) {
+            if (Date.now() < ignoreCompatibilityMouseUntil || event.button !== 0) return;
+            beginGameplayInput(event, 'mouse', 1);
+        });
+        document.addEventListener('mousemove', function(event) {
+            moveGameplayInput(event, 'mouse', 1);
+        });
+        document.addEventListener('mouseup', function(event) {
+            if (event.button === 0) finishGameplayInput(event, 'mouse', 1);
+        });
+    }
     
     document.addEventListener('keydown', function(event) {
         if (event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
@@ -825,52 +954,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning && frogModeActive && frogIsCharging) {
             event.preventDefault();
             stopFrogCharging();
-        }
-    });
-    
-    gameArea.addEventListener('mousedown', function(event) {
-        if (event.target.closest('button, a')) return;
-        if (typeof window.tryStartStorkPipeGrab === 'function'
-            && window.tryStartStorkPipeGrab(event)) return;
-        if (gameRunning && !rubberModeActive) {
-            makeJump();
-        }
-    });
-    
-    gameArea.addEventListener('mouseup', function(event) {
-        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
-            window.releaseStorkPipeGrab('drop');
-            return;
-        }
-        if (gameRunning && frogModeActive && frogIsCharging) {
-            stopFrogCharging();
-        }
-    });
-
-    document.addEventListener('mousemove', function(event) {
-        if (window.storkGrabActive && typeof window.moveStorkPipeGrab === 'function') {
-            window.moveStorkPipeGrab(event);
-        }
-    });
-
-    document.addEventListener('mouseup', function() {
-        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
-            window.releaseStorkPipeGrab('drop');
-        }
-    });
-    
-    document.addEventListener('touchmove', function(event) {
-        if (window.storkGrabActive && typeof window.moveStorkPipeGrab === 'function') {
-            window.moveStorkPipeGrab(event);
-        }
-        if (gameRunning && event.touches.length === 1 && event.target.closest('#gameArea')) {
-            event.preventDefault();
-        }
-    }, { passive: false });
-
-    document.addEventListener('touchcancel', function() {
-        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
-            window.releaseStorkPipeGrab('drop');
         }
     });
     
