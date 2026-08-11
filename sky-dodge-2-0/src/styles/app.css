@@ -95,6 +95,7 @@ button {
   inset: 0;
   z-index: 40;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: calc(28px + var(--safe-top)) calc(22px + var(--safe-right)) calc(28px + var(--safe-bottom)) calc(22px + var(--safe-left));
   background: linear-gradient(90deg, rgba(2, 12, 27, 0.83), rgba(2, 13, 29, 0.28) 68%, rgba(2, 12, 27, 0.12));
@@ -159,6 +160,8 @@ button {
 
 .hero-copy {
   width: min(670px, 100%);
+  min-width: 0;
+  max-width: 100%;
   justify-self: start;
   margin-left: clamp(0px, 6vw, 96px);
   text-shadow: 0 2px 24px rgba(0, 8, 22, 0.38);
@@ -190,12 +193,32 @@ h1 span {
   white-space: nowrap;
 }
 
+.game-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.14em;
+}
+
+.game-title .title-word {
+  color: var(--ink);
+  font-size: 1em;
+  white-space: nowrap;
+}
+
+.game-title .game-version {
+  color: var(--amber);
+  font-size: 0.58em;
+  white-space: nowrap;
+}
+
 .lead {
   max-width: 550px;
   margin: 27px 0 24px;
   color: #d9e8f6;
   font-size: clamp(1rem, 2vw, 1.25rem);
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .controls-copy {
@@ -205,6 +228,7 @@ h1 span {
   margin: 0 0 27px;
   padding: 0;
   list-style: none;
+  max-width: 100%;
 }
 
 .controls-copy li {
@@ -657,12 +681,17 @@ kbd {
   }
 
   .hero-copy {
+    width: calc(100vw - 44px - var(--safe-left) - var(--safe-right));
     margin: 0;
     padding-bottom: max(3vh, 12px);
   }
 
   h1 {
-    font-size: clamp(3.8rem, 19vw, 6rem);
+    font-size: clamp(2.8rem, 15vw, 5rem);
+  }
+
+  .game-title .title-sky {
+    flex-basis: 100%;
   }
 
   .lead {

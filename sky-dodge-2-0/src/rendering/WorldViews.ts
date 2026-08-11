@@ -565,7 +565,7 @@ export class WorldViews {
     const gateGeometry = this.trackGeometry(new THREE.BoxGeometry(1, 1, 1));
     const rivetGeometry = this.trackGeometry(new THREE.SphereGeometry(1, 7, 5));
     const nodeGeometry = this.trackGeometry(new THREE.OctahedronGeometry(0.14, 1));
-    const lockGeometry = this.trackGeometry(new THREE.TorusGeometry(0.24, 0.025, 6, 24));
+    const lockGeometry = this.trackGeometry(new THREE.TorusGeometry(0.18, 0.02, 6, 24));
     const gateMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0x315f68,
       roughness: 0.58,

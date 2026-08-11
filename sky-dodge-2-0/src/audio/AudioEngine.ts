@@ -88,7 +88,13 @@ export class AudioEngine {
       if (!AudioContextConstructor) return false;
 
       try {
-        this.context = new AudioContextConstructor({ latencyHint: 'interactive' });
+        try {
+          this.context = new AudioContextConstructor({ latencyHint: 'interactive' });
+        } catch {
+          // Older iOS WebKit exposes AudioContext but rejects constructor
+          // options. Creating it without options still preserves gesture unlock.
+          this.context = new AudioContextConstructor();
+        }
         this.buildMixer(this.context);
       } catch {
         this.clearMixerReferences();
@@ -96,7 +102,7 @@ export class AudioEngine {
       }
     }
 
-    if (this.context.state === 'suspended') {
+    if (this.context.state !== 'running' && this.context.state !== 'closed') {
       try {
         await this.context.resume();
       } catch {
@@ -153,6 +159,7 @@ export class AudioEngine {
   public setPaused(paused: boolean): void {
     this.paused = paused;
     if (paused) this.stopAllVoices();
+    else if (!this.muted) void this.unlock();
     if (!this.ambienceBus) return;
     this.target(this.ambienceBus.gain, paused ? SILENCE : 1, paused ? 0.045 : 0.12);
   }
@@ -161,7 +168,7 @@ export class AudioEngine {
    * throttled so a 120 Hz display does not build a giant automation queue. */
   public update(state: Readonly<GameState>): void {
     const context = this.context;
-    if (!context || !this.runActive || this.paused || this.muted) return;
+    if (!context || context.state !== 'running' || !this.runActive || this.paused || this.muted) return;
     this.startAmbience();
     const ambience = this.ambience;
     if (!ambience || context.currentTime - this.lastAmbienceUpdateAt < 0.075) return;
@@ -179,7 +186,7 @@ export class AudioEngine {
   }
 
   public handle(events: readonly GameEvent[], state?: Readonly<GameState>): void {
-    if (this.muted || !this.context || this.context.state === 'closed') return;
+    if (this.muted || !this.context || this.context.state !== 'running') return;
 
     for (const event of events) {
       const entityPan = 'entityId' in event && typeof event.entityId === 'string'
