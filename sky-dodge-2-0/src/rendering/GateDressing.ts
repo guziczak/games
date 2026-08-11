@@ -6,6 +6,8 @@ export interface GateDressingQualityProfile {
   readonly maximumRustMarks: number;
   readonly minimumPlantBlades: number;
   readonly maximumPlantBlades: number;
+  readonly minimumMineralGrowths: number;
+  readonly maximumMineralGrowths: number;
   readonly plantScale: number;
   /** Simulation-X distance beyond which optional dressing is culled. */
   readonly detailDistance: number;
@@ -13,10 +15,31 @@ export interface GateDressingQualityProfile {
 
 export interface GateRustMark {
   readonly upper: boolean;
+  /** 0 = long run, 1 = broad bloom, 2 = peeling layered patch. */
+  readonly silhouette: 0 | 1 | 2;
   readonly heightRatio: number;
   readonly angle: number;
   readonly width: number;
   readonly height: number;
+  readonly rotation: number;
+  /** Multiplies the shared rust material through the instance colour. */
+  readonly tone: number;
+}
+
+export type GateGrowthAnchor =
+  | 'waterline'
+  | 'lower-collar'
+  | 'upper-collar'
+  | 'lower-body'
+  | 'upper-body';
+
+export interface GateMineralGrowth {
+  readonly anchor: GateGrowthAnchor;
+  readonly angle: number;
+  readonly heightRatio: number;
+  readonly size: number;
+  readonly stretch: number;
+  readonly depth: number;
   readonly rotation: number;
 }
 
@@ -31,8 +54,11 @@ export interface GatePlantBlade {
 export interface GateDressing {
   readonly rustVariant: number;
   readonly bandVariant: number;
+  readonly bandRotation: number;
+  readonly wetBandRotation: number;
   readonly plantVariant: number;
   readonly rustMarks: readonly GateRustMark[];
+  readonly mineralGrowths: readonly GateMineralGrowth[];
   readonly plantBlades: readonly GatePlantBlade[];
 }
 
@@ -43,6 +69,8 @@ const QUALITY_PROFILES: Readonly<Record<GateDressingQuality, GateDressingQuality
     maximumRustMarks: 4,
     minimumPlantBlades: 3,
     maximumPlantBlades: 4,
+    minimumMineralGrowths: 3,
+    maximumMineralGrowths: 4,
     plantScale: 0.92,
     detailDistance: 8.5,
   }),
@@ -52,6 +80,8 @@ const QUALITY_PROFILES: Readonly<Record<GateDressingQuality, GateDressingQuality
     maximumRustMarks: 6,
     minimumPlantBlades: 5,
     maximumPlantBlades: 6,
+    minimumMineralGrowths: 5,
+    maximumMineralGrowths: 6,
     plantScale: 1.18,
     detailDistance: 12.5,
   }),
@@ -61,6 +91,8 @@ const QUALITY_PROFILES: Readonly<Record<GateDressingQuality, GateDressingQuality
     maximumRustMarks: 8,
     minimumPlantBlades: 5,
     maximumPlantBlades: 6,
+    minimumMineralGrowths: 6,
+    maximumMineralGrowths: 8,
     plantScale: 1.08,
     detailDistance: 16,
   }),
@@ -119,32 +151,81 @@ export function createGateDressing(id: string, quality: GateDressingQuality): Re
     profile.minimumPlantBlades,
     profile.maximumPlantBlades,
   );
+  const mineralCount = sampleCount(
+    seed,
+    3,
+    profile.minimumMineralGrowths,
+    profile.maximumMineralGrowths,
+  );
 
   const rustMarks: GateRustMark[] = [];
   for (let index = 0; index < rustCount; index += 1) {
     // Most corrosion is readable on the leading half, with the occasional
     // side/back bloom preventing every gate from sharing one silhouette.
     const leadingMark = index < 2;
+    const layeredCompanion = index >= 3 && index % 3 === 0;
+    const previous = layeredCompanion ? rustMarks[index - 1] : undefined;
+    const silhouette = (index < 2
+      ? index === 0 ? 0 : 2
+      : (index + Math.floor(sample(seed, 8) * 3)) % 3) as 0 | 1 | 2;
     const facingAngle = -Math.PI / 2 + (sample(seed, 20 + index * 7) - 0.5)
       * (leadingMark ? 0.58 : Math.PI * 1.45);
-    const angle = index === rustCount - 1 && sample(seed, 21 + index * 7) > 0.58
+    const independentAngle = index === rustCount - 1 && sample(seed, 21 + index * 7) > 0.58
       ? facingAngle + Math.PI
       : facingAngle;
+    const angle = previous
+      ? previous.angle + (sample(seed, 21 + index * 7) - 0.5) * 0.16
+      : independentAngle;
+    const baseWidth = silhouette === 0
+      ? 0.2 + sample(seed, 24 + index * 7) * 0.16
+      : silhouette === 1
+        ? 0.42 + sample(seed, 24 + index * 7) * 0.24
+        : 0.3 + sample(seed, 24 + index * 7) * 0.22;
+    const baseHeight = silhouette === 0
+      ? 0.72 + sample(seed, 25 + index * 7) * 0.42
+      : silhouette === 1
+        ? 0.3 + sample(seed, 25 + index * 7) * 0.28
+        : 0.48 + sample(seed, 25 + index * 7) * 0.34;
     rustMarks.push(Object.freeze({
       // The first pair guarantees one readable leading mark on each pipe;
       // remaining marks carry the per-gate asymmetry.
-      upper: index === 1 ? true : index === 0 ? false : sample(seed, 22 + index * 7) > 0.52,
-      heightRatio: leadingMark
-        ? 0.32 + sample(seed, 23 + index * 7) * 0.3
-        : 0.12 + sample(seed, 23 + index * 7) * 0.74,
+      upper: previous?.upper
+        ?? (index === 1 ? true : index === 0 ? false : sample(seed, 22 + index * 7) > 0.52),
+      silhouette,
+      heightRatio: previous
+        ? Math.max(0.12, Math.min(0.86, previous.heightRatio
+          + (sample(seed, 23 + index * 7) - 0.5) * 0.13))
+        : leadingMark
+          ? 0.32 + sample(seed, 23 + index * 7) * 0.3
+          : 0.12 + sample(seed, 23 + index * 7) * 0.74,
       angle,
-      width: leadingMark
-        ? 0.32 + sample(seed, 24 + index * 7) * 0.2
-        : 0.18 + sample(seed, 24 + index * 7) * 0.32,
-      height: leadingMark
-        ? 0.68 + sample(seed, 25 + index * 7) * 0.34
-        : 0.18 + sample(seed, 25 + index * 7) * 0.42,
-      rotation: (sample(seed, 26 + index * 7) - 0.5) * (leadingMark ? 0.28 : 1.1),
+      width: previous ? baseWidth * 0.62 : baseWidth,
+      height: previous ? baseHeight * 0.66 : baseHeight,
+      rotation: (sample(seed, 26 + index * 7) - 0.5)
+        * (silhouette === 0 ? 0.28 : 0.9),
+      tone: previous ? 0.5 + sample(seed, 27 + index * 7) * 0.14 : 0.74 + sample(seed, 27 + index * 7) * 0.24,
+    }));
+  }
+
+  const mineralGrowths: GateMineralGrowth[] = [];
+  for (let index = 0; index < mineralCount; index += 1) {
+    let anchor: GateGrowthAnchor;
+    if (index < 2) anchor = 'waterline';
+    else if (index === 2) {
+      anchor = sample(seed, 190) > 0.34 ? 'lower-collar' : 'waterline';
+    } else if (index === 3 && sample(seed, 191) > 0.48) {
+      anchor = 'upper-collar';
+    } else {
+      anchor = sample(seed, 192 + index) > 0.52 ? 'lower-body' : 'upper-body';
+    }
+    mineralGrowths.push(Object.freeze({
+      anchor,
+      angle: -Math.PI / 2 + (sample(seed, 200 + index * 6) - 0.5) * 1.7,
+      heightRatio: 0.15 + sample(seed, 201 + index * 6) * 0.7,
+      size: 0.075 + sample(seed, 202 + index * 6) * 0.075,
+      stretch: 0.72 + sample(seed, 203 + index * 6) * 0.7,
+      depth: 0.1 + sample(seed, 204 + index * 6) * 0.11,
+      rotation: (sample(seed, 205 + index * 6) - 0.5) * Math.PI,
     }));
   }
 
@@ -165,8 +246,11 @@ export function createGateDressing(id: string, quality: GateDressingQuality): Re
   return Object.freeze({
     rustVariant: Math.floor(sample(seed, 4) * 3),
     bandVariant: Math.floor(sample(seed, 6) * 3),
+    bandRotation: sample(seed, 7) * Math.PI * 2,
+    wetBandRotation: sample(seed, 9) * Math.PI * 2,
     plantVariant: Math.floor(sample(seed, 5) * 2),
     rustMarks: Object.freeze(rustMarks),
+    mineralGrowths: Object.freeze(mineralGrowths),
     plantBlades: Object.freeze(plantBlades),
   });
 }

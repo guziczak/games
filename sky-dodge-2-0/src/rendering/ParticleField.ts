@@ -12,14 +12,26 @@ interface Particle {
   age: number;
   lifetime: number;
   drag: number;
+  gravity: number;
   alive: boolean;
 }
 
+type BurstShape = 'radial' | 'droplet' | 'spray' | 'trail' | 'flake';
+type BurstOrigin = 'entity' | 'player';
+
 interface BurstStyle {
   readonly colour: number;
+  readonly secondaryColour: number;
   readonly count: number;
   readonly speed: number;
   readonly lifetime: number;
+  readonly gravity: number;
+  readonly dragMinimum: number;
+  readonly dragMaximum: number;
+  readonly spread: number;
+  readonly trailLength: number;
+  readonly shape: BurstShape;
+  readonly origin: BurstOrigin;
 }
 
 const MODE_COLOURS: Readonly<Record<MutationModeId, number>> = Object.freeze({
@@ -36,6 +48,59 @@ const MAXIMUM_PARTICLES: Readonly<Record<RenderQuality, number>> = Object.freeze
   high: 208,
 });
 
+function style(
+  colour: number,
+  secondaryColour: number,
+  count: number,
+  speed: number,
+  lifetime: number,
+  shape: BurstShape = 'radial',
+  origin: BurstOrigin = 'entity',
+  gravity = 0,
+  dragMinimum = 0.93,
+  dragMaximum = 0.975,
+  spread = 1,
+  trailLength = 0,
+): Readonly<BurstStyle> {
+  return Object.freeze({
+    colour,
+    secondaryColour,
+    count,
+    speed,
+    lifetime,
+    gravity,
+    dragMinimum,
+    dragMaximum,
+    spread,
+    trailLength,
+    shape,
+    origin,
+  });
+}
+
+const NORMAL_FLAP = style(0xb8f7ff, 0x79ddea, 5, 1.25, 0.42, 'radial', 'player', -0.3);
+const FROG_FLAP = style(0x75e7ad, 0xc6fbff, 8, 1.15, 0.58, 'droplet', 'player', -3.4, 0.95, 0.982, 0.62, 0.52);
+const FROG_LAUNCH = style(0x57d68d, 0xbaf6dc, 15, 1.8, 0.72, 'droplet', 'player', -3.8, 0.948, 0.98, 0.82, 0.85);
+const COIN_BURST = style(0xffd34f, 0xfff0a0, 12, 1.8, 0.68);
+const STEEL_FLAKES = style(0xa64d26, 0x82939a, 26, 2.15, 1.22, 'flake', 'player', -5.2, 0.96, 0.989, 0.84);
+const RUBBER_SPRAY = style(0xff5f83, 0xbef7ef, 17, 2.65, 0.72, 'spray', 'player', -2.1, 0.91, 0.965, 1.08);
+const GHOST_TRAIL = style(0x63e9ff, 0xd2fdff, 18, 0.78, 0.96, 'trail', 'player', 0.12, 0.96, 0.991, 0.36, 1.85);
+const GHOST_TRAIL_END = style(0xa8f8ff, 0x6389d7, 10, 0.48, 0.72, 'trail', 'player', 0.18, 0.965, 0.992, 0.28, 1.1);
+const STORK_TRAIL = style(0xecfbff, 0xff8c72, 22, 1.45, 0.72, 'trail', 'player', -0.35, 0.935, 0.978, 0.3, 2.35);
+const STORK_TRAIL_END = style(0xffffff, 0xffb49d, 11, 0.82, 0.58, 'trail', 'player', -0.45, 0.94, 0.98, 0.26, 1.35);
+const FATAL_BURST = style(0xff435e, 0xff96a4, 28, 2.8, 1.05);
+const STEEL_CRITICAL = style(0xff692f, 0xffc052, 16, 1.5, 0.9, 'flake', 'player', -2.4, 0.95, 0.982, 0.7);
+const NEAR_MISS = style(0xf9f3ae, 0xffffff, 8, 1.05, 0.54);
+const GAME_OVER = style(0xff4963, 0xffa1ad, 30, 2.5, 1.1, 'radial', 'player', -1.2);
+
+const MODE_ENTRY_STYLES: Readonly<Record<MutationModeId, Readonly<BurstStyle>>> = Object.freeze({
+  frog: style(MODE_COLOURS.frog, 0xc4ffd1, 22, 2.2, 0.82, 'droplet', 'player', -2.6, 0.94, 0.978, 0.9, 0.45),
+  rubber: style(MODE_COLOURS.rubber, 0xffbdca, 22, 2.2, 0.82, 'spray', 'player', -0.8, 0.91, 0.966, 1.05),
+  steel: style(MODE_COLOURS.steel, 0x8a9ba3, 22, 2.2, 0.82, 'flake', 'player', -3.8, 0.955, 0.986, 0.78),
+  ghost: style(MODE_COLOURS.ghost, 0xd9ffff, 22, 0.88, 0.92, 'trail', 'player', 0.1, 0.96, 0.99, 0.34, 1.45),
+  stork: style(MODE_COLOURS.stork, 0xf2fdff, 22, 1.6, 0.76, 'trail', 'player', -0.3, 0.94, 0.978, 0.32, 1.7),
+});
+
 const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.max(minimum, Math.min(maximum, value))
 );
@@ -47,15 +112,6 @@ function hashText(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
-}
-
-function nextUnit(seed: { value: number }): number {
-  let next = seed.value || 0x9e3779b9;
-  next ^= next << 13;
-  next ^= next >>> 17;
-  next ^= next << 5;
-  seed.value = next >>> 0;
-  return seed.value / 0x100000000;
 }
 
 function eventIdentity(event: GameEvent): string {
@@ -92,6 +148,7 @@ export class ParticleField {
   private readonly eventPosition = new THREE.Vector3();
   private readonly playerPosition = new THREE.Vector3();
   private cursor = 0;
+  private randomState = 0;
   private lastTime: number | null = null;
   private destroyed = false;
 
@@ -134,6 +191,7 @@ export class ParticleField {
       age: 0,
       lifetime: 0,
       drag: 1,
+      gravity: 0,
       alive: false,
     })));
   }
@@ -157,15 +215,27 @@ export class ParticleField {
       const key = eventIdentity(event);
       if (this.recentEventKeys.has(key)) continue;
       this.rememberEvent(key);
-      const style = this.styleForEvent(event);
-      if (!style) continue;
+      const burstStyle = this.styleForEvent(event);
+      if (!burstStyle) continue;
       const entityId = eventEntityId(event);
-      const origin = entityId
+      const origin = burstStyle.origin === 'player' || !entityId
+        ? this.eventPosition.copy(this.playerPosition)
+        : entityId
         ? worldViews.positionForEntity(entityId, state, projection, alpha, this.eventPosition)
         : this.eventPosition.copy(this.playerPosition);
-      const count = this.reducedMotion ? Math.max(2, Math.ceil(style.count * 0.42)) : style.count;
-      const speed = this.reducedMotion ? style.speed * 0.42 : style.speed;
-      this.spawnBurst(origin, { ...style, count, speed }, hashText(key));
+      const motionScale = this.reducedMotion ? 0.42 : 1;
+      const count = this.reducedMotion
+        ? Math.max(2, Math.ceil(burstStyle.count * motionScale))
+        : burstStyle.count;
+      this.spawnBurst(
+        origin,
+        burstStyle,
+        count,
+        burstStyle.speed * motionScale,
+        motionScale,
+        projection.pathYaw,
+        hashText(key),
+      );
     }
   }
 
@@ -186,6 +256,7 @@ export class ParticleField {
         continue;
       }
       const damping = Math.pow(particle.drag, dt * 60);
+      particle.velocity.y += particle.gravity * dt;
       particle.velocity.multiplyScalar(damping);
       particle.position.addScaledVector(particle.velocity, dt);
       const life = 1 - particle.age / particle.lifetime;
@@ -211,6 +282,7 @@ export class ParticleField {
     this.recentEventKeys.clear();
     this.recentEventOrder.length = 0;
     this.cursor = 0;
+    this.randomState = 0;
     this.lastTime = null;
   }
 
@@ -224,65 +296,156 @@ export class ParticleField {
     this.recentEventOrder.length = 0;
   }
 
-  private spawnBurst(origin: THREE.Vector3, style: BurstStyle, randomSeed: number): void {
-    const seed = { value: randomSeed };
-    for (let index = 0; index < style.count; index += 1) {
+  private nextRandom(): number {
+    let next = this.randomState || 0x9e3779b9;
+    next ^= next << 13;
+    next ^= next >>> 17;
+    next ^= next << 5;
+    this.randomState = next >>> 0;
+    return this.randomState / 0x100000000;
+  }
+
+  private spawnBurst(
+    origin: THREE.Vector3,
+    burstStyle: Readonly<BurstStyle>,
+    count: number,
+    speed: number,
+    motionScale: number,
+    pathYaw: number,
+    randomSeed: number,
+  ): void {
+    this.randomState = randomSeed;
+    const forwardX = Math.sin(pathYaw);
+    const forwardZ = Math.cos(pathYaw);
+    const sideX = Math.cos(pathYaw);
+    const sideZ = -Math.sin(pathYaw);
+
+    for (let index = 0; index < count; index += 1) {
       const particle = this.particles[this.cursor];
       this.cursor = (this.cursor + 1) % this.particles.length;
       if (!particle) continue;
-      const angle = nextUnit(seed) * Math.PI * 2;
-      const spread = 0.35 + nextUnit(seed) * 0.65;
-      const verticalBias = (nextUnit(seed) - 0.42) * style.speed;
+      const randomA = this.nextRandom();
+      const randomB = this.nextRandom();
+      const randomC = this.nextRandom();
+      const randomD = this.nextRandom();
+      const randomE = this.nextRandom();
+      const randomF = this.nextRandom();
       particle.position.copy(origin);
-      particle.position.z += (nextUnit(seed) - 0.5) * 0.5;
-      particle.velocity.set(
-        Math.cos(angle) * style.speed * spread,
-        Math.sin(angle) * style.speed * spread + verticalBias * 0.25,
-        (nextUnit(seed) - 0.5) * style.speed * 0.35,
-      );
-      particle.colour.setHex(style.colour);
+
+      if (burstStyle.shape === 'flake') {
+        const along = (randomA - 0.5) * 0.3 * burstStyle.spread;
+        const across = (randomB - 0.5) * 0.72 * burstStyle.spread;
+        particle.position.x += forwardX * along + sideX * across;
+        particle.position.y += (randomC - 0.5) * 0.32;
+        particle.position.z += forwardZ * along + sideZ * across;
+        const sideSpeed = (randomD - 0.5) * speed * burstStyle.spread;
+        const backwardSpeed = speed * (0.08 + randomE * 0.24);
+        particle.velocity.set(
+          sideX * sideSpeed - forwardX * backwardSpeed,
+          speed * (0.08 + randomF * 0.5),
+          sideZ * sideSpeed - forwardZ * backwardSpeed,
+        );
+      } else if (burstStyle.shape === 'droplet') {
+        const trail = burstStyle.trailLength * motionScale * (0.12 + randomA * 0.88);
+        const across = (randomB - 0.5) * burstStyle.spread * 0.34 * motionScale;
+        particle.position.x -= forwardX * trail - sideX * across;
+        particle.position.y += (randomC - 0.5) * 0.22 * motionScale;
+        particle.position.z -= forwardZ * trail - sideZ * across;
+        const backwardSpeed = speed * (0.22 + randomD * 0.42);
+        const sideSpeed = (randomE - 0.5) * speed * 0.36;
+        particle.velocity.set(
+          -forwardX * backwardSpeed + sideX * sideSpeed,
+          speed * (randomF * 0.9 - 0.18),
+          -forwardZ * backwardSpeed + sideZ * sideSpeed,
+        );
+      } else if (burstStyle.shape === 'spray') {
+        const fan = (randomA - 0.5) * 2;
+        const outward = speed * (0.52 + randomB * 0.48);
+        const alongSpeed = (randomC - 0.5) * speed * 0.72;
+        particle.position.x += sideX * fan * 0.12 * motionScale;
+        particle.position.y += randomD * 0.12 * motionScale;
+        particle.position.z += sideZ * fan * 0.12 * motionScale;
+        particle.velocity.set(
+          sideX * fan * outward + forwardX * alongSpeed,
+          speed * (0.18 + randomE * 0.88),
+          sideZ * fan * outward + forwardZ * alongSpeed,
+        );
+      } else if (burstStyle.shape === 'trail') {
+        const progress = count <= 1 ? 0 : (index + randomA * 0.45) / count;
+        const trail = burstStyle.trailLength * motionScale * progress;
+        const across = (randomB - 0.5) * burstStyle.spread * motionScale;
+        particle.position.x -= forwardX * trail - sideX * across;
+        particle.position.y += (randomC - 0.5) * burstStyle.spread * motionScale;
+        particle.position.z -= forwardZ * trail - sideZ * across;
+        const backwardSpeed = speed * (0.2 + randomD * 0.36);
+        const sideSpeed = (randomE - 0.5) * speed * 0.2;
+        particle.velocity.set(
+          -forwardX * backwardSpeed + sideX * sideSpeed,
+          (randomF - 0.45) * speed * 0.22,
+          -forwardZ * backwardSpeed + sideZ * sideSpeed,
+        );
+      } else {
+        const angle = randomA * Math.PI * 2;
+        const radialSpread = (0.35 + randomB * 0.65) * burstStyle.spread;
+        const verticalBias = (randomC - 0.42) * speed;
+        particle.position.z += (randomD - 0.5) * 0.5;
+        particle.velocity.set(
+          Math.cos(angle) * speed * radialSpread,
+          Math.sin(angle) * speed * radialSpread + verticalBias * 0.25,
+          (randomE - 0.5) * speed * 0.35,
+        );
+      }
+
+      particle.colour.setHex(randomF < 0.28 ? burstStyle.secondaryColour : burstStyle.colour);
       particle.age = 0;
-      particle.lifetime = style.lifetime * (0.78 + nextUnit(seed) * 0.36);
-      particle.drag = 0.93 + nextUnit(seed) * 0.045;
+      particle.lifetime = burstStyle.lifetime * (0.78 + this.nextRandom() * 0.36);
+      particle.drag = burstStyle.dragMinimum
+        + this.nextRandom() * (burstStyle.dragMaximum - burstStyle.dragMinimum);
+      particle.gravity = burstStyle.gravity * (0.55 + motionScale * 0.45);
       particle.alive = true;
     }
   }
 
-  private styleForEvent(event: GameEvent): BurstStyle | null {
+  private styleForEvent(event: GameEvent): Readonly<BurstStyle> | null {
     if (event.type === 'flap') {
-      return { colour: 0xb8f7ff, count: 5, speed: 1.25, lifetime: 0.42 };
+      return event.mode === 'frog' ? FROG_FLAP : NORMAL_FLAP;
     }
     if (event.type === 'coin-collected') {
-      return { colour: 0xffd34f, count: 12, speed: 1.8, lifetime: 0.68 };
+      return COIN_BURST;
     }
     if (event.type === 'mutation-selected' || event.type === 'mode-entered') {
-      return { colour: MODE_COLOURS[event.mode], count: 22, speed: 2.2, lifetime: 0.82 };
+      return MODE_ENTRY_STYLES[event.mode];
     }
     if (event.type === 'collision') {
       if (event.outcome === 'destroy') {
-        return { colour: 0xff9d2e, count: 20, speed: 3, lifetime: 0.86 };
+        return STEEL_FLAKES;
       }
       if (event.outcome === 'bounce') {
-        return { colour: 0xff6685, count: 13, speed: 2.3, lifetime: 0.66 };
+        return RUBBER_SPRAY;
       }
       if (event.outcome === 'phase') {
-        return { colour: 0x79f5ff, count: 15, speed: 1.35, lifetime: 0.78 };
+        return GHOST_TRAIL;
       }
       if (event.outcome === 'vault') {
-        return { colour: 0xe9fcff, count: 18, speed: 2.55, lifetime: 0.72 };
+        return STORK_TRAIL_END;
       }
       if (event.outcome === 'fatal') {
-        return { colour: 0xff435e, count: 28, speed: 2.8, lifetime: 1.05 };
+        return FATAL_BURST;
       }
     }
-    if (event.type === 'mode-action' && event.action === 'steel-critical') {
-      return { colour: 0xff692f, count: 16, speed: 1.5, lifetime: 0.9 };
+    if (event.type === 'mode-action') {
+      if (event.action === 'frog-launch') return FROG_LAUNCH;
+      if (event.action === 'ghost-phase-start') return GHOST_TRAIL;
+      if (event.action === 'ghost-phase-end') return GHOST_TRAIL_END;
+      if (event.action === 'stork-vault-start') return STORK_TRAIL;
+      if (event.action === 'stork-vault-end') return STORK_TRAIL_END;
+      if (event.action === 'steel-critical') return STEEL_CRITICAL;
     }
     if (event.type === 'near-miss') {
-      return { colour: 0xf9f3ae, count: 8, speed: 1.05, lifetime: 0.54 };
+      return NEAR_MISS;
     }
     if (event.type === 'game-over') {
-      return { colour: 0xff4963, count: 30, speed: 2.5, lifetime: 1.1 };
+      return GAME_OVER;
     }
     return null;
   }

@@ -249,6 +249,7 @@ class GateView {
   private readonly rustMarks: THREE.InstancedMesh;
   private readonly rustBands: THREE.InstancedMesh;
   private readonly algaeBand: THREE.Mesh;
+  private readonly mineralGrowths: THREE.InstancedMesh;
   private readonly plants: THREE.InstancedMesh;
   private readonly rustMaterials: readonly THREE.Material[];
   private readonly plantMaterials: readonly THREE.Material[];
@@ -262,8 +263,10 @@ class GateView {
   private readonly scale = new THREE.Vector3();
   private readonly surfaceNormal = new THREE.Vector3();
   private readonly geometryNormal = new THREE.Vector3(0, 0, 1);
+  private readonly verticalAxis = new THREE.Vector3(0, 1, 0);
   private readonly plantEuler = new THREE.Euler();
   private readonly focusColour = new THREE.Color();
+  private readonly instanceColour = new THREE.Color();
   private dressing: Readonly<GateDressing> | null = null;
 
   constructor(
@@ -272,6 +275,9 @@ class GateView {
     nodeGeometry: THREE.BufferGeometry,
     lockGeometry: THREE.BufferGeometry,
     rustGeometry: THREE.BufferGeometry,
+    rustBandGeometry: THREE.BufferGeometry,
+    mineralGeometry: THREE.BufferGeometry,
+    wetBandGeometry: THREE.BufferGeometry,
     plantGeometry: THREE.BufferGeometry,
     columnMaterial: THREE.Material,
     faceMaterial: THREE.Material,
@@ -284,6 +290,7 @@ class GateView {
     rustMaterials: readonly THREE.Material[],
     plantMaterials: readonly THREE.Material[],
     algaeMaterial: THREE.Material,
+    mineralMaterial: THREE.Material,
     dressingProfile: Readonly<GateDressingQualityProfile>,
     dressingQuality: RenderQuality,
   ) {
@@ -332,7 +339,7 @@ class GateView {
     this.rustMarks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.rustMarks.frustumCulled = false;
     this.rustBands = new THREE.InstancedMesh(
-      columnGeometry,
+      rustBandGeometry,
       rustMaterials[0] ?? detailMaterial,
       2,
     );
@@ -340,9 +347,18 @@ class GateView {
     this.rustBands.count = 0;
     this.rustBands.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.rustBands.frustumCulled = false;
-    this.algaeBand = new THREE.Mesh(columnGeometry, algaeMaterial);
+    this.algaeBand = new THREE.Mesh(wetBandGeometry, algaeMaterial);
     this.algaeBand.name = 'gate-algae-waterline-band';
     this.algaeBand.visible = false;
+    this.mineralGrowths = new THREE.InstancedMesh(
+      mineralGeometry,
+      mineralMaterial,
+      dressingProfile.maximumMineralGrowths,
+    );
+    this.mineralGrowths.name = 'gate-mineral-barnacles';
+    this.mineralGrowths.count = 0;
+    this.mineralGrowths.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mineralGrowths.frustumCulled = false;
     this.plants = new THREE.InstancedMesh(
       plantGeometry,
       plantMaterials[0] ?? detailMaterial,
@@ -380,6 +396,7 @@ class GateView {
       this.rustMarks,
       this.rustBands,
       this.algaeBand,
+      this.mineralGrowths,
       this.plants,
     );
   }
@@ -523,6 +540,7 @@ class GateView {
     this.rustMarks.visible = visible;
     this.rustBands.visible = visible;
     this.algaeBand.visible = visible && lowerHeight > 0.28;
+    this.mineralGrowths.visible = visible;
     this.plants.visible = visible && lowerHeight > 0.2;
     if (!visible) return;
 
@@ -539,6 +557,7 @@ class GateView {
 
     const algaeHeight = Math.min(0.34, Math.max(0, lowerHeight - 0.24));
     this.algaeBand.position.set(0, projection.mapY(-0.035 + algaeHeight / 2), 0);
+    this.algaeBand.rotation.y = dressing.wetBandRotation;
     this.algaeBand.scale.set(crossWidth * 1.075, algaeHeight, pathDepth * 1.075);
 
     const flangeBands = dressing.bandVariant === 1;
@@ -558,7 +577,10 @@ class GateView {
       }
       localY = clamp(localY, bandHeight / 2 + 0.025, columnHeight - bandHeight / 2 - 0.025);
       this.position.set(0, projection.mapY(baseY + localY), 0);
-      this.quaternion.identity();
+      this.quaternion.setFromAxisAngle(
+        this.verticalAxis,
+        dressing.bandRotation + index * 1.37,
+      );
       const bandScale = flangeBands ? 1.315 : 1.045;
       const depthScale = flangeBands ? 1.16 : 1.045;
       const visibilityScale = columnHeight > bandHeight + 0.08 ? 1 : 0;
@@ -596,11 +618,75 @@ class GateView {
       this.twistQuaternion.setFromAxisAngle(this.surfaceNormal, mark.rotation);
       this.quaternion.premultiply(this.twistQuaternion);
       const markScale = columnHeight > 0.12 ? Math.min(1, columnHeight / 0.46) : 0;
-      this.scale.set(mark.width * markScale, mark.height * markScale, 1);
+      const silhouetteWidth = mark.silhouette === 0 ? 0.82 : mark.silhouette === 1 ? 1.08 : 0.94;
+      const silhouetteHeight = mark.silhouette === 0 ? 1.16 : mark.silhouette === 1 ? 0.82 : 1;
+      this.scale.set(
+        mark.width * silhouetteWidth * markScale,
+        mark.height * silhouetteHeight * markScale,
+        1,
+      );
       this.matrix.compose(this.position, this.quaternion, this.scale);
       this.rustMarks.setMatrixAt(index, this.matrix);
+      const warmBias = mark.silhouette === 1 ? 0.08 : 0;
+      this.instanceColour.setRGB(
+        Math.min(1, mark.tone + warmBias),
+        mark.tone * (mark.silhouette === 2 ? 0.68 : 0.78),
+        mark.tone * 0.6,
+      );
+      this.rustMarks.setColorAt(index, this.instanceColour);
     }
     this.rustMarks.instanceMatrix.needsUpdate = true;
+    if (this.rustMarks.instanceColor) this.rustMarks.instanceColor.needsUpdate = true;
+
+    this.mineralGrowths.count = dressing.mineralGrowths.length;
+    for (let index = 0; index < dressing.mineralGrowths.length; index += 1) {
+      const growth = dressing.mineralGrowths[index];
+      if (!growth) continue;
+      const upper = growth.anchor === 'upper-collar' || growth.anchor === 'upper-body';
+      const collar = growth.anchor === 'lower-collar' || growth.anchor === 'upper-collar';
+      const waterline = growth.anchor === 'waterline';
+      const columnHeight = upper ? upperHeight : lowerHeight;
+      const baseY = upper ? gapTop : 0;
+      let localY: number;
+      if (waterline) localY = 0.1 + growth.heightRatio * 0.2;
+      else if (growth.anchor === 'lower-collar') localY = columnHeight - 0.13;
+      else if (growth.anchor === 'upper-collar') localY = 0.13;
+      else localY = 0.2 + growth.heightRatio * Math.max(0, columnHeight - 0.4);
+
+      const growthHalfWidth = collar ? crossWidth * 0.665 : halfWidth;
+      const growthHalfDepth = collar ? pathDepth * 0.585 : halfDepth;
+      const angleCos = Math.cos(growth.angle);
+      const angleSin = Math.sin(growth.angle);
+      this.surfaceNormal.set(
+        angleCos / Math.max(0.001, growthHalfWidth),
+        0,
+        angleSin / Math.max(0.001, growthHalfDepth),
+      ).normalize();
+      this.position.set(
+        growthHalfWidth * angleCos + this.surfaceNormal.x * growth.depth * 0.2,
+        projection.mapY(baseY + localY),
+        growthHalfDepth * angleSin + this.surfaceNormal.z * growth.depth * 0.2,
+      );
+      this.quaternion.setFromUnitVectors(this.geometryNormal, this.surfaceNormal);
+      this.twistQuaternion.setFromAxisAngle(this.surfaceNormal, growth.rotation);
+      this.quaternion.premultiply(this.twistQuaternion);
+      const verticalExtent = growth.size * Math.max(1, growth.stretch) * 0.55;
+      const staysOutsideGap = upper
+        ? localY - verticalExtent > 0.025
+        : localY + verticalExtent < columnHeight - 0.025;
+      const gapClear = staysOutsideGap && (waterline
+        ? lowerHeight > 0.38
+        : columnHeight > (collar ? 0.28 : 0.44));
+      const growthScale = gapClear ? 1 : 0;
+      this.scale.set(
+        growth.size * growthScale,
+        growth.size * growth.stretch * growthScale,
+        growth.depth * growthScale,
+      );
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      this.mineralGrowths.setMatrixAt(index, this.matrix);
+    }
+    this.mineralGrowths.instanceMatrix.needsUpdate = true;
 
     this.plants.count = dressing.plantBlades.length;
     const gateSwayPhase = hashPhase(obstacleId);
@@ -655,6 +741,8 @@ class GateView {
     this.rustBands.visible = false;
     this.rustBands.count = 0;
     this.algaeBand.visible = false;
+    this.mineralGrowths.visible = false;
+    this.mineralGrowths.count = 0;
     this.plants.visible = false;
     this.plants.count = 0;
     this.dressing = null;
@@ -1138,15 +1226,59 @@ export class WorldViews {
     const rivetGeometry = this.trackGeometry(new THREE.SphereGeometry(1, 7, 5));
     const nodeGeometry = this.trackGeometry(new THREE.OctahedronGeometry(0.14, 1));
     const lockGeometry = this.trackGeometry(new THREE.TorusGeometry(0.18, 0.02, 6, 24));
+    const createRaggedSleeve = (
+      topAmplitude: number,
+      bottomAmplitude: number,
+      phase: number,
+    ): THREE.CylinderGeometry => {
+      const geometry = this.trackGeometry(new THREE.CylinderGeometry(
+        0.5,
+        0.5,
+        1,
+        this.gateDressingProfile.cylinderSegments,
+        1,
+        true,
+      ));
+      const positions = geometry.getAttribute('position');
+      for (let index = 0; index < positions.count; index += 1) {
+        const x = positions.getX(index);
+        const y = positions.getY(index);
+        const z = positions.getZ(index);
+        const angle = Math.atan2(z, x);
+        if (y > 0.25) {
+          const roughTop = Math.sin(angle * 3 + phase) * topAmplitude
+            + Math.sin(angle * 7 - phase * 0.7) * topAmplitude * 0.38;
+          positions.setY(index, 0.5 + roughTop);
+        } else if (y < -0.25) {
+          const roughBottom = Math.sin(angle * 4 - phase) * bottomAmplitude
+            + Math.cos(angle * 9 + phase) * bottomAmplitude * 0.3;
+          positions.setY(index, -0.5 + roughBottom);
+        }
+      }
+      positions.needsUpdate = true;
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+    const rustBandGeometry = createRaggedSleeve(0.14, 0.1, 0.7);
+    const wetBandGeometry = createRaggedSleeve(0.22, 0.045, 2.1);
     const rustGeometry = this.trackGeometry(new THREE.BufferGeometry());
     const rustOutline: readonly (readonly [number, number])[] = [
-      [-0.34, 0.5],
-      [0.26, 0.46],
-      [0.42, 0.18],
-      [0.18, -0.08],
-      [0.08, -0.5],
-      [-0.16, -0.31],
-      [-0.4, -0.06],
+      [-0.24, 0.5],
+      [-0.04, 0.45],
+      [0.14, 0.5],
+      [0.3, 0.36],
+      [0.2, 0.23],
+      [0.37, 0.11],
+      [0.2, -0.03],
+      [0.17, -0.24],
+      [0.04, -0.18],
+      [-0.03, -0.5],
+      [-0.18, -0.33],
+      [-0.14, -0.16],
+      [-0.36, -0.05],
+      [-0.21, 0.12],
+      [-0.37, 0.25],
+      [-0.18, 0.34],
     ];
     const rustVertices: number[] = [];
     for (let index = 0; index < rustOutline.length; index += 1) {
@@ -1157,6 +1289,8 @@ export class WorldViews {
     }
     rustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rustVertices, 3));
     rustGeometry.computeVertexNormals();
+    const mineralGeometry = this.trackGeometry(new THREE.ConeGeometry(0.5, 1, 6, 1, false));
+    mineralGeometry.rotateX(Math.PI / 2);
     const plantGeometry = this.trackGeometry(new THREE.PlaneGeometry(1, 1, 1, 2));
     plantGeometry.translate(0, 0.5, 0);
     const plantPositions = plantGeometry.getAttribute('position');
@@ -1194,24 +1328,24 @@ export class WorldViews {
     }));
     const rustMaterials: readonly THREE.Material[] = [
       this.trackMaterial(new THREE.MeshStandardMaterial({
-        color: 0x74361f,
-        roughness: 0.96,
-        metalness: 0.08,
+        color: 0x653426,
+        roughness: 0.9,
+        metalness: 0.07,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -1,
       })),
       this.trackMaterial(new THREE.MeshStandardMaterial({
-        color: 0x9a5128,
-        roughness: 0.92,
+        color: 0x7d432d,
+        roughness: 0.87,
         metalness: 0.06,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -1,
       })),
       this.trackMaterial(new THREE.MeshStandardMaterial({
-        color: 0x532a21,
-        roughness: 1,
+        color: 0x492b26,
+        roughness: 0.96,
         metalness: 0.04,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1237,11 +1371,18 @@ export class WorldViews {
       })),
     ];
     const algaeMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
-      color: 0x174c37,
-      emissive: 0x09291d,
-      emissiveIntensity: 0.34,
-      roughness: 0.98,
-      metalness: 0.03,
+      color: 0x123c37,
+      emissive: 0x061a16,
+      emissiveIntensity: 0.18,
+      roughness: 0.3,
+      metalness: 0.12,
+    }));
+    const mineralMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0xc5b88f,
+      emissive: 0x2a2112,
+      emissiveIntensity: 0.12,
+      roughness: 0.84,
+      metalness: 0.02,
     }));
     const nodeMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0xffa629,
@@ -1282,6 +1423,9 @@ export class WorldViews {
         nodeGeometry,
         lockGeometry,
         rustGeometry,
+        rustBandGeometry,
+        mineralGeometry,
+        wetBandGeometry,
         plantGeometry,
         gateMaterial,
         gateFaceMaterial,
@@ -1294,6 +1438,7 @@ export class WorldViews {
         rustMaterials,
         plantMaterials,
         algaeMaterial,
+        mineralMaterial,
         this.gateDressingProfile,
         quality,
       );

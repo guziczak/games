@@ -279,7 +279,7 @@ export class SceneRenderer {
     const interpolation = clamp(Number.isFinite(alpha) ? alpha : 0, 0, 1);
     const time = state.clock.elapsed + DEFAULT_GAME_CONFIG.fixedStep * interpolation;
 
-    this.updateReactionClock(state, events, time);
+    this.updateReactionClock(events, time);
     this.updateSceneMood(state);
     this.updateCamera(state, time);
     this.worldViews.update(
@@ -339,6 +339,40 @@ export class SceneRenderer {
     delete this.canvas.dataset.renderQuality;
   }
 
+  private updateReactionClock(
+    events: readonly GameEvent[],
+    time: number,
+  ): void {
+    const previous = this.lastRenderTime;
+    const dt = previous === null ? 0 : clamp(time - previous, 0, 0.1);
+    this.lastRenderTime = time;
+    this.cameraImpulseAge += dt;
+    this.cameraImpulse *= Math.exp(-dt * 10.5);
+    const steelDestroy = events.some((event) => (
+      event.type === 'collision'
+      && event.outcome === 'destroy'
+    ));
+    if (steelDestroy) {
+      this.cameraImpulse = 1;
+      this.cameraImpulseAge = 0;
+    }
+  }
+
+  private updateSceneMood(state: Readonly<GameState>): void {
+    const mood = createSceneMood(
+      state.mode.active,
+      state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing',
+    );
+    (this.scene.background as THREE.Color).setHex(mood.background);
+    if (this.scene.fog instanceof THREE.FogExp2) {
+      this.scene.fog.color.setHex(mood.fog);
+      this.scene.fog.density = mood.fogDensity;
+    }
+    this.ambientLight.intensity = mood.ambientIntensity;
+    this.rimLight.intensity = mood.rimIntensity;
+    this.renderer.toneMappingExposure = mood.exposure;
+  }
+
   private updateShadowAndLight(state: Readonly<GameState>, alpha: number): void {
     const playerX = clamp(
       state.player.x + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * alpha,
@@ -365,6 +399,28 @@ export class SceneRenderer {
     );
     this.blobShadow.material.opacity = 0.055 + (1 - altitude) * 0.17;
 
+    const reflection = createDuckReflectionPresentation({
+      playerY,
+      worldHeight: DEFAULT_GAME_CONFIG.world.height,
+      mode: state.mode.active,
+      time: state.clock.elapsed + DEFAULT_GAME_CONFIG.fixedStep * alpha,
+      reducedMotion: this.reducedMotion,
+    });
+    this.duckReflection.position.set(
+      this.projection.mapX(playerX),
+      this.projection.mapY(0) + 0.028,
+      depth,
+    );
+    this.duckReflection.rotation.set(0, this.projection.pathYaw - Math.PI / 2, 0);
+    this.duckReflection.scale.setScalar(reflection.scale);
+    this.reflectionBodyMaterial.color.setHex(reflection.colour);
+    this.reflectionDetailMaterial.color.setHex(reflection.colour);
+    this.reflectionBodyMaterial.opacity = reflection.opacity;
+    this.reflectionDetailMaterial.opacity = reflection.opacity * 0.76;
+    this.reflectionRippleMaterial.opacity = reflection.rippleOpacity;
+    const ripple = this.duckReflection.getObjectByName('duck-reflection-ripple');
+    ripple?.scale.set(0.9 * reflection.rippleScale, 0.48 * reflection.rippleScale, 1);
+
     this.playerLight.position.set(
       this.projection.mapX(playerX),
       this.projection.mapY(playerY),
@@ -372,9 +428,48 @@ export class SceneRenderer {
     );
     this.playerLight.color.setHex(MODE_LIGHT_COLOURS[state.mode.active]);
     this.playerLight.intensity = state.mode.active === 'normal' ? 0.72 : 1.35;
+
+    let nearest = state.world.obstacles[0];
+    let nearestDelta = Number.POSITIVE_INFINITY;
+    for (const obstacle of state.world.obstacles) {
+      if (!obstacle.active || obstacle.destroyed || obstacle.passed) continue;
+      const delta = obstacle.x - playerX;
+      if (delta < -obstacle.width * 0.55 || delta >= nearestDelta) continue;
+      nearest = obstacle;
+      nearestDelta = delta;
+    }
+    if (nearest && Number.isFinite(nearestDelta)) {
+      const focus = clamp(1 - Math.max(0, nearestDelta) / 6.4, 0.18, 1);
+      this.gateFocusLight.position.set(
+        this.projection.mapX(nearest.x),
+        this.projection.mapY(nearest.gapCenter),
+        this.projection.depthAt(nearest.x) + 0.7,
+      );
+      this.gateFocusLight.color.setHex(state.mode.active === 'ghost' ? 0x8adce7 : 0xffcf8a);
+      this.gateFocusLight.intensity = (state.mode.active === 'ghost' ? 0.38 : 0.62) + focus * 0.72;
+      this.gateFocusLight.distance = 4.8 + focus * 1.7;
+    } else {
+      this.gateFocusLight.intensity = 0;
+    }
   }
 
   private updateCamera(state: Readonly<GameState>, time: number): void {
+    const reaction = createCameraReaction({
+      mode: state.mode.active,
+      rubberPhase: state.mode.rubber.phase,
+      rubberPhaseTime: state.mode.rubber.phaseTime,
+      aimX: state.mode.rubber.aim.x,
+      aimY: state.mode.rubber.aim.y,
+      velocityX: state.player.vx,
+      velocityY: state.player.vy,
+      steelImpulse: this.cameraImpulse,
+      impulsePhase: this.cameraImpulseAge,
+      reducedMotion: this.reducedMotion,
+    });
+    if (Math.abs(this.camera.fov - reaction.fov) > 0.001) {
+      this.camera.fov = reaction.fov;
+      this.camera.updateProjectionMatrix();
+    }
     const baseDistance = (
       this.projection.viewHeight
       / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2))
@@ -417,11 +512,14 @@ export class SceneRenderer {
       this.projection.depthAt(targetSimulationX),
     );
     this.camera.position.set(
-      this.cameraTarget.x + viewDirectionX * horizontalDistance + drift,
-      this.cameraTarget.y + Math.sin(pitch) * baseDistance,
-      this.cameraTarget.z + viewDirectionZ * horizontalDistance,
+      this.cameraTarget.x + viewDirectionX * horizontalDistance + drift
+        + pathSideX * reaction.lateralOffset,
+      this.cameraTarget.y + Math.sin(pitch) * baseDistance + reaction.verticalOffset,
+      this.cameraTarget.z + viewDirectionZ * horizontalDistance
+        + pathSideZ * reaction.lateralOffset,
     );
     this.camera.lookAt(this.cameraTarget);
+    this.camera.rotateZ(reaction.roll);
   }
 
   private readonly handleResizeObserved = (): void => {

@@ -49,6 +49,11 @@ describe('gate dressing profiles', () => {
       6,
       6,
     ]);
+    expect([
+      low.maximumMineralGrowths,
+      medium.maximumMineralGrowths,
+      high.maximumMineralGrowths,
+    ]).toEqual([4, 6, 8]);
     expect(medium.plantScale).toBeGreaterThan(low.plantScale);
     expect(medium.plantScale).toBeGreaterThan(high.plantScale);
     expect(low.detailDistance).toBeLessThan(medium.detailDistance);
@@ -67,11 +72,18 @@ describe('gate dressing profiles', () => {
     expect(first.rustMarks.length).toBeLessThanOrEqual(8);
     expect(first.rustMarks[0]?.upper).toBe(false);
     expect(first.rustMarks[1]?.upper).toBe(true);
+    expect(new Set(first.rustMarks.map((mark) => mark.silhouette)).size).toBeGreaterThanOrEqual(2);
+    expect(first.rustMarks.every((mark) => mark.tone >= 0.5 && mark.tone <= 1)).toBe(true);
+    expect(first.mineralGrowths.length).toBeGreaterThanOrEqual(6);
+    expect(first.mineralGrowths.length).toBeLessThanOrEqual(8);
+    expect(first.mineralGrowths.slice(0, 2).every((growth) => growth.anchor === 'waterline')).toBe(true);
     expect(first.plantBlades.length).toBeGreaterThanOrEqual(4);
     expect(first.plantBlades.length).toBeLessThanOrEqual(6);
     expect(Object.isFrozen(first)).toBe(true);
     expect(Object.isFrozen(first.rustMarks)).toBe(true);
     expect(Object.isFrozen(first.rustMarks[0])).toBe(true);
+    expect(Object.isFrozen(first.mineralGrowths)).toBe(true);
+    expect(Object.isFrozen(first.mineralGrowths[0])).toBe(true);
   });
 });
 
@@ -99,6 +111,7 @@ describe('rounded gate integration', () => {
     const rust = gate?.getObjectByName('gate-rust-marks') as THREE.InstancedMesh;
     const rustBands = gate?.getObjectByName('gate-rust-bands') as THREE.InstancedMesh;
     const algaeBand = gate?.getObjectByName('gate-algae-waterline-band') as THREE.Mesh;
+    const mineralGrowths = gate?.getObjectByName('gate-mineral-barnacles') as THREE.InstancedMesh;
     const plants = gate?.getObjectByName('gate-water-plants') as THREE.InstancedMesh;
     const gapBottomY = projection.mapY(obstacle.gapCenter - obstacle.gapSize / 2);
     const gapTopY = projection.mapY(obstacle.gapCenter + obstacle.gapSize / 2);
@@ -114,6 +127,10 @@ describe('rounded gate integration', () => {
     expect(rustBands.count).toBe(2);
     expect(algaeBand.visible).toBe(true);
     expect(algaeBand.position.y + algaeBand.scale.y / 2).toBeLessThan(gapBottomY);
+    expect((algaeBand.material as THREE.MeshStandardMaterial).roughness).toBeLessThanOrEqual(0.35);
+    expect(mineralGrowths.visible).toBe(true);
+    expect(mineralGrowths.count).toBeGreaterThanOrEqual(6);
+    expect(mineralGrowths.count).toBeLessThanOrEqual(8);
     expect(plants.visible).toBe(true);
     expect(plants.count).toBeGreaterThanOrEqual(4);
     expect(plants.count).toBeLessThanOrEqual(6);
@@ -126,6 +143,24 @@ describe('rounded gate integration', () => {
       plants.getMatrixAt(index, plantMatrix);
       plantMatrix.decompose(plantPosition, plantRotation, plantScale);
       expect(plantPosition.y + plantScale.y).toBeLessThan(gapBottomY);
+    }
+
+    const dressing = createGateDressing(obstacle.id, 'high');
+    const growthMatrix = new THREE.Matrix4();
+    const growthPosition = new THREE.Vector3();
+    const growthRotation = new THREE.Quaternion();
+    const growthScale = new THREE.Vector3();
+    for (let index = 0; index < mineralGrowths.count; index += 1) {
+      const growth = dressing.mineralGrowths[index];
+      if (!growth) continue;
+      mineralGrowths.getMatrixAt(index, growthMatrix);
+      growthMatrix.decompose(growthPosition, growthRotation, growthScale);
+      const verticalExtent = Math.max(growthScale.x, growthScale.y) * 0.55;
+      if (growth.anchor === 'upper-collar' || growth.anchor === 'upper-body') {
+        expect(growthPosition.y - verticalExtent).toBeGreaterThan(gapTopY);
+      } else {
+        expect(growthPosition.y + verticalExtent).toBeLessThan(gapBottomY);
+      }
     }
 
     views.destroy();

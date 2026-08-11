@@ -16,6 +16,7 @@ import {
   waterRippleStrengthForEvent,
 } from '../src/rendering/WaterSurface';
 import type { GameEvent } from '../src/simulation/GameEvents';
+import { DEFAULT_GAME_CONFIG } from '../src/simulation/GameConfig';
 import { createInitialGameState } from '../src/simulation/GameState';
 import type { ObstacleState } from '../src/simulation/GameState';
 import type { WorldProjection } from '../src/rendering/WorldViews';
@@ -182,6 +183,9 @@ describe('WaterSurface world contact projection', () => {
     expect(contacts).toHaveLength(3);
     expect(contacts[0]?.radius).toBeGreaterThan(0);
     expect(Object.isFrozen(contacts)).toBe(true);
+
+    const interpolated = selectWaterPipeContacts(state, TEST_PROJECTION, 1, 3);
+    expect(interpolated[0]?.x).toBeLessThan(contacts[0]?.x ?? Number.NEGATIVE_INFINITY);
   });
 
   it('anchors obstacle events to their projected gate instead of the duck', () => {
@@ -261,6 +265,33 @@ describe('WaterSurface lifecycle', () => {
     expect(snapshot.downwash).toBeGreaterThan(0);
     expect(snapshot.ripples).toHaveLength(1);
     expect(snapshot.ripples[0]?.x).toBeCloseTo(TEST_PROJECTION.mapX(6));
+
+    water.destroy();
+  });
+
+  it('retains static pipe footprints but suppresses motion effects in reduced motion', () => {
+    const scene = new THREE.Scene();
+    const water = new WaterSurface(scene, 'low');
+    const state = createInitialGameState(10);
+    state.clock.elapsed = 2;
+    state.player.y = DEFAULT_GAME_CONFIG.player.radiusY;
+    state.world.obstacles = [obstacle('frog-gate', 5.5)];
+    const frogLaunch: GameEvent = {
+      tick: 40,
+      time: 2,
+      type: 'mode-action',
+      mode: 'frog',
+      action: 'frog-launch',
+      entityId: 'frog-gate',
+    };
+
+    water.update(state, TEST_PROJECTION, 2, true, [frogLaunch]);
+    const snapshot = water.getDebugSnapshot();
+
+    expect(snapshot.displayTime).toBe(0);
+    expect(snapshot.downwash).toBe(0);
+    expect(snapshot.ripples).toHaveLength(0);
+    expect(snapshot.pipeContacts.map((contact) => contact.obstacleId)).toEqual(['frog-gate']);
 
     water.destroy();
   });
