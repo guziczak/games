@@ -472,9 +472,11 @@
         if (label) {
             label.textContent = state.mutation.pending && value >= state.mutation.threshold
                 ? 'MUTACJA OCZEKUJE'
-                : (value === 0
-                    ? 'DNA stabilne'
-                    : (value >= 75 ? `MUTACJA: ${value}%` : `Niestabilność DNA: ${value}%`));
+                : (value >= state.mutation.threshold
+                    ? 'DNA PEŁNE • BRAK WZORCA'
+                    : (value === 0
+                        ? 'DNA stabilne'
+                        : (value >= 75 ? `MUTACJA: ${value}%` : `Niestabilność DNA: ${value}%`)));
         }
         return value;
     }
@@ -517,6 +519,9 @@
         const choice = forcedChoice || logic.chooseMutation(state.metrics);
         if (!choice) return null;
 
+        const attemptState = state;
+        const attemptGeneration = state.session.generation;
+
         const event = Object.freeze({
             choice,
             instability: state.mutation.instability,
@@ -527,9 +532,23 @@
         state.mutation.pending = choice;
         let handled = false;
         for (const listener of mutationListeners) {
-            if (listener(event) === true) handled = true;
+            try {
+                if (listener(event) === true) handled = true;
+            } catch (error) {
+                if (root.console && typeof root.console.error === 'function') {
+                    root.console.error('Mutation listener failed:', error);
+                }
+            }
+            // A listener may reset the game synchronously. Never let an
+            // evolution attempt from the previous session leak into the new one.
+            if (state !== attemptState || state.session.generation !== attemptGeneration) {
+                return null;
+            }
         }
         const activated = handled || activateMutation(choice) === true;
+        if (state !== attemptState || state.session.generation !== attemptGeneration) {
+            return null;
+        }
 
         // A full meter is valuable game state. Keep both it and the selected
         // evolution while the current FSM cannot accept the transformation.
@@ -553,6 +572,9 @@
         if (root.document && typeof root.CustomEvent === 'function') {
             root.document.dispatchEvent(new root.CustomEvent('sky-dodge:mutation', { detail: event }));
         }
+        if (state !== attemptState || state.session.generation !== attemptGeneration) {
+            return choice;
+        }
         state.mutation.pending = null;
         return choice;
     }
@@ -564,6 +586,7 @@
             state.mutation.pending = null;
             state.mutation.lastChoice = null;
             state.mutation.lastMetadata = null;
+            state.mutation.history.length = 0;
             updateMutationUI();
         },
         record(kind, amount, metadata) {
@@ -628,18 +651,21 @@
         }
     };
 
-    let mutationRetryQueued = false;
+    let mutationRetryToken = 0;
     modeMachine.subscribe(event => {
         if (!state.mutation.pending
             || state.mutation.instability < state.mutation.threshold
             || event.current.primary !== 'normal') {
             return;
         }
-        if (mutationRetryQueued) return;
-        mutationRetryQueued = true;
+        const retryToken = ++mutationRetryToken;
+        const retryState = state;
+        const retryGeneration = state.session.generation;
         const retry = () => {
-            mutationRetryQueued = false;
-            if (!state.mutation.pending
+            if (retryToken !== mutationRetryToken
+                || state !== retryState
+                || state.session.generation !== retryGeneration
+                || !state.mutation.pending
                 || state.mutation.instability < state.mutation.threshold
                 || modeMachine.primary !== 'normal') {
                 return;

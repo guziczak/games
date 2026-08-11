@@ -232,3 +232,116 @@ test('failed emergency and reentrant listeners cannot leave an unpayable pending
     assert.equal(skyDodge.state.mutation.pending, null);
     skyDodge.resetState({ keepGeneration: true });
 });
+
+test('mutation listeners are isolated and a gameplay reset clears mutation history', t => {
+    const skyDodge = require('../gameState.js');
+    skyDodge.resetState({ keepGeneration: true });
+
+    globalThis.activateFrogMode = () => skyDodge.modeMachine.activate('frog', {
+        reason: 'mutation-listener-test'
+    });
+    const originalConsoleError = console.error;
+    console.error = () => {};
+    const unsubscribe = skyDodge.mutations.onTrigger(() => {
+        throw new Error('optional listener failed');
+    });
+    t.after(() => {
+        unsubscribe();
+        console.error = originalConsoleError;
+        delete globalThis.activateFrogMode;
+        skyDodge.resetState({ keepGeneration: true });
+    });
+
+    assert.equal(skyDodge.mutations.record('jump', 100), 'frog');
+    assert.equal(skyDodge.state.mutation.pending, null);
+    assert.deepEqual(skyDodge.state.mutation.history.map(event => event.choice), ['frog']);
+
+    skyDodge.modeMachine.reset({ reason: 'between-games' });
+    skyDodge.mutations.reset();
+    assert.equal(skyDodge.state.mutation.history.length, 0);
+});
+
+test('a synchronous session reset cancels the mutation attempt that caused it', t => {
+    const skyDodge = require('../gameState.js');
+    skyDodge.resetState({ keepGeneration: true });
+    const previousGeneration = skyDodge.state.session.generation;
+    let activations = 0;
+
+    globalThis.activateFrogMode = () => {
+        activations += 1;
+        return skyDodge.modeMachine.activate('frog', { reason: 'stale-attempt' });
+    };
+    const unsubscribe = skyDodge.mutations.onTrigger(() => {
+        skyDodge.resetState();
+        return false;
+    });
+    t.after(() => {
+        unsubscribe();
+        delete globalThis.activateFrogMode;
+        skyDodge.resetState({ keepGeneration: true });
+    });
+
+    assert.equal(skyDodge.mutations.record('jump', 100, { generation: previousGeneration }), null);
+    assert.equal(skyDodge.state.session.generation, previousGeneration + 1);
+    assert.equal(activations, 0);
+    assert.equal(skyDodge.modeMachine.primary, 'normal');
+    assert.equal(skyDodge.state.mutation.lastChoice, null);
+    assert.equal(skyDodge.state.mutation.history.length, 0);
+});
+
+test('a deferred retry from an old session cannot consume a new session pending mutation', async t => {
+    const skyDodge = require('../gameState.js');
+    skyDodge.resetState({ keepGeneration: true });
+    skyDodge.modeMachine.activate('stork', { force: true, reason: 'old-session' });
+    skyDodge.mutations.strain(50, 'pipeImpact');
+    skyDodge.mutations.strain(50, 'pipeImpact');
+
+    let activations = 0;
+    globalThis.activateSteelMode = () => {
+        activations += 1;
+        if (activations === 1) return false;
+        return skyDodge.modeMachine.activate('steel', { force: true, reason: 'stale-retry' });
+    };
+    t.after(() => {
+        delete globalThis.activateSteelMode;
+        skyDodge.resetState({ keepGeneration: true });
+    });
+
+    skyDodge.modeMachine.deactivate('stork', { reason: 'old-session-ended' });
+    skyDodge.resetState();
+    skyDodge.mutations.strain(50, 'pipeImpact');
+    skyDodge.mutations.strain(50, 'pipeImpact');
+
+    assert.equal(activations, 1, 'the new session made its own activation attempt');
+    assert.equal(skyDodge.state.mutation.pending, 'steel');
+    await Promise.resolve();
+
+    assert.equal(activations, 1, 'the queued old-session retry was ignored');
+    assert.equal(skyDodge.modeMachine.primary, 'normal');
+    assert.equal(skyDodge.state.mutation.pending, 'steel');
+    assert.equal(skyDodge.state.mutation.instability, 100);
+});
+
+test('a full strain meter without enough evidence remains recoverable', t => {
+    const skyDodge = require('../gameState.js');
+    skyDodge.resetState({ keepGeneration: true });
+    globalThis.activateSteelMode = options => skyDodge.modeMachine.activate(
+        'steel',
+        Object.assign({}, options, { force: true })
+    );
+    t.after(() => {
+        delete globalThis.activateSteelMode;
+        skyDodge.resetState({ keepGeneration: true });
+    });
+
+    assert.equal(skyDodge.mutations.strain(100), null);
+    assert.equal(skyDodge.state.mutation.instability, 100);
+    assert.equal(skyDodge.state.mutation.pending, null);
+
+    assert.equal(skyDodge.mutations.strain(1, 'pipeImpact'), null);
+    assert.equal(skyDodge.state.mutation.pending, null);
+    assert.equal(skyDodge.mutations.strain(1, 'pipeImpact'), 'steel');
+    assert.equal(skyDodge.modeMachine.primary, 'steel');
+    assert.equal(skyDodge.state.mutation.instability, 0);
+    assert.equal(skyDodge.state.mutation.pending, null);
+});

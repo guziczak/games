@@ -268,8 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 1500);
         
-        // Efekt dźwiękowy pojawienia się bossa
-        playSound('storkMode');
+        // A warning should stay distinct from the playable stork transformation.
+        playSound('storkAlert');
     }
     
     window.collectCoin = function(coin) {

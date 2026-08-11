@@ -50,6 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (machine && typeof machine.deactivate === 'function') machine.deactivate(mode);
     }
 
+    function hasDeferredMutation() {
+        const mutation = window.SkyDodge
+            && window.SkyDodge.state
+            && window.SkyDodge.state.mutation;
+        return Boolean(mutation
+            && mutation.pending
+            && mutation.instability >= mutation.threshold);
+    }
+
     function releaseStorkPipeIfHeld(pipe, reason) {
         if (pipe && pipe === window.storkGrabbedPipe
             && typeof window.releaseStorkPipeGrab === 'function') {
@@ -549,7 +558,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu żaby - zakończono czyszczenie");
         
         // Aktywuj tryb stali jako przejściowy między żabą a duchem
-        if (!options.skipNext) activateSteelMode({ source: 'frog-chain', force: true });
+        if (!options.skipNext && !hasDeferredMutation()) {
+            activateSteelMode({ source: 'frog-chain', force: true });
+        }
     }
     
     window.updateFrogModeButton = function() {
@@ -613,8 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Subtelna animacja przygotowania do skoku
             bird.classList.add('charging');
             
-            // Efekt dźwiękowy ładowania
-            playSound('jump'); // Możesz stworzyć nowy dźwięk ładowania
+            playSound('frogCharge');
         }
     }
     
@@ -634,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Jeśli ładowanie nie było aktywne, sprawdź czy żaba jest na ziemi
                 if (frogIsOnGround) {
                     launchFrogFromSurface(frogJumpMinPower);
-                    playSound('jump');
+                    playSound('frogLaunch');
                 }
                 return;
             }
@@ -746,8 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Przestań ładować
             frogIsCharging = false;
             
-            // Dźwięk skoku dla żaby
-            playSound('jump');
+            playSound('frogLaunch');
             
             // ====== ANATOMICZNIE POPRAWNA ANIMACJA SKOKU ŻABY ======
             bird.classList.remove('charging');
@@ -848,7 +857,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Efekt odbicia od ziemi przy transformacji
         if (frogIsOnGround) {
             velocity = -12; // Jeszcze silniejszy impuls do góry
-            playSound('jump'); // Efekt dźwiękowy
         }
         
         // WULGARNY KOMUNIKAT O TRYBIE STALI - EPICKIE OGŁOSZENIE
@@ -867,11 +875,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mocny efekt wibracji ekranu
         gameArea.classList.add('screen-shake');
         
-        // Odtwórz kilka dźwięków dla większego efektu
-        playSound('storkDefeat');
-        setTimeout(() => {
-            playSound('jump');
-        }, 100);
+        playSound('steelMode');
         
         // Usuń błysk po chwili
         setTimeout(() => {
@@ -967,7 +971,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Po określonym czasie przejdź do trybu ducha
         scheduleModeTimer('steel-transition', () => {
             deactivateSteelMode();
-            if (!ghostModeActive) {
+            if (!ghostModeActive && !hasDeferredMutation()) {
                 activateGhostMode(null, true);
             }
         }, steelModeDuration * 1000);
@@ -1211,8 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
             gameArea.classList.remove('screen-shake');
         }, 1000);
         
-        // Efekt dźwiękowy
-        playSound('jump');
+        playSound('rubberMode');
         
         setTimeout(() => {
             if (activationEffect.parentNode) {
@@ -1508,12 +1511,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.classList.remove('rubber-stretching');
         bird.classList.add('rubber-launched');
         
-        // Efekt dźwiękowy zależny od siły
-        if (Math.abs(window.rubberVelocityModifier) > rubberMaxVelocity * 0.7) {
-            playSound('storkDefeat'); // Mocny efekt dla dużej prędkości
-        } else {
-            playSound('jump'); // Standardowy dla mniejszej
-        }
+        playSound('rubberSnap');
         
         // Dodaj efekt wizualny przy wystrzeleniu
         const powerLevel = Math.min(Math.abs(window.rubberVelocityModifier) / rubberMaxVelocity, 1);
@@ -1666,9 +1664,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 1500);
         
-        // Efekt dźwiękowy
-        playSound('jump');
-        
         console.log("Deaktywacja trybu kauczuka - zakończono czyszczenie");
 
         if (frogModeActive) {
@@ -1678,7 +1673,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Aktywuj tryb stali jako przejściowy między kauczukiem a duchem
         scheduleModeTimer('rubber-to-steel', () => {
-            if (!frogModeActive && !ghostModeActive && !storkModeActive) {
+            if (!frogModeActive && !ghostModeActive && !storkModeActive
+                && !hasDeferredMutation()) {
                 activateSteelMode({ source: 'rubber-chain', force: true });
             }
         }, 300);
@@ -2504,7 +2500,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const storkActivation = document.createElement('div');
             storkActivation.className = 'coinPop purpleCoinPop';
             storkActivation.style.color = '#FF4500';
-            storkActivation.textContent = 'TRYB BOCIANA!\nWIATR MONET!';
+            storkActivation.textContent = 'TRYB BOCIANA!\nWIATR MONET + SZPONY!';
             storkActivation.style.left = '50%';
             storkActivation.style.top = '50%';
             storkActivation.style.transform = 'translate(-50%, -50%) scale(2)';
@@ -2615,11 +2611,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu bociana - zakończono czyszczenie");
         
         // Automatycznie aktywuj tryb ducha za darmo
-        const pendingMutation = window.SkyDodge
-            && window.SkyDodge.state
-            && window.SkyDodge.state.mutation
-            && window.SkyDodge.state.mutation.pending;
-        if (!ghostModeActive && !pendingMutation) {
+        if (!ghostModeActive && !hasDeferredMutation()) {
             activateGhostMode(null, true);
         }
     }

@@ -521,8 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (velocity > velocityLimit) velocity = velocityLimit;
                 if (velocity < -velocityLimit) velocity = -velocityLimit;
                 
-                // Efekt dźwiękowy
-                playSound('jump');
+                playSound('rubberSnap');
             }
             
             // Zakończenie trybu kauczuka
@@ -769,8 +768,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Event listeners
-    startButton.addEventListener('click', startGame);
-    restartButton.addEventListener('click', startGame);
+    startButton.addEventListener('click', function(event) {
+        cancelActiveGameplayInput('game-start');
+        startGame(event);
+    });
+    restartButton.addEventListener('click', function(event) {
+        cancelActiveGameplayInput('game-restart');
+        startGame(event);
+    });
     
     // A native click covers mouse, touch, keyboard and assistive technology.
     frogModeButton.addEventListener('click', activateFrogMode);
@@ -838,11 +843,12 @@ document.addEventListener('DOMContentLoaded', function() {
             stopFrogCharging();
         }
 
-        if (source === 'pointer' && event && Number.isFinite(event.pointerId)
+        const pointerId = event && Number.isFinite(event.pointerId) ? event.pointerId : id;
+        if (source === 'pointer' && Number.isFinite(pointerId)
             && typeof gameArea.hasPointerCapture === 'function'
-            && gameArea.hasPointerCapture(event.pointerId)) {
+            && gameArea.hasPointerCapture(pointerId)) {
             try {
-                gameArea.releasePointerCapture(event.pointerId);
+                gameArea.releasePointerCapture(pointerId);
             } catch (error) {
                 // The browser may already have released capture on pointercancel.
             }
