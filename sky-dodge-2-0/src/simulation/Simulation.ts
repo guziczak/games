@@ -320,8 +320,9 @@ function exitModeMutable(
   const current = state.mode.active;
   if (current === 'normal') return;
 
-  if (current === 'ghost' && state.mode.ghost.phase === 'phasing') {
-    stopGhostPhase(state, events, config);
+  if (current === 'ghost') {
+    if (state.mode.ghost.phase === 'phasing') stopGhostPhase(state, events, config);
+    else protectGhostMaterialization(state, config);
   }
   if (current === 'frog') {
     const surfaceId = state.mode.frog.releasedObstacleId ?? state.mode.frog.clingObstacleId;
@@ -538,10 +539,7 @@ function launchFrog(state: GameState, events: GameEvent[], config: GameConfig): 
   }
 }
 
-function stopGhostPhase(state: GameState, events: GameEvent[], config: GameConfig): void {
-  if (state.mode.ghost.phase !== 'phasing') return;
-  state.mode.ghost.phase = 'material';
-  state.mode.ghost.phaseTime = 0;
+function protectGhostMaterialization(state: GameState, config: GameConfig): void {
   const overlappingObstacles = state.world.obstacles.filter(
     (obstacle) => !obstacle.destroyed && playerOverlapsObstacle(state, obstacle, config),
   );
@@ -552,6 +550,13 @@ function stopGhostPhase(state: GameState, events: GameEvent[], config: GameConfi
       config.modes.ghost.materializeGrace,
     );
   }
+}
+
+function stopGhostPhase(state: GameState, events: GameEvent[], config: GameConfig): void {
+  if (state.mode.ghost.phase !== 'phasing') return;
+  state.mode.ghost.phase = 'material';
+  state.mode.ghost.phaseTime = 0;
+  protectGhostMaterialization(state, config);
   emitModeAction(state, events, 'ghost', 'ghost-phase-end');
 }
 
@@ -914,7 +919,8 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     return;
   }
 
-  if (state.player.invulnerableTime > 0 || (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') || (state.mode.active === 'stork' && state.mode.stork.phase === 'vaulting')) {
+  if (state.player.invulnerableTime > 0
+    || (state.mode.active === 'stork' && state.mode.stork.phase === 'vaulting')) {
     state.player.vy = normalY * Math.max(1, Math.abs(state.player.vy) * 0.25);
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
     return;
@@ -1259,11 +1265,13 @@ function resolveObstacleCollision(
     return;
   }
 
-  if (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') {
+  if (state.mode.active === 'ghost') {
     if (!hasCollisionGrace(state, obstacle.id)) {
       grantCollisionGrace(state, obstacle.id);
       events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'phase' });
     }
+    // Pipe phasing is an intrinsic property of the ghost form. It must not
+    // depend on a held input or on the transient visual/energy phase state.
     if (!obstacle.ghostPhaseAwarded) {
       obstacle.ghostPhaseAwarded = true;
       awardStyle(state, events, config, 'ghost-phase', obstacle.id, config.scoring.ghostPhase);

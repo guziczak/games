@@ -706,11 +706,77 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(tempered.state.score.style).toBe(ACTION_CONFIG.scoring.steelTemper);
   });
 
-  it('keeps one ghost phase deterministic through depletion and safe materialization inside a gate', () => {
+  it('lets a material ghost naturally enter, remain inside, and leave a pipe without a fatal collision', () => {
+    const source = startMode(createInitialGameState(212, ACTION_CONFIG), 'ghost', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.invulnerableTime = 0;
+    source.player.y = 3;
+    source.world.obstacles.push(makeObstacle({
+      id: 'material-ghost-wall',
+      x: source.player.x + ACTION_CONFIG.player.radiusX + 1.2,
+      width: 2,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+
+    let state = source;
+    const events: GameEvent[] = [];
+    let protectedContactTicks = 0;
+    for (let tick = 0; tick < 120 && !state.world.obstacles[0]?.passed; tick += 1) {
+      const result = stepSimulation(state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      state = result.state;
+      events.push(...result.events);
+      if (state.player.collisionGraceEntityIds.includes('material-ghost-wall')) {
+        protectedContactTicks += 1;
+      }
+    }
+
+    expect(state.status).toBe('running');
+    expect(state.mode.active).toBe('ghost');
+    expect(state.mode.ghost.phase).toBe('material');
+    expect(state.world.obstacles[0]?.passed).toBe(true);
+    expect(protectedContactTicks).toBeGreaterThan(3);
+    expect(state.player.collisionGraceEntityIds).not.toContain('material-ghost-wall');
+    expect(events.filter((event) => event.type === 'collision'
+      && event.entityId === 'material-ghost-wall'
+      && event.outcome === 'phase')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'ghost-phase'
+      && event.entityId === 'material-ghost-wall')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'obstacle-pass'
+      && event.entityId === 'material-ghost-wall')).toHaveLength(1);
+  });
+
+  it('does not let either ghost phase ignore the floor or ceiling', () => {
+    for (const phase of ['material', 'phasing'] as const) {
+      for (const boundary of ['floor', 'ceiling'] as const) {
+        const seed = 214 + (phase === 'phasing' ? 2 : 0) + (boundary === 'ceiling' ? 1 : 0);
+        const source = startMode(createInitialGameState(seed, ACTION_CONFIG), 'ghost', ACTION_CONFIG).state;
+        source.world.spawnTimer = 999;
+        source.player.invulnerableTime = 0;
+        source.mode.ghost.phase = phase;
+        source.player.y = boundary === 'floor'
+          ? ACTION_CONFIG.player.radiusY - 0.01
+          : ACTION_CONFIG.world.height - ACTION_CONFIG.player.radiusY + 0.01;
+
+        const result = stepSimulation(source, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+        expect(result.state.status).toBe('dead');
+        expect(result.events).toContainEqual(expect.objectContaining({
+          type: 'collision',
+          entityId: `boundary-${boundary}`,
+          outcome: 'fatal',
+        }));
+      }
+    }
+  });
+
+  it('keeps pipe grace through ghost mode expiry and clears it after the pass', () => {
     const source = startMode(createInitialGameState(206, ACTION_CONFIG), 'ghost', ACTION_CONFIG).state;
     source.world.spawnTimer = 999;
+    source.player.invulnerableTime = 0;
     source.player.y = 3;
-    source.mode.ghost.energy = ACTION_CONFIG.modes.ghost.minimumPhaseEnergy;
     source.world.obstacles.push(makeObstacle({
       id: 'ghost-wall',
       x: source.player.x,
@@ -720,26 +786,22 @@ describe('Sky Dodge 2.0 simulation', () => {
       gapSize: 2,
     }));
 
-    let result = stepSimulation(source, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
-    const phaseTime = result.state.mode.ghost.phaseTime;
+    let result = stepSimulation(source, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
     const events: GameEvent[] = [...result.events];
-    result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
+    expect(result.state.mode.ghost.phase).toBe('material');
+    expect(result.state.player.collisionGraceEntityIds).toContain('ghost-wall');
+    result.state.mode.remaining = ACTION_CONFIG.fixedStep / 2;
+    result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
     events.push(...result.events);
-    expect(result.state.mode.ghost.phaseTime).toBeGreaterThan(phaseTime);
-    expect(result.events.some((event) => event.type === 'mode-action'
-      && event.action === 'ghost-phase-start')).toBe(false);
+    expect(result.state.mode.active).toBe('normal');
+    expect(result.state.player.collisionGraceEntityIds).toContain('ghost-wall');
 
     for (let tick = 0; tick < 60 && !result.state.world.obstacles[0]?.passed; tick += 1) {
       result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
       events.push(...result.events);
     }
     expect(result.state.status).toBe('running');
-    expect(result.state.mode.ghost.phase).toBe('material');
     expect(result.state.player.collisionGraceEntityIds).not.toContain('ghost-wall');
-    expect(events.filter((event) => event.type === 'mode-action'
-      && event.action === 'ghost-phase-start')).toHaveLength(1);
-    expect(events.filter((event) => event.type === 'mode-action'
-      && event.action === 'ghost-phase-end')).toHaveLength(1);
     expect(events.filter((event) => event.type === 'collision'
       && event.entityId === 'ghost-wall'
       && event.outcome === 'phase')).toHaveLength(1);

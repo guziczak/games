@@ -483,7 +483,7 @@ export class App {
       case 'steel':
         return state.mode.steel.heat / this.simulation.config.modes.steel.maximumHeat;
       case 'ghost':
-        return state.mode.ghost.energy / this.simulation.config.modes.ghost.maximumEnergy;
+        return null;
       case 'stork':
         return state.mode.stork.energy / this.simulation.config.modes.stork.maximumEnergy;
       default:
@@ -496,7 +496,7 @@ export class App {
       case 'frog': return 'Ładunek żabiego skoku';
       case 'rubber': return 'Naciąg kauczukowej procy';
       case 'steel': return 'Temperatura stali';
-      case 'ghost': return 'Energia fazowania';
+      case 'ghost': return 'Automatyczne przenikanie';
       case 'stork': return 'Energia pika';
       default: return 'Zasób trybu';
     }
@@ -560,9 +560,7 @@ export class App {
       case 'steel':
         return { touch: 'TAPNIJ · LOT • UDERZENIA GRZEJĄ STAL', keyboard: 'SPACJA / ↑ · LOT • UDERZENIA GRZEJĄ STAL' };
       case 'ghost':
-        return state.mode.ghost.phase === 'phasing'
-          ? { touch: 'TRZYMAJ · PRZENIKASZ • PUŚĆ · WRÓĆ', keyboard: 'TRZYMAJ SPACJĘ · PRZENIKASZ • PUŚĆ · WRÓĆ' }
-          : { touch: 'TAPNIJ I TRZYMAJ · MACHNIJ + PRZENIKAJ', keyboard: 'TRZYMAJ SPACJĘ · MACHNIJ + PRZENIKAJ' };
+        return { touch: 'TAPNIJ · LOT • RURY PRZENIKASZ AUTOMATYCZNIE', keyboard: 'SPACJA / ↑ · LOT • RURY PRZENIKASZ AUTOMATYCZNIE' };
       case 'stork':
         if (storkActionState === 'aiming') {
           return { touch: 'PRZESUŃ ↑↓ • PUŚĆ PIK', keyboard: 'STRZAŁKI ↑↓ • PUŚĆ E' };

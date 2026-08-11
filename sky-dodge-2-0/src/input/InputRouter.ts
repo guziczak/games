@@ -4,7 +4,7 @@ import { DoubleTapGuard } from './DoubleTapGuard';
 
 export type InputDispatcher = (action: InputAction) => void;
 
-type AbilityOwner = 'frog' | 'rubber' | 'ghost' | 'stork';
+type AbilityOwner = 'frog' | 'rubber' | 'stork';
 type PointerOwner = 'flap' | AbilityOwner;
 
 interface ActivePointer {
@@ -67,7 +67,7 @@ function isAbilityOwner(owner: PointerOwner): owner is AbilityOwner {
 
 function canvasOwnerFor(mode: ModeId, frogPhase: FrogModeState['phase']): PointerOwner {
   if (mode === 'frog' && frogPhase !== 'airborne') return 'frog';
-  if (mode === 'rubber' || mode === 'ghost') return mode;
+  if (mode === 'rubber') return mode;
   return 'flap';
 }
 
@@ -330,10 +330,7 @@ export class InputRouter {
 
     if (owner === 'flap') {
       if (!touchFallbackAlreadyFlapped) this.emit({ type: 'flap' });
-    } else {
-      if (owner === 'ghost') this.emit({ type: 'flap' });
-      this.emit({ type: 'ability-start' });
-    }
+    } else this.emit({ type: 'ability-start' });
   };
 
   private readonly handleCanvasTouchStart = (event: TouchEvent): void => {
@@ -479,10 +476,7 @@ export class InputRouter {
       const owner = this.canvasOwner();
       if (owner === 'flap') {
         this.emit({ type: 'flap' });
-      } else {
-        if (owner === 'ghost') this.emit({ type: 'flap' });
-        this.beginKeyboardAbility(owner, 'Space');
-      }
+      } else this.beginKeyboardAbility(owner, 'Space');
       return;
     }
 

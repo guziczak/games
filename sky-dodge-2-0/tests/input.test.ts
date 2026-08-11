@@ -356,25 +356,17 @@ describe('InputRouter pointer input', () => {
     router.destroy();
   });
 
-  it('starts ghost phase together with its flap and releases or cancels cleanly', () => {
+  it('keeps ghost input as a normal flap because pipe phasing is automatic', () => {
     const { actions, canvas, document, router } = createRouter();
     router.setModeContext('ghost');
 
     emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 51 }));
     document.emit('pointerup', pointerEvent(canvas, { pointerId: 51 }));
-    expect(actions).toEqual([
-      { type: 'flap' },
-      { type: 'ability-start' },
-      { type: 'ability-release' },
-    ]);
+    expect(actions).toEqual([{ type: 'flap' }]);
 
     emitPointerDown(document, canvas, pointerEvent(canvas, { pointerId: 52 }));
     document.emit('pointercancel', pointerEvent(canvas, { pointerId: 52 }));
-    expect(actions.slice(-3)).toEqual([
-      { type: 'flap' },
-      { type: 'ability-start' },
-      { type: 'ability-cancel' },
-    ]);
+    expect(actions).toEqual([{ type: 'flap' }, { type: 'flap' }]);
     router.destroy();
   });
 
@@ -419,7 +411,7 @@ describe('InputRouter keyboard and lifecycle', () => {
     router.destroy();
   });
 
-  it('uses held Space for frog, rubber and ghost abilities', () => {
+  it('uses held Space for frog and rubber while ghost Space remains a flap', () => {
     const { actions, document, router } = createRouter();
 
     router.setModeContext('frog', 'clinging');
@@ -450,8 +442,6 @@ describe('InputRouter keyboard and lifecycle', () => {
       { type: 'ability-aim', vector: { x: 0, y: 0 } },
       { type: 'ability-release' },
       { type: 'flap' },
-      { type: 'ability-start' },
-      { type: 'ability-release' },
     ]);
 
     router.destroy();
