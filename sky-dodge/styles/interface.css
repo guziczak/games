@@ -37,6 +37,17 @@ body {
 #gameArea {
     isolation: isolate;
     touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* WebKit can start a selection from a nested HUD label even when the parent
+   disables it, so apply the gameplay-only invariant to descendants as well. */
+#gameArea * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 button,
