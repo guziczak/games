@@ -250,6 +250,7 @@ export class SceneRenderer {
     );
     const altitude = playerY / DEFAULT_GAME_CONFIG.world.height;
     const depth = this.projection.depthAt(playerX);
+    this.blobShadow.visible = state.mode.active !== 'ghost';
     this.blobShadow.position.set(
       this.projection.mapX(playerX),
       this.projection.mapY(0) + 0.025,

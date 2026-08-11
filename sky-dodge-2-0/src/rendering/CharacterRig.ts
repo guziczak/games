@@ -223,9 +223,9 @@ export class CharacterRig {
       }
       form.root.rotation.y = Math.sin(time * 2.5) * 0.035;
     } else if (mode === 'ghost') {
-      const phasing = state.mode.ghost.phase === 'phasing';
+      const spectralOpacity = 0.34 + Math.sin(time * 4.6) * 0.035;
       for (const material of form.ghostMaterials ?? []) {
-        material.opacity = phasing ? 0.3 : 0.58;
+        material.opacity = spectralOpacity;
       }
       form.root.position.y = Math.sin(time * 4) * 0.08;
       form.root.scale.set(1, 1 + Math.sin(time * 5) * 0.04, 1);
@@ -627,7 +627,9 @@ export class CharacterRig {
     return {
       root,
       wings: [wing],
-      ghostMaterials: [spectral, spectralLight, eyeMaterial],
+      // The whole form is intrinsically intangible. Keep the eye readable while
+      // the body continuously breathes at a spectral opacity.
+      ghostMaterials: [spectral, spectralLight],
     };
   }
 

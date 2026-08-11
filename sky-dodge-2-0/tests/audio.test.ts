@@ -141,6 +141,7 @@ describe('AudioEngine', () => {
       { type: 'mutation-selected', tick: 1, time: 1, offerId: 'offer-1', mode: 'frog', lane: 'upper' },
       { type: 'mode-entered', tick: 1, time: 1, mode: 'frog', duration: 8 },
       ...actionEvents,
+      { type: 'collision', tick: 1, time: 1, entityId: 'gate-2', outcome: 'phase' },
       { type: 'collision', tick: 1, time: 1, entityId: 'gate-1', outcome: 'shielded' },
       { type: 'combo-changed', tick: 1, time: 1, links: 3, multiplier: 1.5 },
       { type: 'combo-expired', tick: 1, time: 1 },

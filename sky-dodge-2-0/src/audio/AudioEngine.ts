@@ -250,6 +250,9 @@ export class AudioEngine {
           if (event.outcome === 'destroy') this.playSteelImpact(entityPan, false);
           else if (event.outcome === 'bounce') this.playRubberBounce(entityPan);
           else if (event.outcome === 'cling') this.playFrogCling(entityPan);
+          else if (event.outcome === 'phase') {
+            this.cue('ghost-pass', 0.09, () => this.playGhostPass(entityPan));
+          }
           else if (event.outcome === 'shielded') this.playShield(entityPan);
           break;
         case 'combo-changed':
@@ -823,6 +826,36 @@ export class AudioEngine {
     this.tone(voice, { type: 'sine', frequency: entering ? 290 : 660, endFrequency: entering ? 690 : 315, duration: 0.3, gain: 0.062, filter: { type: 'bandpass', frequency: 820, q: 1.2 }, pan: entering ? -0.2 : 0.2 });
     this.tone(voice, { at: 0.035, type: 'sine', frequency: entering ? 435 : 520, endFrequency: entering ? 830 : 250, duration: 0.28, gain: 0.033, pan: entering ? 0.2 : -0.2 });
     this.noise(voice, { duration: 0.29, gain: 0.024, frequency: 1_300, q: 0.5 });
+  }
+
+  private playGhostPass(pan: number): void {
+    const voice = this.createVoice(0.48, 5, false, 0.42);
+    if (!voice) return;
+    this.noise(voice, {
+      duration: 0.34,
+      gain: 0.035,
+      frequency: 1_720,
+      q: 0.7,
+      pan,
+    });
+    this.tone(voice, {
+      type: 'sine',
+      frequency: 270,
+      endFrequency: 820,
+      duration: 0.36,
+      gain: 0.052,
+      filter: { type: 'bandpass', frequency: 960, q: 1.1 },
+      pan,
+    });
+    this.tone(voice, {
+      at: 0.055,
+      type: 'sine',
+      frequency: 610,
+      endFrequency: 245,
+      duration: 0.31,
+      gain: 0.026,
+      pan: -pan * 0.55,
+    });
   }
 
   private playCombo(multiplier: number): void {
