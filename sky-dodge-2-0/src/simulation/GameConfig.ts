@@ -28,6 +28,7 @@ export interface GameConfig {
     readonly maxVelocityY: number;
     readonly horizontalRecovery: number;
     readonly maxHorizontalRecoverySpeed: number;
+    readonly floorRecoveryVelocity: number;
   };
   readonly obstacle: {
     readonly width: number;
@@ -148,6 +149,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     maxVelocityY: 7,
     horizontalRecovery: 8,
     maxHorizontalRecoverySpeed: 4.5,
+    floorRecoveryVelocity: 3.4,
   }),
   obstacle: Object.freeze({
     width: 0.9,

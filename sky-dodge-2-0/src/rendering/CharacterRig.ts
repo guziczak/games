@@ -11,6 +11,7 @@ interface FormParts {
   readonly aimGuide?: THREE.Group;
   readonly vaultTrail?: THREE.Mesh;
   readonly heatMaterials?: readonly THREE.MeshStandardMaterial[];
+  readonly heatIndicatorMaterial?: THREE.MeshStandardMaterial;
   readonly ghostMaterials?: readonly THREE.MeshStandardMaterial[];
 }
 
@@ -201,8 +202,18 @@ export class CharacterRig {
         1,
       );
       for (const material of form.heatMaterials ?? []) {
-        material.emissive.setRGB(0.75 * heat, 0.12 * heat, 0.01);
-        material.emissiveIntensity = state.mode.steel.critical ? 1.25 : 0.5;
+        // Keep the armour recognisably steel: heat blooms through its seams instead
+        // of tinting the whole silhouette into an orange rubber-like character.
+        material.emissive.setRGB(0.014 + 0.026 * heat, 0.024, 0.034);
+        material.emissiveIntensity = state.mode.steel.critical ? 0.86 : 0.54;
+      }
+      if (form.heatIndicatorMaterial) {
+        form.heatIndicatorMaterial.emissive.setRGB(0.92, 0.19 + 0.28 * (1 - heat), 0.015);
+        form.heatIndicatorMaterial.emissiveIntensity = 0.78 + heat * 1.25;
+      }
+      if (form.accent) {
+        const reactorPulse = 1 + heat * 0.16 + Math.sin(time * (6 + heat * 10)) * 0.055;
+        form.accent.scale.setScalar(reactorPulse);
       }
       form.root.rotation.y = Math.sin(time * 2.5) * 0.035;
     } else if (mode === 'ghost') {
@@ -510,8 +521,8 @@ export class CharacterRig {
     const beakGeometry = this.trackGeometry(new THREE.ConeGeometry(0.19, 0.48, 4));
     beakGeometry.rotateZ(-Math.PI / 2);
 
-    const armour = this.standard(0x93a7b7, 0.28, 0.82, true);
-    const brightArmour = this.standard(0xd8edf4, 0.2, 0.9, true);
+    const armour = this.standard(0x6e91a8, 0.28, 0.82, true);
+    const brightArmour = this.standard(0xc2dce5, 0.2, 0.9, true);
     const darkMetal = this.standard(0x273c4b, 0.32, 0.88, true);
     const eyeMaterial = this.standard(0xffc54a, 0.2, 0.35, true);
 
@@ -561,6 +572,7 @@ export class CharacterRig {
       wings: [wing],
       accent: reactor,
       heatMaterials: [armour, brightArmour],
+      heatIndicatorMaterial: eyeMaterial,
     };
   }
 
@@ -619,6 +631,7 @@ export class CharacterRig {
     const sphere = this.trackGeometry(new THREE.SphereGeometry(0.52, 18, 12));
     const neckGeometry = this.trackGeometry(new THREE.CapsuleGeometry(0.14, 0.78, 5, 10));
     const legGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.025, 0.035, 0.78, 6));
+    const footGeometry = this.trackGeometry(new THREE.CapsuleGeometry(0.028, 0.28, 3, 6));
     const beakGeometry = this.trackGeometry(new THREE.ConeGeometry(0.13, 0.88, 5));
     beakGeometry.rotateZ(-Math.PI / 2);
 
@@ -689,10 +702,7 @@ export class CharacterRig {
       const leg = new THREE.Mesh(legGeometry, red);
       leg.position.set(x, -0.7, 0.05);
       root.add(leg);
-      const foot = new THREE.Mesh(
-        this.trackGeometry(new THREE.CapsuleGeometry(0.028, 0.28, 3, 6)),
-        red,
-      );
+      const foot = new THREE.Mesh(footGeometry, red);
       foot.position.set(x + 0.1, -1.1, 0.06);
       foot.rotation.z = Math.PI / 2;
       root.add(foot);

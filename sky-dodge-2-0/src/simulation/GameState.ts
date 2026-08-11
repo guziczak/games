@@ -18,6 +18,7 @@ export interface PlayerState {
   vx: number;
   vy: number;
   invulnerableTime: number;
+  floorRecoveryAvailable: boolean;
   collisionGraceEntityIds: string[];
 }
 
@@ -234,6 +235,7 @@ export function createInitialGameState(
       vx: 0,
       vy: 0,
       invulnerableTime: 0,
+      floorRecoveryAvailable: false,
       collisionGraceEntityIds: [],
     },
     world: {

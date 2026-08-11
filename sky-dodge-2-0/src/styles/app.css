@@ -681,9 +681,19 @@ kbd {
   }
 
   .hero-copy {
-    width: calc(100vw - 44px - var(--safe-left) - var(--safe-right));
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    justify-self: stretch;
     margin: 0;
     padding-bottom: max(3vh, 12px);
+  }
+
+  .game-title,
+  .lead,
+  .controls-copy,
+  .primary-button,
+  .audio-note {
+    max-width: 100%;
   }
 
   h1 {

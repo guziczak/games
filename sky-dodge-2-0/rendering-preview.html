@@ -34,6 +34,29 @@ state.dna.value = 100;
 state.dna.offer = { id: 'offer-a', x: 14.8, upperY: 7, lowerY: 3, upper: 'ghost', lower: 'steel' };
 const renderer = new SceneRenderer(canvas, { quality: 'high', reducedMotion: false });
 const draw = () => { renderer.resize(); renderer.render(state, .45, []); };
+(window).__sky2Preview = { renderer, state, draw };
 addEventListener('resize', draw);
 draw();
+if (new URLSearchParams(location.search).has('benchmark')) {
+  const core = renderer.renderer;
+  const start = performance.now();
+  for (let frame = 0; frame < 180; frame += 1) {
+    state.clock.elapsed += 1 / 60;
+    renderer.render(state, frame % 2 ? .25 : .75, []);
+  }
+  const elapsed = performance.now() - start;
+  const beforeReset = { ...core.info.memory, ...core.info.render };
+  renderer.reset();
+  renderer.render(state, .5, []);
+  const afterReset = { ...core.info.memory, ...core.info.render };
+  renderer.destroy();
+  const afterDestroy = { ...core.info.memory, ...core.info.render };
+  document.documentElement.dataset.benchmark = JSON.stringify({
+    elapsed,
+    average: elapsed / 180,
+    beforeReset,
+    afterReset,
+    afterDestroy,
+  });
+}
 </script></body></html>

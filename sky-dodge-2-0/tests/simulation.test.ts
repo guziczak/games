@@ -184,7 +184,7 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(() => JSON.stringify(stork)).not.toThrow();
   });
 
-  it('lands a stork safely without event spam and lets a flap leave the floor', () => {
+  it('gives a stork exactly one floor recovery and never restores it by camping or flapping', () => {
     const source = startMode(
       createInitialGameState(91, DEFAULT_GAME_CONFIG),
       'stork',
@@ -202,21 +202,13 @@ describe('Sky Dodge 2.0 simulation', () => {
       DEFAULT_GAME_CONFIG,
     );
     expect(landing.state.status).toBe('running');
-    expect(landing.state.player.vy).toBe(0);
+    expect(landing.state.player.vy).toBe(DEFAULT_GAME_CONFIG.player.floorRecoveryVelocity);
+    expect(landing.state.player.floorRecoveryAvailable).toBe(false);
     expect(landing.events).toContainEqual(expect.objectContaining({
       type: 'collision',
       entityId: 'boundary-floor',
       outcome: 'shielded',
     }));
-
-    const floorEvents = [...landing.events];
-    for (let tick = 0; tick < 60; tick += 1) {
-      const result = stepSimulation(landing.state, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
-      landing = result;
-      floorEvents.push(...result.events);
-    }
-    expect(landing.state.status).toBe('running');
-    expect(floorEvents.filter((event) => event.type === 'collision' && event.entityId === 'boundary-floor')).toHaveLength(1);
 
     const airborne = stepSimulation(
       landing.state,
@@ -226,6 +218,7 @@ describe('Sky Dodge 2.0 simulation', () => {
     );
     expect(airborne.state.player.y).toBeGreaterThan(DEFAULT_GAME_CONFIG.player.radiusY);
     expect(airborne.state.player.vy).toBeGreaterThan(0);
+    expect(airborne.state.player.floorRecoveryAvailable).toBe(false);
 
     const secondFall = cloneGameState(airborne.state);
     secondFall.player.invulnerableTime = 0;
@@ -237,27 +230,35 @@ describe('Sky Dodge 2.0 simulation', () => {
       undefined,
       DEFAULT_GAME_CONFIG,
     );
-    expect(secondLanding.state.status).toBe('running');
-    expect(secondLanding.events.filter((event) => event.type === 'collision' && event.entityId === 'boundary-floor')).toHaveLength(1);
-
-    const obstacleHit = cloneGameState(secondLanding.state);
-    obstacleHit.player.invulnerableTime = 0;
-    obstacleHit.player.y = 2;
-    obstacleHit.player.vy = 0;
-    obstacleHit.world.obstacles.push(makeObstacle({
-      id: 'stork-lethal-gate',
-      x: obstacleHit.player.x,
-      gapCenter: 5,
-      baseGapCenter: 5,
-      gapSize: 2,
-    }));
-    const fatalObstacle = stepSimulation(obstacleHit, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
-    expect(fatalObstacle.state.status).toBe('dead');
-    expect(fatalObstacle.events).toContainEqual(expect.objectContaining({
+    expect(secondLanding.state.status).toBe('dead');
+    expect(secondLanding.events).toContainEqual(expect.objectContaining({
       type: 'collision',
-      entityId: 'stork-lethal-gate',
+      entityId: 'boundary-floor',
       outcome: 'fatal',
     }));
+
+    const camper = startMode(
+      createInitialGameState(92, DEFAULT_GAME_CONFIG),
+      'stork',
+      DEFAULT_GAME_CONFIG,
+    ).state;
+    camper.player.invulnerableTime = 0;
+    camper.world.spawnTimer = 999;
+    camper.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
+    camper.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
+    let camping = stepSimulation(camper, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
+    const floorEvents = [...camping.events];
+    for (let tick = 0; tick < 90 && camping.state.status === 'running'; tick += 1) {
+      camping = stepSimulation(camping.state, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
+      floorEvents.push(...camping.events);
+    }
+    expect(camping.state.status).toBe('dead');
+    expect(floorEvents.filter((event) => event.type === 'collision'
+      && event.entityId === 'boundary-floor'
+      && event.outcome === 'shielded')).toHaveLength(1);
+    expect(floorEvents.filter((event) => event.type === 'collision'
+      && event.entityId === 'boundary-floor'
+      && event.outcome === 'fatal')).toHaveLength(1);
   });
 
   it('keeps a frog attached to the moving gate for the full cling window and releases safely', () => {
@@ -370,6 +371,276 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(lower.events.filter((event) => event.type === 'mutation-selected')).toHaveLength(1);
     expect(upper.state.dna.offer).toBeNull();
     expect(lower.state.dna.offer).toBeNull();
+  });
+
+  it('turns a side cling into a charged frog kick without entry-shield suppression or a teleport', () => {
+    const source = startMode(createInitialGameState(201, ACTION_CONFIG), 'frog', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.y = 4.2;
+    source.world.obstacles.push(makeObstacle({
+      id: 'frog-side-wall',
+      x: 5,
+      gapCenter: 6,
+      baseGapCenter: 6,
+      gapSize: 2,
+    }));
+
+    let result = stepSimulation(source, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+    expect(result.state.mode.frog.phase).toBe('clinging');
+    expect(result.state.mode.frog.surfaceNormalX).toBe(-1);
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'frog-side-wall',
+      outcome: 'cling',
+    }));
+
+    result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
+    const charged = runTicks(result.state, 24, ACTION_CONFIG);
+    const attachedX = charged.state.player.x;
+    const released = stepSimulation(
+      charged.state,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-release' }],
+      ACTION_CONFIG,
+    );
+
+    expect(released.state.mode.frog.phase).toBe('airborne');
+    expect(released.state.player.x).toBeLessThan(attachedX);
+    expect(released.state.player.vx).toBeLessThan(0);
+    expect(released.state.player.vy).toBeGreaterThan(0);
+    expect(released.state.status).toBe('running');
+    expect(released.events.filter((event) => event.type === 'mode-action'
+      && event.action === 'frog-launch')).toHaveLength(1);
+    expect(runTicks(released.state, 10, ACTION_CONFIG).state.status).toBe('running');
+  });
+
+  it('makes rubber quick taps useful, keeps duplicate starts idempotent, and scores one physical ricochet', () => {
+    const quickSource = startMode(createInitialGameState(202, ACTION_CONFIG), 'rubber', ACTION_CONFIG).state;
+    quickSource.world.spawnTimer = 999;
+    const quickTap = stepSimulation(quickSource, ACTION_CONFIG.fixedStep, [
+      { type: 'ability-start' },
+      { type: 'ability-release' },
+    ], ACTION_CONFIG);
+    expect(quickTap.state.mode.rubber.phase).toBe('flying');
+    expect(quickTap.state.player.vy).toBeGreaterThan(0);
+    expect(quickTap.events.filter((event) => event.type === 'flap' && event.mode === 'rubber')).toHaveLength(1);
+    expect(quickTap.events.filter((event) => event.type === 'mode-action'
+      && event.action === 'rubber-launch')).toHaveLength(1);
+
+    const source = startMode(createInitialGameState(203, ACTION_CONFIG), 'rubber', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.y = 3;
+    source.world.obstacles.push(makeObstacle({
+      id: 'rubber-wall',
+      x: 6,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+    const aiming = stepSimulation(source, ACTION_CONFIG.fixedStep, [
+      { type: 'ability-start' },
+      { type: 'ability-aim', vector: { x: -1, y: 0 } },
+    ], ACTION_CONFIG);
+    const duplicateStart = stepSimulation(
+      aiming.state,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-start' }],
+      ACTION_CONFIG,
+    );
+    expect(duplicateStart.state.mode.rubber.aim).toEqual({ x: -1, y: 0 });
+    expect(duplicateStart.state.mode.rubber.aimTime).toBeGreaterThan(aiming.state.mode.rubber.aimTime);
+    expect(duplicateStart.events.some((event) => event.type === 'mode-action'
+      && event.action === 'rubber-aim')).toBe(false);
+
+    let flight = stepSimulation(
+      duplicateStart.state,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-release' }],
+      ACTION_CONFIG,
+    );
+    const events: GameEvent[] = [...flight.events];
+    for (let tick = 0; tick < 30 && !events.some((event) => event.type === 'collision'
+      && event.entityId === 'rubber-wall'); tick += 1) {
+      flight = stepSimulation(flight.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      events.push(...flight.events);
+    }
+    const afterBounce = runTicks(flight.state, 5, ACTION_CONFIG);
+    events.push(...afterBounce.events);
+
+    expect(afterBounce.state.status).toBe('running');
+    expect(afterBounce.state.player.vx).toBeLessThan(0);
+    expect(Math.abs(afterBounce.state.player.vx)).toBeLessThanOrEqual(ACTION_CONFIG.modes.rubber.maxLaunchSpeed);
+    expect(events.filter((event) => event.type === 'collision'
+      && event.entityId === 'rubber-wall'
+      && event.outcome === 'bounce')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'rubber-ricochet'
+      && event.entityId === 'rubber-wall')).toHaveLength(1);
+  });
+
+  it('lets steel destroy through entry grace, overheat safely, and cash out an ideal temper once', () => {
+    let state = startMode(createInitialGameState(204, ACTION_CONFIG), 'steel', ACTION_CONFIG).state;
+    state.world.spawnTimer = 999;
+    state.player.y = 3;
+    const events: GameEvent[] = [];
+
+    for (let hit = 1; hit <= 3; hit += 1) {
+      state.world.obstacles.push(makeObstacle({
+        id: `steel-wall-${hit}`,
+        x: state.player.x,
+        gapCenter: 7,
+        baseGapCenter: 7,
+        gapSize: 2,
+      }));
+      const result = stepSimulation(state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      state = result.state;
+      events.push(...result.events);
+    }
+
+    expect(events.filter((event) => event.type === 'collision' && event.outcome === 'destroy')).toHaveLength(3);
+    expect(events.filter((event) => event.type === 'score-awarded' && event.kind === 'steel-break')).toHaveLength(3);
+    expect(events.filter((event) => event.type === 'mode-action' && event.action === 'steel-critical')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'mode-action' && event.action === 'steel-overheat')).toHaveLength(1);
+    expect(state.mode.active).toBe('normal');
+    expect(state.status).toBe('running');
+
+    state.world.obstacles.push(makeObstacle({
+      id: 'post-overheat-wall',
+      x: state.player.x,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+    const protectedFrame = stepSimulation(state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+    expect(protectedFrame.state.status).toBe('running');
+    expect(protectedFrame.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'post-overheat-wall',
+      outcome: 'shielded',
+    }));
+
+    const temperSource = startMode(createInitialGameState(205, ACTION_CONFIG), 'steel', ACTION_CONFIG).state;
+    temperSource.world.spawnTimer = 999;
+    temperSource.mode.steel.heat = 80;
+    temperSource.mode.steel.critical = true;
+    temperSource.mode.steel.timeSinceImpact = 0;
+    temperSource.mode.remaining = ACTION_CONFIG.fixedStep / 2;
+    const tempered = stepSimulation(temperSource, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+    const afterTemper = stepSimulation(tempered.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+    const temperEvents = [...tempered.events, ...afterTemper.events];
+    expect(tempered.state.mode.active).toBe('normal');
+    expect(temperEvents.filter((event) => event.type === 'mode-action'
+      && event.action === 'steel-temper')).toHaveLength(1);
+    expect(temperEvents.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'steel-temper')).toHaveLength(1);
+    expect(tempered.state.score.style).toBe(ACTION_CONFIG.scoring.steelTemper);
+  });
+
+  it('keeps one ghost phase deterministic through depletion and safe materialization inside a gate', () => {
+    const source = startMode(createInitialGameState(206, ACTION_CONFIG), 'ghost', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.y = 3;
+    source.mode.ghost.energy = ACTION_CONFIG.modes.ghost.minimumPhaseEnergy;
+    source.world.obstacles.push(makeObstacle({
+      id: 'ghost-wall',
+      x: source.player.x,
+      width: 2,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+
+    let result = stepSimulation(source, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
+    const phaseTime = result.state.mode.ghost.phaseTime;
+    const events: GameEvent[] = [...result.events];
+    result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
+    events.push(...result.events);
+    expect(result.state.mode.ghost.phaseTime).toBeGreaterThan(phaseTime);
+    expect(result.events.some((event) => event.type === 'mode-action'
+      && event.action === 'ghost-phase-start')).toBe(false);
+
+    for (let tick = 0; tick < 60 && !result.state.world.obstacles[0]?.passed; tick += 1) {
+      result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      events.push(...result.events);
+    }
+    expect(result.state.status).toBe('running');
+    expect(result.state.mode.ghost.phase).toBe('material');
+    expect(result.state.player.collisionGraceEntityIds).not.toContain('ghost-wall');
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'ghost-phase-start')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'ghost-phase-end')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'collision'
+      && event.entityId === 'ghost-wall'
+      && event.outcome === 'phase')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'ghost-phase'
+      && event.entityId === 'ghost-wall')).toHaveLength(1);
+  });
+
+  it('auto-commits a late locked PIK, finishes it after expiry, and scores only on the real pass', () => {
+    const source = startMode(createInitialGameState(207, ACTION_CONFIG), 'stork', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.y = 4.2;
+    source.mode.remaining = ACTION_CONFIG.fixedStep / 2;
+    source.world.obstacles.push(makeObstacle({
+      id: 'late-pik-wall',
+      x: 5.05,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+
+    let result = stepSimulation(source, ACTION_CONFIG.fixedStep, [{ type: 'ability-start' }], ACTION_CONFIG);
+    const events: GameEvent[] = [...result.events];
+    expect(result.state.mode.stork.phase).toBe('aiming');
+    expect(result.state.mode.remaining).toBe(0);
+
+    for (let tick = 0; tick < 10 && result.state.mode.stork.phase === 'aiming'; tick += 1) {
+      result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      events.push(...result.events);
+    }
+    expect(result.state.mode.stork.phase).toBe('vaulting');
+    expect(result.state.world.obstacles[0]?.storkVaultCommitted).toBe(true);
+    expect(result.state.player.collisionGraceEntityIds).toContain('late-pik-wall');
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'stork-vault')).toHaveLength(0);
+
+    for (let tick = 0; tick < 80 && !result.state.world.obstacles[0]?.passed; tick += 1) {
+      result = stepSimulation(result.state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      events.push(...result.events);
+    }
+    expect(result.state.status).toBe('running');
+    expect(result.state.mode.active).toBe('normal');
+    expect(result.state.world.obstacles[0]?.passed).toBe(true);
+    expect(result.state.player.collisionGraceEntityIds).not.toContain('late-pik-wall');
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'stork-vault-start')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'stork-vault-end')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'collision'
+      && event.entityId === 'late-pik-wall'
+      && event.outcome === 'vault')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'stork-vault'
+      && event.entityId === 'late-pik-wall')).toHaveLength(1);
+  });
+
+  it('preserves a committed launch impulse when a form expires on the release tick', () => {
+    const source = startMode(createInitialGameState(208, ACTION_CONFIG), 'rubber', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.mode.remaining = ACTION_CONFIG.fixedStep / 2;
+    const released = stepSimulation(source, ACTION_CONFIG.fixedStep, [
+      { type: 'ability-start' },
+      { type: 'ability-aim', vector: { x: -1, y: 0 } },
+      { type: 'ability-release' },
+    ], ACTION_CONFIG);
+
+    expect(released.state.mode.active).toBe('normal');
+    expect(released.state.player.x).toBeGreaterThan(ACTION_CONFIG.player.startX);
+    expect(released.state.player.vx).toBeGreaterThan(0);
+    expect(released.state.player.invulnerableTime).toBeGreaterThan(0);
+    expect(released.state.status).toBe('running');
   });
 
   it('executes real input and collision outcomes for all five forms', () => {

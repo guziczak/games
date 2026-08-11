@@ -327,7 +327,7 @@ function exitModeMutable(
       ? config.modes.steel.overheatGrace
       : 0.15;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, grace);
-  state.player.vx = 0;
+  state.player.floorRecoveryAvailable = false;
   resetModeRuntime(state, config);
 }
 
@@ -342,6 +342,7 @@ function enterModeMutable(
   clean.active = mode;
   clean.remaining = modeDuration(mode, config);
   state.mode = clean;
+  state.player.floorRecoveryAvailable = mode === 'stork';
   state.player.vx = 0;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, 0.25);
   events.push({
@@ -564,7 +565,7 @@ function processInput(
       if (activeMode === 'frog' && state.mode.frog.phase === 'clinging') {
         state.mode.frog.phase = 'charging';
         state.mode.frog.charge = 0;
-      } else if (activeMode === 'rubber') {
+      } else if (activeMode === 'rubber' && state.mode.rubber.phase !== 'aiming') {
         state.mode.rubber.phase = 'aiming';
         state.mode.rubber.aim = { x: 0, y: 0 };
         state.mode.rubber.aimTime = 0;
@@ -572,7 +573,9 @@ function processInput(
         state.player.vx = 0;
         state.player.vy = 0;
         emitModeAction(state, events, 'rubber', 'rubber-aim');
-      } else if (activeMode === 'ghost' && state.mode.ghost.energy >= config.modes.ghost.minimumPhaseEnergy) {
+      } else if (activeMode === 'ghost'
+        && state.mode.ghost.phase === 'material'
+        && state.mode.ghost.energy >= config.modes.ghost.minimumPhaseEnergy) {
         state.mode.ghost.phase = 'phasing';
         state.mode.ghost.phaseTime = 0;
         emitModeAction(state, events, 'ghost', 'ghost-phase-start');
@@ -880,11 +883,15 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
   }
 
   if (below && state.mode.active === 'stork') {
-    state.player.vy = 0;
-    if (!state.mode.stork.floorContactLatched) {
+    if (state.player.floorRecoveryAvailable) {
+      state.player.floorRecoveryAvailable = false;
       state.mode.stork.floorContactLatched = true;
+      state.player.vy = config.player.floorRecoveryVelocity;
       events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
+      return;
     }
+    events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'fatal' });
+    failRun(state, events, 'boundary', entityId);
     return;
   }
 
@@ -1207,6 +1214,14 @@ function resolveObstacleCollision(
       gainDna(state, events, config, config.dna.maneuver);
     }
     return;
+  }
+
+  if (state.mode.active === 'stork'
+    && state.mode.stork.phase === 'aiming'
+    && state.mode.stork.lockedTargetId === obstacle.id) {
+    // A late but valid PIK cannot become a trap just because the gate reaches
+    // the bird during the short aiming window. Commit the already locked move.
+    releaseStorkVault(state, events, config);
   }
 
   if (state.mode.active === 'stork'
