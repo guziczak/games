@@ -26,6 +26,7 @@ export interface GameConfig {
     readonly flapVelocity: number;
     readonly minVelocityY: number;
     readonly maxVelocityY: number;
+    readonly floorRecoveryVelocity: number;
     readonly horizontalRecovery: number;
     readonly maxHorizontalRecoverySpeed: number;
   };
@@ -49,6 +50,7 @@ export interface GameConfig {
     readonly frogCatapult: number;
     readonly rubberRicochet: number;
     readonly steelBreak: number;
+    readonly steelTemper: number;
     readonly ghostPhase: number;
     readonly storkVault: number;
   };
@@ -88,6 +90,7 @@ export interface GameConfig {
       readonly maxLaunchSpeed: number;
       readonly restitution: number;
       readonly tangentialDamping: number;
+      readonly minimumScoredImpactSpeed: number;
       readonly worldScaleWhileAiming: number;
       readonly maxScoredBounces: number;
     };
@@ -144,6 +147,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     flapVelocity: 6,
     minVelocityY: -9,
     maxVelocityY: 7,
+    // One low bounce gives a missed mobile tap a short coyote window.  The
+    // recovery is consumed until a real flap edge rearms it.
+    floorRecoveryVelocity: 3.4,
     horizontalRecovery: 8,
     maxHorizontalRecoverySpeed: 4.5,
   }),
@@ -167,6 +173,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     frogCatapult: 150,
     rubberRicochet: 175,
     steelBreak: 100,
+    steelTemper: 250,
     ghostPhase: 125,
     storkVault: 200,
   }),
@@ -211,6 +218,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
       maxLaunchSpeed: 11,
       restitution: 0.82,
       tangentialDamping: 0.9,
+      minimumScoredImpactSpeed: 4,
       worldScaleWhileAiming: 0.25,
       maxScoredBounces: 3,
     }),

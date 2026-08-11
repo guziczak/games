@@ -1,6 +1,7 @@
 import { AudioEngine } from '../audio/AudioEngine';
 import { InputRouter } from '../input/InputRouter';
 import { SceneRenderer } from '../rendering/SceneRenderer';
+import { getDifficultyTier } from '../simulation/GameConfig';
 import type { GameEvent } from '../simulation/GameEvents';
 import type { GameState, ModeId, MutationModeId } from '../simulation/GameState';
 import type { InputAction } from '../simulation/InputActions';
@@ -34,6 +35,8 @@ interface AppElements {
   readonly modeResource: HTMLElement;
   readonly modeResourceBar: HTMLElement;
   readonly combo: HTMLOutputElement;
+  readonly abilityTouchHint: HTMLElement;
+  readonly abilityKeyboardHint: HTMLElement;
   readonly mutationPrompt: HTMLElement;
   readonly finalScore: HTMLElement;
   readonly finalCombo: HTMLElement;
@@ -124,6 +127,8 @@ export class App {
       modeResource: requireElement(root, '#modeResource'),
       modeResourceBar: requireElement(root, '#modeResourceBar'),
       combo: requireElement(root, '#comboOutput'),
+      abilityTouchHint: requireElement(root, '#abilityTouchHint'),
+      abilityKeyboardHint: requireElement(root, '#abilityKeyboardHint'),
       mutationPrompt: requireElement(root, '#mutationPrompt'),
       finalScore: requireElement(root, '#finalScore'),
       finalCombo: requireElement(root, '#finalCombo'),
@@ -241,7 +246,7 @@ export class App {
     setPanelVisibility(this.elements.pauseScreen, false);
     setPanelVisibility(this.elements.gameOverScreen, false);
     setPanelVisibility(this.elements.startScreen, true);
-    this.elements.canvas.setAttribute('aria-hidden', 'false');
+    this.elements.canvas.setAttribute('aria-hidden', 'true');
     this.elements.startButton.focus({ preventScroll: true });
   }
 
@@ -273,8 +278,13 @@ export class App {
   private pauseRun(): void {
     if (this.phase !== 'running') return;
     this.stopAnimationLoop();
-    this.input?.reset();
+    // Drop stale actions first, then preserve the cancellation produced by
+    // reset so a held phase/charge cannot continue after resume.
     this.inputQueue.length = 0;
+    this.input?.reset();
+    this.input?.setStorkEnabled(false);
+    this.elements.storkButton.hidden = true;
+    this.elements.storkButton.disabled = true;
     this.phase = 'paused';
     this.root.dataset.phase = this.phase;
     setPanelVisibility(this.elements.pauseScreen, true);
@@ -287,6 +297,7 @@ export class App {
     setPanelVisibility(this.elements.pauseScreen, false);
     this.phase = 'running';
     this.root.dataset.phase = this.phase;
+    this.updateInterface(this.simulation.state);
     this.previousFrameTime = performance.now();
     this.animationFrame = requestAnimationFrame(this.runFrame);
     this.announce('Lot wznowiony.');
@@ -367,6 +378,7 @@ export class App {
 
   private updateInterface(state: Readonly<GameState>): void {
     const mode = state.mode.active;
+    this.root.dataset.mode = mode;
     this.elements.score.value = String(Math.round(state.score.total));
     this.elements.score.textContent = Math.round(state.score.total).toLocaleString('pl-PL');
     this.elements.coins.value = String(state.score.coins);
@@ -376,15 +388,24 @@ export class App {
     this.elements.dnaValue.value = String(dna);
     this.elements.dnaValue.textContent = `${dna}%`;
     this.elements.dnaTrack.setAttribute('aria-valuenow', String(dna));
+    this.elements.dnaTrack.setAttribute('aria-valuetext', `${dna} procent niestabilności DNA`);
     this.elements.dnaBar.style.width = `${dna}%`;
     this.elements.mutationPrompt.hidden = !state.dna.offer;
+    this.root.dataset.mutationOffer = state.dna.offer ? 'true' : 'false';
 
     this.elements.modeName.textContent = MODE_LABELS[mode];
     this.elements.modeTimer.value = mode === 'normal' ? '' : state.mode.remaining.toFixed(1);
     this.elements.modeTimer.textContent = mode === 'normal' ? '' : `${Math.max(0, state.mode.remaining).toFixed(1)} s`;
     const resource = this.modeResource(state);
     this.elements.modeResource.hidden = resource === null;
-    if (resource !== null) this.elements.modeResourceBar.style.width = `${Math.round(clamp01(resource) * 100)}%`;
+    if (resource !== null) {
+      const resourcePercent = Math.round(clamp01(resource) * 100);
+      const resourceLabel = this.modeResourceLabel(mode);
+      this.elements.modeResourceBar.style.width = `${resourcePercent}%`;
+      this.elements.modeResource.setAttribute('aria-label', resourceLabel);
+      this.elements.modeResource.setAttribute('aria-valuenow', String(resourcePercent));
+      this.elements.modeResource.setAttribute('aria-valuetext', `${resourceLabel}: ${resourcePercent} procent`);
+    }
 
     const comboVisible = state.combo.links > 1 && state.combo.expiresAt > state.clock.elapsed;
     this.elements.combo.value = comboVisible ? String(state.combo.multiplier) : '';
@@ -393,12 +414,24 @@ export class App {
       : '';
 
     const storkActive = mode === 'stork';
+    const storkAction = this.storkActionPresentation(state);
     this.elements.storkButton.hidden = !storkActive;
-    this.elements.storkButton.disabled = !storkActive || state.mode.stork.uses <= 0;
+    this.elements.storkButton.disabled = !storkActive || !storkAction.enabled;
     this.elements.storkButton.setAttribute('aria-pressed', String(state.mode.stork.phase === 'aiming'));
+    this.elements.storkButton.setAttribute('aria-label', storkAction.label);
+    this.elements.storkButton.title = storkAction.label;
+    this.elements.storkButton.dataset.state = storkAction.state;
     this.elements.storkUses.textContent = String(state.mode.stork.uses);
-    this.input?.setStorkEnabled(storkActive);
     this.input?.setModeContext(mode, state.mode.frog.phase);
+    this.input?.setStorkEnabled(storkActive && storkAction.enabled);
+
+    const hints = this.abilityHints(state, storkAction.state);
+    if (this.elements.abilityTouchHint.textContent !== hints.touch) {
+      this.elements.abilityTouchHint.textContent = hints.touch;
+    }
+    if (this.elements.abilityKeyboardHint.textContent !== hints.keyboard) {
+      this.elements.abilityKeyboardHint.textContent = hints.keyboard;
+    }
   }
 
   private modeResource(state: Readonly<GameState>): number | null {
@@ -408,17 +441,106 @@ export class App {
           ? state.mode.frog.charge / this.simulation.config.modes.frog.maxCharge
           : 0;
       case 'rubber':
-        return state.mode.rubber.phase === 'aiming'
-          ? state.mode.rubber.aimTime / this.simulation.config.modes.rubber.maxAimTime
-          : 1;
+        return Math.hypot(state.mode.rubber.aim.x, state.mode.rubber.aim.y);
       case 'steel':
-        return 1 - state.mode.steel.heat / this.simulation.config.modes.steel.maximumHeat;
+        return state.mode.steel.heat / this.simulation.config.modes.steel.maximumHeat;
       case 'ghost':
         return state.mode.ghost.energy / this.simulation.config.modes.ghost.maximumEnergy;
       case 'stork':
         return state.mode.stork.energy / this.simulation.config.modes.stork.maximumEnergy;
       default:
         return null;
+    }
+  }
+
+  private modeResourceLabel(mode: ModeId): string {
+    switch (mode) {
+      case 'frog': return 'Ładunek żabiego skoku';
+      case 'rubber': return 'Naciąg kauczukowej procy';
+      case 'steel': return 'Temperatura stali';
+      case 'ghost': return 'Energia fazowania';
+      case 'stork': return 'Energia pika';
+      default: return 'Zasób trybu';
+    }
+  }
+
+  private hasStorkTarget(state: Readonly<GameState>): boolean {
+    const speed = getDifficultyTier(state.world.passedObstacles, this.simulation.config).speed;
+    const maximumDistance = speed * this.simulation.config.modes.stork.lockLeadTime
+      + this.simulation.config.obstacle.width;
+    return state.world.obstacles.some((obstacle) => {
+      if (obstacle.destroyed || obstacle.passed) return false;
+      const distance = obstacle.x - state.player.x;
+      return distance >= 0 && distance <= maximumDistance;
+    });
+  }
+
+  private storkActionPresentation(state: Readonly<GameState>): {
+    readonly enabled: boolean;
+    readonly label: string;
+    readonly state: 'hidden' | 'ready' | 'aiming' | 'vaulting' | 'cooldown' | 'empty' | 'no-target';
+  } {
+    if (state.mode.active !== 'stork') {
+      return { enabled: false, label: 'Bociani PIK jest teraz niedostępny', state: 'hidden' };
+    }
+    const stork = state.mode.stork;
+    if (stork.phase === 'aiming') {
+      return { enabled: true, label: 'Przesuń palec w górę lub w dół i puść, aby wykonać PIK', state: 'aiming' };
+    }
+    if (stork.phase === 'vaulting') {
+      return { enabled: false, label: 'Bocian wykonuje PIK', state: 'vaulting' };
+    }
+    if (stork.uses <= 0 || stork.energy < this.simulation.config.modes.stork.useEnergy) {
+      return { enabled: false, label: 'Wykorzystano wszystkie PIKI', state: 'empty' };
+    }
+    if (stork.cooldown > 0) {
+      return { enabled: false, label: 'PIK odnawia się', state: 'cooldown' };
+    }
+    if (!this.hasStorkTarget(state)) {
+      return { enabled: false, label: 'Brak przeszkody w zasięgu PIKA', state: 'no-target' };
+    }
+    return { enabled: true, label: 'Przytrzymaj PIK, przesuń palec w górę lub w dół i puść', state: 'ready' };
+  }
+
+  private abilityHints(
+    state: Readonly<GameState>,
+    storkActionState: 'hidden' | 'ready' | 'aiming' | 'vaulting' | 'cooldown' | 'empty' | 'no-target',
+  ): { readonly touch: string; readonly keyboard: string } {
+    switch (state.mode.active) {
+      case 'frog':
+        if (state.mode.frog.phase === 'charging') {
+          return { touch: 'PUŚĆ · WYBIJ SIĘ', keyboard: 'PUŚĆ SPACJĘ · WYBIJ SIĘ' };
+        }
+        if (state.mode.frog.phase === 'clinging') {
+          return { touch: 'PRZYTRZYMAJ · ŁADUJ SKOK', keyboard: 'TRZYMAJ SPACJĘ · ŁADUJ SKOK' };
+        }
+        return { touch: 'TAPNIJ · LOT • PRZY RURZE PRZYTRZYMAJ', keyboard: 'SPACJA / ↑ · LOT • PRZY RURZE TRZYMAJ SPACJĘ' };
+      case 'rubber':
+        return state.mode.rubber.phase === 'aiming'
+          ? { touch: 'PRZECIĄGNIJ · CELUJ • PUŚĆ · WYSTRZEL', keyboard: 'SPACJA + STRZAŁKI · CELUJ • PUŚĆ SPACJĘ' }
+          : { touch: 'PRZYTRZYMAJ I PRZECIĄGNIJ · KAUCZUKOWA PROCA', keyboard: 'TRZYMAJ SPACJĘ + STRZAŁKI · KAUCZUKOWA PROCA' };
+      case 'steel':
+        return { touch: 'TAPNIJ · LOT • UDERZENIA GRZEJĄ STAL', keyboard: 'SPACJA / ↑ · LOT • UDERZENIA GRZEJĄ STAL' };
+      case 'ghost':
+        return state.mode.ghost.phase === 'phasing'
+          ? { touch: 'TRZYMAJ · PRZENIKASZ • PUŚĆ · WRÓĆ', keyboard: 'TRZYMAJ SPACJĘ · PRZENIKASZ • PUŚĆ · WRÓĆ' }
+          : { touch: 'TAPNIJ I TRZYMAJ · MACHNIJ + PRZENIKAJ', keyboard: 'TRZYMAJ SPACJĘ · MACHNIJ + PRZENIKAJ' };
+      case 'stork':
+        if (storkActionState === 'aiming') {
+          return { touch: 'PRZESUŃ ↑↓ • PUŚĆ PIK', keyboard: 'STRZAŁKI ↑↓ • PUŚĆ E' };
+        }
+        if (storkActionState === 'ready') {
+          return { touch: 'TAPNIJ · LOT • PRZYTRZYMAJ PIK · NAMIERZ', keyboard: 'SPACJA · LOT • TRZYMAJ E + ↑↓ · PIK' };
+        }
+        if (storkActionState === 'vaulting') {
+          return { touch: 'PIK!', keyboard: 'PIK!' };
+        }
+        if (storkActionState === 'empty') {
+          return { touch: 'TAPNIJ · LOT • BRAK PIKÓW', keyboard: 'SPACJA / ↑ · LOT • BRAK PIKÓW' };
+        }
+        return { touch: 'TAPNIJ · LOT • PIK CZEKA NA CEL', keyboard: 'SPACJA / ↑ · LOT • E: PIK CZEKA NA CEL' };
+      default:
+        return { touch: 'TAPNIJ · MACHNIJ SKRZYDŁAMI', keyboard: 'SPACJA / ↑ · MACHNIJ SKRZYDŁAMI' };
     }
   }
 

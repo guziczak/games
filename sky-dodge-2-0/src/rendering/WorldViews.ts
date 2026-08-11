@@ -19,6 +19,7 @@ interface QualityBudget {
   readonly maximumCoins: number;
   readonly clouds: number;
   readonly debris: number;
+  readonly laneLights: number;
 }
 
 interface AmbientSeed {
@@ -31,9 +32,9 @@ interface AmbientSeed {
 }
 
 const QUALITY_BUDGET: Readonly<Record<RenderQuality, QualityBudget>> = Object.freeze({
-  low: Object.freeze({ maximumGates: 9, maximumCoins: 30, clouds: 10, debris: 5 }),
-  medium: Object.freeze({ maximumGates: 12, maximumCoins: 42, clouds: 18, debris: 9 }),
-  high: Object.freeze({ maximumGates: 14, maximumCoins: 54, clouds: 28, debris: 14 }),
+  low: Object.freeze({ maximumGates: 9, maximumCoins: 30, clouds: 10, debris: 5, laneLights: 12 }),
+  medium: Object.freeze({ maximumGates: 12, maximumCoins: 42, clouds: 18, debris: 9, laneLights: 18 }),
+  high: Object.freeze({ maximumGates: 14, maximumCoins: 54, clouds: 28, debris: 14, laneLights: 24 }),
 });
 
 const MODE_COLOURS: Readonly<Record<MutationModeId, number>> = Object.freeze({
@@ -67,9 +68,9 @@ export function createWorldProjection(aspect: number): WorldProjection {
     mapX: (simulationX: number): number => simulationX * xScale - halfWidth,
     mapY: (simulationY: number): number => simulationY - halfHeight,
     depthAt: (simulationX: number): number => clamp(
-      (DEFAULT_GAME_CONFIG.player.startX - simulationX) * 0.3,
-      -4.5,
-      1.35,
+      (DEFAULT_GAME_CONFIG.player.startX - simulationX) * 0.43,
+      -6.2,
+      1.55,
     ),
   });
 }
@@ -103,8 +104,12 @@ class GateView {
 
   private readonly lowerColumn: THREE.Mesh;
   private readonly upperColumn: THREE.Mesh;
+  private readonly lowerFace: THREE.Mesh;
+  private readonly upperFace: THREE.Mesh;
   private readonly lowerRim: THREE.Mesh;
   private readonly upperRim: THREE.Mesh;
+  private readonly lowerConduit: THREE.Mesh;
+  private readonly upperConduit: THREE.Mesh;
   private readonly lowerNode: THREE.Mesh;
   private readonly upperNode: THREE.Mesh;
   private readonly lowerLock: THREE.Mesh;
@@ -121,6 +126,7 @@ class GateView {
     nodeGeometry: THREE.BufferGeometry,
     lockGeometry: THREE.BufferGeometry,
     columnMaterial: THREE.Material,
+    faceMaterial: THREE.Material,
     detailMaterial: THREE.Material,
     nodeMaterial: THREE.Material,
     lockMaterial: THREE.Material,
@@ -130,8 +136,12 @@ class GateView {
 
     this.lowerColumn = new THREE.Mesh(columnGeometry, columnMaterial);
     this.upperColumn = new THREE.Mesh(columnGeometry, columnMaterial);
+    this.lowerFace = new THREE.Mesh(columnGeometry, faceMaterial);
+    this.upperFace = new THREE.Mesh(columnGeometry, faceMaterial);
     this.lowerRim = new THREE.Mesh(columnGeometry, detailMaterial);
     this.upperRim = new THREE.Mesh(columnGeometry, detailMaterial);
+    this.lowerConduit = new THREE.Mesh(columnGeometry, nodeMaterial);
+    this.upperConduit = new THREE.Mesh(columnGeometry, nodeMaterial);
     this.lowerNode = new THREE.Mesh(nodeGeometry, nodeMaterial);
     this.upperNode = new THREE.Mesh(nodeGeometry, nodeMaterial);
     this.lowerLock = new THREE.Mesh(lockGeometry, lockMaterial);
@@ -145,8 +155,12 @@ class GateView {
     this.root.add(
       this.lowerColumn,
       this.upperColumn,
+      this.lowerFace,
+      this.upperFace,
       this.lowerRim,
       this.upperRim,
+      this.lowerConduit,
+      this.upperConduit,
       this.lowerNode,
       this.upperNode,
       this.lowerLock,
@@ -167,12 +181,12 @@ class GateView {
     const lowerHeight = gapBottom;
     const upperHeight = DEFAULT_GAME_CONFIG.world.height - gapTop;
     const width = Math.max(0.24, obstacle.width * projection.xScale);
-    const depth = 1.45;
-    const rimHeight = 0.2;
+    const depth = 2.15;
+    const rimHeight = 0.24;
 
     this.root.visible = true;
     this.root.position.set(projection.mapX(visualX), 0, projection.depthAt(visualX));
-    this.root.rotation.y = Math.sin(time * 0.8 + obstacle.motionPhase) * 0.025;
+    this.root.rotation.y = Math.sin(time * 0.8 + obstacle.motionPhase) * 0.012;
 
     this.lowerColumn.visible = lowerHeight > 0.01;
     this.lowerColumn.position.set(0, projection.mapY(lowerHeight / 2), 0);
@@ -182,13 +196,27 @@ class GateView {
     this.upperColumn.position.set(0, projection.mapY(gapTop + upperHeight / 2), 0);
     this.upperColumn.scale.set(width, Math.max(0.001, upperHeight), depth);
 
-    this.lowerRim.position.set(0, projection.mapY(gapBottom) - rimHeight / 2, 0.05);
-    this.lowerRim.scale.set(width * 1.52, rimHeight, depth * 1.14);
-    this.upperRim.position.set(0, projection.mapY(gapTop) + rimHeight / 2, 0.05);
-    this.upperRim.scale.set(width * 1.52, rimHeight, depth * 1.14);
+    this.lowerFace.visible = lowerHeight > 0.01;
+    this.lowerFace.position.set(0, projection.mapY(lowerHeight / 2), depth * 0.51);
+    this.lowerFace.scale.set(width * 0.86, Math.max(0.001, lowerHeight - 0.08), 0.055);
+    this.upperFace.visible = upperHeight > 0.01;
+    this.upperFace.position.set(0, projection.mapY(gapTop + upperHeight / 2), depth * 0.51);
+    this.upperFace.scale.set(width * 0.86, Math.max(0.001, upperHeight - 0.08), 0.055);
 
-    this.lowerNode.position.set(0, projection.mapY(gapBottom) + 0.12, depth * 0.58);
-    this.upperNode.position.set(0, projection.mapY(gapTop) - 0.12, depth * 0.58);
+    this.lowerRim.position.set(0, projection.mapY(gapBottom) - rimHeight / 2, 0.08);
+    this.lowerRim.scale.set(width * 1.68, rimHeight, depth * 1.16);
+    this.upperRim.position.set(0, projection.mapY(gapTop) + rimHeight / 2, 0.08);
+    this.upperRim.scale.set(width * 1.68, rimHeight, depth * 1.16);
+
+    this.lowerConduit.visible = lowerHeight > 0.32;
+    this.lowerConduit.position.set(-width * 0.28, projection.mapY(lowerHeight / 2), depth * 0.56);
+    this.lowerConduit.scale.set(0.035, Math.max(0.02, lowerHeight - 0.42), 0.035);
+    this.upperConduit.visible = upperHeight > 0.32;
+    this.upperConduit.position.set(-width * 0.28, projection.mapY(gapTop + upperHeight / 2), depth * 0.56);
+    this.upperConduit.scale.set(0.035, Math.max(0.02, upperHeight - 0.42), 0.035);
+
+    this.lowerNode.position.set(0, projection.mapY(gapBottom) + 0.14, depth * 0.57);
+    this.upperNode.position.set(0, projection.mapY(gapTop) - 0.14, depth * 0.57);
     const nodePulse = 0.88 + Math.sin(time * 5 + obstacle.motionPhase) * 0.12;
     this.lowerNode.scale.setScalar(nodePulse);
     this.upperNode.scale.setScalar(nodePulse);
@@ -235,10 +263,13 @@ class GateView {
 class PortalLane {
   readonly root = new THREE.Group();
   private readonly ring: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>;
+  private readonly innerRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
+  private readonly veil: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>;
   private readonly icons: Readonly<Record<MutationModeId, THREE.Mesh>>;
 
   constructor(
     ringGeometry: THREE.TorusGeometry,
+    veilGeometry: THREE.CircleGeometry,
     iconGeometries: Readonly<Record<MutationModeId, THREE.BufferGeometry>>,
     trackMaterial: <T extends THREE.Material>(material: T) => T,
   ) {
@@ -252,7 +283,26 @@ class PortalLane {
       opacity: 0.88,
     }));
     this.ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    this.root.add(this.ring);
+    const innerMaterial = trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.75,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.innerRing = new THREE.Mesh(ringGeometry, innerMaterial);
+    this.innerRing.scale.setScalar(0.74);
+    const veilMaterial = trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.veil = new THREE.Mesh(veilGeometry, veilMaterial);
+    this.veil.position.z = -0.035;
+    this.root.add(this.veil, this.ring, this.innerRing);
 
     const icons = {} as Record<MutationModeId, THREE.Mesh>;
     for (const mode of Object.keys(MODE_COLOURS) as MutationModeId[]) {
@@ -280,8 +330,11 @@ class PortalLane {
     const pulse = 0.92 + Math.sin(time * 5.5) * 0.06;
     this.root.scale.setScalar(pulse);
     this.ring.rotation.z = time * 0.7;
+    this.innerRing.rotation.z = -time * 1.15;
     this.ring.material.color.setHex(MODE_COLOURS[mode]);
     this.ring.material.emissive.setHex(MODE_COLOURS[mode]);
+    this.innerRing.material.color.setHex(MODE_COLOURS[mode]);
+    this.veil.material.color.setHex(MODE_COLOURS[mode]);
     for (const candidate of Object.keys(this.icons) as MutationModeId[]) {
       this.icons[candidate].visible = candidate === mode;
     }
@@ -297,13 +350,14 @@ class PortalView {
 
   constructor(
     ringGeometry: THREE.TorusGeometry,
+    veilGeometry: THREE.CircleGeometry,
     iconGeometries: Readonly<Record<MutationModeId, THREE.BufferGeometry>>,
     trackMaterial: <T extends THREE.Material>(material: T) => T,
   ) {
     this.root.name = 'mutation-portals';
     this.root.visible = false;
-    this.upper = new PortalLane(ringGeometry, iconGeometries, trackMaterial);
-    this.lower = new PortalLane(ringGeometry, iconGeometries, trackMaterial);
+    this.upper = new PortalLane(ringGeometry, veilGeometry, iconGeometries, trackMaterial);
+    this.lower = new PortalLane(ringGeometry, veilGeometry, iconGeometries, trackMaterial);
     this.root.add(this.upper.root, this.lower.root);
   }
 
@@ -338,7 +392,10 @@ export class WorldViews {
   private readonly coinCores: THREE.InstancedMesh;
   private readonly clouds: THREE.InstancedMesh;
   private readonly debris: THREE.InstancedMesh;
-  private readonly floor: THREE.Mesh;
+  private readonly laneLights: THREE.InstancedMesh;
+  private readonly floor: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly floorMaterial: THREE.ShaderMaterial;
+  private readonly sun: THREE.Group;
   private readonly portal: PortalView;
   private readonly targetMarker: THREE.Group;
   private readonly targetRing: THREE.Mesh;
@@ -388,15 +445,89 @@ export class WorldViews {
     sky.frustumCulled = false;
     this.root.add(sky);
 
-    const floorGeometry = this.trackGeometry(new THREE.BoxGeometry(1, 1, 1));
-    const floorMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
-      color: 0x15273c,
-      roughness: 0.92,
-      metalness: 0.05,
+    const floorGeometry = this.trackGeometry(new THREE.PlaneGeometry(1, 1));
+    this.floorMaterial = this.trackMaterial(new THREE.ShaderMaterial({
+      transparent: false,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+      uniforms: {
+        time: { value: 0 },
+        deepColour: { value: new THREE.Color(0x071424) },
+        nearColour: { value: new THREE.Color(0x17344a) },
+        gridColour: { value: new THREE.Color(0x2f7890) },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 deepColour;
+        uniform vec3 nearColour;
+        uniform vec3 gridColour;
+        varying vec2 vUv;
+        float line(float value, float width) {
+          float cell = abs(fract(value - 0.5) - 0.5) / max(fwidth(value), 0.0001);
+          return 1.0 - smoothstep(width, width + 1.0, cell);
+        }
+        void main() {
+          float depthFade = smoothstep(0.05, 0.92, vUv.y);
+          float longitudinal = line(vUv.x * 18.0, 0.55);
+          float crosswise = line(vUv.y * 32.0 + time * 0.35, 0.5);
+          float grid = max(longitudinal * 0.35, crosswise * 0.48) * smoothstep(0.02, 0.28, vUv.y);
+          vec3 base = mix(nearColour, deepColour, depthFade);
+          gl_FragColor = vec4(base + gridColour * grid, 1.0);
+        }
+      `,
     }));
-    this.floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    this.floor.name = 'cloud-deck';
+    this.floor = new THREE.Mesh(floorGeometry, this.floorMaterial);
+    this.floor.name = 'perspective-cloud-deck';
+    this.floor.rotation.x = -Math.PI / 2;
     this.root.add(this.floor);
+
+    const laneLightGeometry = this.trackGeometry(new THREE.SphereGeometry(0.065, 8, 6));
+    const laneLightMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0x61e7ff,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.laneLights = new THREE.InstancedMesh(
+      laneLightGeometry,
+      laneLightMaterial,
+      this.budget.laneLights,
+    );
+    this.laneLights.count = this.budget.laneLights;
+    this.laneLights.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.laneLights.frustumCulled = false;
+    this.root.add(this.laneLights);
+
+    const sunCoreGeometry = this.trackGeometry(new THREE.SphereGeometry(0.72, 18, 12));
+    const sunHaloGeometry = this.trackGeometry(new THREE.SphereGeometry(1.08, 16, 10));
+    const sunCoreMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffd37c,
+      fog: false,
+    }));
+    const sunHaloMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xff9f55,
+      transparent: true,
+      opacity: 0.09,
+      depthWrite: false,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    }));
+    this.sun = new THREE.Group();
+    this.sun.name = 'distant-sun';
+    this.sun.add(
+      new THREE.Mesh(sunCoreGeometry, sunCoreMaterial),
+      new THREE.Mesh(sunHaloGeometry, sunHaloMaterial),
+    );
+    this.root.add(this.sun);
 
     const cloudGeometry = this.trackGeometry(new THREE.SphereGeometry(1, 10, 7));
     const cloudMaterial = this.trackMaterial(new THREE.MeshLambertMaterial({
@@ -441,6 +572,14 @@ export class WorldViews {
       metalness: 0.76,
       flatShading: true,
     }));
+    const gateFaceMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0x2a7279,
+      emissive: 0x082d36,
+      emissiveIntensity: 0.44,
+      roughness: 0.4,
+      metalness: 0.62,
+      flatShading: true,
+    }));
     const nodeMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0xffa629,
       emissive: 0xff720b,
@@ -463,6 +602,7 @@ export class WorldViews {
         nodeGeometry,
         lockGeometry,
         gateMaterial,
+        gateFaceMaterial,
         gateDetailMaterial,
         nodeMaterial,
         lockMaterial,
@@ -508,6 +648,7 @@ export class WorldViews {
     this.root.add(this.coinRings, this.coinCores);
 
     const portalRing = this.trackGeometry(new THREE.TorusGeometry(0.62, 0.075, 10, 40));
+    const portalVeil = this.trackGeometry(new THREE.CircleGeometry(0.54, 32));
     const frogIcon = this.trackGeometry(new THREE.SphereGeometry(0.3, 12, 8));
     frogIcon.scale(1, 0.72, 1);
     const rubberIcon = this.trackGeometry(new THREE.TorusKnotGeometry(0.2, 0.07, 36, 6));
@@ -524,6 +665,7 @@ export class WorldViews {
     };
     this.portal = new PortalView(
       portalRing,
+      portalVeil,
       iconGeometries,
       <T extends THREE.Material>(material: T): T => this.trackMaterial(material),
     );
@@ -631,8 +773,13 @@ export class WorldViews {
   }
 
   private updateFloor(projection: WorldProjection): void {
-    this.floor.position.set(0, projection.mapY(0) - 0.54, -1.2);
-    this.floor.scale.set(projection.viewWidth * 1.8, 1.05, 11);
+    this.floor.position.set(0, projection.mapY(0) - 0.055, -7.2);
+    this.floor.scale.set(projection.viewWidth * 2.7, 30, 1);
+    this.sun.position.set(
+      projection.viewWidth * 0.32,
+      projection.viewHeight * 0.28,
+      -17,
+    );
   }
 
   private updateGates(
@@ -704,6 +851,7 @@ export class WorldViews {
     time: number,
     reducedMotion: boolean,
   ): void {
+    this.floorMaterial.uniforms.time.value = time;
     const cloudSpan = projection.viewWidth + 8;
     for (let index = 0; index < this.ambientSeeds.length; index += 1) {
       const seed = this.ambientSeeds[index];
@@ -737,6 +885,29 @@ export class WorldViews {
       this.debris.setMatrixAt(index, this.dummy.matrix);
     }
     this.debris.instanceMatrix.needsUpdate = true;
+
+    const pairs = Math.max(1, Math.floor(this.budget.laneLights / 2));
+    for (let index = 0; index < this.budget.laneLights; index += 1) {
+      const pair = Math.floor(index / 2);
+      const side = index % 2 === 0 ? -1 : 1;
+      const travel = reducedMotion ? 0 : time * 0.055;
+      const progress = positiveModulo(pair / pairs - travel, 1);
+      const simulationX = DEFAULT_GAME_CONFIG.player.startX
+        + progress * (DEFAULT_GAME_CONFIG.world.width - DEFAULT_GAME_CONFIG.player.startX + 1.4);
+      const depth = projection.depthAt(simulationX);
+      const separation = 0.34 + progress * 0.52;
+      this.dummy.position.set(
+        projection.mapX(simulationX) + side * separation,
+        projection.mapY(0) + 0.045,
+        depth + 0.35,
+      );
+      const size = 0.72 + (1 - progress) * 0.42;
+      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.scale.setScalar(size);
+      this.dummy.updateMatrix();
+      this.laneLights.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.laneLights.instanceMatrix.needsUpdate = true;
   }
 
   private updateStorkTarget(

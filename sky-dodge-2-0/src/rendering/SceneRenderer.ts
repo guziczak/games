@@ -60,7 +60,7 @@ export class SceneRenderer {
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  private readonly camera = new THREE.PerspectiveCamera(43, 1, 0.1, 110);
   private readonly character: CharacterRig;
   private readonly worldViews: WorldViews;
   private readonly particles: ParticleField;
@@ -99,22 +99,27 @@ export class SceneRenderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.04;
+    this.renderer.toneMappingExposure = 1.22;
     this.renderer.shadowMap.enabled = false;
-    this.scene.background = new THREE.Color(0x172b4a);
-    this.scene.fog = new THREE.FogExp2(0x183149, 0.022);
+    this.scene.background = new THREE.Color(0x112b4c);
+    this.scene.fog = new THREE.FogExp2(0x17354e, 0.0145);
 
-    const hemisphere = new THREE.HemisphereLight(0xc5f1ff, 0x311b42, 1.7);
+    const hemisphere = new THREE.HemisphereLight(0xd8f7ff, 0x39213f, 2.15);
     hemisphere.name = 'sky-fill';
-    const key = new THREE.DirectionalLight(0xfff0cb, 2.15);
+    const ambient = new THREE.AmbientLight(0x8fc5d5, 0.42);
+    ambient.name = 'soft-ambient';
+    const key = new THREE.DirectionalLight(0xffe7b5, 3.15);
     key.name = 'sun-key';
-    key.position.set(-5, 8, 11);
-    const rim = new THREE.DirectionalLight(0x4fcfff, 1.25);
+    key.position.set(-7, 10, 13);
+    const rim = new THREE.DirectionalLight(0x43cfff, 1.65);
     rim.name = 'cool-rim';
-    rim.position.set(8, 2, 5);
+    rim.position.set(10, 3, -2);
+    const warmFill = new THREE.PointLight(0xffa454, 0.75, 24, 2);
+    warmFill.name = 'sun-fill';
+    warmFill.position.set(7, 5, -8);
     this.playerLight = new THREE.PointLight(MODE_LIGHT_COLOURS.normal, 1.2, 5.5, 2);
     this.playerLight.name = 'mode-glow';
-    this.scene.add(hemisphere, key, rim, this.playerLight);
+    this.scene.add(hemisphere, ambient, key, rim, warmFill, this.playerLight);
 
     this.worldViews = new WorldViews(this.scene, this.quality);
     this.character = new CharacterRig(this.scene);
@@ -178,8 +183,6 @@ export class SceneRenderer {
       const aspect = width / height;
       this.projection = createWorldProjection(aspect);
       this.camera.aspect = aspect;
-      const verticalFov = THREE.MathUtils.degToRad(this.camera.fov);
-      this.camera.position.z = this.projection.viewHeight / (2 * Math.tan(verticalFov / 2)) + 0.8;
       this.camera.updateProjectionMatrix();
     }
   }
@@ -266,15 +269,27 @@ export class SceneRenderer {
   }
 
   private updateCamera(state: Readonly<GameState>, time: number): void {
-    const baseDistance = this.projection.viewHeight
+    const baseDistance = (
+      this.projection.viewHeight
       / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2))
-      + 0.8;
+    ) * 1.1;
+    const yaw = THREE.MathUtils.degToRad(22);
+    const pitch = THREE.MathUtils.degToRad(13);
+    const horizontalDistance = baseDistance * Math.cos(pitch);
+    const playerX = this.projection.mapX(state.player.x);
     const playerY = this.projection.mapY(state.player.y);
-    const drift = this.reducedMotion ? 0 : Math.sin(time * 0.3) * 0.035;
-    this.camera.position.x = drift;
-    this.camera.position.y = 0.12 + playerY * 0.025;
-    this.camera.position.z = baseDistance;
-    this.cameraTarget.set(0, this.camera.position.y * 0.18, -0.75);
+    const drift = this.reducedMotion ? 0 : Math.sin(time * 0.32) * 0.055;
+
+    this.cameraTarget.set(
+      playerX + this.projection.viewWidth * 0.265,
+      0.12 + playerY * 0.045,
+      -2.35,
+    );
+    this.camera.position.set(
+      this.cameraTarget.x - Math.sin(yaw) * horizontalDistance + drift,
+      this.cameraTarget.y + Math.sin(pitch) * baseDistance,
+      this.cameraTarget.z + Math.cos(yaw) * horizontalDistance,
+    );
     this.camera.lookAt(this.cameraTarget);
   }
 

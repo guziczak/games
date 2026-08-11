@@ -63,7 +63,10 @@ export function cloneGameState(state: GameState): GameState {
   return {
     ...state,
     clock: { ...state.clock },
-    player: { ...state.player },
+    player: {
+      ...state.player,
+      collisionGraceEntityIds: [...state.player.collisionGraceEntityIds],
+    },
     world: {
       ...state.world,
       obstacles: state.world.obstacles.map((obstacle) => ({ ...obstacle })),
@@ -125,6 +128,19 @@ function sampleRange(state: GameState, minimum: number, maximum: number): number
 
 function recalculateTotal(state: GameState): void {
   state.score.total = state.score.base + state.score.style;
+}
+
+function hasCollisionGrace(state: GameState, entityId: string): boolean {
+  return state.player.collisionGraceEntityIds.includes(entityId);
+}
+
+function grantCollisionGrace(state: GameState, entityId: string): void {
+  if (!hasCollisionGrace(state, entityId)) state.player.collisionGraceEntityIds.push(entityId);
+}
+
+function revokeCollisionGrace(state: GameState, entityId: string): void {
+  const index = state.player.collisionGraceEntityIds.indexOf(entityId);
+  if (index >= 0) state.player.collisionGraceEntityIds.splice(index, 1);
 }
 
 function awardBase(
@@ -292,6 +308,18 @@ function exitModeMutable(
 ): void {
   const current = state.mode.active;
   if (current === 'normal') return;
+
+  if (current === 'ghost' && state.mode.ghost.phase === 'phasing') {
+    stopGhostPhase(state, events, config);
+  }
+  if (current === 'steel'
+    && reason === 'timer'
+    && state.mode.steel.heat >= config.modes.steel.criticalHeat
+    && state.mode.steel.heat < config.modes.steel.maximumHeat) {
+    const temperId = `steel-temper-${state.clock.tick}`;
+    emitModeAction(state, events, 'steel', 'steel-temper', temperId);
+    awardStyle(state, events, config, 'steel-temper', temperId, config.scoring.steelTemper);
+  }
   events.push({ ...stamp(state), type: 'mode-exited', mode: current, reason });
   const grace = current === 'ghost'
     ? config.modes.ghost.materializeGrace
@@ -299,7 +327,7 @@ function exitModeMutable(
       ? config.modes.steel.overheatGrace
       : 0.15;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, grace);
-  state.player.x = config.player.startX;
+  state.player.floorRecoveryAvailable = true;
   state.player.vx = 0;
   resetModeRuntime(state, config);
 }
@@ -315,9 +343,9 @@ function enterModeMutable(
   clean.active = mode;
   clean.remaining = modeDuration(mode, config);
   state.mode = clean;
-  state.player.x = config.player.startX;
   state.player.vx = 0;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, 0.25);
+  state.player.floorRecoveryAvailable = true;
   events.push({
     ...stamp(state),
     type: 'mode-entered',
@@ -417,6 +445,7 @@ function releaseStorkVault(state: GameState, events: GameEvent[], config: GameCo
   updateStorkVaultTarget(state, config);
   stork.uses -= 1;
   stork.energy = Math.max(0, stork.energy - config.modes.stork.useEnergy);
+  grantCollisionGrace(state, target.id);
   emitModeAction(state, events, 'stork', 'stork-vault-start', target.id);
 }
 
@@ -425,9 +454,17 @@ function launchRubber(state: GameState, events: GameEvent[], config: GameConfig)
   if (rubber.phase !== 'aiming') return;
   const magnitude = clamp(Math.hypot(rubber.aim.x, rubber.aim.y), 0, 1);
   if (magnitude < 0.05) {
-    rubber.phase = 'idle';
+    // A quick tap must remain useful on a phone. It is a small elastic hop,
+    // while an actual drag keeps the full two-dimensional slingshot.
+    rubber.phase = 'flying';
     rubber.aim = { x: 0, y: 0 };
     rubber.aimTime = 0;
+    rubber.phaseTime = 0;
+    rubber.vx = 0;
+    state.player.vx = 0;
+    state.player.vy = config.player.flapVelocity;
+    events.push({ ...stamp(state), type: 'flap', mode: 'rubber' });
+    emitModeAction(state, events, 'rubber', 'rubber-launch');
     return;
   }
   const speed = config.modes.rubber.minLaunchSpeed
@@ -436,6 +473,7 @@ function launchRubber(state: GameState, events: GameEvent[], config: GameConfig)
   const unitY = rubber.aim.y / magnitude;
   rubber.phase = 'flying';
   rubber.phaseTime = 0;
+  rubber.aimTime = 0;
   rubber.vx = -unitX * speed;
   state.player.vx = rubber.vx;
   state.player.vy = -unitY * speed;
@@ -449,12 +487,22 @@ function launchFrog(state: GameState, events: GameEvent[], config: GameConfig): 
   const speed = config.modes.frog.minLaunchVelocity
     + (config.modes.frog.maxLaunchVelocity - config.modes.frog.minLaunchVelocity) * amount;
   const obstacleId = frog.clingObstacleId;
-  const normalY = frog.surfaceNormalY === 0 ? 1 : frog.surfaceNormalY;
-  state.player.vy = clamp(normalY * speed + config.player.flapVelocity * 0.25, config.player.minVelocityY, config.player.maxVelocityY);
+  const normalX = frog.surfaceNormalX;
+  const normalY = frog.surfaceNormalY;
+  const liftBias = normalY === 0
+    ? config.player.flapVelocity * 0.75
+    : config.player.flapVelocity * 0.25;
+  state.player.vx = normalX * speed;
+  state.player.vy = clamp(
+    normalY * speed + liftBias,
+    config.player.minVelocityY,
+    config.player.maxVelocityY,
+  );
   frog.phase = 'airborne';
   frog.releasedObstacleId = obstacleId;
   frog.clingObstacleId = null;
   frog.clingOffsetX = 0;
+  frog.surfaceNormalX = 0;
   frog.surfaceNormalY = 0;
   frog.charge = 0;
   frog.phaseTime = 0;
@@ -474,10 +522,11 @@ function stopGhostPhase(state: GameState, events: GameEvent[], config: GameConfi
   if (state.mode.ghost.phase !== 'phasing') return;
   state.mode.ghost.phase = 'material';
   state.mode.ghost.phaseTime = 0;
-  const materializingInsideObstacle = state.world.obstacles.some(
+  const overlappingObstacles = state.world.obstacles.filter(
     (obstacle) => !obstacle.destroyed && playerOverlapsObstacle(state, obstacle, config),
   );
-  if (materializingInsideObstacle) {
+  if (overlappingObstacles.length > 0) {
+    for (const obstacle of overlappingObstacles) grantCollisionGrace(state, obstacle.id);
     state.player.invulnerableTime = Math.max(
       state.player.invulnerableTime,
       config.modes.ghost.materializeGrace,
@@ -504,6 +553,7 @@ function processInput(
       if (activeMode === 'frog' && (state.mode.frog.phase === 'clinging' || state.mode.frog.phase === 'charging')) {
         launchFrog(state, events, config);
       } else if (activeMode !== 'rubber' || state.mode.rubber.phase !== 'aiming') {
+        state.player.floorRecoveryAvailable = true;
         state.player.vy = config.player.flapVelocity;
         events.push({ ...stamp(state), type: 'flap', mode: activeMode });
       }
@@ -605,9 +655,7 @@ function updateActiveMode(
     if (steel.timeSinceImpact >= config.modes.steel.coolingDelay && steel.heat > 0) {
       steel.heat = Math.max(0, steel.heat - config.modes.steel.passiveCooling * dt);
     }
-    const isCritical = steel.heat >= config.modes.steel.criticalHeat;
-    if (isCritical && !steel.critical) emitModeAction(state, events, 'steel', 'steel-critical');
-    steel.critical = isCritical;
+    refreshSteelCriticalState(state, events, config);
   } else if (active === 'ghost') {
     const ghost = state.mode.ghost;
     ghost.phaseTime += dt;
@@ -621,8 +669,11 @@ function updateActiveMode(
     const stork = state.mode.stork;
     stork.cooldown = Math.max(0, stork.cooldown - dt);
     stork.phaseTime += dt;
-    if (stork.phase === 'aiming' && stork.phaseTime >= config.modes.stork.maximumAimTime) {
-      releaseStorkVault(state, events, config);
+    if (stork.phase === 'aiming') {
+      updateStorkVaultTarget(state, config);
+      if (stork.phaseTime >= config.modes.stork.maximumAimTime) {
+        releaseStorkVault(state, events, config);
+      }
     } else if (stork.phase === 'vaulting') {
       const progress = smoothStep(stork.phaseTime / config.modes.stork.vaultDuration);
       state.player.y = stork.vaultStartY + (stork.vaultTargetY - stork.vaultStartY) * progress;
@@ -631,11 +682,7 @@ function updateActiveMode(
         const targetId = stork.lockedTargetId;
         if (targetId) {
           const target = state.world.obstacles.find((obstacle) => obstacle.id === targetId);
-          if (target && !target.storkVaultAwarded) {
-            target.storkVaultAwarded = true;
-            awardStyle(state, events, config, 'stork-vault', target.id, config.scoring.storkVault);
-            gainDna(state, events, config, config.dna.maneuver);
-          }
+          if (target) target.storkVaultCommitted = true;
         }
         emitModeAction(state, events, 'stork', 'stork-vault-end', targetId ?? undefined);
         stork.phase = 'idle';
@@ -646,7 +693,17 @@ function updateActiveMode(
     }
   }
 
-  if (state.mode.remaining <= 0) exitModeMutable(state, events, config, 'timer');
+  if (state.mode.remaining <= 0) {
+    if (active === 'ghost' && state.mode.ghost.phase === 'phasing') {
+      stopGhostPhase(state, events, config);
+    }
+    const committedActionStillRunning = (active === 'frog'
+      && (state.mode.frog.phase === 'clinging' || state.mode.frog.phase === 'charging'))
+      || (active === 'rubber' && state.mode.rubber.phase === 'aiming')
+      || (active === 'stork'
+        && (state.mode.stork.phase === 'aiming' || state.mode.stork.phase === 'vaulting'));
+    if (!committedActionStillRunning) exitModeMutable(state, events, config, 'timer');
+  }
 }
 
 function worldTimeScale(state: GameState, config: GameConfig): number {
@@ -683,21 +740,29 @@ function updatePlayerPhysics(state: GameState, config: GameConfig, dt: number): 
     state.mode.rubber.vx = state.player.vx;
   } else {
     const distanceToRail = config.player.startX - state.player.x;
-    if (Math.abs(distanceToRail) <= 0.002) {
+    if (Math.abs(distanceToRail) <= 0.002 && Math.abs(state.player.vx) <= 0.02) {
       state.player.x = config.player.startX;
       state.player.vx = 0;
     } else {
-      state.player.vx = clamp(
+      const targetVelocity = clamp(
         distanceToRail * config.player.horizontalRecovery,
         -config.player.maxHorizontalRecoverySpeed,
         config.player.maxHorizontalRecoverySpeed,
       );
-      const movement = state.player.vx * dt;
-      if (Math.abs(movement) >= Math.abs(distanceToRail)) {
+      const recoveryBlend = 1 - Math.exp(-config.player.horizontalRecovery * dt);
+      state.player.vx += (targetVelocity - state.player.vx) * recoveryBlend;
+      const maximumVelocity = state.mode.active === 'frog'
+        ? config.modes.frog.maxLaunchVelocity
+        : config.player.maxHorizontalRecoverySpeed;
+      state.player.vx = clamp(state.player.vx, -maximumVelocity, maximumVelocity);
+      const previousDistance = distanceToRail;
+      state.player.x += state.player.vx * dt;
+      const nextDistance = config.player.startX - state.player.x;
+      if (previousDistance !== 0
+        && Math.sign(previousDistance) !== Math.sign(nextDistance)
+        && Math.abs(state.player.vx) < 0.5) {
         state.player.x = config.player.startX;
         state.player.vx = 0;
-      } else {
-        state.player.x += movement;
       }
     }
   }
@@ -713,6 +778,18 @@ function failRun(
   state.status = 'dead';
   state.pendingInput = [];
   events.push({ ...stamp(state), type: 'game-over', reason, ...(entityId ? { entityId } : {}) });
+}
+
+function refreshSteelCriticalState(
+  state: GameState,
+  events: GameEvent[],
+  config: GameConfig,
+): void {
+  if (state.mode.active !== 'steel') return;
+  const steel = state.mode.steel;
+  const isCritical = steel.heat >= config.modes.steel.criticalHeat;
+  if (isCritical && !steel.critical) emitModeAction(state, events, 'steel', 'steel-critical');
+  steel.critical = isCritical;
 }
 
 function triggerSteelOverheat(
@@ -737,6 +814,12 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     const entityId = left ? 'boundary-left' : 'boundary-right';
     state.player.x = left ? minimumX : maximumX;
     if (state.mode.active === 'rubber') {
+      if (state.mode.rubber.phase === 'aiming') {
+        state.mode.rubber.phase = 'flying';
+        state.mode.rubber.aim = { x: 0, y: 0 };
+        state.mode.rubber.aimTime = 0;
+        state.mode.rubber.phaseTime = 0;
+      }
       state.player.vx = (left ? 1 : -1)
         * Math.abs(state.player.vx)
         * config.modes.rubber.restitution;
@@ -761,6 +844,7 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     frog.phase = 'clinging';
     frog.clingObstacleId = entityId;
     frog.clingOffsetX = 0;
+    frog.surfaceNormalX = 0;
     frog.surfaceNormalY = normalY;
     frog.charge = 0;
     frog.phaseTime = 0;
@@ -771,7 +855,16 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
   }
 
   if (state.mode.active === 'rubber') {
-    state.player.vy = normalY * Math.abs(state.player.vy) * config.modes.rubber.restitution;
+    if (state.mode.rubber.phase === 'aiming') {
+      state.mode.rubber.phase = 'flying';
+      state.mode.rubber.aim = { x: 0, y: 0 };
+      state.mode.rubber.aimTime = 0;
+      state.mode.rubber.phaseTime = 0;
+    }
+    const normalVelocity = state.player.vy * normalY;
+    if (normalVelocity < 0) {
+      state.player.vy -= (1 + config.modes.rubber.restitution) * normalVelocity * normalY;
+    }
     state.player.vx *= config.modes.rubber.tangentialDamping;
     state.mode.rubber.vx = state.player.vx;
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'bounce' });
@@ -785,12 +878,25 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     steel.heat = Math.min(config.modes.steel.maximumHeat, steel.heat + config.modes.steel.boundaryHeat);
     steel.timeSinceImpact = 0;
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'destroy' });
+    refreshSteelCriticalState(state, events, config);
     triggerSteelOverheat(state, events, config, entityId);
     return;
   }
 
   if (state.player.invulnerableTime > 0 || (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') || (state.mode.active === 'stork' && state.mode.stork.phase === 'vaulting')) {
     state.player.vy = normalY * Math.max(1, Math.abs(state.player.vy) * 0.25);
+    events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
+    return;
+  }
+
+  if (
+    below
+    && state.player.floorRecoveryAvailable
+    && (state.mode.active === 'normal' || state.mode.active === 'stork')
+  ) {
+    state.player.floorRecoveryAvailable = false;
+    state.player.vy = config.player.floorRecoveryVelocity;
+    state.player.invulnerableTime = Math.max(state.player.invulnerableTime, 0.12);
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
     return;
   }
@@ -825,6 +931,7 @@ function spawnObstacle(state: GameState, events: GameEvent[], config: GameConfig
     rubberRicochetAwarded: false,
     steelBreakAwarded: false,
     ghostPhaseAwarded: false,
+    storkVaultCommitted: false,
     storkVaultAwarded: false,
   };
   state.world.obstacles.push(obstacle);
@@ -920,9 +1027,8 @@ function updateFrogAnchorAfterWorld(
   state.player.vx = (desiredX - previousX) / config.fixedStep;
   const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
   const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
-  state.player.y = frog.surfaceNormalY > 0
-    ? gapBottom + config.player.radiusY
-    : gapTop - config.player.radiusY;
+  if (frog.surfaceNormalY > 0) state.player.y = gapBottom + config.player.radiusY;
+  else if (frog.surfaceNormalY < 0) state.player.y = gapTop - config.player.radiusY;
 }
 
 function clearReleasedFrogSurface(state: GameState, config: GameConfig): void {
@@ -940,35 +1046,83 @@ function clearReleasedFrogSurface(state: GameState, config: GameConfig): void {
   if (!obstacle || !playerOverlapsObstacle(state, obstacle, config)) state.mode.frog.releasedObstacleId = null;
 }
 
+interface ObstacleContact {
+  readonly normalX: -1 | 0 | 1;
+  readonly normalY: -1 | 0 | 1;
+  readonly separatedX: number;
+  readonly separatedY: number;
+  readonly impactSpeed: number;
+}
+
+function obstacleContact(
+  state: GameState,
+  obstacle: ObstacleState,
+  config: GameConfig,
+): ObstacleContact {
+  const playerLeft = state.player.x - config.player.radiusX;
+  const playerRight = state.player.x + config.player.radiusX;
+  const playerBottom = state.player.y - config.player.radiusY;
+  const playerTop = state.player.y + config.player.radiusY;
+  const obstacleLeft = obstacle.x - obstacle.width / 2;
+  const obstacleRight = obstacle.x + obstacle.width / 2;
+  const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
+  const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
+  const fromLeft = state.player.x <= obstacle.x;
+  const horizontalPenetration = fromLeft
+    ? playerRight - obstacleLeft
+    : obstacleRight - playerLeft;
+  const lowerCollision = state.player.y < obstacle.gapCenter;
+  const verticalPenetration = lowerCollision
+    ? gapBottom - playerBottom
+    : playerTop - gapTop;
+
+  if (horizontalPenetration <= verticalPenetration) {
+    const normalX: -1 | 1 = fromLeft ? -1 : 1;
+    const obstacleVelocityX = -getDifficultyTier(state.world.passedObstacles, config).speed
+      * worldTimeScale(state, config);
+    return {
+      normalX,
+      normalY: 0,
+      separatedX: fromLeft
+        ? obstacleLeft - config.player.radiusX
+        : obstacleRight + config.player.radiusX,
+      separatedY: state.player.y,
+      impactSpeed: Math.max(0, -(state.player.vx - obstacleVelocityX) * normalX),
+    };
+  }
+
+  const normalY: -1 | 1 = lowerCollision ? 1 : -1;
+  return {
+    normalX: 0,
+    normalY,
+    separatedX: state.player.x,
+    separatedY: lowerCollision
+      ? gapBottom + config.player.radiusY
+      : gapTop - config.player.radiusY,
+    impactSpeed: Math.max(0, -state.player.vy * normalY),
+  };
+}
+
 function resolveObstacleCollision(
   state: GameState,
   obstacle: ObstacleState,
   events: GameEvent[],
   config: GameConfig,
 ): void {
-  if (state.player.invulnerableTime > 0) {
-    if (!obstacle.collisionResolved) {
-      obstacle.collisionResolved = true;
-      events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'shielded' });
-    }
-    return;
-  }
-
   if (state.mode.active === 'frog') {
     const frog = state.mode.frog;
     if (frog.releasedObstacleId === obstacle.id || frog.clingObstacleId === obstacle.id) return;
-    const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
-    const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
-    const lowerCollision = state.player.y < obstacle.gapCenter;
+    const contact = obstacleContact(state, obstacle, config);
     frog.phase = 'clinging';
     frog.clingObstacleId = obstacle.id;
-    frog.clingOffsetX = state.player.x - obstacle.x;
-    frog.surfaceNormalY = lowerCollision ? 1 : -1;
+    frog.surfaceNormalX = contact.normalX;
+    frog.surfaceNormalY = contact.normalY;
     frog.charge = 0;
     frog.phaseTime = 0;
-    state.player.y = lowerCollision
-      ? gapBottom + config.player.radiusY
-      : gapTop - config.player.radiusY;
+    state.player.x = contact.separatedX;
+    state.player.y = contact.separatedY;
+    frog.clingOffsetX = state.player.x - obstacle.x;
+    state.player.vx = 0;
     state.player.vy = 0;
     events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'cling' });
     emitModeAction(state, events, 'frog', 'frog-cling', obstacle.id);
@@ -976,23 +1130,45 @@ function resolveObstacleCollision(
   }
 
   if (state.mode.active === 'rubber') {
-    const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
-    const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
-    const lowerCollision = state.player.y < obstacle.gapCenter;
-    state.player.y = lowerCollision
-      ? gapBottom + config.player.radiusY
-      : gapTop - config.player.radiusY;
-    state.player.vy = (lowerCollision ? 1 : -1)
-      * Math.max(2, Math.abs(state.player.vy))
-      * config.modes.rubber.restitution;
-    state.player.vx *= config.modes.rubber.tangentialDamping;
-    state.mode.rubber.vx = state.player.vx;
+    const rubber = state.mode.rubber;
+    const launchedImpact = rubber.phase === 'flying';
+    const contact = obstacleContact(state, obstacle, config);
+    if (rubber.phase === 'aiming') {
+      rubber.phase = 'flying';
+      rubber.aim = { x: 0, y: 0 };
+      rubber.aimTime = 0;
+      rubber.phaseTime = 0;
+    }
+    state.player.x = contact.separatedX;
+    state.player.y = contact.separatedY;
+    if (contact.normalX !== 0) {
+      const obstacleVelocityX = -getDifficultyTier(state.world.passedObstacles, config).speed
+        * worldTimeScale(state, config);
+      const relativeVelocity = state.player.vx - obstacleVelocityX;
+      const normalVelocity = relativeVelocity * contact.normalX;
+      const reflectedRelativeVelocity = normalVelocity < 0
+        ? relativeVelocity - (1 + config.modes.rubber.restitution) * normalVelocity * contact.normalX
+        : relativeVelocity;
+      state.player.vx = obstacleVelocityX + reflectedRelativeVelocity;
+      state.player.vy *= config.modes.rubber.tangentialDamping;
+    } else {
+      const normalVelocity = state.player.vy * contact.normalY;
+      if (normalVelocity < 0) {
+        state.player.vy -= (1 + config.modes.rubber.restitution)
+          * normalVelocity
+          * contact.normalY;
+      }
+      state.player.vx *= config.modes.rubber.tangentialDamping;
+    }
+    rubber.vx = state.player.vx;
     events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'bounce' });
     emitModeAction(state, events, 'rubber', 'rubber-bounce', obstacle.id);
-    if (!obstacle.rubberRicochetAwarded
-      && state.mode.rubber.scoredBounces < config.modes.rubber.maxScoredBounces) {
+    if (launchedImpact
+      && contact.impactSpeed >= config.modes.rubber.minimumScoredImpactSpeed
+      && !obstacle.rubberRicochetAwarded
+      && rubber.scoredBounces < config.modes.rubber.maxScoredBounces) {
       obstacle.rubberRicochetAwarded = true;
-      state.mode.rubber.scoredBounces += 1;
+      rubber.scoredBounces += 1;
       awardStyle(state, events, config, 'rubber-ricochet', obstacle.id, config.scoring.rubberRicochet);
       gainDna(state, events, config, config.dna.maneuver);
     }
@@ -1010,12 +1186,16 @@ function resolveObstacleCollision(
     const steel = state.mode.steel;
     steel.heat = Math.min(config.modes.steel.maximumHeat, steel.heat + config.modes.steel.obstacleHeat);
     steel.timeSinceImpact = 0;
+    refreshSteelCriticalState(state, events, config);
     triggerSteelOverheat(state, events, config, obstacle.id);
     return;
   }
 
   if (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') {
-    events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'phase' });
+    if (!hasCollisionGrace(state, obstacle.id)) {
+      grantCollisionGrace(state, obstacle.id);
+      events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'phase' });
+    }
     if (!obstacle.ghostPhaseAwarded) {
       obstacle.ghostPhaseAwarded = true;
       awardStyle(state, events, config, 'ghost-phase', obstacle.id, config.scoring.ghostPhase);
@@ -1027,6 +1207,7 @@ function resolveObstacleCollision(
   if (state.mode.active === 'stork'
     && state.mode.stork.phase === 'vaulting'
     && state.mode.stork.lockedTargetId === obstacle.id) {
+    grantCollisionGrace(state, obstacle.id);
     if (!obstacle.collisionResolved) {
       obstacle.collisionResolved = true;
       events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'vault' });
@@ -1034,10 +1215,17 @@ function resolveObstacleCollision(
     return;
   }
 
-  // A completed vault owns its target until both bodies separate. Otherwise
-  // the stork could finish a successful arc inside the thick 3D gate and die
-  // on the very next fixed tick.
-  if (state.mode.active === 'stork' && obstacle.storkVaultAwarded) {
+  if (hasCollisionGrace(state, obstacle.id)) {
+    return;
+  }
+
+  // Entry and expiry protection must never suppress a form's own collision
+  // mechanic; it is consulted only if no active ability handled the contact.
+  if (state.player.invulnerableTime > 0) {
+    if (!obstacle.collisionResolved) {
+      obstacle.collisionResolved = true;
+      events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'shielded' });
+    }
     return;
   }
 
@@ -1086,6 +1274,13 @@ function processPassedObstacles(state: GameState, events: GameEvent[], config: G
     gainDna(state, events, config, config.dna.obstaclePass);
     events.push({ ...stamp(state), type: 'obstacle-passed', obstacleId: obstacle.id });
 
+    if (obstacle.storkVaultCommitted && !obstacle.storkVaultAwarded) {
+      obstacle.storkVaultAwarded = true;
+      awardStyle(state, events, config, 'stork-vault', obstacle.id, config.scoring.storkVault);
+      gainDna(state, events, config, config.dna.maneuver);
+    }
+    revokeCollisionGrace(state, obstacle.id);
+
     if (state.mode.active === 'steel' && !obstacle.destroyed) {
       const steel = state.mode.steel;
       steel.heat = Math.max(0, steel.heat - config.modes.steel.cleanPassCooling);
@@ -1123,6 +1318,10 @@ function cleanupWorld(state: GameState, config: GameConfig): void {
   );
   state.world.coins = state.world.coins.filter(
     (coin) => !coin.collected && coin.x + coin.radius >= leftLimit,
+  );
+  const liveObstacleIds = new Set(state.world.obstacles.map((obstacle) => obstacle.id));
+  state.player.collisionGraceEntityIds = state.player.collisionGraceEntityIds.filter(
+    (entityId) => liveObstacleIds.has(entityId),
   );
 }
 

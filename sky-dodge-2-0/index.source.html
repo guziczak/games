@@ -8,7 +8,7 @@
     <title>Sky Dodge 2.0</title>
   </head>
   <body>
-    <main id="app" class="app" data-phase="loading">
+    <main id="app" class="app" data-phase="loading" data-mode="normal" data-mutation-offer="false">
       <canvas id="gameCanvas" aria-hidden="true"></canvas>
       <div class="vignette" aria-hidden="true"></div>
 
@@ -25,9 +25,10 @@
           <h1>SKY DODGE <span>2.0</span></h1>
           <p class="lead">Przetrwaj podniebne złomowisko, wybieraj mutacje i naucz bociana pikować jak włócznia.</p>
           <ul class="controls-copy" aria-label="Sterowanie">
-            <li><kbd>Tap</kbd><span>machnięcie</span></li>
-            <li><kbd>Przytrzymaj</kbd><span>zdolność formy</span></li>
-            <li><kbd>E</kbd><span>dziób-kotwica</span></li>
+            <li><kbd>Tap</kbd><span>skrzydła</span></li>
+            <li><kbd>Trzymaj</kbd><span>żaba i duch</span></li>
+            <li><kbd>Przeciągnij</kbd><span>kauczuk i PIK</span></li>
+            <li class="desktop-control"><kbd>Spacja / E</kbd><span>klawiatura</span></li>
           </ul>
           <button id="startButton" class="primary-button" type="button">LECIMY</button>
           <p class="audio-note">Dźwięk włączy się po starcie. Słuchawki robią robotę.</p>
@@ -55,15 +56,19 @@
         <div class="hud-cluster mode-cluster">
           <span id="modeName">KACZOR</span>
           <output id="modeTimer" aria-label="Pozostały czas trybu"></output>
-          <div id="modeResource" class="mode-resource" hidden><span id="modeResourceBar"></span></div>
+          <div id="modeResource" class="mode-resource" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><span id="modeResourceBar"></span></div>
         </div>
         <output id="comboOutput" class="combo-output" aria-live="polite"></output>
+        <div id="abilityHint" class="ability-hint" role="status" aria-live="polite" aria-atomic="true">
+          <span id="abilityTouchHint" class="touch-hint">TAPNIJ · MACHNIJ SKRZYDŁAMI</span>
+          <span id="abilityKeyboardHint" class="keyboard-hint">SPACJA / ↑ · MACHNIJ SKRZYDŁAMI</span>
+        </div>
         <button id="muteButton" class="icon-button" type="button" aria-label="Wycisz dźwięk" aria-pressed="false">♪</button>
         <button id="pauseButton" class="icon-button pause-button" type="button" aria-label="Pauza">Ⅱ</button>
       </section>
 
       <div id="mutationPrompt" class="mutation-prompt" role="status" aria-live="polite" hidden><span>DNA PEŁNE</span><strong>WLEĆ W JEDEN Z PORTALI</strong></div>
-      <button id="storkActionButton" class="stork-action" type="button" aria-label="Przytrzymaj, aby namierzyć słaby punkt" aria-pressed="false" hidden disabled>
+      <button id="storkActionButton" class="stork-action" type="button" aria-label="Przytrzymaj, aby namierzyć słaby punkt" aria-describedby="abilityHint" aria-pressed="false" hidden disabled>
         <span class="stork-action-icon" aria-hidden="true">⌁</span><strong>PIK</strong><span id="storkUses">3</span>
       </button>
 
@@ -72,7 +77,7 @@
       </section>
       <section id="gameOverScreen" class="screen compact-screen" hidden>
         <div class="glass-card game-over-card">
-          <p class="eyebrow">STADO JUŻ SIĘ ŚMIEJE</p><h1>KONIEC LOTU</h1>
+          <p class="eyebrow">STADO JUŻ SIĘ ŚMIEJE</p><h1 class="game-over-title">KONIEC LOTU</h1>
           <dl class="results">
             <div><dt>Wynik</dt><dd id="finalScore">0</dd></div>
             <div><dt>Najlepsze combo</dt><dd id="finalCombo">×1</dd></div>

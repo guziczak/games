@@ -22,6 +22,12 @@ interface KeyboardAbility {
   readonly key: 'Space' | 'KeyE';
 }
 
+interface TouchFlapEdge {
+  readonly time: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 const INTERACTIVE_SELECTOR = [
   'a[href]',
   'button',
@@ -37,6 +43,14 @@ const INTERACTIVE_SELECTOR = [
 
 const POINTER_AIM_DEAD_ZONE = 6;
 const STORK_VERTICAL_BIAS = 1.35;
+const TOUCH_POINTER_DEDUP_MS = 700;
+const TOUCH_POINTER_DEDUP_PX = 64;
+
+function inputEventTime(event: Event): number {
+  return Number.isFinite(event.timeStamp)
+    ? event.timeStamp
+    : (globalThis.performance?.now() ?? Date.now());
+}
 
 function isPrimaryActivation(event: PointerEvent): boolean {
   return event.isPrimary && (event.pointerType !== 'mouse' || event.button === 0);
@@ -90,6 +104,7 @@ export class InputRouter {
   private keyboardAimDown = false;
   private keyboardAimLeft = false;
   private keyboardAimRight = false;
+  private touchFlapEdge: TouchFlapEdge | null = null;
   private mode: ModeId = 'normal';
   private frogPhase: FrogModeState['phase'] = 'airborne';
   private storkEnabled = true;
@@ -103,12 +118,19 @@ export class InputRouter {
     private readonly dispatch: InputDispatcher,
   ) {
     this.ownerDocument = canvas.ownerDocument;
-    this.doubleTapGuard = new DoubleTapGuard(canvas);
+    // Guard the complete game surface (including overlay controls) when the
+    // canvas has a wrapper. The guard still leaves every multi-touch gesture
+    // alone, so accessibility pinch zoom remains available.
+    this.doubleTapGuard = new DoubleTapGuard(canvas.parentElement ?? canvas);
 
     canvas.addEventListener('pointerdown', this.handleCanvasPointerDown);
     canvas.addEventListener('lostpointercapture', this.handleLostPointerCapture);
+    canvas.addEventListener('touchstart', this.handleCanvasTouchStart, { passive: false });
+    canvas.addEventListener('touchend', this.handleCanvasTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', this.handleCanvasTouchCancel, { passive: true });
     storkPad?.addEventListener('pointerdown', this.handleStorkPointerDown);
     storkPad?.addEventListener('lostpointercapture', this.handleLostPointerCapture);
+    storkPad?.addEventListener('click', this.handleStorkAccessibleClick);
     this.ownerDocument.addEventListener('pointerdown', this.handleGlobalPointerDown, true);
     this.ownerDocument.addEventListener('pointermove', this.handlePointerMove);
     this.ownerDocument.addEventListener('pointerup', this.handlePointerUp);
@@ -154,6 +176,7 @@ export class InputRouter {
     this.cancelAbility();
     this.releaseActivePointer();
     this.resetKeyboardAim();
+    this.touchFlapEdge = null;
     this.doubleTapGuard.reset();
   }
 
@@ -164,8 +187,12 @@ export class InputRouter {
 
     this.canvas.removeEventListener('pointerdown', this.handleCanvasPointerDown);
     this.canvas.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
+    this.canvas.removeEventListener('touchstart', this.handleCanvasTouchStart);
+    this.canvas.removeEventListener('touchend', this.handleCanvasTouchEnd);
+    this.canvas.removeEventListener('touchcancel', this.handleCanvasTouchCancel);
     this.storkPad?.removeEventListener('pointerdown', this.handleStorkPointerDown);
     this.storkPad?.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
+    this.storkPad?.removeEventListener('click', this.handleStorkAccessibleClick);
     this.ownerDocument.removeEventListener('pointerdown', this.handleGlobalPointerDown, true);
     this.ownerDocument.removeEventListener('pointermove', this.handlePointerMove);
     this.ownerDocument.removeEventListener('pointerup', this.handlePointerUp);
@@ -263,6 +290,18 @@ export class InputRouter {
     this.emit({ type: 'ability-start' });
   }
 
+  private consumesTouchFlapEdge(event: PointerEvent): boolean {
+    const edge = this.touchFlapEdge;
+    if (!edge || event.pointerType !== 'touch') return false;
+    const elapsed = inputEventTime(event) - edge.time;
+    const distance = Math.hypot(event.clientX - edge.x, event.clientY - edge.y);
+    const duplicate = elapsed >= 0
+      && elapsed <= TOUCH_POINTER_DEDUP_MS
+      && distance <= TOUCH_POINTER_DEDUP_PX;
+    if (duplicate || elapsed > TOUCH_POINTER_DEDUP_MS) this.touchFlapEdge = null;
+    return duplicate;
+  }
+
   private readonly handleGlobalPointerDown = (event: PointerEvent): void => {
     if (
       this.activePointer
@@ -284,15 +323,54 @@ export class InputRouter {
     ) return;
 
     const owner = this.canvasOwner();
+    const touchFallbackAlreadyFlapped = owner === 'flap'
+      && this.consumesTouchFlapEdge(event);
     if (isAbilityOwner(owner) && event.cancelable) event.preventDefault();
     this.capturePointer(this.canvas, event, owner);
 
     if (owner === 'flap') {
-      this.emit({ type: 'flap' });
+      if (!touchFallbackAlreadyFlapped) this.emit({ type: 'flap' });
     } else {
       if (owner === 'ghost') this.emit({ type: 'flap' });
       this.emit({ type: 'ability-start' });
     }
+  };
+
+  private readonly handleCanvasTouchStart = (event: TouchEvent): void => {
+    if (event.touches.length !== 1) {
+      this.touchFlapEdge = null;
+      return;
+    }
+    if (
+      this.destroyed
+      || this.activePointer
+      || this.keyboardAbility
+      || this.canvasOwner() !== 'flap'
+    ) return;
+
+    const touch = event.touches[0];
+    if (!touch) return;
+    this.touchFlapEdge = {
+      time: inputEventTime(event),
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+    if (event.cancelable) event.preventDefault();
+    this.emit({ type: 'flap' });
+  };
+
+  private readonly handleCanvasTouchEnd = (event: TouchEvent): void => {
+    // iOS occasionally omits the document-level pointerup after a captured
+    // canvas touch.  End the flap ownership here as well; the later pointerup
+    // becomes a harmless no-op and the next physical tap is never blocked.
+    if (event.touches.length === 0 && this.activePointer?.owner === 'flap') {
+      this.releaseActivePointer();
+    }
+  };
+
+  private readonly handleCanvasTouchCancel = (): void => {
+    this.touchFlapEdge = null;
+    if (this.activePointer?.owner === 'flap') this.releaseActivePointer();
   };
 
   private readonly handleStorkPointerDown = (event: PointerEvent): void => {
@@ -308,6 +386,22 @@ export class InputRouter {
     event.stopPropagation();
     this.capturePointer(this.storkPad as HTMLButtonElement, event, 'stork');
     this.emit({ type: 'ability-start' });
+  };
+
+  private readonly handleStorkAccessibleClick = (event: MouseEvent): void => {
+    // Pointer input is handled on pointerdown/up. A zero-detail click is the
+    // activation generated by a keyboard or assistive technology, for which a
+    // quick lock-and-release is the usable button equivalent.
+    if (
+      this.destroyed
+      || event.detail !== 0
+      || this.activePointer
+      || this.keyboardAbility
+      || !this.storkIsAvailable()
+    ) return;
+    event.preventDefault();
+    this.emit({ type: 'ability-start' });
+    this.emit({ type: 'ability-release' });
   };
 
   private readonly handlePointerMove = (event: PointerEvent): void => {

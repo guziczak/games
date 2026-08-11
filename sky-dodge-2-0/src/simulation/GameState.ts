@@ -18,6 +18,8 @@ export interface PlayerState {
   vx: number;
   vy: number;
   invulnerableTime: number;
+  floorRecoveryAvailable: boolean;
+  collisionGraceEntityIds: string[];
 }
 
 export interface ObstacleState {
@@ -38,6 +40,7 @@ export interface ObstacleState {
   rubberRicochetAwarded: boolean;
   steelBreakAwarded: boolean;
   ghostPhaseAwarded: boolean;
+  storkVaultCommitted: boolean;
   storkVaultAwarded: boolean;
 }
 
@@ -55,6 +58,7 @@ export interface FrogModeState {
   clingObstacleId: string | null;
   clingOffsetX: number;
   releasedObstacleId: string | null;
+  surfaceNormalX: -1 | 0 | 1;
   surfaceNormalY: -1 | 0 | 1;
   charge: number;
   phaseTime: number;
@@ -174,6 +178,7 @@ export function createInitialModeState(config: GameConfig = DEFAULT_GAME_CONFIG)
       clingObstacleId: null,
       clingOffsetX: 0,
       releasedObstacleId: null,
+      surfaceNormalX: 0,
       surfaceNormalY: 0,
       charge: 0,
       phaseTime: 0,
@@ -228,6 +233,8 @@ export function createInitialGameState(
       vx: 0,
       vy: 0,
       invulnerableTime: 0,
+      floorRecoveryAvailable: true,
+      collisionGraceEntityIds: [],
     },
     world: {
       obstacles: [],

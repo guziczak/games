@@ -31,6 +31,15 @@ const MODE_IDS: readonly ModeId[] = Object.freeze([
   'stork',
 ]);
 
+const MODE_GLOW: Readonly<Record<ModeId, number>> = Object.freeze({
+  normal: 0x7de7ff,
+  frog: 0x78ff9a,
+  rubber: 0xff6581,
+  steel: 0xe3f8ff,
+  ghost: 0x81f8ff,
+  stork: 0xff9a78,
+});
+
 const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.max(minimum, Math.min(maximum, value))
 );
@@ -47,6 +56,8 @@ export class CharacterRig {
   private readonly materials = new Set<THREE.Material>();
   private readonly forms: Readonly<Record<ModeId, FormParts>>;
   private readonly invulnerabilityHalo: THREE.Mesh;
+  private readonly modeAura: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
+  private readonly thrustTrail: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
   private activeMode: ModeId = 'normal';
   private destroyed = false;
 
@@ -89,6 +100,35 @@ export class CharacterRig {
     this.invulnerabilityHalo.position.z = -0.08;
     this.object.add(this.invulnerabilityHalo);
 
+    const auraGeometry = this.trackGeometry(new THREE.TorusGeometry(0.9, 0.028, 8, 56));
+    const auraMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: MODE_GLOW.normal,
+      transparent: true,
+      opacity: 0.48,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.modeAura = new THREE.Mesh(auraGeometry, auraMaterial);
+    this.modeAura.name = 'mode-aura';
+    this.modeAura.position.z = -0.18;
+    this.modeAura.visible = false;
+    this.object.add(this.modeAura);
+
+    const trailGeometry = this.trackGeometry(new THREE.ConeGeometry(0.24, 1.18, 10, 1, true));
+    trailGeometry.rotateZ(Math.PI / 2);
+    const trailMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: MODE_GLOW.normal,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.thrustTrail = new THREE.Mesh(trailGeometry, trailMaterial);
+    this.thrustTrail.name = 'flight-direction-trail';
+    this.thrustTrail.position.set(-1.12, -0.02, -0.08);
+    this.object.add(this.thrustTrail);
+
     parent.add(this.object);
   }
 
@@ -118,7 +158,7 @@ export class CharacterRig {
       projection.depthAt(playerX) + 0.72,
     );
     this.object.scale.setScalar(0.78);
-    this.object.rotation.set(0, 0, clamp(state.player.vy / 16, -0.34, 0.34));
+    this.object.rotation.set(-0.025, -0.1, clamp(state.player.vy / 16, -0.34, 0.34));
 
     form.root.position.set(0, 0, 0);
     form.root.rotation.set(0, 0, 0);
@@ -183,6 +223,25 @@ export class CharacterRig {
       this.invulnerabilityHalo.scale.setScalar(pulse);
       this.invulnerabilityHalo.rotation.z = -time * 1.5;
     }
+
+    this.modeAura.visible = mode !== 'normal';
+    this.modeAura.material.color.setHex(MODE_GLOW[mode]);
+    if (this.modeAura.visible) {
+      const auraPulse = 0.94 + Math.sin(time * 6.5) * 0.055;
+      this.modeAura.scale.setScalar(auraPulse);
+      this.modeAura.rotation.z = time * (mode === 'ghost' ? -0.75 : 0.55);
+    }
+
+    const abilityHold = (mode === 'frog' && state.mode.frog.phase !== 'airborne')
+      || (mode === 'rubber' && state.mode.rubber.phase === 'aiming')
+      || (mode === 'stork' && state.mode.stork.phase === 'aiming');
+    this.thrustTrail.visible = !abilityHold;
+    this.thrustTrail.material.color.setHex(MODE_GLOW[mode]);
+    if (this.thrustTrail.visible) {
+      const thrust = 0.82 + clamp(Math.abs(state.player.vy) / 8, 0, 0.7);
+      this.thrustTrail.scale.set(thrust, 0.8 + Math.sin(time * 17) * 0.12, 0.8);
+      this.thrustTrail.material.opacity = mode === 'ghost' ? 0.16 : 0.3;
+    }
   }
 
   reset(): void {
@@ -191,6 +250,8 @@ export class CharacterRig {
     this.object.rotation.set(0, 0, 0);
     this.object.scale.setScalar(0.78);
     this.invulnerabilityHalo.visible = false;
+    this.modeAura.visible = false;
+    this.thrustTrail.visible = true;
     this.setMode('normal');
   }
 
@@ -270,11 +331,34 @@ export class CharacterRig {
     eye.position.set(0.94, 0.58, 0.33);
     root.add(eye);
 
+    const eyeGlint = new THREE.Mesh(
+      this.trackGeometry(new THREE.SphereGeometry(0.022, 7, 5)),
+      this.standard(0xffffff, 0.18, 0),
+    );
+    eyeGlint.position.set(0.97, 0.606, 0.388);
+    root.add(eyeGlint);
+
     const wing = new THREE.Mesh(sphere, wingMaterial);
     wing.position.set(-0.12, 0.04, 0.58);
     wing.scale.set(0.72, 0.28, 0.16);
     wing.rotation.z = -0.32;
     root.add(wing);
+
+    const tailGeometry = this.trackGeometry(new THREE.ConeGeometry(0.18, 0.54, 5));
+    tailGeometry.rotateZ(Math.PI / 2);
+    const tailTop = new THREE.Mesh(tailGeometry, wingMaterial);
+    tailTop.position.set(-0.83, 0.22, -0.18);
+    tailTop.rotation.x = 0.24;
+    const tailBottom = new THREE.Mesh(tailGeometry, wingMaterial);
+    tailBottom.position.set(-0.84, -0.16, -0.16);
+    tailBottom.rotation.x = -0.24;
+    root.add(tailTop, tailBottom);
+
+    const crestGeometry = this.trackGeometry(new THREE.ConeGeometry(0.09, 0.34, 5));
+    const crest = new THREE.Mesh(crestGeometry, accentMaterial);
+    crest.position.set(0.66, 0.83, -0.02);
+    crest.rotation.z = -0.22;
+    root.add(crest);
 
     const turbineGeometry = this.trackGeometry(new THREE.TorusGeometry(0.18, 0.05, 8, 24));
     const turbine = new THREE.Mesh(turbineGeometry, accentMaterial);
@@ -590,8 +674,12 @@ export class CharacterRig {
     metalness: number,
     flatShading = false,
   ): THREE.MeshStandardMaterial {
+    const base = new THREE.Color(color);
+    const emissive = base.clone().multiplyScalar(metalness > 0.7 ? 0.035 : 0.065);
     return this.trackMaterial(new THREE.MeshStandardMaterial({
-      color,
+      color: base,
+      emissive,
+      emissiveIntensity: 0.52,
       roughness,
       metalness,
       flatShading,

@@ -174,6 +174,33 @@ describe('InputRouter pointer input', () => {
     router.destroy();
   });
 
+  it('uses a single-touch Safari fallback without double-firing the matching pointer edge', () => {
+    const { actions, canvas, document, router } = createRouter();
+    router.setModeContext('stork');
+
+    // Some iOS/WebKit paths deliver Touch Events while the canvas PointerEvent
+    // is delayed or omitted.  The touch edge itself must still flap.
+    canvas.emit('touchstart', touchEvent([touch(100, 100)], []));
+    expect(actions).toEqual([{ type: 'flap' }]);
+
+    // If WebKit also supplies the compatibility PointerEvent, it belongs to
+    // the same physical edge and must only establish capture, not flap twice.
+    emitPointerDown(document, canvas, pointerEvent(canvas, {
+      pointerId: 71,
+      clientX: 100,
+      clientY: 100,
+    }));
+    expect(actions).toEqual([{ type: 'flap' }]);
+    canvas.emit('touchend', touchEvent([], [touch(100, 100)]));
+    document.emit('pointerup', pointerEvent(canvas, { pointerId: 71 }));
+
+    // A new physical tap is a new edge even when no PointerEvent follows.
+    canvas.emit('touchstart', touchEvent([touch(104, 103)], []));
+    expect(actions).toEqual([{ type: 'flap' }, { type: 'flap' }]);
+    canvas.emit('touchend', touchEvent([], [touch(104, 103)]));
+    router.destroy();
+  });
+
   it('gives the stork pad exclusive start, biased normalized aim and release', () => {
     const { actions, document, pad, router } = createRouter();
     router.setModeContext('stork');
@@ -198,6 +225,21 @@ describe('InputRouter pointer input', () => {
     expect(actions).not.toContainEqual({ type: 'flap' });
     expect(pad.capturedPointers.size).toBe(0);
 
+    router.destroy();
+  });
+
+  it('makes the real stork button operable by keyboard and assistive clicks', () => {
+    const { actions, pad, router } = createRouter();
+    router.setModeContext('stork');
+
+    const accessibleClick = fakeEvent({ target: pad, detail: 0 }) as unknown as MouseEvent & FakeEvent;
+    pad.emit('click', accessibleClick);
+    expect(accessibleClick.defaultPrevented).toBe(true);
+    expect(actions).toEqual([{ type: 'ability-start' }, { type: 'ability-release' }]);
+
+    const compatibilityClick = fakeEvent({ target: pad, detail: 1 }) as unknown as MouseEvent & FakeEvent;
+    pad.emit('click', compatibilityClick);
+    expect(actions).toHaveLength(2);
     router.destroy();
   });
 

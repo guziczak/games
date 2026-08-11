@@ -10,6 +10,7 @@
   --mint: #8dffcb;
   --amber: #ffc55f;
   --danger: #ff667f;
+  --display-font: "Arial Narrow", "Aptos Narrow", "Roboto Condensed", "Segoe UI", Arial, sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -33,11 +34,16 @@ body {
 body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
 a {
   font: inherit;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 button {
@@ -70,7 +76,8 @@ button {
   width: 100%;
   height: 100%;
   outline: none;
-  touch-action: manipulation;
+  /* Keep one-finger drags in the game while preserving pinch zoom. */
+  touch-action: pinch-zoom;
 }
 
 .vignette {
@@ -91,6 +98,9 @@ button {
   place-items: center;
   padding: calc(28px + var(--safe-top)) calc(22px + var(--safe-right)) calc(28px + var(--safe-bottom)) calc(22px + var(--safe-left));
   background: linear-gradient(90deg, rgba(2, 12, 27, 0.83), rgba(2, 13, 29, 0.28) 68%, rgba(2, 12, 27, 0.12));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .loading-screen {
@@ -111,7 +121,7 @@ button {
   border-radius: 28px;
   background: linear-gradient(145deg, rgba(113, 239, 255, 0.16), rgba(255, 197, 95, 0.1));
   box-shadow: 0 0 45px rgba(90, 222, 255, 0.18), inset 0 0 32px rgba(255, 255, 255, 0.05);
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: 39px;
   font-weight: 900;
   letter-spacing: -0.08em;
@@ -157,7 +167,7 @@ button {
 .eyebrow {
   margin: 0 0 10px;
   color: var(--cyan);
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: clamp(0.78rem, 1.2vw, 0.98rem);
   font-weight: 800;
   letter-spacing: 0.18em;
@@ -165,12 +175,13 @@ button {
 
 h1 {
   margin: 0;
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: clamp(3.8rem, 10vw, 8.8rem);
   font-weight: 900;
-  letter-spacing: -0.055em;
-  line-height: 0.78;
+  letter-spacing: -0.018em;
+  line-height: 0.86;
   text-transform: uppercase;
+  text-wrap: balance;
 }
 
 h1 span {
@@ -233,7 +244,7 @@ kbd {
   color: #041522;
   background: linear-gradient(135deg, #d7fff2, var(--mint) 42%, #54d8c3);
   box-shadow: 0 13px 36px rgba(49, 222, 183, 0.24), inset 0 1px rgba(255, 255, 255, 0.7);
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: 1.22rem;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -270,10 +281,24 @@ kbd {
   text-align: center;
 }
 
+.compact-screen .glass-card {
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
+  overflow: auto;
+}
+
 .glass-card h1 {
   margin-bottom: 22px;
   font-size: clamp(2.6rem, 8vw, 4.8rem);
   line-height: 0.95;
+}
+
+.game-over-title {
+  font-family: var(--display-font);
+  font-size: clamp(2.45rem, 8vw, 4.65rem);
+  font-stretch: condensed;
+  letter-spacing: 0.035em;
+  line-height: 0.96;
+  word-spacing: 0.06em;
 }
 
 .hud {
@@ -304,7 +329,7 @@ kbd {
 .hud-kicker {
   display: block;
   color: var(--muted);
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-size: 0.67rem;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -312,7 +337,7 @@ kbd {
 
 #scoreOutput {
   display: block;
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: clamp(1.7rem, 3vw, 2.3rem);
   font-weight: 900;
   line-height: 1;
@@ -338,7 +363,7 @@ kbd {
   gap: 12px;
   margin-bottom: 7px;
   color: #dceafa;
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -374,7 +399,7 @@ kbd {
 
 #modeName {
   display: block;
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-weight: 900;
   letter-spacing: 0.1em;
 }
@@ -386,13 +411,33 @@ kbd {
 }
 
 .mode-resource {
-  width: 106px;
+  width: 100%;
   margin-top: 7px;
 }
 
 .mode-resource #modeResourceBar {
   width: 100%;
   background: linear-gradient(90deg, var(--mint), var(--amber), var(--danger));
+}
+
+.app[data-mode="frog"] #modeResourceBar {
+  background: linear-gradient(90deg, #55d987, #c6ff75);
+}
+
+.app[data-mode="rubber"] #modeResourceBar {
+  background: linear-gradient(90deg, #78e9ff, #ee7dff);
+}
+
+.app[data-mode="steel"] #modeResourceBar {
+  background: linear-gradient(90deg, #b9d3e2, var(--amber) 62%, var(--danger));
+}
+
+.app[data-mode="ghost"] #modeResourceBar {
+  background: linear-gradient(90deg, #725ecf, #c0b5ff, #ecf7ff);
+}
+
+.app[data-mode="stork"] #modeResourceBar {
+  background: linear-gradient(90deg, #db812e, var(--amber), #fff2c2);
 }
 
 .icon-button {
@@ -414,7 +459,7 @@ kbd {
 .pause-button {
   top: auto;
   bottom: calc(16px + var(--safe-bottom));
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-weight: 900;
 }
 
@@ -423,12 +468,41 @@ kbd {
   top: calc(94px + var(--safe-top));
   left: 50%;
   color: var(--amber);
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-size: clamp(1.25rem, 3vw, 2.15rem);
   font-weight: 900;
   letter-spacing: 0.06em;
   text-shadow: 0 3px 20px rgba(255, 165, 44, 0.43);
   transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.ability-hint {
+  position: absolute;
+  left: calc(16px + var(--safe-left));
+  bottom: calc(16px + var(--safe-bottom));
+  z-index: 13;
+  width: min(440px, calc(100vw - 116px - var(--safe-left) - var(--safe-right)));
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid rgba(167, 217, 255, 0.2);
+  border-radius: 12px;
+  color: #dceafa;
+  background: rgba(4, 17, 34, 0.66);
+  box-shadow: 0 8px 28px rgba(0, 5, 16, 0.2);
+  backdrop-filter: blur(10px);
+  font-family: var(--display-font);
+  font-size: clamp(0.66rem, 1.7vw, 0.78rem);
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.touch-hint {
+  display: none;
 }
 
 .mutation-prompt {
@@ -456,7 +530,7 @@ kbd {
 }
 
 .mutation-prompt strong {
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-size: 0.95rem;
   letter-spacing: 0.06em;
 }
@@ -479,7 +553,7 @@ kbd {
     radial-gradient(circle at 36% 27%, rgba(255, 255, 255, 0.88), transparent 11%),
     linear-gradient(145deg, #fff2c2, var(--amber) 52%, #e67a2b);
   box-shadow: 0 15px 42px rgba(240, 144, 39, 0.35), inset 0 -9px 18px rgba(151, 67, 9, 0.25);
-  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-family: var(--display-font);
   font-weight: 900;
   touch-action: none;
   cursor: grab;
@@ -490,6 +564,16 @@ kbd {
   cursor: grabbing;
   transform: scale(0.95);
   filter: saturate(1.2) brightness(1.05);
+}
+
+.stork-action:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.45) brightness(0.76);
+  opacity: 0.7;
+}
+
+.stork-action[data-state="aiming"] {
+  box-shadow: 0 0 0 7px rgba(255, 197, 95, 0.16), 0 15px 42px rgba(240, 144, 39, 0.46), inset 0 -9px 18px rgba(151, 67, 9, 0.25);
 }
 
 .stork-action-icon {
@@ -521,7 +605,7 @@ kbd {
 
 .results {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 0 0 25px;
 }
@@ -536,11 +620,12 @@ kbd {
 .results dt {
   color: var(--muted);
   font-size: 0.65rem;
+  overflow-wrap: anywhere;
 }
 
 .results dd {
   margin: 3px 0 0;
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--display-font);
   font-size: 1.5rem;
   font-weight: 900;
 }

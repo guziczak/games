@@ -51,6 +51,7 @@ function makeObstacle(overrides: Partial<ObstacleState> = {}): ObstacleState {
     rubberRicochetAwarded: false,
     steelBreakAwarded: false,
     ghostPhaseAwarded: false,
+    storkVaultCommitted: false,
     storkVaultAwarded: false,
     ...overrides,
   };
@@ -158,6 +159,62 @@ describe('Sky Dodge 2.0 simulation', () => {
       phaseTime: 0,
     });
     expect(() => JSON.stringify(stork)).not.toThrow();
+  });
+
+  it('gives an ordinary stork fall one bounded recovery and rearms it on flap', () => {
+    const source = startMode(
+      createInitialGameState(91, DEFAULT_GAME_CONFIG),
+      'stork',
+      DEFAULT_GAME_CONFIG,
+    ).state;
+    source.player.invulnerableTime = 0;
+    source.world.spawnTimer = 999;
+    source.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
+    source.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
+
+    const firstLanding = stepSimulation(
+      source,
+      DEFAULT_GAME_CONFIG.fixedStep,
+      undefined,
+      DEFAULT_GAME_CONFIG,
+    );
+    expect(firstLanding.state.status).toBe('running');
+    expect(firstLanding.state.player.vy).toBeGreaterThan(0);
+    expect(firstLanding.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'boundary-floor',
+      outcome: 'shielded',
+    }));
+
+    const exhausted = cloneGameState(firstLanding.state);
+    exhausted.player.invulnerableTime = 0;
+    exhausted.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
+    exhausted.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
+    const fatalSecondLanding = stepSimulation(
+      exhausted,
+      DEFAULT_GAME_CONFIG.fixedStep,
+      undefined,
+      DEFAULT_GAME_CONFIG,
+    );
+    expect(fatalSecondLanding.state.status).toBe('dead');
+
+    const rearmed = stepSimulation(
+      firstLanding.state,
+      DEFAULT_GAME_CONFIG.fixedStep,
+      [{ type: 'flap' }],
+      DEFAULT_GAME_CONFIG,
+    ).state;
+    rearmed.player.invulnerableTime = 0;
+    rearmed.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
+    rearmed.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
+    const landingAfterFlap = stepSimulation(
+      rearmed,
+      DEFAULT_GAME_CONFIG.fixedStep,
+      undefined,
+      DEFAULT_GAME_CONFIG,
+    );
+    expect(landingAfterFlap.state.status).toBe('running');
+    expect(landingAfterFlap.state.player.vy).toBeGreaterThan(0);
   });
 
   it('keeps a frog attached to the moving gate for the full cling window and releases safely', () => {

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,canvas{width:100%;height:100%;margin:0;display:block;overflow:hidden;background:#08162b}</style></head>
+<body><canvas id="preview"></canvas><script type="module">
+import { SceneRenderer } from '/src/rendering/SceneRenderer.ts';
+import { createInitialGameState } from '/src/simulation/GameState.ts';
+
+const canvas = document.querySelector('#preview');
+const state = createInitialGameState(4242);
+const gate = (id, x, gapCenter) => ({ id, x, width: .9, baseGapCenter: gapCenter, gapCenter, gapSize: 3.05, motionAmplitude: 0, motionFrequency: 0, motionPhase: x, passed: false, nearMissAwarded: false, destroyed: false, collisionResolved: false, frogCatapultAwarded: false, rubberRicochetAwarded: false, steelBreakAwarded: false, ghostPhaseAwarded: false, storkVaultAwarded: false });
+state.clock.elapsed = 9.4;
+state.player.y = 5.15;
+state.world.obstacles = [gate('gate-a', 7.3, 5.8), gate('gate-b', 12.4, 3.8), gate('gate-c', 17.1, 6.3)];
+state.world.coins = [
+  { id: 'coin-a', obstacleId: 'gate-a', x: 6.4, y: 5.8, radius: .18, collected: false },
+  { id: 'coin-b', obstacleId: 'gate-a', x: 6.95, y: 6.05, radius: .18, collected: false },
+  { id: 'coin-c', obstacleId: 'gate-a', x: 7.5, y: 5.8, radius: .18, collected: false },
+];
+const requestedMode = new URLSearchParams(location.search).get('mode') || 'stork';
+state.mode.active = requestedMode;
+state.mode.remaining = 7.2;
+state.mode.stork.phase = 'aiming';
+state.mode.stork.lockedTargetId = 'gate-a';
+state.mode.stork.aimBias = .65;
+state.mode.stork.energy = 66;
+state.mode.frog.phase = 'charging';
+state.mode.frog.charge = .7;
+state.mode.rubber.phase = 'aiming';
+state.mode.rubber.aim = { x: .8, y: .55 };
+state.mode.steel.heat = 82;
+state.mode.steel.critical = true;
+state.mode.ghost.phase = 'phasing';
+state.dna.value = 100;
+state.dna.offer = { id: 'offer-a', x: 14.8, upperY: 7, lowerY: 3, upper: 'ghost', lower: 'steel' };
+const renderer = new SceneRenderer(canvas, { quality: 'high', reducedMotion: false });
+const draw = () => { renderer.resize(); renderer.render(state, .45, []); };
+addEventListener('resize', draw);
+draw();
+</script></body></html>

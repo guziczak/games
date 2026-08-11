@@ -12,6 +12,7 @@ export type ScoreKind =
   | 'frog-catapult'
   | 'rubber-ricochet'
   | 'steel-break'
+  | 'steel-temper'
   | 'ghost-phase'
   | 'stork-vault';
 
@@ -23,6 +24,7 @@ export type ModeAction =
   | 'rubber-bounce'
   | 'steel-critical'
   | 'steel-overheat'
+  | 'steel-temper'
   | 'ghost-phase-start'
   | 'ghost-phase-end'
   | 'stork-lock'
