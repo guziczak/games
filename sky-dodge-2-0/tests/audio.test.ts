@@ -101,6 +101,11 @@ describe('AudioEngine', () => {
     const context = FakeAudioContext.latest;
     expect(context).not.toBeNull();
     if (!context) return;
+    expect(audio.needsUnlock()).toBe(false);
+    context.state = 'suspended';
+    expect(audio.needsUnlock()).toBe(true);
+    expect(await audio.unlock()).toBe(true);
+    expect(audio.needsUnlock()).toBe(false);
 
     const state = createInitialGameState(17);
     audio.beginRun();

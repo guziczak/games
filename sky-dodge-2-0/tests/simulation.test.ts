@@ -416,8 +416,13 @@ describe('Sky Dodge 2.0 simulation', () => {
 
   it('keeps expiry grace scoped to the frog launch surface at maximum gate speed', () => {
     const expiryConfig: GameConfig = {
-      ...ACTION_CONFIG,
-      player: { ...ACTION_CONFIG.player, gravity: 0 },
+      ...DEFAULT_GAME_CONFIG,
+      player: { ...DEFAULT_GAME_CONFIG.player, gravity: 0 },
+      obstacle: {
+        ...DEFAULT_GAME_CONFIG.obstacle,
+        firstSpawnDelay: 99,
+        coinChance: 0,
+      },
     };
     const source = startMode(
       createInitialGameState(212, expiryConfig),
@@ -462,6 +467,8 @@ describe('Sky Dodge 2.0 simulation', () => {
       && event.entityId === 'frog-expiry-surface')).toBe(false);
 
     result.state.player.invulnerableTime = 0;
+    result.state.player.y = 3;
+    result.state.player.vy = 0;
     result.state.world.obstacles.push(makeObstacle({
       id: 'unrelated-fatal-wall',
       x: result.state.player.x,
