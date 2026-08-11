@@ -469,10 +469,19 @@ function launchFrog(state: GameState, events: GameEvent[], config: GameConfig): 
   }
 }
 
-function stopGhostPhase(state: GameState, events: GameEvent[]): void {
+function stopGhostPhase(state: GameState, events: GameEvent[], config: GameConfig): void {
   if (state.mode.ghost.phase !== 'phasing') return;
   state.mode.ghost.phase = 'material';
   state.mode.ghost.phaseTime = 0;
+  const materializingInsideObstacle = state.world.obstacles.some(
+    (obstacle) => !obstacle.destroyed && playerOverlapsObstacle(state, obstacle, config),
+  );
+  if (materializingInsideObstacle) {
+    state.player.invulnerableTime = Math.max(
+      state.player.invulnerableTime,
+      config.modes.ghost.materializeGrace,
+    );
+  }
   emitModeAction(state, events, 'ghost', 'ghost-phase-end');
 }
 
@@ -540,7 +549,7 @@ function processInput(
     if (action.type === 'ability-release') {
       if (activeMode === 'frog') launchFrog(state, events, config);
       else if (activeMode === 'rubber') launchRubber(state, events, config);
-      else if (activeMode === 'ghost') stopGhostPhase(state, events);
+      else if (activeMode === 'ghost') stopGhostPhase(state, events, config);
       else if (activeMode === 'stork') releaseStorkVault(state, events, config);
       continue;
     }
@@ -554,7 +563,7 @@ function processInput(
         state.mode.rubber.aim = { x: 0, y: 0 };
         state.mode.rubber.aimTime = 0;
       } else if (activeMode === 'ghost') {
-        stopGhostPhase(state, events);
+        stopGhostPhase(state, events, config);
       } else if (activeMode === 'stork' && state.mode.stork.phase === 'aiming') {
         state.mode.stork.phase = 'idle';
         state.mode.stork.lockedTargetId = null;
@@ -603,7 +612,7 @@ function updateActiveMode(
     ghost.phaseTime += dt;
     if (ghost.phase === 'phasing') {
       ghost.energy = Math.max(0, ghost.energy - config.modes.ghost.phaseDrain * dt);
-      if (ghost.energy <= 0) stopGhostPhase(state, events);
+      if (ghost.energy <= 0) stopGhostPhase(state, events, config);
     } else {
       ghost.energy = Math.min(config.modes.ghost.maximumEnergy, ghost.energy + config.modes.ghost.recharge * dt);
     }
@@ -689,7 +698,37 @@ function failRun(
   events.push({ ...stamp(state), type: 'game-over', reason, ...(entityId ? { entityId } : {}) });
 }
 
+function triggerSteelOverheat(
+  state: GameState,
+  events: GameEvent[],
+  config: GameConfig,
+  entityId: string,
+): boolean {
+  if (state.mode.active !== 'steel' || state.mode.steel.heat < config.modes.steel.maximumHeat) return false;
+  state.mode.steel.overheated = true;
+  emitModeAction(state, events, 'steel', 'steel-overheat', entityId);
+  exitModeMutable(state, events, config, 'overheat');
+  return true;
+}
+
 function resolveBoundaryCollision(state: GameState, events: GameEvent[], config: GameConfig): void {
+  const minimumX = config.player.radiusX;
+  const maximumX = config.world.width - config.player.radiusX;
+  const left = state.player.x < minimumX;
+  const right = state.player.x > maximumX;
+  if (left || right) {
+    const entityId = left ? 'boundary-left' : 'boundary-right';
+    state.player.x = left ? minimumX : maximumX;
+    if (state.mode.active === 'rubber') {
+      state.player.vx = (left ? 1 : -1)
+        * Math.abs(state.player.vx)
+        * config.modes.rubber.restitution;
+      state.mode.rubber.vx = state.player.vx;
+      events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'bounce' });
+      emitModeAction(state, events, 'rubber', 'rubber-bounce', entityId);
+    }
+  }
+
   const minimumY = config.player.radiusY;
   const maximumY = config.world.height - config.player.radiusY;
   const below = state.player.y < minimumY;
@@ -728,6 +767,7 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     steel.heat = Math.min(config.modes.steel.maximumHeat, steel.heat + config.modes.steel.boundaryHeat);
     steel.timeSinceImpact = 0;
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'destroy' });
+    triggerSteelOverheat(state, events, config, entityId);
     return;
   }
 
@@ -914,11 +954,7 @@ function resolveObstacleCollision(
     const steel = state.mode.steel;
     steel.heat = Math.min(config.modes.steel.maximumHeat, steel.heat + config.modes.steel.obstacleHeat);
     steel.timeSinceImpact = 0;
-    if (steel.heat >= config.modes.steel.maximumHeat) {
-      steel.overheated = true;
-      emitModeAction(state, events, 'steel', 'steel-overheat', obstacle.id);
-      exitModeMutable(state, events, config, 'overheat');
-    }
+    triggerSteelOverheat(state, events, config, obstacle.id);
     return;
   }
 

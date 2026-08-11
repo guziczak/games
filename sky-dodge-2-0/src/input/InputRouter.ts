@@ -64,7 +64,9 @@ export class InputRouter {
     this.doubleTapGuard = new DoubleTapGuard(canvas);
 
     canvas.addEventListener('pointerdown', this.handleCanvasPointerDown);
+    canvas.addEventListener('lostpointercapture', this.handleLostPointerCapture);
     storkPad?.addEventListener('pointerdown', this.handleStorkPointerDown);
+    storkPad?.addEventListener('lostpointercapture', this.handleLostPointerCapture);
     this.ownerDocument.addEventListener('pointerdown', this.handleGlobalPointerDown, true);
     this.ownerDocument.addEventListener('pointermove', this.handlePointerMove);
     this.ownerDocument.addEventListener('pointerup', this.handlePointerUp);
@@ -100,7 +102,9 @@ export class InputRouter {
     this.destroyed = true;
 
     this.canvas.removeEventListener('pointerdown', this.handleCanvasPointerDown);
+    this.canvas.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
     this.storkPad?.removeEventListener('pointerdown', this.handleStorkPointerDown);
+    this.storkPad?.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
     this.ownerDocument.removeEventListener('pointerdown', this.handleGlobalPointerDown, true);
     this.ownerDocument.removeEventListener('pointermove', this.handlePointerMove);
     this.ownerDocument.removeEventListener('pointerup', this.handlePointerUp);
@@ -233,6 +237,13 @@ export class InputRouter {
   };
 
   private readonly handlePointerCancel = (event: PointerEvent): void => {
+    const pointer = this.activePointer;
+    if (!pointer || pointer.id !== event.pointerId) return;
+    if (pointer.owner === 'stork') this.cancelAbility();
+    else this.releaseActivePointer();
+  };
+
+  private readonly handleLostPointerCapture = (event: PointerEvent): void => {
     const pointer = this.activePointer;
     if (!pointer || pointer.id !== event.pointerId) return;
     if (pointer.owner === 'stork') this.cancelAbility();

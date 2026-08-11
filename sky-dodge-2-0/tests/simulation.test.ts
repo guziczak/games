@@ -10,6 +10,7 @@ const TEST_CONFIG: GameConfig = {
   player: {
     ...DEFAULT_GAME_CONFIG.player,
     gravity: 0,
+    flapVelocity: 0,
   },
   obstacle: {
     ...DEFAULT_GAME_CONFIG.obstacle,
@@ -77,8 +78,9 @@ describe('Sky Dodge 2.0 simulation', () => {
     const halfStep = TEST_CONFIG.fixedStep / 2;
 
     expect(halfFrames.step(halfStep, [{ type: 'flap' }]).events).toHaveLength(0);
-    halfFrames.step(halfStep);
-    wholeFrame.step(TEST_CONFIG.fixedStep, [{ type: 'flap' }]);
+    const completedHalf = halfFrames.step(halfStep);
+    const completedWhole = wholeFrame.step(TEST_CONFIG.fixedStep, [{ type: 'flap' }]);
+    expect(completedHalf.events).toEqual(completedWhole.events);
     expect(halfFrames.snapshot()).toEqual(wholeFrame.snapshot());
 
     for (let index = 0; index < 300; index += 1) {
