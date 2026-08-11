@@ -788,6 +788,10 @@ document.addEventListener('DOMContentLoaded', function() {
     ].join(', ');
     let activeGameplayInput = null;
     let ignoreCompatibilityMouseUntil = 0;
+    let lastTouchTap = null;
+    let multiTouchGestureActive = false;
+    const DOUBLE_TAP_ZOOM_WINDOW = 360;
+    const DOUBLE_TAP_ZOOM_DISTANCE = 56;
 
     function gameplayInputTargetsControl(event) {
         let target = event && event.target;
@@ -860,6 +864,55 @@ document.addEventListener('DOMContentLoaded', function() {
         const active = activeGameplayInput;
         finishGameplayInput(null, active.source, active.id, true);
     }
+
+    // `touch-action: manipulation` disables double-tap zoom in most engines,
+    // but iOS Safari can still recognise it on a non-control part of the board.
+    // Cancel only the second nearby single-finger touchend. Pinch zoom remains
+    // available because every multi-touch gesture clears and bypasses this path.
+    gameArea.addEventListener('touchstart', function(event) {
+        if (event.touches && event.touches.length > 1) {
+            multiTouchGestureActive = true;
+            lastTouchTap = null;
+        }
+    }, { passive: true });
+
+    gameArea.addEventListener('touchend', function(event) {
+        if (multiTouchGestureActive) {
+            if (!event.touches || event.touches.length === 0) {
+                multiTouchGestureActive = false;
+            }
+            lastTouchTap = null;
+            return;
+        }
+        if ((event.touches && event.touches.length !== 0)
+            || !event.changedTouches
+            || event.changedTouches.length !== 1) {
+            lastTouchTap = null;
+            return;
+        }
+
+        const touch = event.changedTouches[0];
+        const currentTap = {
+            time: performance.now(),
+            x: touch.clientX,
+            y: touch.clientY
+        };
+        const isNearbyDoubleTap = lastTouchTap
+            && currentTap.time - lastTouchTap.time <= DOUBLE_TAP_ZOOM_WINDOW
+            && Math.hypot(currentTap.x - lastTouchTap.x, currentTap.y - lastTouchTap.y)
+                <= DOUBLE_TAP_ZOOM_DISTANCE;
+
+        if (isNearbyDoubleTap) {
+            if (event.cancelable) event.preventDefault();
+            lastTouchTap = null;
+        } else {
+            lastTouchTap = currentTap;
+        }
+    }, { passive: false });
+
+    gameArea.addEventListener('dblclick', function(event) {
+        if (event.cancelable) event.preventDefault();
+    });
 
     if ('PointerEvent' in window) {
         gameArea.addEventListener('pointerdown', function(event) {
