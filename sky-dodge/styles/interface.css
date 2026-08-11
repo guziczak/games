@@ -1,0 +1,1096 @@
+:root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --ink: #f7fbff;
+    --panel: rgba(8, 18, 38, 0.88);
+    --panel-border: rgba(255, 255, 255, 0.24);
+    --focus: #fff36b;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    font-family: Inter, ui-rounded, "Trebuchet MS", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+}
+
+#gameContainer,
+#gameArea {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+}
+
+#gameArea {
+    isolation: isolate;
+    touch-action: manipulation;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button {
+    font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+    outline: 4px solid var(--focus);
+    outline-offset: 4px;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Czytelny, zwarty HUD. Identyfikatory pozostają zgodne z logiką gry. */
+.hud-panel {
+    position: absolute;
+    top: calc(var(--safe-top) + 72px);
+    left: calc(var(--safe-left) + 16px);
+    z-index: 20;
+    display: grid;
+    gap: 5px;
+    min-width: 190px;
+    padding: 10px 12px;
+    color: #fff;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 28px rgba(3, 8, 25, 0.28);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+}
+
+.hud-score-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hud-label {
+    color: #dce9ff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.hud-panel #score,
+.hud-panel #bonusScore,
+.hud-panel #purpleCoinScore,
+.hud-panel #frogCoinScore {
+    position: static;
+    inset: auto;
+    display: block;
+    margin: 0;
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-shadow: none;
+}
+
+.hud-panel #score {
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.hud-panel #bonusScore {
+    color: #ffe66d;
+}
+
+.hud-panel #purpleCoinScore {
+    color: #e9b9ff;
+}
+
+.hud-panel #frogCoinScore {
+    color: #aaf3b2;
+}
+
+/* Pasek mutacji jest widoczny, lecz nie zagłusza akcji. */
+#mutationIndicator {
+    position: absolute;
+    top: calc(var(--safe-top) + 16px);
+    left: 50%;
+    z-index: 21;
+    display: grid;
+    width: min(280px, 38vw);
+    gap: 6px;
+    padding: 8px 12px 10px;
+    color: #f5fbff;
+    background: rgba(16, 23, 45, 0.9);
+    border: 1px solid rgba(131, 236, 255, 0.55);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 17, 37, 0.32), 0 0 18px rgba(0, 224, 255, 0.14);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+#mutationLabel {
+    overflow: hidden;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    line-height: 1.15;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.mutation-track {
+    display: block;
+    height: 8px;
+    overflow: hidden;
+    background: #070c18;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+}
+
+#mutationBar {
+    display: block;
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #43ee9a 0%, #ffe552 55%, #ff3d81 100%);
+    border-radius: inherit;
+    box-shadow: 0 0 12px currentColor;
+    transition: width 180ms ease-out;
+}
+
+#mutationIndicator.warning,
+#mutationIndicator[data-level="warning"] {
+    border-color: #ffe552;
+}
+
+#mutationIndicator.critical,
+#mutationIndicator[data-level="critical"] {
+    border-color: #ff5c93;
+    box-shadow: 0 8px 24px rgba(0, 17, 37, 0.32), 0 0 22px rgba(255, 61, 129, 0.36);
+}
+
+#storkGrabIndicator {
+    position: absolute;
+    bottom: calc(var(--safe-bottom) + 22px);
+    left: 50%;
+    z-index: 26;
+    display: none;
+    width: min(360px, 76vw);
+    gap: 6px;
+    padding: 9px 12px 10px;
+    color: #fff9e9;
+    background: linear-gradient(135deg, rgba(83, 31, 10, 0.94), rgba(135, 53, 15, 0.92));
+    border: 1px solid rgba(255, 207, 105, 0.86);
+    border-radius: 14px;
+    box-shadow: 0 9px 26px rgba(49, 13, 0, 0.36), 0 0 18px rgba(255, 134, 35, 0.24);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+#storkGrabIndicator[aria-hidden="false"],
+#storkGrabIndicator.is-active {
+    display: grid;
+}
+
+.stork-grab-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#storkGrabLabel {
+    overflow: hidden;
+    font-size: 0.76rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stork-grab-key {
+    min-width: 24px;
+    padding: 2px 5px;
+    color: #54230d;
+    background: #ffe4a0;
+    border: 1px solid #fff4d3;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 950;
+    text-align: center;
+    box-shadow: 0 2px 0 #a84c17;
+}
+
+.stork-grab-energy-track {
+    display: block;
+    height: 9px;
+    overflow: hidden;
+    background: rgba(27, 8, 2, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.44);
+    border-radius: 999px;
+}
+
+#storkGrabEnergyBar {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff654f 0%, #ffd05b 50%, #f7ffb0 100%);
+    border-radius: inherit;
+    box-shadow: 0 0 11px rgba(255, 211, 91, 0.7);
+    transition: width 100ms linear;
+}
+
+#storkGrabHint {
+    overflow: hidden;
+    color: rgba(255, 246, 224, 0.88);
+    font-size: 0.67rem;
+    font-weight: 750;
+    line-height: 1.15;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#storkGrabIndicator.is-grabbing {
+    border-color: #fff4a8;
+    box-shadow: 0 9px 26px rgba(49, 13, 0, 0.36), 0 0 25px rgba(255, 223, 92, 0.62);
+}
+
+#storkGrabIndicator.is-exhausted #storkGrabEnergyBar {
+    background: #ff493d;
+}
+
+.stork-mode-active .pipe.pipe-in-range {
+    outline: 3px dashed rgba(255, 226, 119, 0.9);
+    outline-offset: 4px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.stork-grab-active .pipe.pipe-grabbed {
+    z-index: 4;
+    outline: 4px solid #fff0a1;
+    outline-offset: 3px;
+    filter: saturate(1.25) drop-shadow(0 0 12px rgba(255, 177, 52, 0.95));
+    cursor: ns-resize;
+    touch-action: none;
+    will-change: height;
+    animation: storkPipeGrip 420ms ease-in-out infinite alternate;
+}
+
+.stork-grab-active #bird.stork-grabbing {
+    filter: saturate(1.25) drop-shadow(0 0 11px rgba(255, 224, 108, 0.95));
+}
+
+.stork-grab-active #storkGrabIndicator {
+    border-color: #fff4a8;
+    box-shadow: 0 9px 26px rgba(49, 13, 0, 0.36), 0 0 25px rgba(255, 223, 92, 0.62);
+}
+
+.stork-grab-cooldown #storkGrabEnergyBar {
+    filter: saturate(0.45);
+    opacity: 0.7;
+}
+
+@keyframes storkPipeGrip {
+    from { filter: saturate(1.1) drop-shadow(0 0 6px rgba(255, 177, 52, 0.72)); }
+    to { filter: saturate(1.35) drop-shadow(0 0 15px rgba(255, 226, 112, 1)); }
+}
+
+/* Przyciski transformacji tworzą jedną, przewidywalną grupę. */
+.mode-controls {
+    position: absolute;
+    top: 50%;
+    right: calc(var(--safe-right) + 16px);
+    z-index: 30;
+    display: grid;
+    gap: 10px;
+    transform: translateY(-50%);
+}
+
+.mode-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.mode-controls #frogModeButton,
+.mode-controls #ghostModeButton,
+.mode-controls #storkModeButton {
+    position: static;
+    inset: auto;
+    width: 76px;
+    height: 76px;
+    min-width: 76px;
+    margin: 0;
+    padding: 5px;
+    border: 2px solid rgba(255, 255, 255, 0.58);
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(1, 8, 25, 0.36);
+    transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+}
+
+.mode-controls #frogModeButton {
+    background: #11673e;
+}
+
+.mode-controls #ghostModeButton {
+    background: #5040bc;
+}
+
+.mode-controls #storkModeButton {
+    background: #b53611;
+}
+
+.mode-controls #frogModeButton:hover,
+.mode-controls #ghostModeButton:hover,
+.mode-controls #storkModeButton:hover {
+    filter: brightness(1.15);
+    transform: translateY(-2px) scale(1.03);
+}
+
+.mode-controls #frogModeButton:disabled,
+.mode-controls #ghostModeButton:disabled,
+.mode-controls #storkModeButton:disabled {
+    color: #fff;
+    background: #424957;
+    border-color: rgba(255, 255, 255, 0.34);
+    filter: grayscale(0.7);
+    opacity: 0.76;
+}
+
+.mode-controls .mode-button-icon {
+    width: 34px;
+    height: 34px;
+    margin: 0;
+}
+
+.mode-button-name {
+    display: block;
+    margin-top: 1px;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.mode-controls .mode-button-cost {
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-shadow: 0 1px 2px #000;
+}
+
+.mode-controls #frogModeTimer,
+.mode-controls #ghostModeTimer,
+.mode-controls #storkModeTimer {
+    position: static;
+    inset: auto;
+    order: -1;
+    max-width: 150px;
+    margin: 0;
+    padding: 5px 8px;
+    color: #fff;
+    background: rgba(7, 13, 29, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 8px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    text-align: right;
+    text-shadow: none;
+    white-space: nowrap;
+}
+
+/* Wskaźniki trybów odsuwamy od paska mutacji i bezpiecznych stref telefonu. */
+#rubberModeIndicator {
+    top: calc(var(--safe-top) + 76px);
+}
+
+#frogJumpChargeIndicator {
+    bottom: calc(10% + var(--safe-bottom) + 20px);
+}
+
+#frogOverloadIndicator {
+    bottom: calc(10% + var(--safe-bottom) + 54px);
+}
+
+/* Żaba wyraźnie „łapie” każdą stronę przeszkody, zanim gracz ją wystrzeli. */
+.frog-mode-active #bird.frog-clinging {
+    outline: 3px solid rgba(181, 255, 106, 0.9);
+    outline-offset: 3px;
+    filter: saturate(1.3) drop-shadow(0 0 9px rgba(116, 255, 77, 0.95));
+    animation: frogClingGlow 650ms ease-in-out infinite alternate !important;
+}
+
+.frog-mode-active #bird.frog-clinging[data-clinging-surface="ceiling"],
+.frog-mode-active #bird.frog-clinging[data-clinging-surface="pipe-bottom"] {
+    transform: rotate(180deg) !important;
+}
+
+.frog-mode-active #bird.frog-clinging[data-clinging-surface="pipe-side"] {
+    /* Rotating the whole actor swaps the collision rect's width and height.
+       Keep the hitbox stable; the outline/glow still communicates the grip. */
+    transform: rotate(0deg) !important;
+}
+
+.frog-mode-active #bird.frog-clinging[data-clinging-surface="ground"],
+.frog-mode-active #bird.frog-clinging[data-clinging-surface="pipe-top"] {
+    transform: rotate(0deg) !important;
+}
+
+#gameArea.frog-scroll-locked .pipe,
+#gameArea.frog-scroll-locked .coin,
+#gameArea.frog-scroll-locked .stork {
+    animation-play-state: paused !important;
+}
+
+@keyframes frogClingGlow {
+    from {
+        outline-color: rgba(181, 255, 106, 0.65);
+        filter: saturate(1.15) drop-shadow(0 0 4px rgba(116, 255, 77, 0.72));
+    }
+    to {
+        outline-color: #efff73;
+        filter: saturate(1.45) drop-shadow(0 0 12px rgba(116, 255, 77, 1));
+    }
+}
+
+/* Ekrany startu i końca: ten sam język wizualny, mniej przypadkowego hałasu. */
+#startScreen.game-screen,
+#gameOverScreen.game-screen {
+    inset: 0;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: calc(var(--safe-top) + 68px) calc(var(--safe-right) + 18px)
+             calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 18px);
+    background:
+        radial-gradient(circle at 72% 22%, rgba(255, 0, 178, 0.2), transparent 35%),
+        radial-gradient(circle at 24% 78%, rgba(0, 224, 255, 0.18), transparent 38%),
+        rgba(4, 9, 24, 0.84);
+    overscroll-behavior: contain;
+}
+
+.screen-card {
+    position: relative;
+    width: min(570px, 100%);
+    margin: auto;
+    padding: clamp(22px, 4vw, 38px);
+    color: #fff;
+    background: rgba(9, 18, 39, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 28px;
+    box-shadow: 0 24px 70px rgba(1, 5, 18, 0.48), 0 0 36px rgba(74, 230, 255, 0.12);
+    text-align: center;
+    backdrop-filter: blur(14px);
+}
+
+.screen-card .eyebrow {
+    margin: 0 0 8px;
+    color: #82efff;
+    font-size: 0.77rem;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.screen-card h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(2.5rem, 9vw, 4.8rem);
+    line-height: 0.95;
+    letter-spacing: -0.055em;
+    text-shadow: 0 3px 0 #8a2be2, 0 0 24px rgba(0, 224, 255, 0.45);
+}
+
+.screen-card .game-tagline {
+    max-width: 440px;
+    margin: 18px auto;
+    color: #edf5ff;
+    font-size: clamp(1rem, 3vw, 1.16rem);
+    line-height: 1.45;
+}
+
+.controls-card {
+    display: grid;
+    gap: 7px;
+    max-width: 440px;
+    margin: 20px auto 0;
+    padding: 15px 17px;
+    color: #f6f9ff;
+    background: rgba(255, 255, 255, 0.075);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    text-align: left;
+}
+
+.controls-card h2 {
+    margin: 0 0 2px;
+    color: #ffe66d;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.controls-card p {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
+}
+
+kbd {
+    display: inline-block;
+    min-width: 1.8em;
+    padding: 2px 6px;
+    color: #11182c;
+    background: #f8fbff;
+    border: 1px solid #b9c6da;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    font: 800 0.82em/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+    text-align: center;
+}
+
+.screen-card #startButton,
+.screen-card #restartButton {
+    min-width: min(260px, 100%);
+    min-height: 52px;
+    margin: 22px 0 0;
+    padding: 12px 26px;
+    color: #fff;
+    background: linear-gradient(135deg, #16864a, #087141);
+    border: 2px solid rgba(255, 255, 255, 0.62);
+    border-radius: 14px;
+    box-shadow: 0 8px 0 #064c30, 0 13px 24px rgba(0, 0, 0, 0.28);
+    font-size: 1.15rem;
+    font-weight: 900;
+    transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+}
+
+.screen-card #startButton:hover,
+.screen-card #restartButton:hover {
+    background: linear-gradient(135deg, #1b9655, #087141);
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+}
+
+.screen-card #startButton:active,
+.screen-card #restartButton:active {
+    box-shadow: 0 3px 0 #064c30, 0 6px 14px rgba(0, 0, 0, 0.28);
+    transform: translateY(4px);
+}
+
+.result-list {
+    display: grid;
+    gap: 8px;
+    width: min(390px, 100%);
+    margin: 24px auto 0;
+}
+
+.result-list > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 9px 13px;
+    color: #e9f2ff;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 11px;
+}
+
+.result-list dt,
+.result-list dd {
+    margin: 0;
+}
+
+.result-list dt {
+    font-size: 0.95rem;
+}
+
+.result-list dd {
+    color: #ffe66d;
+    font-size: 1.22rem;
+    font-weight: 900;
+}
+
+.result-list .result-total {
+    margin-top: 4px;
+    color: #fff;
+    background: linear-gradient(110deg, rgba(121, 55, 214, 0.75), rgba(0, 151, 180, 0.7));
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.result-list .result-total dt,
+.result-list .result-total dd {
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+
+/* Narzędzia są nad ekranami modalnymi i nie przechwytują kliknięć poza sobą. */
+.utility-controls {
+    position: fixed;
+    inset: calc(var(--safe-top) + 12px) 0 auto;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 calc(var(--safe-right) + 12px) 0 calc(var(--safe-left) + 12px);
+    pointer-events: none;
+}
+
+.utility-controls .utility-button,
+.utility-controls .back-button {
+    position: static;
+    inset: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    margin: 0;
+    padding: 0;
+    color: #fff;
+    background: rgba(8, 20, 43, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 14px;
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.3);
+    font-size: 1.35rem;
+    line-height: 1;
+    text-decoration: none;
+    pointer-events: auto;
+    touch-action: manipulation;
+}
+
+.utility-controls .utility-button:hover,
+.utility-controls .back-button:hover {
+    background: #183460;
+    filter: brightness(1.15);
+}
+
+.utility-controls .icon {
+    width: 23px;
+    height: 23px;
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+    .hud-panel {
+        top: calc(var(--safe-top) + 66px);
+        left: calc(var(--safe-left) + 9px);
+        min-width: 0;
+        width: min(174px, 47vw);
+        gap: 3px;
+        padding: 8px 9px;
+        border-radius: 13px;
+    }
+
+    .hud-label {
+        font-size: 0.61rem;
+    }
+
+    .hud-panel #score {
+        font-size: 1.55rem;
+    }
+
+    .hud-panel #bonusScore,
+    .hud-panel #purpleCoinScore,
+    .hud-panel #frogCoinScore {
+        overflow: hidden;
+        font-size: clamp(0.66rem, 2.8vw, 0.79rem);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #mutationIndicator {
+        top: calc(var(--safe-top) + 11px);
+        width: min(190px, 48vw);
+        padding: 7px 9px 8px;
+    }
+
+    #mutationLabel {
+        font-size: 0.64rem;
+    }
+
+    .mode-controls {
+        top: auto;
+        right: auto;
+        bottom: calc(10% + var(--safe-bottom) + 18px);
+        left: 50%;
+        display: flex;
+        gap: 8px;
+        transform: translateX(-50%);
+    }
+
+    .mode-control {
+        display: block;
+    }
+
+    .mode-controls #frogModeButton,
+    .mode-controls #ghostModeButton,
+    .mode-controls #storkModeButton {
+        width: 64px;
+        min-width: 64px;
+        height: 64px;
+        border-radius: 15px;
+    }
+
+    .mode-controls .mode-button-icon {
+        width: 27px;
+        height: 27px;
+    }
+
+    .mode-button-name {
+        font-size: 0.61rem;
+    }
+
+    .mode-controls .mode-button-cost {
+        font-size: 0.51rem;
+    }
+
+    .mode-controls #frogModeTimer,
+    .mode-controls #ghostModeTimer,
+    .mode-controls #storkModeTimer {
+        position: absolute;
+        right: 50%;
+        bottom: calc(100% + 5px);
+        max-width: 160px;
+        font-size: 0.64rem;
+        text-align: center;
+        transform: translateX(50%);
+    }
+
+    #rubberModeIndicator {
+        top: calc(var(--safe-top) + 62px);
+        right: calc(var(--safe-right) + 9px);
+        left: auto;
+        width: min(124px, 34vw);
+        padding: 7px 10px;
+        transform: none;
+        animation-name: rubberModePulsePortrait;
+    }
+
+    #frogJumpChargeIndicator {
+        bottom: calc(10% + var(--safe-bottom) + 96px);
+    }
+
+    #frogOverloadIndicator {
+        bottom: calc(10% + var(--safe-bottom) + 126px);
+    }
+
+    #storkGrabIndicator {
+        bottom: calc(10% + var(--safe-bottom) + 98px);
+        width: min(250px, 72vw);
+        padding: 7px 10px 8px;
+    }
+
+    #storkGrabHint {
+        font-size: 0.61rem;
+    }
+
+    #rubberModeIcon {
+        margin-bottom: 1px;
+        font-size: 20px;
+    }
+
+    #rubberModeText,
+    #rubberModeTimer {
+        margin-top: 1px;
+        font-size: 12px;
+    }
+
+    .screen-card {
+        border-radius: 22px;
+    }
+}
+
+@keyframes rubberModePulsePortrait {
+    from {
+        transform: scale(1);
+        background: linear-gradient(to right, #ff00ff, #00ffff);
+    }
+    to {
+        transform: scale(1.05);
+        background: linear-gradient(to right, #00ffff, #ff00ff);
+    }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+    .utility-controls {
+        top: calc(var(--safe-top) + 7px);
+        padding-right: calc(var(--safe-right) + 7px);
+        padding-left: calc(var(--safe-left) + 7px);
+    }
+
+    .utility-controls .utility-button,
+    .utility-controls .back-button {
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        font-size: 1.05rem;
+    }
+
+    .hud-panel {
+        top: calc(var(--safe-top) + 7px);
+        left: calc(var(--safe-left) + 57px);
+        display: flex;
+        align-items: center;
+        width: auto;
+        min-width: 0;
+        max-width: 46vw;
+        gap: 8px;
+        padding: 6px 9px;
+        border-radius: 11px;
+    }
+
+    .hud-score-row {
+        gap: 6px;
+        padding: 0 8px 0 0;
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+        border-bottom: 0;
+    }
+
+    .hud-panel #score {
+        font-size: 1.35rem;
+    }
+
+    .hud-panel #bonusScore,
+    .hud-panel #purpleCoinScore,
+    .hud-panel #frogCoinScore {
+        overflow: hidden;
+        max-width: 88px;
+        font-size: 0.66rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #mutationIndicator {
+        top: calc(var(--safe-top) + 7px);
+        right: calc(var(--safe-right) + 57px);
+        left: auto;
+        width: min(180px, 27vw);
+        padding: 6px 8px 7px;
+        transform: none;
+    }
+
+    #mutationLabel {
+        font-size: 0.58rem;
+    }
+
+    #storkGrabIndicator {
+        bottom: calc(var(--safe-bottom) + 8px);
+        width: min(280px, 42vw);
+        padding: 6px 9px 7px;
+    }
+
+    #storkGrabLabel,
+    #storkGrabHint {
+        font-size: 0.58rem;
+    }
+
+    .mode-controls {
+        right: calc(var(--safe-right) + 9px);
+        gap: 6px;
+    }
+
+    .mode-controls #frogModeButton,
+    .mode-controls #ghostModeButton,
+    .mode-controls #storkModeButton {
+        width: 54px;
+        min-width: 54px;
+        height: 54px;
+        border-radius: 13px;
+    }
+
+    .mode-controls .mode-button-icon {
+        width: 23px;
+        height: 23px;
+    }
+
+    .mode-button-name {
+        display: none;
+    }
+
+    .mode-controls #frogModeTimer,
+    .mode-controls #ghostModeTimer,
+    .mode-controls #storkModeTimer {
+        max-width: 120px;
+        padding: 4px 6px;
+        font-size: 0.62rem;
+    }
+
+    #startScreen.game-screen,
+    #gameOverScreen.game-screen {
+        justify-content: flex-start;
+        padding: calc(var(--safe-top) + 52px) calc(var(--safe-right) + 12px)
+                 calc(var(--safe-bottom) + 10px) calc(var(--safe-left) + 12px);
+    }
+
+    .screen-card {
+        width: min(760px, 94vw);
+        padding: 14px 20px 16px;
+        border-radius: 18px;
+    }
+
+    .screen-card .eyebrow {
+        margin-bottom: 4px;
+        font-size: 0.62rem;
+    }
+
+    .screen-card h1 {
+        font-size: clamp(2rem, 10vh, 3rem);
+    }
+
+    .screen-card .game-tagline {
+        margin: 8px auto;
+        font-size: 0.82rem;
+    }
+
+    .controls-card {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        max-width: 680px;
+        margin-top: 9px;
+        padding: 9px 11px;
+    }
+
+    .controls-card h2 {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: 0.65rem;
+    }
+
+    .controls-card p {
+        font-size: 0.68rem;
+        line-height: 1.25;
+    }
+
+    .screen-card #startButton,
+    .screen-card #restartButton {
+        min-height: 42px;
+        margin-top: 10px;
+        padding: 7px 22px;
+        font-size: 0.9rem;
+    }
+
+    .result-list {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+        max-width: 570px;
+        margin-top: 10px;
+    }
+
+    .result-list > div {
+        padding: 5px 9px;
+    }
+
+    .result-list .result-total {
+        grid-column: 1 / -1;
+    }
+
+    .result-list dt,
+    .result-list dd,
+    .result-list .result-total dt,
+    .result-list .result-total dd {
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 390px), (max-height: 430px) and (orientation: portrait) {
+    .screen-card {
+        padding: 18px 15px;
+    }
+
+    .screen-card .game-tagline {
+        margin: 11px auto;
+    }
+
+    .controls-card {
+        margin-top: 12px;
+        padding: 11px 12px;
+    }
+
+    .controls-card p {
+        font-size: 0.8rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html:focus-within {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (forced-colors: active) {
+    .hud-panel,
+    #mutationIndicator,
+    #storkGrabIndicator,
+    .screen-card,
+    .controls-card,
+    .result-list > div,
+    .utility-controls .utility-button,
+    .utility-controls .back-button {
+        border: 2px solid CanvasText;
+    }
+
+    #mutationBar {
+        background: Highlight;
+    }
+
+    #storkGrabEnergyBar {
+        background: Highlight;
+    }
+
+    .stork-mode-active .pipe.pipe-in-range,
+    .stork-grab-active .pipe.pipe-grabbed {
+        outline-color: Highlight;
+    }
+}

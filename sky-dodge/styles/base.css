@@ -33,10 +33,11 @@ body {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
     background-color: #333;
     overflow: hidden;
-    touch-action: none;
+    touch-action: manipulation;
 }
 #gameContainer {
     position: relative;
@@ -59,7 +60,7 @@ body {
     top: 50%;
     left: 15%;
     z-index: 2;
-    transition: left 0.3s ease, transform 0.3s ease; /* Płynne przesuwanie i lepsza animacja */
+    transition: transform 0.3s ease;
     box-shadow: 0 2px 10px rgba(255, 215, 0, 0.7);
     animation: crazyDuck 2s infinite alternate;
     transform-origin: center center;
@@ -695,7 +696,7 @@ body {
     animation: superSpark 0.8s infinite;
 }
 
-.spark:nth-child(1) {
+.spark.spark-left {
     bottom: 0;
     left: 15px;
     animation-delay: 0s;
@@ -703,7 +704,7 @@ body {
     box-shadow: 0 0 10px 2px rgba(255, 0, 255, 0.8);
 }
 
-.spark:nth-child(2) {
+.spark.spark-middle {
     bottom: 0;
     left: 25px;
     animation-delay: 0.2s;
@@ -711,7 +712,7 @@ body {
     box-shadow: 0 0 10px 2px rgba(255, 255, 0, 0.8);
 }
 
-.spark:nth-child(3) {
+.spark.spark-right {
     bottom: 0;
     left: 35px;
     animation-delay: 0.1s;
@@ -757,9 +758,8 @@ body {
     }
 }
 
-/* Dodanie efektu energetycznego upalenia pod jetpackiem */
-.jetpack-flames:after {
-    content: '';
+/* Energetyczny ślad ma własny element, więc nie nadpisuje dysz w ::after. */
+.jetpack-flames .energy-exhaust {
     position: absolute;
     width: 30px;
     height: 5px;

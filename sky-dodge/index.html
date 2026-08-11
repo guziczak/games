@@ -2,16 +2,18 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#10172d">
     <title>Sky Dodge</title>
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/gameplay.css">
     <link rel="stylesheet" href="styles/modes.css">
+    <link rel="stylesheet" href="styles/interface.css">
 </head>
 <body>
-<div id="gameContainer">
-    <div id="gameArea">
-        <div id="bird">
+<main id="gameContainer" aria-label="Sky Dodge">
+    <section id="gameArea" aria-label="Plansza gry" aria-hidden="true" inert>
+        <div id="bird" aria-hidden="true">
             <!-- Elementy POPIERDOLONEGO kaczorka -->
             <div class="wing"></div>
             <div class="mohawk"></div>
@@ -38,75 +40,148 @@
                 <div class="flame right"></div>
                 <div class="flame-mini left"></div>
                 <div class="flame-mini right"></div>
-                <div class="spark"></div>
-                <div class="spark"></div>
-                <div class="spark"></div>
+                <div class="spark spark-left"></div>
+                <div class="spark spark-middle"></div>
+                <div class="spark spark-right"></div>
+                <div class="energy-exhaust"></div>
             </div>
             <div class="bird-energy"></div>
         </div>
         <!-- Wskaźnik ładowania skoku żaby -->
-        <div id="frogJumpChargeIndicator">
+        <div id="frogJumpChargeIndicator" aria-hidden="true">
             <div id="frogJumpChargeBar"></div>
         </div>
         
         <!-- Wskaźnik przeładowania skoku żaby -->
-        <div id="frogOverloadIndicator">
+        <div id="frogOverloadIndicator" role="alert" aria-live="assertive">
             <div id="frogOverloadIcon">⚠️</div>
             <div id="frogOverloadText">OVERLOAD</div>
         </div>
         
         <!-- Kontener na narzekania żaby -->
-        <div id="frogComplaint"></div>
+        <div id="frogComplaint" role="status" aria-live="polite"></div>
         
         <!-- Wskaźnik trybu kauczuka -->
-        <div id="rubberModeIndicator">
+        <div id="rubberModeIndicator" role="status" aria-live="polite">
             <div id="rubberModeIcon">🧪</div>
             <div id="rubberModeText">TRYB KAUCZUKA</div>
             <div id="rubberModeTimer">0s</div>
         </div>
-        <div id="ground"></div>
-        <div id="score">0</div>
-        <div id="bonusScore">Monety: 0</div>
-        <div id="purpleCoinScore">Super monety: 0</div>
-        <div id="frogCoinScore">Monety żabie: 0</div>
-        <button id="frogModeButton">
-            <img src="jumping-frog.svg" alt="Tryb froga" class="mode-button-icon">
-            <span class="mode-button-cost">3🟡 1🟣</span>
-        </button>
-        <div id="frogModeTimer">TRYB FROGA: 0s</div>
-        <button id="ghostModeButton">
-            <img src="ghost.svg" alt="Tryb ducha" class="mode-button-icon">
-            <span class="mode-button-cost">2🟡 0🟣</span>
-        </button>
-        <div id="ghostModeTimer">TRYB DUCHA: 0s</div>
-        <button id="storkModeButton">
-            <img src="stork.svg" alt="Tryb bociana" class="mode-button-icon">
-            <span class="mode-button-cost">1🟡 1🟣 1🐸</span>
-        </button>
-        <div id="storkModeTimer">TRYB BOCIANA: 0s</div>
-    </div>
-    <div id="startScreen">
-        <h1>Sky Dodge</h1>
-        <p>Dotknij ekranu, aby rozpocząć</p>
-        <button id="startButton">Start</button>
-    </div>
-    <div id="gameOverScreen">
-        <h1>Koniec gry!</h1>
-        <p>Twój wynik: <span id="finalScore">0</span></p>
-        <p>Zebrane monety: <span id="finalCoins">0</span></p>
-        <p>Super monety: <span id="finalPurpleCoins">0</span></p>
-        <p>Całkowity wynik: <span id="finalTotalScore">0</span></p>
-        <button id="restartButton">Zagraj ponownie</button>
-    </div>
-    <div class="back-button">
-        <a href="https://guziczak.github.io/lukasz"><img src="../resources/icons/return.svg" alt="Return" class="icon"></a>
-    </div>
-</div>
+        <div id="ground" aria-hidden="true"></div>
+
+        <section id="gameHud" class="hud-panel" aria-label="Wynik i zebrane monety">
+            <div class="hud-score-row hud-score-main">
+                <span class="hud-label">Wynik</span>
+                <output id="score" aria-label="Wynik">0</output>
+            </div>
+            <output id="bonusScore" aria-label="Zwykłe monety">Monety: 0</output>
+            <output id="purpleCoinScore" aria-label="Super monety">Super monety: 0</output>
+            <output id="frogCoinScore" aria-label="Monety żabie">Monety żabie: 0</output>
+        </section>
+
+        <div id="mutationIndicator" role="progressbar" aria-labelledby="mutationLabel"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="mutationLabel">DNA stabilne</span>
+            <span class="mutation-track" aria-hidden="true">
+                <span id="mutationBar"></span>
+            </span>
+        </div>
+
+        <section id="storkGrabIndicator" aria-label="Energia chwytu bociana" aria-hidden="true">
+            <div class="stork-grab-heading">
+                <span id="storkGrabLabel">CHWYT GOTOWY</span>
+                <span class="stork-grab-key" aria-hidden="true">E</span>
+            </div>
+            <span class="stork-grab-energy-track" role="progressbar"
+                  aria-label="Energia chwytu" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                <span id="storkGrabEnergyBar"></span>
+            </span>
+            <span id="storkGrabHint">Przytrzymaj rurę i przeciągnij • E + W/S</span>
+        </section>
+
+        <section id="modeControls" class="mode-controls" aria-label="Transformacje">
+            <div class="mode-control">
+                <button id="frogModeButton" type="button"
+                        aria-label="Aktywuj tryb żaby. Koszt: 3 zwykłe monety i 1 super moneta">
+                    <img src="jumping-frog.svg" alt="" aria-hidden="true" class="mode-button-icon">
+                    <span class="mode-button-name">Żaba</span>
+                    <span class="mode-button-cost" aria-hidden="true">3🟡 1🟣</span>
+                </button>
+                <output id="frogModeTimer" aria-live="off">TRYB ŻABY: 0s</output>
+            </div>
+            <div class="mode-control">
+                <button id="ghostModeButton" type="button"
+                        aria-label="Aktywuj tryb ducha. Koszt: 2 zwykłe monety">
+                    <img src="ghost.svg" alt="" aria-hidden="true" class="mode-button-icon">
+                    <span class="mode-button-name">Duch</span>
+                    <span class="mode-button-cost" aria-hidden="true">2🟡 0🟣</span>
+                </button>
+                <output id="ghostModeTimer" aria-live="off">TRYB DUCHA: 0s</output>
+            </div>
+            <div class="mode-control">
+                <button id="storkModeButton" type="button"
+                        aria-label="Aktywuj tryb bociana. Koszt: 1 zwykła, 1 super i 1 żabia moneta">
+                    <img src="stork.svg" alt="" aria-hidden="true" class="mode-button-icon">
+                    <span class="mode-button-name">Bocian</span>
+                    <span class="mode-button-cost" aria-hidden="true">1🟡 1🟣 1🐸</span>
+                </button>
+                <output id="storkModeTimer" aria-live="off">TRYB BOCIANA: 0s</output>
+            </div>
+        </section>
+    </section>
+
+    <section id="startScreen" class="game-screen" role="dialog"
+             aria-labelledby="startTitle" aria-describedby="controlsHint" aria-hidden="false">
+        <div class="screen-card">
+            <p class="eyebrow">Kreskówkowa ewolucja w locie</p>
+            <h1 id="startTitle">Sky Dodge</h1>
+            <p class="game-tagline">Leć, zbieraj monety i mutuj, zanim niebo zrobi to za Ciebie.</p>
+            <div id="controlsHint" class="controls-card">
+                <h2>Sterowanie</h2>
+                <p><kbd>Spacja</kbd> / <kbd>↑</kbd> albo dotyk — wzbij się.</p>
+                <p><strong>Żaba:</strong> przytrzymaj, naładuj skok i puść.</p>
+                <p><strong>Bocian:</strong> przytrzymaj rurę i przeciągnij; klawiaturą użyj <kbd>E</kbd> oraz <kbd>W</kbd>/<kbd>S</kbd>.</p>
+                <p>Transformacje wybierasz przyciskami na planszy.</p>
+            </div>
+            <button id="startButton" type="button" aria-describedby="controlsHint">Start</button>
+        </div>
+    </section>
+
+    <section id="gameOverScreen" class="game-screen" role="dialog"
+             aria-labelledby="gameOverTitle" aria-hidden="true" inert>
+        <div class="screen-card game-over-card">
+            <p class="eyebrow">Lot zakończony</p>
+            <h1 id="gameOverTitle">Koniec gry!</h1>
+            <dl class="result-list" aria-label="Podsumowanie wyniku">
+                <div><dt>Lot</dt><dd id="finalScore">0</dd></div>
+                <div><dt>Monety</dt><dd id="finalCoins">0</dd></div>
+                <div><dt>Super monety</dt><dd id="finalPurpleCoins">0</dd></div>
+                <div><dt>Monety żabie</dt><dd id="finalFrogCoins">0</dd></div>
+                <div class="result-total"><dt>Razem</dt><dd id="finalTotalScore">0</dd></div>
+            </dl>
+            <button id="restartButton" type="button">Zagraj ponownie</button>
+        </div>
+    </section>
+
+    <p id="gameStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true">Gra gotowa.</p>
+
+    <nav class="utility-controls" aria-label="Opcje gry">
+        <a class="utility-button back-button" href="https://guziczak.github.io/lukasz"
+           aria-label="Wróć do strony głównej">
+            <img src="../resources/icons/return.svg" alt="" aria-hidden="true" class="icon">
+        </a>
+        <button id="muteButton" class="utility-button" type="button" aria-pressed="false"
+                aria-label="Wycisz dźwięk" title="Wycisz dźwięk">🔊</button>
+    </nav>
+</main>
 
 <!-- Dołączenie zewnętrznych plików JavaScript -->
+<script src="gameLogic.js"></script>
+<script src="gameState.js"></script>
 <script src="audio.js"></script>
 <script src="gameEntities.js"></script>
 <script src="gameModes.js"></script>
+<script src="collisionPipeline.js"></script>
 <script src="gameCore.js"></script>
 </body>
 </html>

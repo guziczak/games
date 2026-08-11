@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const finalScoreElement = document.getElementById('finalScore');
     const finalCoinsElement = document.getElementById('finalCoins');
     const finalPurpleCoinsElement = document.getElementById('finalPurpleCoins');
+    const finalFrogCoinsElement = document.getElementById('finalFrogCoins');
     const finalTotalScoreElement = document.getElementById('finalTotalScore');
     const ground = document.getElementById('ground');
     const frogModeButton = document.getElementById('frogModeButton');
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const ghostModeTimer = document.getElementById('ghostModeTimer');
     const storkModeButton = document.getElementById('storkModeButton');
     const storkModeTimer = document.getElementById('storkModeTimer');
+    let renderedModeRevision = -1;
     
     // Make elements available globally
     window.bird = bird;
@@ -35,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.finalScoreElement = finalScoreElement;
     window.finalCoinsElement = finalCoinsElement;
     window.finalPurpleCoinsElement = finalPurpleCoinsElement;
+    window.finalFrogCoinsElement = finalFrogCoinsElement;
     window.finalTotalScoreElement = finalTotalScoreElement;
     window.ground = ground;
     window.frogModeButton = frogModeButton;
@@ -138,11 +141,100 @@ document.addEventListener('DOMContentLoaded', function() {
     window.normalStorkModeCost = 1; // koszt normalnych monet
     window.purpleStorkModeCost = 1; // koszt fioletowych monet
     window.frogStorkModeCost = 1; // koszt żabich monet
-    window.storkCoinWindInterval = 400; // Interwał wiatru monet
+    window.storkCoinWindInterval = 600; // Interwał wiatru monet
     window.lastStorkCoinWindTime = 0; // Ostatni czas wiatru monet
-    window.storkCoinChance = 0.7; // 70% szansa na monetę w wietrze
+    window.storkCoinChance = 0.5; // 50% szansa na monetę w wietrze
+
+    function runtimeSession() {
+        return window.SkyDodge && window.SkyDodge.state
+            ? window.SkyDodge.state.session
+            : null;
+    }
+
+    function scheduleNextFrame(generation) {
+        animationId = requestAnimationFrame(timestamp => update(timestamp, generation));
+        const session = runtimeSession();
+        if (session) session.rafId = animationId;
+    }
+
+    function setScreenState(activeScreen) {
+        const startActive = activeScreen === 'start';
+        const gameOverActive = activeScreen === 'gameover';
+
+        startScreen.style.display = startActive ? 'flex' : 'none';
+        startScreen.setAttribute('aria-hidden', String(!startActive));
+        startScreen.inert = !startActive;
+
+        gameOverScreen.style.display = gameOverActive ? 'flex' : 'none';
+        gameOverScreen.setAttribute('aria-hidden', String(!gameOverActive));
+        gameOverScreen.inert = !gameOverActive;
+
+        gameArea.setAttribute('aria-hidden', String(startActive || gameOverActive));
+        gameArea.inert = startActive || gameOverActive;
+    }
+
+    function announce(message) {
+        const status = document.getElementById('gameStatus');
+        if (status) status.textContent = message;
+    }
+
+    function finalTotalScore() {
+        return score
+            + normalCoinCount * coinValue
+            + purpleCoinCount * purpleCoinValue
+            + frogCoinCount * frogCoinValue;
+    }
+
+    function isPastLeftEdge(entity, width) {
+        const helper = window.SkyDodgeLogic && window.SkyDodgeLogic.isEntityOffscreen;
+        if (typeof helper === 'function') {
+            return helper(
+                { x: entity.x, width: width || entity.width || 0 },
+                gameArea.clientWidth,
+                { direction: 'left' }
+            );
+        }
+        return entity.x + (width || entity.width || 0) < 0;
+    }
+
+    function frogLocksWorldScroll() {
+        return frogModeActive
+            && bird.classList.contains('frog-clinging')
+            && bird.dataset.clingingSurface === 'pipe-side';
+    }
+
+    function releaseStorkPipeForLifecycle(pipe, reason, options = {}) {
+        if (pipe && pipe === window.storkGrabbedPipe
+            && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab(reason, options);
+        }
+    }
+
+    document.addEventListener('sky-dodge:mutation', function(event) {
+        const mutationNames = {
+            frog: 'żaba',
+            rubber: 'kauczuk',
+            steel: 'stal',
+            ghost: 'duch'
+        };
+        const choice = event.detail && event.detail.choice;
+        announce(`Mutacja biologiczna: ${mutationNames[choice] || choice || 'nieznana'}`);
+    });
     
     window.setupGame = function() {
+        if (typeof window.resetModePresentation === 'function') {
+            window.resetModePresentation();
+        } else if (typeof window.clearModeTimers === 'function') {
+            window.clearModeTimers();
+        }
+        if (typeof window.clearEntityTimers === 'function') window.clearEntityTimers();
+        if (window.SkyDodge && window.SkyDodge.modeMachine) {
+            window.SkyDodge.modeMachine.reset();
+        }
+        if (window.SkyDodge && window.SkyDodge.mutations) {
+            window.SkyDodge.mutations.reset();
+        }
+
         score = 0;
         coinScore = 0;
         purpleCoinScore = 0;
@@ -214,6 +306,9 @@ document.addEventListener('DOMContentLoaded', function() {
         rubberModeActive = false;
         rubberModeTime = 0;
         steelModeActive = false; // Reset trybu stali
+        window.rubberMoveX = 0;
+        window.rubberHorizontalModifier = 0;
+        window.rubberDragActive = false;
         
         // Usuń klasy animacji
         bird.classList.remove('overloaded', 'rubber-mode', 'jumping', 'charging');
@@ -234,6 +329,9 @@ document.addEventListener('DOMContentLoaded', function() {
         storkModeButton.style.display = 'none'; // Początkowo ukryte
         storkModeTimer.style.display = 'none';
         gameArea.classList.remove('stork-mode-active');
+        if (typeof window.resetStorkPipeGrab === 'function') {
+            window.resetStorkPipeGrab({ reason: 'game-setup', silent: true });
+        }
         
         pipes.forEach(pipe => {
             if (pipe.upPipe && pipe.upPipe.parentNode) {
@@ -268,15 +366,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.startGame = function() {
+        const session = runtimeSession();
+        if (animationId) cancelAnimationFrame(animationId);
+        if (session && session.rafId) cancelAnimationFrame(session.rafId);
+
+        const generation = session ? ++session.generation : Date.now();
+
         // Zatrzymaj wszystkie dźwięki przy restarcie gry
         stopAllSounds();
         
         setupGame();
-        startScreen.style.display = 'none';
-        gameOverScreen.style.display = 'none';
+        setScreenState('game');
         gameRunning = true;
         lastTime = performance.now();
-        animationId = requestAnimationFrame(update);
+        scheduleNextFrame(generation);
+        announce('Gra rozpoczęta');
         
         // Pokaż przyciski trybu specjalnego gdy gra się rozpocznie
         frogModeButton.style.display = 'flex';
@@ -287,36 +391,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.endGame = function() {
-        // Jeśli tryb kauczuka jest aktywny, nie kończymy gry (dodatkowe zabezpieczenie)
-        if (rubberModeActive || invincible) {
-            console.log("Próba zakończenia gry podczas niezniszczalności zablokowana!");
-            return;
+        if (typeof window.resetStorkPipeGrab === 'function') {
+            window.resetStorkPipeGrab({ reason: 'game-ended', silent: true });
         }
-        
         gameRunning = false;
         cancelAnimationFrame(animationId);
+        const session = runtimeSession();
+        if (session) {
+            if (session.rafId) cancelAnimationFrame(session.rafId);
+            session.rafId = null;
+            session.generation++;
+        }
+        gameArea.classList.remove('frog-scroll-locked');
         finalScoreElement.textContent = score;
         finalCoinsElement.textContent = normalCoinCount;
         finalPurpleCoinsElement.textContent = purpleCoinCount;
+        finalFrogCoinsElement.textContent = frogCoinCount;
         // Add frog coins to total score
-        finalTotalScoreElement.textContent = score + coinScore + purpleCoinScore + frogCoinScore;
-        gameOverScreen.style.display = 'flex';
+        finalTotalScoreElement.textContent = finalTotalScore();
+        setScreenState('gameover');
+        announce(`Koniec gry. Całkowity wynik: ${finalTotalScore()}`);
         playSound('gameOver');
+        requestAnimationFrame(() => restartButton.focus());
     }
     
-    window.update = function(timestamp) {
+    window.update = function(timestamp, generation) {
         if (!gameRunning) return;
+        const session = runtimeSession();
+        if (session && generation !== session.generation) return;
         
         if (!lastTime) lastTime = timestamp;
         deltaTime = (timestamp - lastTime) / 16.67;
         lastTime = timestamp;
         
         if (deltaTime > 5) deltaTime = 5;
+
+        const modeMachine = window.SkyDodge && window.SkyDodge.modeMachine;
+        if (modeMachine && modeMachine.revision !== renderedModeRevision) {
+            renderedModeRevision = modeMachine.revision;
+            updateFrogModeButton();
+            updateGhostModeButton();
+            if (frogModeActive) updateStorkModeButton();
+        }
+
+        // A side-clinging frog needs enough real time to charge and release a
+        // jump. Keep the mode timer running, but pause horizontal world motion
+        // and spawning so a pipe can never carry the player out of frame.
+        const worldPausedByFrog = frogLocksWorldScroll();
+        gameArea.classList.toggle('frog-scroll-locked', worldPausedByFrog);
         
         // Zarządzanie TRYBEM FROGA
         if (frogModeActive) {
-            frogModeTime -= deltaTime / 60; // Odliczanie w sekundach
-            frogModeTimer.textContent = `TRYB FROGA: ${Math.ceil(frogModeTime)}s`;
+            if (!rubberModeActive) {
+                frogModeTime -= deltaTime / 60;
+                frogModeTimer.textContent = worldPausedByFrog
+                    ? `ŻABA TRZYMA ŚWIAT: ${Math.ceil(frogModeTime)}s`
+                    : `TRYB FROGA: ${Math.ceil(frogModeTime)}s`;
+            } else {
+                frogModeTimer.textContent = 'TRYB FROGA: MUTACJA';
+            }
             
             // Aktualizuj wskaźnik ładowania skoku żaby
             if (frogIsCharging) {
@@ -355,12 +488,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Losowo twórz bociana w trybie froga
-            if (timestamp - lastStorkTime > storkInterval && Math.random() < storkChance) {
-                createStork();
+            if (!worldPausedByFrog && timestamp - lastStorkTime > storkInterval) {
                 lastStorkTime = timestamp;
+                if (Math.random() < storkChance) createStork();
             }
             
-            if (frogModeTime <= 0) {
+            if (frogModeTime <= 0 && !rubberModeActive) {
                 deactivateFrogMode();
             }
         }
@@ -376,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Efekt losowego odbijania podczas trybu kauczuka - 2% szansa na każdą klatkę
-            if (Math.random() < 0.02) {
+            if (Math.random() < 1 - Math.pow(1 - 0.02, deltaTime)) {
                 // Losowy "impuls" w dowolnym kierunku
                 velocity += randomBetween(-5, 5);
                 if (velocity > velocityLimit) velocity = velocityLimit;
@@ -395,6 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obsługa cooldownu trybu FROGA
         if (frogModeCooldown > 0) {
             frogModeCooldown -= deltaTime / 60;
+            updateFrogModeButton();
             
             if (frogModeCooldown <= 0) {
                 frogModeCooldown = 0;
@@ -415,6 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obsługa cooldownu trybu DUCHA
         if (ghostModeCooldown > 0) {
             ghostModeCooldown -= deltaTime / 60;
+            updateGhostModeButton();
             
             if (ghostModeCooldown <= 0) {
                 ghostModeCooldown = 0;
@@ -443,6 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obsługa cooldownu trybu BOCIANA
         if (storkModeCooldown > 0) {
             storkModeCooldown -= deltaTime / 60;
+            if (frogModeActive) updateStorkModeButton();
             
             if (storkModeCooldown <= 0 && frogModeActive) {
                 storkModeCooldown = 0;
@@ -453,8 +589,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Zarządzanie TRYBEM STALI
         if (steelModeActive) {
             // Dodaj błyszczące efekty dla stalowego ptaka
-            if (Math.random() < 0.05) { // 5% szansa na błysk na każdej klatce
+            if (Math.random() < 1 - Math.pow(1 - 0.05, deltaTime)) {
                 const steelFlash = document.createElement('div');
+                steelFlash.className = 'steel-flash';
                 steelFlash.style.position = 'absolute';
                 steelFlash.style.width = '10px';
                 steelFlash.style.height = '10px';
@@ -483,44 +620,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (velocity > velocityLimit) velocity = velocityLimit;
         
         birdPosition += velocity * deltaTime;
-        
-        // Enforce boundaries here, before setting the position
-        const birdRect = bird.getBoundingClientRect();
-        const gameAreaRect = gameArea.getBoundingClientRect();
-        const groundRect = ground.getBoundingClientRect();
-        
-        // Boundary check - bottom (ground)
-        if (birdPosition + birdRect.height >= groundRect.top) {
-            birdPosition = groundRect.top - birdRect.height;
-            
-            // Add bounce effect in rubber or steel mode
-            if (rubberModeActive) {
-                velocity = velocity < 0 ? velocity : -velocity * 0.8;
-            } else if (steelModeActive) {
-                velocity = -Math.abs(velocity) * 0.9;
-            } else if (frogModeActive && frogIsOverloaded && frogOverloadBounceCount > 0) {
-                // Logic for frog overloaded bounce is handled in checkCollision
-            } else if (frogModeActive) {
-                velocity = 0; // Just stop at ground for regular frog mode
-            }
-            
-            frogIsOnGround = true;
-        }
-        
-        // Boundary check - top (ceiling)
-        if (birdPosition <= gameAreaRect.top) {
-            birdPosition = gameAreaRect.top + 2; // Slight offset
-            
-            // Add bounce effect in rubber or steel mode
-            if (rubberModeActive) {
-                velocity = velocity > 0 ? velocity : -velocity * 0.8;
-            } else if (steelModeActive) {
-                velocity = Math.abs(velocity) * 0.9;
-            } else {
-                velocity = 1; // Slight downward velocity in other modes
-            }
-            
-            frogIsOnGround = false;
+
+        if (rubberModeActive && Number.isFinite(window.rubberMoveX)) {
+            birdHorizontalPosition += window.rubberMoveX * 0.035 * deltaTime;
+            birdHorizontalPosition = Math.max(4, Math.min(88, birdHorizontalPosition));
+            window.rubberMoveX *= Math.pow(window.rubberDamping || 0.96, deltaTime);
+            if (Math.abs(window.rubberMoveX) < 0.05) window.rubberMoveX = 0;
+            bird.style.left = birdHorizontalPosition + '%';
         }
         
         bird.style.top = birdPosition + 'px';
@@ -533,12 +639,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // W trybie froga zachowujemy ten sam odstęp między rurami, ale z podwojoną prędkością
         const effectivePipeInterval = frogModeActive ? pipeInterval / frogSpeedMultiplier : pipeInterval;
         
-        if (timestamp - lastPipeTime > effectivePipeInterval) {
+        if (!worldPausedByFrog && timestamp - lastPipeTime > effectivePipeInterval) {
             createPipe();
             lastPipeTime = timestamp;
         }
         
-        if (timestamp - lastCoinTime > coinInterval) {
+        if (!worldPausedByFrog && timestamp - lastCoinTime > coinInterval) {
             createCoin();
             lastCoinTime = timestamp;
         }
@@ -563,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = pipes.length - 1; i >= 0; i--) {
             const pipe = pipes[i];
             
-            pipe.x -= currentPipeSpeed * deltaTime;
+            pipe.x -= worldPausedByFrog ? 0 : currentPipeSpeed * deltaTime;
             
             if (pipe.upPipe && pipe.downPipe) {
                 pipe.upPipe.style.left = pipe.x + 'px';
@@ -573,9 +679,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     pipe.passed = true;
                     score++;
                     scoreElement.textContent = score;
+
+                    const birdPassRect = bird.getBoundingClientRect();
+                    const upperRect = pipe.downPipe.getBoundingClientRect();
+                    const lowerRect = pipe.upPipe.getBoundingClientRect();
+                    const clearance = Math.min(
+                        Math.abs(birdPassRect.top - upperRect.bottom),
+                        Math.abs(lowerRect.top - birdPassRect.bottom)
+                    );
+                    if (window.SkyDodge && window.SkyDodge.mutations && clearance < 28) {
+                        window.SkyDodge.mutations.record('nearMiss', 14);
+                    }
                 }
                 
-                if (pipe.x + pipeWidth < 0) {
+                if (isPastLeftEdge(pipe, pipeWidth)) {
                     if (pipe.upPipe.parentNode) gameArea.removeChild(pipe.upPipe);
                     if (pipe.downPipe.parentNode) gameArea.removeChild(pipe.downPipe);
                     pipes.splice(i, 1);
@@ -589,33 +706,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obsługa bocianów
         for (let i = storks.length - 1; i >= 0; i--) {
             let stork = storks[i];
-            stork.x -= currentPipeSpeed * deltaTime;
+            if (!stork.element || !stork.element.parentNode) {
+                storks.splice(i, 1);
+                continue;
+            }
+            stork.x -= worldPausedByFrog ? 0 : currentPipeSpeed * deltaTime;
             
             if (stork.element) {
                 stork.element.style.left = stork.x + 'px';
                 
-                // Sprawdź kolizję z bocianem
-                if (!stork.defeated && checkStorkCollision(stork)) {
-                    // Sprawdź, czy skok był z góry (zabicie bociana) lub czy w trybie stali
-                    if ((velocity > 0 && birdPosition < stork.y) || steelModeActive) {
-                        // W trybie stali kurczak rozpieprzaj bociany z dowolnej strony!
-                        defeatStork(stork);
-                        
-                        // W trybie stali efekty specjalne są już obsługiwane w funkcji defeatStork
-                        if (!steelModeActive) {
-                            // Normalne odbicie przy pokonaniu bociana z góry
-                            velocity = jump * 0.7; // Odbicie w górę po pokonaniu bociana
-                        }
-                    } else if (!invincible && !steelModeActive && !rubberModeActive) {
-                        // Przegrana, gdy dotknięcie z boku lub dołu i nie jest nieśmiertelny, w trybie stali, ani w trybie kauczuka
-                        endGame();
-                        return;
-                    }
-                }
-                
                 // Usuń bociana, gdy wyleci poza ekran
-                if (stork.x + stork.width < 0 || stork.defeated) {
-                    if (stork.removeTime && timestamp > stork.removeTime) {
+                if (isPastLeftEdge(stork, stork.width) || stork.defeated) {
+                    if (!stork.defeated || !stork.removeTime || timestamp > stork.removeTime) {
                         if (stork.element.parentNode) gameArea.removeChild(stork.element);
                         storks.splice(i, 1);
                     }
@@ -625,21 +727,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         for (let i = coins.length - 1; i >= 0; i--) {
             let coin = coins[i];
-            coin.x -= currentPipeSpeed * deltaTime;
+            if (!coin.element || !coin.element.parentNode) {
+                coins.splice(i, 1);
+                continue;
+            }
+            coin.x -= worldPausedByFrog ? 0 : currentPipeSpeed * deltaTime;
             if (coin.element) {
                 coin.element.style.left = coin.x + 'px';
                 
-                if (!coin.collected && checkCoinCollision(coin)) {
-                    collectCoin(coin);
-                    updateFrogModeButton();
-                    updateGhostModeButton();
-                    if (frogModeActive) {
-                        updateStorkModeButton();
-                    }
-                }
-                
-                if (coin.x + 30 < 0 || coin.collected) {
-                    if (coin.removeTime && timestamp > coin.removeTime) {
+                if (isPastLeftEdge(coin, 30) || coin.collected) {
+                    if (!coin.collected || !coin.removeTime || timestamp > coin.removeTime) {
                         if (coin.element.parentNode) gameArea.removeChild(coin.element);
                         coins.splice(i, 1);
                     }
@@ -647,37 +744,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Sprawdź kolizję tylko jeśli gracz nie ma niezniszczalności
-        if (!invincible && !rubberModeActive && checkCollision()) {
+        if (typeof processCollisions === 'function' && processCollisions(timestamp)) {
             endGame();
             return;
         }
         
-        animationId = requestAnimationFrame(update);
+        scheduleNextFrame(generation);
     }
     
     // Event listeners
     startButton.addEventListener('click', startGame);
     restartButton.addEventListener('click', startGame);
     
-    // Dodajemy obsługę dotykowego ekranu dla przycisków trybów specjalnych
+    // A native click covers mouse, touch, keyboard and assistive technology.
     frogModeButton.addEventListener('click', activateFrogMode);
-    frogModeButton.addEventListener('touchstart', activateFrogMode, { passive: false });
-    
     ghostModeButton.addEventListener('click', activateGhostMode);
-    ghostModeButton.addEventListener('touchstart', activateGhostMode, { passive: false });
-    
     storkModeButton.addEventListener('click', activateStorkMode);
-    storkModeButton.addEventListener('touchstart', activateStorkMode, { passive: false });
     
     gameArea.addEventListener('touchstart', function(event) {
+        if (event.target.closest('button, a')) return;
         event.preventDefault();
-        if (gameRunning) {
+        if (gameRunning && !rubberModeActive) {
             makeJump();
         }
     });
     
     gameArea.addEventListener('touchend', function(event) {
+        if (event.target.closest('button, a')) return;
         event.preventDefault();
         if (gameRunning && frogModeActive && frogIsCharging) {
             stopFrogCharging();
@@ -685,6 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.addEventListener('keydown', function(event) {
+        if (event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
         if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
             event.preventDefault();
             makeJump();
@@ -692,6 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.addEventListener('keyup', function(event) {
+        if (event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
         if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning && frogModeActive && frogIsCharging) {
             event.preventDefault();
             stopFrogCharging();
@@ -699,7 +794,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     gameArea.addEventListener('mousedown', function(event) {
-        if (gameRunning) {
+        if (event.target.closest('button, a')) return;
+        if (gameRunning && !rubberModeActive) {
             makeJump();
         }
     });
@@ -711,7 +807,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.addEventListener('touchmove', function(event) {
-        event.preventDefault();
+        if (gameRunning && event.touches.length === 1 && event.target.closest('#gameArea')) {
+            event.preventDefault();
+        }
     }, { passive: false });
     
     window.addEventListener('resize', function() {
@@ -720,17 +818,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    startScreen.addEventListener('touchstart', function(event) {
-        event.preventDefault();
-        startGame();
-    });
-    
-    function delayedStart() {
-        setTimeout(function() {
-            startGame();
-        }, 100);
+    const muteButton = document.getElementById('muteButton');
+    if (muteButton) {
+        muteButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof window.toggleMute === 'function') {
+                const muted = window.toggleMute();
+                muteButton.setAttribute('aria-pressed', String(muted));
+                muteButton.textContent = muted ? '🔇' : '🔊';
+                muteButton.setAttribute('aria-label', muted ? 'Włącz dźwięk' : 'Wycisz dźwięk');
+            }
+        });
     }
-    
-    startButton.addEventListener('click', delayedStart);
-    restartButton.addEventListener('click', delayedStart);
 });

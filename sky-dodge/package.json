@@ -1,0 +1,7 @@
+{
+  "name": "sky-dodge",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

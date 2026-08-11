@@ -1,22 +1,260 @@
 // Game Modes and Special Abilities
 document.addEventListener('DOMContentLoaded', function() {
+    const modeTimers = new Map();
+    const modeTimeouts = new Set();
+    const frogPipeReleaseGrace = 650;
+    const STORK_GRAB_MIN_ENERGY = 18;
+    const STORK_GRAB_START_COST = 8;
+    const STORK_GRAB_MIN_PIPE_HEIGHT = 50;
+    const STORK_GRAB_POINTER_SLOP = 24;
+    const STORK_GRAB_KEYBOARD_SPEED = 240;
+    const storkGrabKeys = { up: false, down: false };
+    let storkGrabPointerOffsetY = 0;
+    let storkGrabTravelDistance = 0;
+    let storkGrabInputKind = '';
+    let lastStorkGrabDeniedAt = -Infinity;
+    let lastStorkGrabUiSignature = '';
+
+    // Every delayed mode effect belongs to the session that created it. This
+    // local wrapper intentionally shadows window.setTimeout for this module.
+    function setTimeout(callback, delay, ...args) {
+        const generation = window.SkyDodge && window.SkyDodge.state
+            ? window.SkyDodge.state.session.generation
+            : null;
+        let handle = null;
+        handle = window.setTimeout(() => {
+            modeTimeouts.delete(handle);
+            const currentGeneration = window.SkyDodge && window.SkyDodge.state
+                ? window.SkyDodge.state.session.generation
+                : null;
+            if (generation !== null && generation !== currentGeneration) return;
+            callback(...args);
+        }, delay);
+        modeTimeouts.add(handle);
+        return handle;
+    }
+
+    function machineCanEnter(mode, options = {}) {
+        const machine = window.SkyDodge && window.SkyDodge.modeMachine;
+        return !machine || typeof machine.canActivate !== 'function' || machine.canActivate(mode, options);
+    }
+
+    function machineEnter(mode, options = {}) {
+        const machine = window.SkyDodge && window.SkyDodge.modeMachine;
+        if (!machine || typeof machine.activate !== 'function') return true;
+        return machine.activate(mode, options) !== false;
+    }
+
+    function machineLeave(mode) {
+        const machine = window.SkyDodge && window.SkyDodge.modeMachine;
+        if (machine && typeof machine.deactivate === 'function') machine.deactivate(mode);
+    }
+
+    function scheduleModeTimer(key, callback, delay) {
+        if (modeTimers.has(key)) clearTimeout(modeTimers.get(key));
+        const generation = window.SkyDodge && window.SkyDodge.state
+            ? window.SkyDodge.state.session.generation
+            : null;
+        const handle = setTimeout(() => {
+            modeTimers.delete(key);
+            const currentGeneration = window.SkyDodge && window.SkyDodge.state
+                ? window.SkyDodge.state.session.generation
+                : null;
+            if (!gameRunning || (generation !== null && generation !== currentGeneration)) return;
+            callback();
+        }, delay);
+        modeTimers.set(key, handle);
+        return handle;
+    }
+
+    window.clearModeTimers = function() {
+        modeTimers.forEach(handle => clearTimeout(handle));
+        modeTimers.clear();
+        modeTimeouts.forEach(handle => window.clearTimeout(handle));
+        modeTimeouts.clear();
+    };
+
+    window.resetModePresentation = function() {
+        window.clearModeTimers();
+
+        if (typeof window.resetStorkPipeGrab === 'function') {
+            window.resetStorkPipeGrab({ reason: 'presentation-reset', silent: true });
+        }
+
+        gameArea.removeEventListener('mousedown', window.startRubberDrag);
+        gameArea.removeEventListener('touchstart', window.startRubberDrag);
+        gameArea.removeEventListener('mousemove', window.moveRubberDrag);
+        gameArea.removeEventListener('touchmove', window.moveRubberDrag);
+        gameArea.removeEventListener('mouseup', window.endRubberDrag);
+        gameArea.removeEventListener('touchend', window.endRubberDrag);
+        gameArea.removeEventListener('mouseleave', window.endRubberDrag);
+        gameArea.removeEventListener('touchcancel', window.endRubberDrag);
+
+        if (frogComplaintTimeout) {
+            clearTimeout(frogComplaintTimeout);
+            frogComplaintTimeout = null;
+        }
+
+        bird.querySelectorAll(
+            '.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh, .wings, .cap'
+        ).forEach(element => element.remove());
+        bird.classList.remove(
+            'charging', 'jumping', 'overloaded', 'rubber-mode', 'rubber-stretching',
+            'rubber-launched', 'rubber-extreme-stretch', 'rubber-phasing',
+            'frog-clinging', 'ghost-mode', 'ghost-floating', 'ghost-transparent',
+            'steel-mode', 'metal-sheen', 'impervious', 'stork-mode', 'stork-flying',
+            'transforming-back'
+        );
+        bird.style.animation = '';
+        bird.style.background = '';
+        bird.style.borderRadius = '';
+        bird.style.boxShadow = '';
+        bird.style.filter = '';
+        bird.style.border = '';
+        bird.style.opacity = '';
+        bird.style.transition = '';
+        bird.style.transform = '';
+        if (bird.dataset) {
+            delete bird.dataset.clingingSurface;
+            delete bird.dataset.clingingNormalX;
+            delete bird.dataset.clingingNormalY;
+            delete bird.dataset.clingingPipeId;
+            delete bird.dataset.releasedPipeId;
+            delete bird.dataset.clingReleaseUntil;
+        }
+
+        const jetpackFlames = bird.querySelector('.jetpack-flames');
+        if (jetpackFlames) {
+            jetpackFlames.style.display = '';
+            jetpackFlames.classList.remove('active');
+        }
+
+        gameArea.classList.remove(
+            'frog-mode-active', 'ghost-mode-active', 'stork-mode-active',
+            'frog-scroll-locked', 'screen-shake', 'ghost-filter', 'rubber-filter',
+            'stork-grab-ready', 'stork-grab-active', 'stork-grab-cooldown'
+        );
+        gameArea.querySelectorAll(
+            '.coinPop, .frog-complaint-bubble, .frog-midair-notice, .rubber-effect, '
+            + '.bounce-effect, .rubber-energy-burst, .rubber-bounce-effect, '
+            + '.rubber-phase-particle, .rubber-stretch-particle, .steel-flash, '
+            + '.steel-sparkle, .steel-debris, .steel-explosion, #rubber-drag-line, '
+            + '#max-stretch-notice'
+        ).forEach(element => element.remove());
+
+        for (const id of [
+            'frogJumpChargeIndicator', 'frogOverloadIndicator', 'rubberModeIndicator',
+            'frogModeTimer', 'ghostModeTimer', 'storkModeTimer'
+        ]) {
+            const element = document.getElementById(id);
+            if (element) element.style.display = 'none';
+        }
+
+        const machine = window.SkyDodge && window.SkyDodge.modeMachine;
+        if (machine) machine.reset({ reason: 'presentation-reset' });
+        if (typeof window.applyModePhysics === 'function') window.applyModePhysics();
+    };
+
+    window.applyModePhysics = function() {
+        gravity = normalGravity;
+        jump = normalJump;
+        currentPipeSpeed = pipeSpeed;
+        invincible = false;
+
+        if (frogModeActive) {
+            gravity = frogGravity;
+            jump = frogJump;
+            currentPipeSpeed = pipeSpeed * frogSpeedMultiplier;
+            invincible = true;
+        }
+        if (storkModeActive) {
+            gravity = normalGravity * 0.78;
+            jump = normalJump * 1.05;
+            currentPipeSpeed = pipeSpeed * 1.25;
+            invincible = true;
+        }
+        if (ghostModeActive) invincible = true;
+        if (steelModeActive) {
+            gravity = normalGravity * 1.1;
+            jump = normalJump * 1.2;
+            invincible = true;
+        }
+        if (rubberModeActive) {
+            gravity = 0.4;
+            jump = normalJump * 1.2;
+            invincible = true;
+        }
+    };
+
+    function launchFrogFromSurface(power) {
+        const surface = bird.dataset ? bird.dataset.clingingSurface : '';
+        const normalX = bird.dataset ? Number(bird.dataset.clingingNormalX || 0) : 0;
+        const clingingPipeId = bird.dataset ? bird.dataset.clingingPipeId : '';
+        let launchVelocity = Number(power);
+        if (!Number.isFinite(launchVelocity)) launchVelocity = frogJumpMinPower;
+
+        // A frog attached underneath a pipe or to the ceiling must launch
+        // downwards; otherwise the next collision frame would glue it back.
+        if (surface === 'ceiling' || surface === 'pipe-bottom') {
+            launchVelocity = Math.abs(launchVelocity);
+        } else {
+            launchVelocity = -Math.abs(launchVelocity);
+        }
+
+        // The game has no permanent horizontal velocity outside rubber mode.
+        // Give side jumps a small positional kick away from the contacted pipe,
+        // then let the usual vertical arc take over.
+        if (normalX && gameArea.clientWidth > 0) {
+            const birdRect = bird.getBoundingClientRect();
+            const areaRect = gameArea.getBoundingClientRect();
+            const kick = Math.max(16, Math.min(34, gameArea.clientWidth * 0.035));
+            const safeInset = 4;
+            const maxLeft = Math.max(safeInset, gameArea.clientWidth - birdRect.width - safeInset);
+            const localLeft = Math.max(
+                safeInset,
+                Math.min(maxLeft, birdRect.left - areaRect.left + normalX * kick)
+            );
+            birdHorizontalPosition = (localLeft / gameArea.clientWidth) * 100;
+            bird.style.left = `${birdHorizontalPosition}%`;
+            launchVelocity *= 0.8;
+        }
+
+        velocity = launchVelocity;
+        frogIsOnGround = false;
+        bird.classList.remove('frog-clinging');
+        if (bird.dataset) {
+            if (clingingPipeId) {
+                bird.dataset.releasedPipeId = clingingPipeId;
+                bird.dataset.clingReleaseUntil = String(performance.now() + frogPipeReleaseGrace);
+            }
+            delete bird.dataset.clingingSurface;
+            delete bird.dataset.clingingNormalX;
+            delete bird.dataset.clingingNormalY;
+            delete bird.dataset.clingingPipeId;
+        }
+    }
+
     // Funkcje TRYB FROGA
-    window.activateFrogMode = function(event) {
+    window.activateFrogMode = function(event, freeActivation = false) {
         if (event) {
             event.preventDefault(); // Zapobiega propagacji zdarzeń dotyku
             event.stopPropagation();
         }
         
-        if (!gameRunning || frogModeActive || frogModeCooldown > 0) return;
+        if (!gameRunning || frogModeActive || (frogModeCooldown > 0 && !freeActivation)) return false;
+        if (!machineCanEnter('frog', { freeActivation })) return false;
         
         // Sprawdź czy gracz ma wystarczającą ilość monet
         const normalCoins = coinScore / coinValue;
         const purpleCoins = purpleCoinScore / purpleCoinValue;
         
-        if (normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost) {
+        if (freeActivation || (normalCoins >= normalFrogModeCost && purpleCoins >= purpleFrogModeCost)) {
+            if (!machineEnter('frog', { freeActivation })) return false;
             // Odejmij koszt
-            coinScore -= normalFrogModeCost * coinValue;
-            purpleCoinScore -= purpleFrogModeCost * purpleCoinValue;
+            if (!freeActivation) {
+                coinScore -= normalFrogModeCost * coinValue;
+                purpleCoinScore -= purpleFrogModeCost * purpleCoinValue;
+            }
             
             // Aktualizuj wyświetlanie monet
             bonusScoreElement.textContent = `Monety: ${coinScore / coinValue}`;
@@ -29,7 +267,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Zresetuj zmienne skoku żaby
             frogIsCharging = false;
             frogChargeStart = 0;
-            frogIsOnGround = true; // Ustawiamy na true, bo zazwyczaj aktywujemy gdy jesteśmy na ziemi
+            const activationBirdRect = bird.getBoundingClientRect();
+            const activationGroundRect = ground.getBoundingClientRect();
+            frogIsOnGround = activationBirdRect.bottom >= activationGroundRect.top - 6;
             
             // Inicjalizuj wskaźnik ładowania skoku
             frogChargeIndicator = document.getElementById('frogJumpChargeIndicator');
@@ -110,10 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Zmień parametry gry i dodaj nieśmiertelność
-            jump = frogJump;
-            gravity = frogGravity;
-            invincible = true; // Włącz nieśmiertelność
-            currentPipeSpeed = pipeSpeed * frogSpeedMultiplier; // Podwójna prędkość w trybie żaby
+            applyModePhysics();
             
             // Efekt dźwiękowy
             playSound('frogMode');
@@ -134,16 +371,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     gameArea.removeChild(frogActivation);
                 }
             }, 1500);
+            return true;
         }
+        return false;
     }
     
-    window.deactivateFrogMode = function() {
+    window.deactivateFrogMode = function(options = {}) {
         if (!frogModeActive) return;
         
         console.log("Deaktywacja trybu żaby - rozpoczęcie czyszczenia");
         
         frogModeActive = false;
         frogModeTime = 0;
+        machineLeave('frog');
         
         // Resetuj stan przeładowania
         frogIsOverloaded = false;
@@ -196,11 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         frogModeTimer.style.display = 'none';
         
-        // Przywróć normalne parametry
-        jump = normalJump;
-        gravity = normalGravity;
-        invincible = false; // Wyłącz nieśmiertelność
-        currentPipeSpeed = pipeSpeed; // Normalna prędkość
+        applyModePhysics();
         
         // Usuń wszystkie dymki z narzekaniami, które mogły zostać
         const complaintBubbles = document.querySelectorAll('.frog-complaint-bubble');
@@ -257,7 +493,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Usuń dodatkowe klasy
-        bird.classList.remove('charging', 'jumping', 'overloaded', 'rubber-mode');
+        bird.classList.remove('charging', 'jumping', 'overloaded', 'rubber-mode', 'frog-clinging');
+        if (bird.dataset) {
+            delete bird.dataset.clingingSurface;
+            delete bird.dataset.clingingNormalX;
+            delete bird.dataset.clingingNormalY;
+            delete bird.dataset.clingingPipeId;
+            delete bird.dataset.releasedPipeId;
+            delete bird.dataset.clingReleaseUntil;
+        }
         
         // Przywróć widoczność jetpacka
         const jetpackFlames = bird.querySelector('.jetpack-flames');
@@ -266,24 +510,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Upewnij się, że wszystkie klasy są usunięte także z elementu gameArea
-        gameArea.classList.remove('frog-mode-active', 'screen-shake');
+        gameArea.classList.remove('frog-mode-active', 'frog-scroll-locked', 'screen-shake');
+        storkModeButton.style.display = 'none';
+        storkModeButton.disabled = true;
         
         // Pokaż komunikat o końcu trybu żaby i przejściu do trybu stali
-        const endModeMsg = document.createElement('div');
-        endModeMsg.className = 'coinPop';
-        endModeMsg.textContent = 'Koniec trybu froga!';
-        endModeMsg.style.left = '50%';
-        endModeMsg.style.top = '40%';
-        endModeMsg.style.transform = 'translate(-50%, -50%)';
-        endModeMsg.style.color = 'red';
-        endModeMsg.style.fontSize = '24px';
-        gameArea.appendChild(endModeMsg);
-        
-        setTimeout(() => {
-            if (endModeMsg.parentNode) {
-                gameArea.removeChild(endModeMsg);
-            }
-        }, 1500);
+        if (!options.silent) {
+            const endModeMsg = document.createElement('div');
+            endModeMsg.className = 'coinPop';
+            endModeMsg.textContent = 'Koniec trybu froga!';
+            endModeMsg.style.left = '50%';
+            endModeMsg.style.top = '40%';
+            endModeMsg.style.transform = 'translate(-50%, -50%)';
+            endModeMsg.style.color = 'red';
+            endModeMsg.style.fontSize = '24px';
+            gameArea.appendChild(endModeMsg);
+            
+            setTimeout(() => {
+                if (endModeMsg.parentNode) gameArea.removeChild(endModeMsg);
+            }, 1500);
+        }
         
         // Ustaw cooldown
         frogModeCooldown = frogModeCooldownTime;
@@ -296,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu żaby - zakończono czyszczenie");
         
         // Aktywuj tryb stali jako przejściowy między żabą a duchem
-        activateSteelMode();
+        if (!options.skipNext) activateSteelMode({ source: 'frog-chain', force: true });
     }
     
     window.updateFrogModeButton = function() {
@@ -309,6 +555,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (frogModeActive) {
             frogModeButton.disabled = true;
             frogModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
+        } else if (!machineCanEnter('frog')) {
+            frogModeButton.disabled = true;
+            frogModeButton.querySelector('.mode-button-cost').textContent = 'ZAJĘTY';
         } else if (frogModeCooldown > 0) {
             frogModeButton.disabled = true;
             frogModeButton.querySelector('.mode-button-cost').textContent = `${Math.ceil(frogModeCooldown)}s`;
@@ -335,8 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
             frogChargeIndicator = document.getElementById('frogJumpChargeIndicator');
         }
     
-        // Zawsze pozwalamy na rozpoczęcie ładowania (pokazanie paska) niezależnie od tego czy frog jest na ziemi
-        if (gameRunning && frogModeActive && !frogIsCharging) {
+        if (gameRunning && frogModeActive && frogIsOnGround && !frogIsCharging) {
             frogIsCharging = true;
             frogChargeStart = performance.now();
             
@@ -378,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Ładowanie nie było aktywne");
                 // Jeśli ładowanie nie było aktywne, sprawdź czy żaba jest na ziemi
                 if (frogIsOnGround) {
-                    velocity = frogJumpMinPower;
+                    launchFrogFromSurface(frogJumpMinPower);
                     playSound('jump');
                 }
                 return;
@@ -404,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Możliwość skoku:", {canJump, frogIsOnGround, distanceToGround});
             
             if (canJump) {
+                let launchPower;
                 if (isOverloaded) {
                     console.log("Przeładowanie!!!");
                     // Jest przeładowanie!
@@ -422,13 +671,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     showFrogComplaint();
                     
                     // Jeszcze większa szansa na aktywację trybu kauczuka przy przeładowaniu (50% zamiast wcześniejszych wartości)
-                    if (Math.random() < 0.50) {
+                    if (Math.random() < frogRubberModeChance) {
                         console.log("TRYB KAUCZUKA AKTYWOWANY!");
                         activateRubberMode();
                     }
                     
                     // Nadaj ekstremalną siłę skoku
-                    velocity = frogJumpMaxPower * 1.5;
+                    launchPower = frogJumpMaxPower * 1.5;
                     
                     // Ustaw liczbę odbić
                     frogOverloadBounceCount = frogMaxBounces;
@@ -436,8 +685,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Normalne ładowanie - zastosuj proporcjonalną siłę skoku
                     const chargePercent = Math.min(chargeTime / frogChargeMax, 1.0);
                     const jumpPower = frogJumpMinPower + (frogJumpMaxPower - frogJumpMinPower) * chargePercent;
-                    velocity = jumpPower;
+                    launchPower = jumpPower;
                     console.log("Normalny skok z mocą:", jumpPower, "(", chargePercent * 100, "%)");
+                }
+                launchFrogFromSurface(launchPower);
+                if (window.SkyDodge && window.SkyDodge.mutations) {
+                    window.SkyDodge.mutations.record('jump', isOverloaded ? 10 : 3);
                 }
             } else {
                 console.log("Żaba nie jest na ziemi - nie może skoczyć!");
@@ -539,10 +792,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Funkcja aktywująca tryb stali
-    window.activateSteelMode = function() {
-        if (steelModeActive) return;
+    window.activateSteelMode = function(options = {}) {
+        if (steelModeActive || frogModeActive || rubberModeActive || ghostModeActive || storkModeActive) return false;
+        if (!machineCanEnter('steel', options) || !machineEnter('steel', options)) return false;
         
         steelModeActive = true;
+        applyModePhysics();
         
         // Usuń wszystkie elementy żaby podobnie jak w deactivateFrogMode
         // ale zamiast zmieniać na kaczorka, zmieniamy na stalowego ptaka
@@ -593,6 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Najpierw błysk metaliczny na całym ekranie
         const flashEffect = document.createElement('div');
+        flashEffect.className = 'steel-flash';
         flashEffect.style.position = 'absolute';
         flashEffect.style.width = '100%';
         flashEffect.style.height = '100%';
@@ -650,6 +906,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 for (let i = 0; i < 8; i++) {
                     setTimeout(() => {
                         const sparkle = document.createElement('div');
+                        sparkle.className = 'steel-sparkle';
                         sparkle.style.position = 'absolute';
                         sparkle.style.width = '20px';
                         sparkle.style.height = '20px';
@@ -701,12 +958,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
         
         // Po określonym czasie przejdź do trybu ducha
-        setTimeout(() => {
+        scheduleModeTimer('steel-transition', () => {
             deactivateSteelMode();
             if (!ghostModeActive) {
                 activateGhostMode(null, true);
             }
         }, steelModeDuration * 1000);
+        return true;
     }
     
     // Funkcja deaktywująca tryb stali
@@ -716,6 +974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu stali - rozpoczęcie czyszczenia");
         
         steelModeActive = false;
+        machineLeave('steel');
         
         // Zatrzymaj wszelkie animacje związane z trybem stali
         if (bird.steelAnimation) {
@@ -724,7 +983,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Usuń wszystkie efekty błysków i iskier
-        const steelEffects = document.querySelectorAll('[style*="steelFlash"], [class*="steelFlash"], [class*="spark"], [class*="debris"]');
+        const steelEffects = document.querySelectorAll('.steel-flash, .steel-sparkle, .steel-debris, .steel-explosion');
         steelEffects.forEach(effect => {
             if (effect && effect.parentNode && effect !== bird) {
                 effect.style.animation = 'none';
@@ -747,11 +1006,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Usuń efekty wibracji i inne efekty wizualne
         gameArea.classList.remove('screen-shake');
         
-        // Przywróć normalną prędkość rur
-        currentPipeSpeed = pipeSpeed;
+        applyModePhysics();
         
         // Usuń wszystkie efekty zniszczenia rur, które mogły pozostać
-        const destructionEffects = document.querySelectorAll('.coinPop[style*="CRUSH"], [class*="flash"], [class*="explosion"]');
+        const destructionEffects = document.querySelectorAll('.steel-debris, .steel-explosion');
         destructionEffects.forEach(effect => {
             if (effect && effect.parentNode) {
                 effect.style.animation = 'none';
@@ -867,8 +1125,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Funkcja aktywująca Tryb Kauczuka - z dodatkowymi ulepszeniami
-    window.activateRubberMode = function() {
-        if (rubberModeActive) return;
+    window.activateRubberMode = function(options = {}) {
+        if (rubberModeActive) return false;
+        if (!machineCanEnter('rubber', options) || !machineEnter('rubber', options)) return false;
         
         rubberModeActive = true;
         // Zwiększamy czas trwania dla lepszego doświadczenia
@@ -896,15 +1155,10 @@ document.addEventListener('DOMContentLoaded', function() {
         gameArea.addEventListener('touchmove', moveRubberDrag, { passive: false });
         gameArea.addEventListener('mouseup', endRubberDrag);
         gameArea.addEventListener('touchend', endRubberDrag);
+        gameArea.addEventListener('mouseleave', endRubberDrag);
+        gameArea.addEventListener('touchcancel', endRubberDrag);
         
-        // Zapisz poprzednie wartości dla przywrócenia po zakończeniu trybu
-        window.prevGravity = gravity;
-        window.prevJump = jump;
-        
-        // Ustaw specjalne parametry fizyki dla trybu kauczuka
-        gravity = 0.4; // Zmniejszona grawitacja dla lepszego efektu odbijania
-        jump = normalJump * 1.2; // Nieco mocniejszy skok
-        invincible = true; // Dodaj niezniszczalność w trybie kauczuka
+        applyModePhysics();
         
         // Pokaż wskaźnik trybu kauczuka
         const rubberModeIndicator = document.getElementById('rubberModeIndicator');
@@ -955,11 +1209,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 gameArea.removeChild(activationEffect);
             }
         }, 3000);
+        return true;
     }
     
     // Funkcje obsługujące przeciąganie w trybie kauczuka
     window.startRubberDrag = function(event) {
-        if (!rubberModeActive) return;
+        if (!rubberModeActive || rubberDragActive || event.target.closest('button, a')) return;
+        if (event.touches && event.touches.length !== 1) return;
         
         // Zapobiegaj domyślnemu zachowaniu (przewijanie)
         if (event.preventDefault) event.preventDefault();
@@ -970,14 +1226,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Zapisz początkowy punkt
         if (event.type === 'touchstart') {
             window.rubberDragStartY = event.touches[0].clientY;
+            window.rubberDragStartX = event.touches[0].clientX;
         } else {
             window.rubberDragStartY = event.clientY;
+            window.rubberDragStartX = event.clientX;
         }
         
         // Wizualny efekt rozpoczęcia przeciągania
         bird.classList.add('rubber-stretching');
         
         // Dodaj linię "gumową" pokazującą naciąg
+        const existingLine = document.getElementById('rubber-drag-line');
+        if (existingLine) existingLine.remove();
         const rubberLine = document.createElement('div');
         rubberLine.id = 'rubber-drag-line';
         rubberLine.style.position = 'absolute';
@@ -1017,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dragDiffY = currentY - window.rubberDragStartY;
         
         // Dodajmy też przeciąganie poziome dla większej kontroli
-        if (!window.rubberDragStartX) {
+        if (window.rubberDragStartX == null) {
             if (event.type === 'touchmove') {
                 window.rubberDragStartX = event.touches[0].clientX;
             } else {
@@ -1032,7 +1292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.rubberVelocityModifier = Math.min(Math.max(dragDiffY * 0.4, -rubberMaxVelocity), rubberMaxVelocity);
         
         // Dodajemy modyfikator prędkości poziomej (użyjemy go przy wystrzeleniu)
-        window.rubberHorizontalModifier = -dragDiffX * 0.2; // Ujemny, bo przeciąganie w prawo powinno dawać pęd w lewo
+        window.rubberHorizontalModifier = Math.max(-24, Math.min(24, -dragDiffX * 0.2));
         
         // Oblicz całkowitą siłę przeciągnięcia
         const totalDragForce = Math.sqrt(dragDiffY * dragDiffY + dragDiffX * dragDiffX);
@@ -1203,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rubberDragActive = false;
         
         // Przypisz nową prędkość pionową na podstawie przeciągnięcia
-        velocity = -window.rubberVelocityModifier * rubberBounciness;
+        velocity = Math.max(-22, Math.min(22, -window.rubberVelocityModifier * rubberBounciness));
         
         // Dodajmy efekt poziomej siły z przeciągania poziomego
         if (window.rubberHorizontalModifier) {
@@ -1310,6 +1570,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu kauczuka - rozpoczęcie czyszczenia");
         
         rubberModeActive = false;
+        machineLeave('rubber');
         rubberModeTime = 0;
         rubberDragActive = false;
         
@@ -1320,12 +1581,14 @@ document.addEventListener('DOMContentLoaded', function() {
         gameArea.removeEventListener('touchmove', moveRubberDrag);
         gameArea.removeEventListener('mouseup', endRubberDrag);
         gameArea.removeEventListener('touchend', endRubberDrag);
+        gameArea.removeEventListener('mouseleave', endRubberDrag);
+        gameArea.removeEventListener('touchcancel', endRubberDrag);
         
-        // Przywróć poprzednie parametry fizyki
-        if (window.prevGravity) gravity = window.prevGravity;
-        if (window.prevJump) jump = window.prevJump;
-        invincible = false; // Wyłącz niezniszczalność
-        
+        window.rubberMoveX = 0;
+        window.rubberHorizontalModifier = 0;
+        window.rubberVelocityModifier = 0;
+        window.rubberDragStartX = null;
+        window.rubberDragStartY = null;
         // Zatrzymaj wszelkie animacje związane z kauczukiem
         if (bird.rubberAnimation) {
             cancelAnimationFrame(bird.rubberAnimation);
@@ -1333,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Usuń klasę efektu wizualnego
-        bird.classList.remove('rubber-mode', 'rubber-stretching');
+        bird.classList.remove('rubber-mode', 'rubber-stretching', 'rubber-launched', 'rubber-extreme-stretch', 'rubber-phasing');
         
         // Resetuj transformację i inne style
         bird.style.transform = '';
@@ -1353,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Usuń wszystkie efekty wizualne związane z kauczukiem
-        const rubberEffects = document.querySelectorAll('.rubber-effect, .bounce-effect, .rubber-energy-burst');
+        const rubberEffects = document.querySelectorAll('.rubber-effect, .bounce-effect, .rubber-energy-burst, .rubber-bounce-effect, .rubber-phase-particle, .rubber-stretch-particle');
         rubberEffects.forEach(effect => {
             if (effect && effect.parentNode) {
                 effect.style.animation = 'none';
@@ -1397,11 +1660,16 @@ document.addEventListener('DOMContentLoaded', function() {
         playSound('jump');
         
         console.log("Deaktywacja trybu kauczuka - zakończono czyszczenie");
+
+        if (frogModeActive) {
+            deactivateFrogMode({ skipNext: true, silent: true });
+        }
+        applyModePhysics();
         
         // Aktywuj tryb stali jako przejściowy między kauczukiem a duchem
-        setTimeout(() => {
+        scheduleModeTimer('rubber-to-steel', () => {
             if (!frogModeActive && !ghostModeActive && !storkModeActive) {
-                activateSteelMode();
+                activateSteelMode({ source: 'rubber-chain', force: true });
             }
         }, 300);
     }
@@ -1414,13 +1682,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Jeśli aktywacja jest darmowa, pomijamy sprawdzenie cooldown
-        if (!gameRunning || ghostModeActive || (ghostModeCooldown > 0 && !freeActivation)) return;
+        if (!gameRunning || ghostModeActive || rubberModeActive || (ghostModeCooldown > 0 && !freeActivation)) return false;
+        if (!machineCanEnter('ghost', { freeActivation })) return false;
         
         // Sprawdź czy gracz ma wystarczającą ilość monet lub czy to darmowa aktywacja
         const normalCoins = coinScore / coinValue;
         const purpleCoins = purpleCoinScore / purpleCoinValue;
         
         if (freeActivation || (normalCoins >= normalGhostModeCost && purpleCoins >= purpleGhostModeCost)) {
+            if (!machineEnter('ghost', { freeActivation })) return false;
             // Odejmij koszt tylko jeśli to nie jest darmowa aktywacja
             if (!freeActivation) {
                 coinScore -= normalGhostModeCost * coinValue;
@@ -1441,6 +1711,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Włącz tryb ducha
             ghostMode = true;
+            applyModePhysics();
             
             // Efekt dźwiękowy
             playSound('ghostMode');
@@ -1464,7 +1735,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     gameArea.removeChild(ghostActivation);
                 }
             }, 1500);
+            return true;
         }
+        return false;
     }
     
     window.deactivateGhostMode = function() {
@@ -1473,10 +1746,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu ducha - rozpoczęcie czyszczenia");
         
         ghostModeActive = false;
+        machineLeave('ghost');
         ghostModeTime = 0;
         gameArea.classList.remove('ghost-mode-active');
         ghostModeTimer.style.display = 'none';
         ghostMode = false;
+        applyModePhysics();
         
         // Zatrzymaj wszelkie animacje związane z duchem
         if (bird.ghostAnimation) {
@@ -1560,6 +1835,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (ghostModeActive) {
             ghostModeButton.disabled = true;
             ghostModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
+        } else if (rubberModeActive || !machineCanEnter('ghost')) {
+            ghostModeButton.disabled = true;
+            ghostModeButton.querySelector('.mode-button-cost').textContent = 'ZAJĘTY';
         } else if (ghostModeCooldown > 0) {
             ghostModeButton.disabled = true;
             ghostModeButton.querySelector('.mode-button-cost').textContent = `${Math.ceil(ghostModeCooldown)}s`;
@@ -1572,15 +1850,559 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function finiteStorkValue(value, fallback) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : fallback;
+    }
+
+    function playStorkGrabSound(name) {
+        if (typeof window.playSound === 'function') window.playSound(name);
+    }
+
+    function storkPipeElements(pipe) {
+        if (!pipe) return [];
+        return [pipe.downPipe, pipe.upPipe].filter(Boolean);
+    }
+
+    function setStorkPipeClass(pipe, className, active) {
+        storkPipeElements(pipe).forEach(element => element.classList.toggle(className, active));
+    }
+
+    function isStorkPipeUsable(pipe) {
+        return Boolean(
+            pipe
+            && !pipe.destroyed
+            && !pipe.scheduledForRemoval
+            && pipe.downPipe
+            && pipe.upPipe
+            && pipe.downPipe.parentNode === gameArea
+            && pipe.upPipe.parentNode === gameArea
+        );
+    }
+
+    function currentStorkPipeCenter(pipe) {
+        if (!pipe) return null;
+        const storedCenter = finiteStorkValue(pipe.gapCenterY, NaN);
+        if (Number.isFinite(storedCenter)) return storedCenter;
+
+        const topHeight = parseFloat(pipe.downPipe && pipe.downPipe.style.height);
+        const gap = finiteStorkValue(pipe.gap, pipeGap);
+        if (Number.isFinite(topHeight) && Number.isFinite(gap)) {
+            return topHeight + gap / 2;
+        }
+
+        if (pipe.downPipe && pipe.upPipe) {
+            const areaRect = gameArea.getBoundingClientRect();
+            const upperRect = pipe.downPipe.getBoundingClientRect();
+            const lowerRect = pipe.upPipe.getBoundingClientRect();
+            if (upperRect && lowerRect) {
+                return ((upperRect.bottom + lowerRect.top) / 2) - areaRect.top;
+            }
+        }
+        return null;
+    }
+
+    function calculateStorkPipeLayout(pipe, desiredCenter) {
+        const gameHeight = gameArea.clientHeight;
+        const groundHeight = ground.clientHeight;
+        const gap = finiteStorkValue(pipe && pipe.gap, pipeGap);
+        const layoutHelper = window.SkyDodgeLogic
+            && window.SkyDodgeLogic.calculateDraggedPipeLayout;
+
+        if (typeof layoutHelper === 'function') {
+            return layoutHelper({
+                gameHeight,
+                groundHeight,
+                pipeGap: gap,
+                minPipeHeight: STORK_GRAB_MIN_PIPE_HEIGHT,
+                desiredCenter
+            });
+        }
+
+        const playableHeight = gameHeight - groundHeight;
+        const halfGap = gap / 2;
+        const minCenter = STORK_GRAB_MIN_PIPE_HEIGHT + halfGap;
+        const maxCenter = playableHeight - STORK_GRAB_MIN_PIPE_HEIGHT - halfGap;
+        if (maxCenter < minCenter) return null;
+        const center = Math.max(minCenter, Math.min(maxCenter, desiredCenter));
+        const gapTop = center - halfGap;
+        const gapBottom = center + halfGap;
+        return {
+            center,
+            topHeight: gapTop,
+            bottomVisibleHeight: playableHeight - gapBottom,
+            gapTop,
+            gapBottom,
+            pipeGap: gap
+        };
+    }
+
+    function applyStorkPipeLayout(pipe, desiredCenter) {
+        if (!isStorkPipeUsable(pipe)) return null;
+        const layout = calculateStorkPipeLayout(pipe, desiredCenter);
+        if (!layout) return null;
+
+        const previousCenter = currentStorkPipeCenter(pipe);
+        pipe.downPipe.style.height = layout.topHeight + 'px';
+        pipe.upPipe.style.height = layout.bottomVisibleHeight + 'px';
+        pipe.upPipe.style.bottom = ground.clientHeight + 'px';
+        pipe.gap = layout.pipeGap;
+        pipe.gapCenterY = layout.center;
+        pipe.gapTop = layout.gapTop;
+        pipe.gapBottom = layout.gapBottom;
+        window.storkGrabTargetY = layout.center;
+
+        if (Number.isFinite(previousCenter)) {
+            storkGrabTravelDistance += Math.abs(layout.center - previousCenter);
+        }
+        return layout;
+    }
+
+    function effectiveStorkGrabRange() {
+        const configured = finiteStorkValue(window.storkGrabRange, 260);
+        const responsiveFloor = Math.max(130, gameArea.clientWidth * 0.45);
+        return Math.min(configured, responsiveFloor);
+    }
+
+    function storkPipeCandidateInfo(pipe) {
+        if (!isStorkPipeUsable(pipe) || pipe.passed || (pipe.grabbed && pipe !== window.storkGrabbedPipe)) {
+            return null;
+        }
+
+        const pipeX = finiteStorkValue(pipe.x, NaN);
+        if (!Number.isFinite(pipeX)) return null;
+        const areaRect = gameArea.getBoundingClientRect();
+        const birdRect = bird.getBoundingClientRect();
+        const birdLeft = birdRect.left - areaRect.left;
+        const birdRight = birdRect.right - areaRect.left;
+        const birdCenter = (birdLeft + birdRight) / 2;
+        const width = finiteStorkValue(pipe.width, pipeWidth);
+        const pipeCenter = pipeX + width / 2;
+
+        // A pipe already beside/behind the bird is not a safe editing target:
+        // changing its gap there could visually swallow the player.
+        if (pipeX < birdRight + 12) return null;
+        const distance = Math.abs(pipeCenter - birdCenter);
+        if (distance > effectiveStorkGrabRange()) return null;
+
+        const center = currentStorkPipeCenter(pipe);
+        if (!Number.isFinite(center) || !calculateStorkPipeLayout(pipe, center)) return null;
+        return { pipe, distance, pipeX, pipeCenter, width };
+    }
+
+    function storkGrabCandidates(pointerX) {
+        const hasPointerX = Number.isFinite(pointerX);
+        return (Array.isArray(window.pipes) ? window.pipes : [])
+            .map(storkPipeCandidateInfo)
+            .filter(Boolean)
+            .filter(info => !hasPointerX
+                || (pointerX >= info.pipeX - STORK_GRAB_POINTER_SLOP
+                    && pointerX <= info.pipeX + info.width + STORK_GRAB_POINTER_SLOP))
+            .sort((left, right) => left.distance - right.distance);
+    }
+
+    function storkEventPoint(event) {
+        if (!event) return null;
+        const source = (event.touches && event.touches[0])
+            || (event.changedTouches && event.changedTouches[0])
+            || event;
+        const clientX = finiteStorkValue(source.clientX, NaN);
+        const clientY = finiteStorkValue(source.clientY, NaN);
+        return Number.isFinite(clientX) && Number.isFinite(clientY)
+            ? { clientX, clientY }
+            : null;
+    }
+
+    function storkPointerTargetsPipe(event, pointerX) {
+        if (event && event.target && typeof event.target.closest === 'function'
+            && event.target.closest('.pipe')) return true;
+        if (!Number.isFinite(pointerX)) return false;
+        return (Array.isArray(window.pipes) ? window.pipes : []).some(pipe => {
+            if (!isStorkPipeUsable(pipe)) return false;
+            const x = finiteStorkValue(pipe.x, NaN);
+            const width = finiteStorkValue(pipe.width, pipeWidth);
+            return Number.isFinite(x)
+                && pointerX >= x - STORK_GRAB_POINTER_SLOP
+                && pointerX <= x + width + STORK_GRAB_POINTER_SLOP;
+        });
+    }
+
+    function storkGrabReady() {
+        return Boolean(
+            storkModeActive
+            && !window.storkGrabActive
+            && finiteStorkValue(window.storkGrabCooldown, 0) <= 0
+            && finiteStorkValue(window.storkGrabEnergy, 0) >= STORK_GRAB_MIN_ENERGY
+        );
+    }
+
+    function updateStorkPipeRangeClasses(ready) {
+        (Array.isArray(window.pipes) ? window.pipes : []).forEach(pipe => {
+            setStorkPipeClass(pipe, 'pipe-in-range', false);
+        });
+        if (!ready) return;
+        storkGrabCandidates().forEach(info => setStorkPipeClass(info.pipe, 'pipe-in-range', true));
+    }
+
+    function updateStorkGrabActionButton(ready, hasCandidate) {
+        if (!storkModeButton || !storkModeActive) return;
+        const costElement = storkModeButton.querySelector('.mode-button-cost');
+        const active = Boolean(window.storkGrabActive);
+        const cooldown = Math.max(0, finiteStorkValue(window.storkGrabCooldown, 0));
+        const energy = Math.max(0, finiteStorkValue(window.storkGrabEnergy, 0));
+
+        storkModeButton.style.display = 'flex';
+        storkModeButton.setAttribute('aria-pressed', String(active));
+        if (active) {
+            storkModeButton.disabled = false;
+            storkModeButton.setAttribute('aria-label', 'Puść trzymaną parę rur');
+            storkModeButton.title = 'Puść rurę (E)';
+            if (costElement) costElement.textContent = 'PUŚĆ • E';
+        } else if (cooldown > 0) {
+            storkModeButton.disabled = true;
+            storkModeButton.setAttribute('aria-label', `Szpony odpoczywają jeszcze ${cooldown.toFixed(1)} sekundy`);
+            storkModeButton.title = 'Szpony na cooldownie';
+            if (costElement) costElement.textContent = `SZPONY ${cooldown.toFixed(1)}s`;
+        } else if (energy < STORK_GRAB_MIN_ENERGY) {
+            storkModeButton.disabled = true;
+            storkModeButton.setAttribute('aria-label', 'Za mało energii szponów');
+            storkModeButton.title = 'Poczekaj na energię';
+            if (costElement) costElement.textContent = `ENERGIA ${Math.round(energy)}%`;
+        } else {
+            storkModeButton.disabled = !ready || !hasCandidate;
+            storkModeButton.setAttribute('aria-label', hasCandidate
+                ? 'Chwyć najbliższą parę rur'
+                : 'Brak bezpiecznej rury w zasięgu');
+            storkModeButton.title = hasCandidate ? 'Chwyć rurę (E)' : 'Zbliż się do rury';
+            if (costElement) costElement.textContent = hasCandidate ? 'CHWYĆ • E' : 'BRAK RURY';
+        }
+    }
+
+    function syncStorkGrabUi(reason) {
+        const maxEnergy = Math.max(1, finiteStorkValue(window.storkGrabMaxEnergy, 100));
+        const energy = Math.max(0, Math.min(maxEnergy, finiteStorkValue(window.storkGrabEnergy, maxEnergy)));
+        const cooldown = Math.max(0, finiteStorkValue(window.storkGrabCooldown, 0));
+        const active = Boolean(storkModeActive && window.storkGrabActive);
+        const ready = storkGrabReady();
+        const hasCandidate = ready && storkGrabCandidates().length > 0;
+        const energyPercent = (energy / maxEnergy) * 100;
+
+        const indicator = document.getElementById('storkGrabIndicator');
+        const label = document.getElementById('storkGrabLabel');
+        const bar = document.getElementById('storkGrabEnergyBar');
+        const hint = document.getElementById('storkGrabHint');
+        if (indicator) {
+            indicator.style.display = storkModeActive ? 'block' : 'none';
+            indicator.setAttribute('aria-hidden', String(!storkModeActive));
+        }
+        if (bar) {
+            bar.style.width = energyPercent.toFixed(1) + '%';
+            bar.setAttribute('aria-valuenow', String(Math.round(energyPercent)));
+        }
+        if (label) {
+            label.textContent = active
+                ? `SZPONY: RURA W CHWYCIE • ${Math.ceil(energyPercent)}%`
+                : (cooldown > 0
+                    ? `SZPONY ODPOCZYWAJĄ • ${cooldown.toFixed(1)}s`
+                    : `ENERGIA SZPONÓW • ${Math.ceil(energyPercent)}%`);
+        }
+        if (hint) {
+            hint.textContent = active
+                ? (storkGrabInputKind === 'keyboard'
+                    ? 'W/S lub ↑/↓: przesuń • E: puść'
+                    : 'Przeciągnij pionowo • puść, aby ustawić')
+                : (hasCandidate ? 'Kliknij rurę albo E, aby ją chwycić' : 'Zbliż się do bezpiecznej rury');
+        }
+
+        gameArea.classList.toggle('stork-grab-active', active);
+        gameArea.classList.toggle('stork-grab-ready', ready && hasCandidate);
+        gameArea.classList.toggle('stork-grab-cooldown', storkModeActive && cooldown > 0);
+        bird.classList.toggle('stork-grabbing', active);
+        updateStorkPipeRangeClasses(ready);
+        if (active) setStorkPipeClass(window.storkGrabbedPipe, 'pipe-grabbed', true);
+        updateStorkGrabActionButton(ready, hasCandidate);
+
+        const signature = [
+            storkModeActive ? 1 : 0,
+            active ? 1 : 0,
+            Math.round(energy),
+            Math.ceil(cooldown * 10),
+            hasCandidate ? 1 : 0,
+            reason || ''
+        ].join(':');
+        if (signature !== lastStorkGrabUiSignature) {
+            lastStorkGrabUiSignature = signature;
+            document.dispatchEvent(new CustomEvent('sky-dodge:stork-grab-state', {
+                detail: Object.freeze({
+                    active,
+                    energy,
+                    maxEnergy,
+                    energyPercent,
+                    cooldown,
+                    ready: ready && hasCandidate,
+                    reason: reason || 'update'
+                })
+            }));
+        }
+    }
+
+    function denyStorkGrab(reason) {
+        const now = performance.now();
+        if (now - lastStorkGrabDeniedAt > 350) {
+            playStorkGrabSound('storkGrabDenied');
+            lastStorkGrabDeniedAt = now;
+        }
+        syncStorkGrabUi(reason || 'denied');
+    }
+
+    window.tryStartStorkPipeGrab = function(event, options = {}) {
+        if (!gameRunning || !storkModeActive) return false;
+        if (window.storkGrabActive) return true;
+        if (event && event.button !== undefined && event.button !== 0) return false;
+
+        const point = storkEventPoint(event);
+        const areaRect = gameArea.getBoundingClientRect();
+        const pointerX = point ? point.clientX - areaRect.left : NaN;
+        const pointerIntent = Boolean(options.keyboard || options.button
+            || storkPointerTargetsPipe(event, pointerX));
+
+        if (!storkGrabReady()) {
+            if (pointerIntent) denyStorkGrab('unavailable');
+            return pointerIntent;
+        }
+
+        const candidates = storkGrabCandidates(options.keyboard || options.button ? undefined : pointerX);
+        if (!candidates.length) {
+            if (pointerIntent) denyStorkGrab('no-target');
+            return pointerIntent;
+        }
+
+        const pipe = candidates[0].pipe;
+        const center = currentStorkPipeCenter(pipe);
+        if (!Number.isFinite(center)) {
+            denyStorkGrab('invalid-layout');
+            return true;
+        }
+
+        window.storkGrabActive = true;
+        window.storkGrabbedPipe = pipe;
+        window.storkGrabTargetY = center;
+        window.storkGrabEnergy = Math.max(
+            0,
+            finiteStorkValue(window.storkGrabEnergy, 0) - STORK_GRAB_START_COST
+        );
+        pipe.grabbed = true;
+        storkGrabPointerOffsetY = point ? center - (point.clientY - areaRect.top) : 0;
+        storkGrabTravelDistance = 0;
+        storkGrabInputKind = options.keyboard ? 'keyboard' : (options.button ? 'button' : 'pointer');
+        setStorkPipeClass(pipe, 'pipe-in-range', false);
+        setStorkPipeClass(pipe, 'pipe-grabbed', true);
+        playStorkGrabSound('storkGrab');
+        syncStorkGrabUi('grab');
+        return true;
+    };
+
+    window.moveStorkPipeGrab = function(event) {
+        if (!window.storkGrabActive || !window.storkGrabbedPipe) return false;
+        const point = storkEventPoint(event);
+        if (!point) return false;
+        const areaRect = gameArea.getBoundingClientRect();
+        window.storkGrabTargetY = point.clientY - areaRect.top + storkGrabPointerOffsetY;
+        return true;
+    };
+
+    window.releaseStorkPipeGrab = function(reason = 'drop', options = {}) {
+        const pipe = window.storkGrabbedPipe;
+        const wasActive = Boolean(window.storkGrabActive || pipe);
+        if (!wasActive) return false;
+
+        if (pipe) {
+            pipe.grabbed = false;
+            setStorkPipeClass(pipe, 'pipe-grabbed', false);
+            setStorkPipeClass(pipe, 'pipe-in-range', false);
+        }
+        window.storkGrabActive = false;
+        window.storkGrabbedPipe = null;
+        window.storkGrabTargetY = null;
+        storkGrabKeys.up = false;
+        storkGrabKeys.down = false;
+        storkGrabPointerOffsetY = 0;
+        storkGrabInputKind = '';
+
+        if (!options.skipCooldown && gameRunning && storkModeActive) {
+            window.storkGrabCooldown = Math.max(
+                finiteStorkValue(window.storkGrabCooldown, 0),
+                finiteStorkValue(window.storkGrabCooldownTime, 1.25)
+            );
+        }
+
+        if (!options.skipStrain && gameRunning && storkGrabTravelDistance >= 0) {
+            const mutationSystem = window.SkyDodge && window.SkyDodge.mutations;
+            if (mutationSystem && typeof mutationSystem.strain === 'function') {
+                const distance = Math.round(storkGrabTravelDistance);
+                const amount = 8 + Math.min(distance / 20, 12) + (reason === 'energy' ? 5 : 0);
+                mutationSystem.strain(amount, 'pipeImpact', {
+                    source: 'stork-grab',
+                    reason,
+                    distance
+                });
+            }
+        }
+
+        if (!options.silent) {
+            playStorkGrabSound(reason === 'energy' ? 'storkGrabExhausted' : 'storkDrop');
+        }
+        storkGrabTravelDistance = 0;
+        syncStorkGrabUi(reason);
+        return true;
+    };
+
+    window.resetStorkPipeGrab = function(options = {}) {
+        window.releaseStorkPipeGrab(options.reason || 'reset', {
+            silent: true,
+            skipCooldown: true,
+            skipStrain: true
+        });
+        (Array.isArray(window.pipes) ? window.pipes : []).forEach(pipe => {
+            pipe.grabbed = false;
+            setStorkPipeClass(pipe, 'pipe-grabbed', false);
+            setStorkPipeClass(pipe, 'pipe-in-range', false);
+        });
+        window.storkGrabActive = false;
+        window.storkGrabbedPipe = null;
+        window.storkGrabMaxEnergy = Math.max(1, finiteStorkValue(window.storkGrabMaxEnergy, 100));
+        window.storkGrabEnergy = window.storkGrabMaxEnergy;
+        window.storkGrabCooldown = 0;
+        window.storkGrabTargetY = null;
+        storkGrabKeys.up = false;
+        storkGrabKeys.down = false;
+        storkGrabPointerOffsetY = 0;
+        storkGrabTravelDistance = 0;
+        storkGrabInputKind = '';
+        lastStorkGrabUiSignature = '';
+        syncStorkGrabUi(options.reason || 'reset');
+    };
+
+    window.updateStorkPipeGrab = function(timestamp, elapsedSeconds) {
+        const seconds = Math.max(0, Math.min(0.1, finiteStorkValue(elapsedSeconds, 0)));
+        if (!storkModeActive) {
+            if (window.storkGrabActive || window.storkGrabbedPipe) {
+                window.releaseStorkPipeGrab('mode-ended', {
+                    silent: true,
+                    skipCooldown: true
+                });
+            }
+            syncStorkGrabUi('inactive');
+            return;
+        }
+
+        const wasReady = storkGrabReady();
+        if (finiteStorkValue(window.storkGrabCooldown, 0) > 0) {
+            window.storkGrabCooldown = Math.max(0, window.storkGrabCooldown - seconds);
+        }
+
+        if (window.storkGrabActive) {
+            const pipe = window.storkGrabbedPipe;
+            if (!isStorkPipeUsable(pipe)) {
+                window.releaseStorkPipeGrab('pipe-invalid');
+                return;
+            }
+
+            const direction = Number(storkGrabKeys.down) - Number(storkGrabKeys.up);
+            if (direction !== 0) {
+                const currentTarget = finiteStorkValue(
+                    window.storkGrabTargetY,
+                    currentStorkPipeCenter(pipe)
+                );
+                window.storkGrabTargetY = currentTarget
+                    + direction * STORK_GRAB_KEYBOARD_SPEED * seconds;
+            }
+
+            const layout = applyStorkPipeLayout(
+                pipe,
+                finiteStorkValue(window.storkGrabTargetY, currentStorkPipeCenter(pipe))
+            );
+            if (!layout) {
+                window.releaseStorkPipeGrab('pipe-invalid');
+                return;
+            }
+
+            window.storkGrabEnergy = Math.max(
+                0,
+                finiteStorkValue(window.storkGrabEnergy, 0)
+                    - finiteStorkValue(window.storkGrabDrainRate, 34) * seconds
+            );
+            if (window.storkGrabEnergy <= 0) {
+                window.releaseStorkPipeGrab('energy');
+                return;
+            }
+        } else {
+            window.storkGrabEnergy = Math.min(
+                finiteStorkValue(window.storkGrabMaxEnergy, 100),
+                finiteStorkValue(window.storkGrabEnergy, 0)
+                    + finiteStorkValue(window.storkGrabRechargeRate, 22) * seconds
+            );
+        }
+
+        const isReady = storkGrabReady();
+        if (!wasReady && isReady) playStorkGrabSound('storkGrabReady');
+        syncStorkGrabUi('update');
+    };
+
+    window.handleStorkGrabKeyDown = function(event) {
+        if (!event || !gameRunning || !storkModeActive) return false;
+        if (event.code === 'KeyE') {
+            if (event.repeat) return true;
+            if (window.storkGrabActive) window.releaseStorkPipeGrab('drop');
+            else window.tryStartStorkPipeGrab(null, { keyboard: true });
+            return true;
+        }
+        if (!window.storkGrabActive) return false;
+        if (event.code === 'KeyW' || event.code === 'ArrowUp') {
+            storkGrabKeys.up = true;
+            storkGrabInputKind = 'keyboard';
+            return true;
+        }
+        if (event.code === 'KeyS' || event.code === 'ArrowDown') {
+            storkGrabKeys.down = true;
+            storkGrabInputKind = 'keyboard';
+            return true;
+        }
+        return false;
+    };
+
+    window.handleStorkGrabKeyUp = function(event) {
+        if (!event) return false;
+        let handled = false;
+        if (event.code === 'KeyW' || event.code === 'ArrowUp') {
+            handled = Boolean(storkModeActive && window.storkGrabActive);
+            storkGrabKeys.up = false;
+        }
+        if (event.code === 'KeyS' || event.code === 'ArrowDown') {
+            handled = Boolean(storkModeActive && window.storkGrabActive) || handled;
+            storkGrabKeys.down = false;
+        }
+        return handled;
+    };
+
     // Funkcje TRYB BOCIANA
     window.activateStorkMode = function(event) {
         if (event) {
             event.preventDefault();
             event.stopPropagation();
         }
+
+        // During the transformation this same accessible button controls the
+        // claws, so it remains useful to touch and assistive-technology users.
+        if (gameRunning && storkModeActive) {
+            if (window.storkGrabActive) window.releaseStorkPipeGrab('drop');
+            else window.tryStartStorkPipeGrab(null, { button: true });
+            return true;
+        }
         
         // Można aktywować tylko podczas trybu żaby i gdy nie jest aktywny
-        if (!gameRunning || !frogModeActive || storkModeActive || storkModeCooldown > 0) return;
+        if (!gameRunning || !frogModeActive || rubberModeActive || storkModeActive || storkModeCooldown > 0) return false;
+        if (!machineCanEnter('stork', { from: 'frog' })) return false;
         
         // Sprawdź czy gracz ma wystarczającą ilość monet
         const normalCoins = coinScore / coinValue;
@@ -1590,6 +2412,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (normalCoins >= normalStorkModeCost && 
             purpleCoins >= purpleStorkModeCost && 
             frogCoins >= frogStorkModeCost) {
+            // Najpierw posprzątaj poprzedni stan, potem wykonaj kontrolowane przejście.
+            deactivateFrogMode({ skipNext: true, silent: true });
+            if (!machineEnter('stork', { from: 'frog', force: true })) return false;
             
             // Odejmij koszt
             coinScore -= normalStorkModeCost * coinValue;
@@ -1604,45 +2429,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 frogCoinElement.textContent = `Monety żabie: ${frogCoinScore / frogCoinValue}`;
             }
             
-            // Dezaktywuj tryb żaby przed aktywacją trybu bociana
-            frogModeActive = false;
-            frogModeTime = 0;
-            gameArea.classList.remove('frog-mode-active');
-            frogModeTimer.style.display = 'none';
-            
-            // Dokładnie usuń wszystkie elementy żaby
-            const frogElements = bird.querySelectorAll('.frog-head, .frog-belly, .frog-eye, .frog-front-leg, .frog-back-thigh');
-            frogElements.forEach(element => {
-                if (element && element.parentNode === bird) {
-                    // Usuwamy najpierw wszystkie dzieci elementu
-                    const children = element.querySelectorAll('*');
-                    children.forEach(child => {
-                        if (child && child.parentNode === element) {
-                            // Rekurencyjnie usuwamy dzieci dzieci (np. stopa w łydce)
-                            const grandchildren = child.querySelectorAll('*');
-                            grandchildren.forEach(grandchild => {
-                                if (grandchild && grandchild.parentNode === child) {
-                                    child.removeChild(grandchild);
-                                }
-                            });
-                            element.removeChild(child);
-                        }
-                    });
-                    // Potem usuwamy sam element
-                    bird.removeChild(element);
-                }
-            });
-            
-            // Usuń dodatkowe klasy żaby
-            bird.classList.remove('charging', 'jumping', 'overloaded', 'rubber-mode');
-            
             // Aktywuj TRYB BOCIANA
             storkModeActive = true;
             storkModeTime = storkModeDuration;
+            window.resetStorkPipeGrab({ reason: 'mode-activated', silent: true });
             gameArea.classList.add('stork-mode-active');
             storkModeTimer.style.display = 'block';
             storkModeTimer.textContent = `TRYB BOCIANA: ${storkModeDuration}s`;
+            storkModeButton.style.display = 'flex';
             storkModeButton.disabled = true;
+            applyModePhysics();
             
             // Przywróć widoczność jetpacka
             const jetpackFlames = bird.querySelector('.jetpack-flames');
@@ -1652,6 +2448,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Efekt dźwiękowy
             playSound('storkMode');
+            const mutationSystem = window.SkyDodge && window.SkyDodge.mutations;
+            if (mutationSystem && typeof mutationSystem.strain === 'function') {
+                mutationSystem.strain(12, 'pipeImpact', { source: 'stork-activation' });
+            }
+            syncStorkGrabUi('mode-activated');
             
             // Pokaż efekt aktywacji
             const storkActivation = document.createElement('div');
@@ -1670,7 +2471,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     gameArea.removeChild(storkActivation);
                 }
             }, 1500);
+            return true;
         }
+        return false;
     }
     
     window.deactivateStorkMode = function() {
@@ -1678,10 +2481,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log("Deaktywacja trybu bociana - rozpoczęcie czyszczenia");
         
+        window.releaseStorkPipeGrab('mode-ended', {
+            silent: true,
+            skipCooldown: true
+        });
         storkModeActive = false;
+        machineLeave('stork');
         storkModeTime = 0;
         gameArea.classList.remove('stork-mode-active');
         storkModeTimer.style.display = 'none';
+        window.resetStorkPipeGrab({ reason: 'mode-ended', silent: true });
         
         // Wyczyść wszystkie dodatkowe elementy związane z trybem bociana
         const windCoins = document.querySelectorAll('.windCoin');
@@ -1690,6 +2499,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 coin.parentNode.removeChild(coin);
             }
         });
+        coins = coins.filter(coin => !(coin.element && coin.element.classList.contains('windCoin')));
         
         // Zatrzymaj wszelkie animacje związane z bocianem
         if (bird.storkAnimation) {
@@ -1718,7 +2528,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bird.classList.remove('stork-mode', 'stork-flying');
         
         // Usuń wszystkie efekty rozbłysku, które mogły zostać
-        const flashEffects = document.querySelectorAll('[class*="flash"]');
+        const flashEffects = document.querySelectorAll('.stork-flash');
         flashEffects.forEach(effect => {
             if (effect && effect.parentNode && effect !== bird) {
                 effect.parentNode.removeChild(effect);
@@ -1728,12 +2538,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Usuń klasy wizualnych efektów
         gameArea.classList.remove('screen-shake');
         
-        // KLUCZOWE: Przywróć normalne parametry gry
-        jump = normalJump;
-        gravity = normalGravity;
-        invincible = false;
-        ghostMode = false;
-        currentPipeSpeed = pipeSpeed;
+        applyModePhysics();
         
         // Pokaż komunikat o końcu trybu bociana
         const endModeMsg = document.createElement('div');
@@ -1755,6 +2560,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ustaw cooldown
         storkModeCooldown = storkModeCooldownTime;
         storkModeButton.disabled = true;
+        storkModeButton.style.display = 'none';
         
         setTimeout(() => {
             updateStorkModeButton();
@@ -1763,13 +2569,23 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Deaktywacja trybu bociana - zakończono czyszczenie");
         
         // Automatycznie aktywuj tryb ducha za darmo
-        if (!ghostModeActive) {
+        const pendingMutation = window.SkyDodge
+            && window.SkyDodge.state
+            && window.SkyDodge.state.mutation
+            && window.SkyDodge.state.mutation.pending;
+        if (!ghostModeActive && !pendingMutation) {
             activateGhostMode(null, true);
         }
     }
     
     window.updateStorkModeButton = function() {
-        if (!gameRunning || !frogModeActive) return;
+        if (!gameRunning) return;
+
+        if (storkModeActive) {
+            syncStorkGrabUi('button-update');
+            return;
+        }
+        if (!frogModeActive) return;
         
         const normalCoins = coinScore / coinValue;
         const purpleCoins = purpleCoinScore / purpleCoinValue;
@@ -1777,8 +2593,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasEnoughCoins = normalCoins >= normalStorkModeCost && 
                               purpleCoins >= purpleStorkModeCost && 
                               frogCoins >= frogStorkModeCost;
+        storkModeButton.setAttribute('aria-pressed', 'false');
+        storkModeButton.setAttribute('aria-label', 'Aktywuj tryb bociana');
         
-        if (storkModeActive) {
+        if (rubberModeActive) {
+            storkModeButton.disabled = true;
+            storkModeButton.querySelector('.mode-button-cost').textContent = 'ZAJĘTY';
+        } else if (storkModeActive) {
             storkModeButton.disabled = true;
             storkModeButton.querySelector('.mode-button-cost').textContent = 'AKTYWNY!';
         } else if (storkModeCooldown > 0) {
@@ -1813,9 +2634,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // W trybie stali mocniejszy skok
                 velocity = jump * 1.2;
                 playSound('jump');
+                if (window.SkyDodge && window.SkyDodge.mutations) {
+                    window.SkyDodge.mutations.record('jump', 2);
+                }
                 
                 // Dodaj efekt błysku metalicznego
                 const steelFlash = document.createElement('div');
+                steelFlash.className = 'steel-flash';
                 steelFlash.style.position = 'absolute';
                 steelFlash.style.width = '100%';
                 steelFlash.style.height = '100%';
@@ -1833,6 +2658,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Standardowy skok z jetpackiem dla normalnego trybu
                 velocity = jump;
                 playSound('jump');
+                if (window.SkyDodge && window.SkyDodge.mutations) {
+                    window.SkyDodge.mutations.record('jump', 2);
+                }
                 
                 // Aktywuj efekt jetpacka
                 const jetpackFlames = document.querySelector('.jetpack-flames');
