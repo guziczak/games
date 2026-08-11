@@ -118,26 +118,36 @@ export class SceneRenderer {
     this.renderer.toneMappingExposure = 1.22;
     this.renderer.shadowMap.enabled = false;
     this.scene.background = new THREE.Color(0x112b4c);
-    // Preserve atmospheric depth while leaving the third real look-ahead gate
-    // legible as a silhouette on wide desktop paths.
-    this.scene.fog = new THREE.FogExp2(0x17354e, 0.0105);
+    // Exp2 fog now does useful separation between the real look-ahead gates;
+    // the nearest active one receives a local contrast light below.
+    this.scene.fog = new THREE.FogExp2(0x17354e, 0.0185);
 
     const hemisphere = new THREE.HemisphereLight(0xd8f7ff, 0x39213f, 2.15);
     hemisphere.name = 'sky-fill';
-    const ambient = new THREE.AmbientLight(0x8fc5d5, 0.42);
-    ambient.name = 'soft-ambient';
+    this.ambientLight = new THREE.AmbientLight(0x8fc5d5, 0.42);
+    this.ambientLight.name = 'soft-ambient';
     const key = new THREE.DirectionalLight(0xffe7b5, 3.15);
     key.name = 'sun-key';
     key.position.set(-7, 10, 13);
-    const rim = new THREE.DirectionalLight(0x43cfff, 1.65);
-    rim.name = 'cool-rim';
-    rim.position.set(10, 3, -2);
+    this.rimLight = new THREE.DirectionalLight(0x43cfff, 1.65);
+    this.rimLight.name = 'cool-rim';
+    this.rimLight.position.set(10, 3, -2);
     const warmFill = new THREE.PointLight(0xffa454, 0.75, 24, 2);
     warmFill.name = 'sun-fill';
     warmFill.position.set(7, 5, -8);
     this.playerLight = new THREE.PointLight(MODE_LIGHT_COLOURS.normal, 1.2, 5.5, 2);
     this.playerLight.name = 'mode-glow';
-    this.scene.add(hemisphere, ambient, key, rim, warmFill, this.playerLight);
+    this.gateFocusLight = new THREE.PointLight(0xffcf8a, 0, 5.8, 2);
+    this.gateFocusLight.name = 'nearest-gate-contrast';
+    this.scene.add(
+      hemisphere,
+      this.ambientLight,
+      key,
+      this.rimLight,
+      warmFill,
+      this.playerLight,
+      this.gateFocusLight,
+    );
 
     this.worldViews = new WorldViews(this.scene, this.quality);
     this.character = new CharacterRig(this.scene);
@@ -156,6 +166,61 @@ export class SceneRenderer {
     this.blobShadow.rotation.x = -Math.PI / 2;
     this.blobShadow.renderOrder = 2;
     this.scene.add(this.blobShadow);
+
+    const reflectionDiscGeometry = new THREE.CircleGeometry(1, 20);
+    const reflectionBeakGeometry = new THREE.BufferGeometry();
+    reflectionBeakGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      0, -0.42, 0,
+      1, 0, 0,
+      0, 0.42, 0,
+    ], 3));
+    const reflectionRippleGeometry = new THREE.RingGeometry(0.76, 1, 30);
+    this.reflectionGeometries = Object.freeze([
+      reflectionDiscGeometry,
+      reflectionBeakGeometry,
+      reflectionRippleGeometry,
+    ]);
+    this.reflectionBodyMaterial = new THREE.MeshBasicMaterial({
+      color: MODE_LIGHT_COLOURS.normal,
+      transparent: true,
+      opacity: 0.1,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.reflectionDetailMaterial = this.reflectionBodyMaterial.clone();
+    this.reflectionDetailMaterial.opacity = 0.075;
+    this.reflectionRippleMaterial = new THREE.MeshBasicMaterial({
+      color: 0x9ddce5,
+      transparent: true,
+      opacity: 0.05,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const reflectionBody = new THREE.Mesh(reflectionDiscGeometry, this.reflectionBodyMaterial);
+    reflectionBody.name = 'duck-reflection-body';
+    reflectionBody.rotation.x = -Math.PI / 2;
+    reflectionBody.scale.set(0.62, 0.36, 1);
+    const reflectionHead = new THREE.Mesh(reflectionDiscGeometry, this.reflectionDetailMaterial);
+    reflectionHead.name = 'duck-reflection-head';
+    reflectionHead.position.x = 0.48;
+    reflectionHead.rotation.x = -Math.PI / 2;
+    reflectionHead.scale.set(0.25, 0.22, 1);
+    const reflectionBeak = new THREE.Mesh(reflectionBeakGeometry, this.reflectionDetailMaterial);
+    reflectionBeak.name = 'duck-reflection-beak';
+    reflectionBeak.position.x = 0.66;
+    reflectionBeak.rotation.x = -Math.PI / 2;
+    reflectionBeak.scale.set(0.28, 0.2, 1);
+    const reflectionRipple = new THREE.Mesh(reflectionRippleGeometry, this.reflectionRippleMaterial);
+    reflectionRipple.name = 'duck-reflection-ripple';
+    reflectionRipple.rotation.x = -Math.PI / 2;
+    reflectionRipple.scale.set(0.9, 0.48, 1);
+    this.duckReflection.name = 'duck-water-reflection';
+    this.duckReflection.renderOrder = 6;
+    this.duckReflection.add(reflectionRipple, reflectionBody, reflectionHead, reflectionBeak);
+    this.scene.add(this.duckReflection);
 
     this.canvas.dataset.renderQuality = this.quality;
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
@@ -214,6 +279,8 @@ export class SceneRenderer {
     const interpolation = clamp(Number.isFinite(alpha) ? alpha : 0, 0, 1);
     const time = state.clock.elapsed + DEFAULT_GAME_CONFIG.fixedStep * interpolation;
 
+    this.updateReactionClock(state, events, time);
+    this.updateSceneMood(state);
     this.updateCamera(state, time);
     this.worldViews.update(
       state,
@@ -237,7 +304,12 @@ export class SceneRenderer {
     this.particles.reset();
     this.playerLight.color.setHex(MODE_LIGHT_COLOURS.normal);
     this.playerLight.intensity = 1.2;
+    this.gateFocusLight.intensity = 0;
     this.blobShadow.visible = true;
+    this.duckReflection.visible = true;
+    this.cameraImpulse = 0;
+    this.cameraImpulseAge = 0;
+    this.lastRenderTime = null;
     this.contextLost = false;
   }
 
@@ -254,6 +326,11 @@ export class SceneRenderer {
     this.blobShadow.geometry.dispose();
     this.blobShadow.material.dispose();
     this.blobShadow.removeFromParent();
+    for (const geometry of this.reflectionGeometries) geometry.dispose();
+    this.reflectionBodyMaterial.dispose();
+    this.reflectionDetailMaterial.dispose();
+    this.reflectionRippleMaterial.dispose();
+    this.duckReflection.removeFromParent();
     this.scene.clear();
     this.renderer.dispose();
     // This renderer owns the canvas for its whole lifetime. Explicit context loss

@@ -391,17 +391,19 @@ export function createWaterShaderSources(
   const pipeContactCalls = createPipeContactCalls(profile);
   const pipeContactCurrent = profile.pipeContactCurrent
     ? `
-      // pipe-contact-current: one radial phase supplies the moving ring and current.
-      float currentPhase = (distanceToPipe - radius) * 8.4
-        - uTime * 1.9 + dot(contact.xy, vec2(0.31, -0.27));
-      float currentPulse = 0.5 + 0.5 * sin(currentPhase);
+      // pipe-contact-current: a cheap triangular radial phase avoids another sin.
+      float currentCycle = fract(
+        (distanceToPipe - radius) * 1.34
+        - uTime * 0.3 + dot(contact.xy, vec2(0.047, -0.041))
+      );
+      float currentPulse = 1.0 - abs(currentCycle * 2.0 - 1.0);
       float movingRing = smoothstep(0.5, 0.9, currentPulse) * halo;
       float contactCurrent = halo * 0.22
         + movingRing * 0.78 * mix(0.28, 1.0, uMotion);
       float currentFoam = movingRing * 0.16 * uMotion;
     `
     : `
-      // Low keeps only a static footprint: no animated contact trigonometry.
+      // Low keeps only a static footprint: no animated contact phase.
       float contactCurrent = halo * 0.2;
       float currentFoam = 0.0;
     `;
@@ -595,14 +597,15 @@ export function createWaterShaderSources(
       inout float foam,
       inout float current
     ) {
-      float valid = step(0.001, contact.w);
+      if (contact.w <= 0.001) return;
       float radius = max(contact.z, 0.001);
       float distanceToPipe = length(worldPosition - contact.xy);
+      if (distanceToPipe > radius + 1.08) return;
       float ring = 1.0 - smoothstep(0.04, 0.15, abs(distanceToPipe - radius));
       float halo = smoothstep(radius * 0.58, radius * 0.92, distanceToPipe)
         * (1.0 - smoothstep(radius + 0.08, radius + 1.08, distanceToPipe));
       ${pipeContactCurrent}
-      float contactStrength = contact.w * valid;
+      float contactStrength = contact.w;
       foam = max(foam, (ring * 0.84 + currentFoam) * contactStrength);
       current = max(current, contactCurrent * contactStrength);
     }
