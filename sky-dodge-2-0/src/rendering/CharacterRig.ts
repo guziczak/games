@@ -481,6 +481,18 @@ export class CharacterRig {
     band.rotation.y = Math.PI / 2;
     root.add(band);
 
+    const seam = new THREE.Mesh(torus, bandMaterial);
+    seam.scale.setScalar(0.72);
+    seam.rotation.x = Math.PI / 2;
+    seam.rotation.z = Math.PI / 2;
+    root.add(seam);
+
+    const valveGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.065, 0.085, 0.22, 8));
+    valveGeometry.rotateZ(Math.PI / 2);
+    const valve = new THREE.Mesh(valveGeometry, bandMaterial);
+    valve.position.set(-0.82, 0.31, 0.02);
+    root.add(valve);
+
     const wing = new THREE.Mesh(sphere, bodyMaterial);
     wing.position.set(-0.18, 0.03, 0.62);
     wing.scale.set(0.7, 0.24, 0.14);
@@ -538,9 +550,16 @@ export class CharacterRig {
     wing.scale.set(0.62, 0.2, 0.12);
     root.add(wing);
 
+    const reactorGeometry = this.trackGeometry(new THREE.TorusGeometry(0.2, 0.055, 8, 24));
+    const reactor = new THREE.Mesh(reactorGeometry, eyeMaterial);
+    reactor.position.set(-0.72, 0.02, 0.03);
+    reactor.rotation.y = Math.PI / 2;
+    root.add(reactor);
+
     return {
       root,
       wings: [wing],
+      accent: reactor,
       heatMaterials: [armour, brightArmour],
     };
   }
@@ -570,6 +589,13 @@ export class CharacterRig {
     tail.position.set(-0.94, -0.03, 0);
     tail.scale.set(1.15, 0.9, 0.76);
     root.add(tail);
+
+    for (let index = 0; index < 3; index += 1) {
+      const wisp = new THREE.Mesh(tailGeometry, index % 2 === 0 ? spectral : spectralLight);
+      wisp.position.set(-1.18 - index * 0.28, -0.28 + index * 0.27, -0.14 - index * 0.08);
+      wisp.scale.set(0.42 + index * 0.08, 0.34, 0.34);
+      root.add(wisp);
+    }
 
     const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     eye.position.set(0.94, 0.56, 0.34);

@@ -26,7 +26,6 @@ export interface GameConfig {
     readonly flapVelocity: number;
     readonly minVelocityY: number;
     readonly maxVelocityY: number;
-    readonly floorRecoveryVelocity: number;
     readonly horizontalRecovery: number;
     readonly maxHorizontalRecoverySpeed: number;
   };
@@ -147,9 +146,6 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     flapVelocity: 6,
     minVelocityY: -9,
     maxVelocityY: 7,
-    // One low bounce gives a missed mobile tap a short coyote window.  The
-    // recovery is consumed until a real flap edge rearms it.
-    floorRecoveryVelocity: 3.4,
     horizontalRecovery: 8,
     maxHorizontalRecoverySpeed: 4.5,
   }),

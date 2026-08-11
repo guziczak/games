@@ -32,6 +32,14 @@ const TEST_CONFIG: GameConfig = {
   })),
 };
 
+const ACTION_CONFIG: GameConfig = {
+  ...TEST_CONFIG,
+  player: {
+    ...TEST_CONFIG.player,
+    flapVelocity: DEFAULT_GAME_CONFIG.player.flapVelocity,
+  },
+};
+
 function makeObstacle(overrides: Partial<ObstacleState> = {}): ObstacleState {
   return {
     id: 'gate-test',
@@ -55,6 +63,21 @@ function makeObstacle(overrides: Partial<ObstacleState> = {}): ObstacleState {
     storkVaultAwarded: false,
     ...overrides,
   };
+}
+
+function runTicks(
+  source: GameState,
+  ticks: number,
+  config: GameConfig = ACTION_CONFIG,
+): { state: GameState; events: GameEvent[] } {
+  let state = source;
+  const events: GameEvent[] = [];
+  for (let tick = 0; tick < ticks; tick += 1) {
+    const result = stepSimulation(state, config.fixedStep, undefined, config);
+    state = result.state;
+    events.push(...result.events);
+  }
+  return { state, events };
 }
 
 describe('Sky Dodge 2.0 simulation', () => {
@@ -161,7 +184,7 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(() => JSON.stringify(stork)).not.toThrow();
   });
 
-  it('gives an ordinary stork fall one bounded recovery and rearms it on flap', () => {
+  it('lands a stork safely without event spam and lets a flap leave the floor', () => {
     const source = startMode(
       createInitialGameState(91, DEFAULT_GAME_CONFIG),
       'stork',
@@ -172,49 +195,69 @@ describe('Sky Dodge 2.0 simulation', () => {
     source.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
     source.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
 
-    const firstLanding = stepSimulation(
+    let landing = stepSimulation(
       source,
       DEFAULT_GAME_CONFIG.fixedStep,
       undefined,
       DEFAULT_GAME_CONFIG,
     );
-    expect(firstLanding.state.status).toBe('running');
-    expect(firstLanding.state.player.vy).toBeGreaterThan(0);
-    expect(firstLanding.events).toContainEqual(expect.objectContaining({
+    expect(landing.state.status).toBe('running');
+    expect(landing.state.player.vy).toBe(0);
+    expect(landing.events).toContainEqual(expect.objectContaining({
       type: 'collision',
       entityId: 'boundary-floor',
       outcome: 'shielded',
     }));
 
-    const exhausted = cloneGameState(firstLanding.state);
-    exhausted.player.invulnerableTime = 0;
-    exhausted.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
-    exhausted.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
-    const fatalSecondLanding = stepSimulation(
-      exhausted,
-      DEFAULT_GAME_CONFIG.fixedStep,
-      undefined,
-      DEFAULT_GAME_CONFIG,
-    );
-    expect(fatalSecondLanding.state.status).toBe('dead');
+    const floorEvents = [...landing.events];
+    for (let tick = 0; tick < 60; tick += 1) {
+      const result = stepSimulation(landing.state, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
+      landing = result;
+      floorEvents.push(...result.events);
+    }
+    expect(landing.state.status).toBe('running');
+    expect(floorEvents.filter((event) => event.type === 'collision' && event.entityId === 'boundary-floor')).toHaveLength(1);
 
-    const rearmed = stepSimulation(
-      firstLanding.state,
+    const airborne = stepSimulation(
+      landing.state,
       DEFAULT_GAME_CONFIG.fixedStep,
       [{ type: 'flap' }],
       DEFAULT_GAME_CONFIG,
-    ).state;
-    rearmed.player.invulnerableTime = 0;
-    rearmed.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
-    rearmed.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
-    const landingAfterFlap = stepSimulation(
-      rearmed,
+    );
+    expect(airborne.state.player.y).toBeGreaterThan(DEFAULT_GAME_CONFIG.player.radiusY);
+    expect(airborne.state.player.vy).toBeGreaterThan(0);
+
+    const secondFall = cloneGameState(airborne.state);
+    secondFall.player.invulnerableTime = 0;
+    secondFall.player.y = DEFAULT_GAME_CONFIG.player.radiusY + 0.01;
+    secondFall.player.vy = DEFAULT_GAME_CONFIG.player.minVelocityY;
+    const secondLanding = stepSimulation(
+      secondFall,
       DEFAULT_GAME_CONFIG.fixedStep,
       undefined,
       DEFAULT_GAME_CONFIG,
     );
-    expect(landingAfterFlap.state.status).toBe('running');
-    expect(landingAfterFlap.state.player.vy).toBeGreaterThan(0);
+    expect(secondLanding.state.status).toBe('running');
+    expect(secondLanding.events.filter((event) => event.type === 'collision' && event.entityId === 'boundary-floor')).toHaveLength(1);
+
+    const obstacleHit = cloneGameState(secondLanding.state);
+    obstacleHit.player.invulnerableTime = 0;
+    obstacleHit.player.y = 2;
+    obstacleHit.player.vy = 0;
+    obstacleHit.world.obstacles.push(makeObstacle({
+      id: 'stork-lethal-gate',
+      x: obstacleHit.player.x,
+      gapCenter: 5,
+      baseGapCenter: 5,
+      gapSize: 2,
+    }));
+    const fatalObstacle = stepSimulation(obstacleHit, DEFAULT_GAME_CONFIG.fixedStep, undefined, DEFAULT_GAME_CONFIG);
+    expect(fatalObstacle.state.status).toBe('dead');
+    expect(fatalObstacle.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'stork-lethal-gate',
+      outcome: 'fatal',
+    }));
   });
 
   it('keeps a frog attached to the moving gate for the full cling window and releases safely', () => {
@@ -384,7 +427,7 @@ describe('Sky Dodge 2.0 simulation', () => {
       { type: 'ability-release' },
     ], TEST_CONFIG).state;
     const storkEvents: GameEvent[] = [];
-    for (let tick = 0; tick < 40; tick += 1) {
+    for (let tick = 0; tick < 60; tick += 1) {
       const result = stepSimulation(stork, TEST_CONFIG.fixedStep, undefined, TEST_CONFIG);
       stork = result.state;
       storkEvents.push(...result.events);

@@ -18,7 +18,6 @@ export interface PlayerState {
   vx: number;
   vy: number;
   invulnerableTime: number;
-  floorRecoveryAvailable: boolean;
   collisionGraceEntityIds: string[];
 }
 
@@ -96,6 +95,7 @@ export interface StorkModeState {
   phaseTime: number;
   vaultStartY: number;
   vaultTargetY: number;
+  floorContactLatched: boolean;
 }
 
 export interface ModeRuntimeState {
@@ -212,6 +212,7 @@ export function createInitialModeState(config: GameConfig = DEFAULT_GAME_CONFIG)
       phaseTime: 0,
       vaultStartY: 0,
       vaultTargetY: 0,
+      floorContactLatched: false,
     },
   };
 }
@@ -233,7 +234,6 @@ export function createInitialGameState(
       vx: 0,
       vy: 0,
       invulnerableTime: 0,
-      floorRecoveryAvailable: true,
       collisionGraceEntityIds: [],
     },
     world: {

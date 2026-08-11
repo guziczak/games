@@ -327,7 +327,6 @@ function exitModeMutable(
       ? config.modes.steel.overheatGrace
       : 0.15;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, grace);
-  state.player.floorRecoveryAvailable = true;
   state.player.vx = 0;
   resetModeRuntime(state, config);
 }
@@ -345,7 +344,6 @@ function enterModeMutable(
   state.mode = clean;
   state.player.vx = 0;
   state.player.invulnerableTime = Math.max(state.player.invulnerableTime, 0.25);
-  state.player.floorRecoveryAvailable = true;
   events.push({
     ...stamp(state),
     type: 'mode-entered',
@@ -441,10 +439,12 @@ function releaseStorkVault(state: GameState, events: GameEvent[], config: GameCo
   }
   stork.phase = 'vaulting';
   stork.phaseTime = 0;
+  stork.floorContactLatched = false;
   stork.vaultStartY = state.player.y;
   updateStorkVaultTarget(state, config);
   stork.uses -= 1;
   stork.energy = Math.max(0, stork.energy - config.modes.stork.useEnergy);
+  target.storkVaultCommitted = true;
   grantCollisionGrace(state, target.id);
   emitModeAction(state, events, 'stork', 'stork-vault-start', target.id);
 }
@@ -553,7 +553,7 @@ function processInput(
       if (activeMode === 'frog' && (state.mode.frog.phase === 'clinging' || state.mode.frog.phase === 'charging')) {
         launchFrog(state, events, config);
       } else if (activeMode !== 'rubber' || state.mode.rubber.phase !== 'aiming') {
-        state.player.floorRecoveryAvailable = true;
+        if (activeMode === 'stork') state.mode.stork.floorContactLatched = false;
         state.player.vy = config.player.flapVelocity;
         events.push({ ...stamp(state), type: 'flap', mode: activeMode });
       }
@@ -680,10 +680,6 @@ function updateActiveMode(
       state.player.vy = 0;
       if (stork.phaseTime >= config.modes.stork.vaultDuration) {
         const targetId = stork.lockedTargetId;
-        if (targetId) {
-          const target = state.world.obstacles.find((obstacle) => obstacle.id === targetId);
-          if (target) target.storkVaultCommitted = true;
-        }
         emitModeAction(state, events, 'stork', 'stork-vault-end', targetId ?? undefined);
         stork.phase = 'idle';
         stork.phaseTime = 0;
@@ -883,20 +879,17 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
     return;
   }
 
-  if (state.player.invulnerableTime > 0 || (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') || (state.mode.active === 'stork' && state.mode.stork.phase === 'vaulting')) {
-    state.player.vy = normalY * Math.max(1, Math.abs(state.player.vy) * 0.25);
-    events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
+  if (below && state.mode.active === 'stork') {
+    state.player.vy = 0;
+    if (!state.mode.stork.floorContactLatched) {
+      state.mode.stork.floorContactLatched = true;
+      events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
+    }
     return;
   }
 
-  if (
-    below
-    && state.player.floorRecoveryAvailable
-    && (state.mode.active === 'normal' || state.mode.active === 'stork')
-  ) {
-    state.player.floorRecoveryAvailable = false;
-    state.player.vy = config.player.floorRecoveryVelocity;
-    state.player.invulnerableTime = Math.max(state.player.invulnerableTime, 0.12);
+  if (state.player.invulnerableTime > 0 || (state.mode.active === 'ghost' && state.mode.ghost.phase === 'phasing') || (state.mode.active === 'stork' && state.mode.stork.phase === 'vaulting')) {
+    state.player.vy = normalY * Math.max(1, Math.abs(state.player.vy) * 0.25);
     events.push({ ...stamp(state), type: 'collision', entityId, outcome: 'shielded' });
     return;
   }
@@ -1027,8 +1020,15 @@ function updateFrogAnchorAfterWorld(
   state.player.vx = (desiredX - previousX) / config.fixedStep;
   const gapBottom = obstacle.gapCenter - obstacle.gapSize / 2;
   const gapTop = obstacle.gapCenter + obstacle.gapSize / 2;
-  if (frog.surfaceNormalY > 0) state.player.y = gapBottom + config.player.radiusY;
-  else if (frog.surfaceNormalY < 0) state.player.y = gapTop - config.player.radiusY;
+  if (frog.surfaceNormalX !== 0
+    && state.player.y - config.player.radiusY >= gapBottom
+    && state.player.y + config.player.radiusY <= gapTop) {
+    launchFrog(state, events, config);
+  } else if (frog.surfaceNormalY > 0) {
+    state.player.y = gapBottom + config.player.radiusY;
+  } else if (frog.surfaceNormalY < 0) {
+    state.player.y = gapTop - config.player.radiusY;
+  }
 }
 
 function clearReleasedFrogSurface(state: GameState, config: GameConfig): void {
@@ -1160,6 +1160,11 @@ function resolveObstacleCollision(
       }
       state.player.vx *= config.modes.rubber.tangentialDamping;
     }
+    state.player.vx = clamp(
+      state.player.vx,
+      -config.modes.rubber.maxLaunchSpeed,
+      config.modes.rubber.maxLaunchSpeed,
+    );
     rubber.vx = state.player.vx;
     events.push({ ...stamp(state), type: 'collision', entityId: obstacle.id, outcome: 'bounce' });
     emitModeAction(state, events, 'rubber', 'rubber-bounce', obstacle.id);

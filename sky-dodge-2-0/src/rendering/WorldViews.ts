@@ -57,15 +57,20 @@ export function createWorldProjection(aspect: number): WorldProjection {
   const safeAspect = clamp(Number.isFinite(aspect) ? aspect : 1, 0.38, 2.5);
   const viewHeight = DEFAULT_GAME_CONFIG.world.height + 1.2;
   const viewWidth = viewHeight * safeAspect;
-  const xScale = viewWidth / DEFAULT_GAME_CONFIG.world.width;
-  const halfWidth = viewWidth / 2;
+  const xScale = Math.max(
+    viewWidth / DEFAULT_GAME_CONFIG.world.width,
+    clamp(viewHeight * 0.06, 0.58, 0.72),
+  );
+  const playerAnchor = -viewWidth * 0.24;
   const halfHeight = DEFAULT_GAME_CONFIG.world.height / 2;
 
   return Object.freeze({
     viewWidth,
     viewHeight,
     xScale,
-    mapX: (simulationX: number): number => simulationX * xScale - halfWidth,
+    mapX: (simulationX: number): number => (
+      playerAnchor + (simulationX - DEFAULT_GAME_CONFIG.player.startX) * xScale
+    ),
     mapY: (simulationY: number): number => simulationY - halfHeight,
     depthAt: (simulationX: number): number => clamp(
       (DEFAULT_GAME_CONFIG.player.startX - simulationX) * 0.43,
@@ -395,6 +400,7 @@ export class WorldViews {
   private readonly laneLights: THREE.InstancedMesh;
   private readonly floor: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly floorMaterial: THREE.ShaderMaterial;
+  private readonly floorTimeUniform = { value: 0 };
   private readonly sun: THREE.Group;
   private readonly portal: PortalView;
   private readonly targetMarker: THREE.Group;
@@ -451,10 +457,10 @@ export class WorldViews {
       depthWrite: true,
       side: THREE.DoubleSide,
       uniforms: {
-        time: { value: 0 },
-        deepColour: { value: new THREE.Color(0x071424) },
-        nearColour: { value: new THREE.Color(0x17344a) },
-        gridColour: { value: new THREE.Color(0x2f7890) },
+        time: this.floorTimeUniform,
+        deepColour: { value: new THREE.Color(0x0d2238) },
+        nearColour: { value: new THREE.Color(0x28516a) },
+        gridColour: { value: new THREE.Color(0x2e7182) },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -477,7 +483,7 @@ export class WorldViews {
           float depthFade = smoothstep(0.05, 0.92, vUv.y);
           float longitudinal = line(vUv.x * 18.0, 0.55);
           float crosswise = line(vUv.y * 32.0 + time * 0.35, 0.5);
-          float grid = max(longitudinal * 0.35, crosswise * 0.48) * smoothstep(0.02, 0.28, vUv.y);
+          float grid = max(longitudinal * 0.22, crosswise * 0.31) * smoothstep(0.02, 0.28, vUv.y);
           vec3 base = mix(nearColour, deepColour, depthFade);
           gl_FragColor = vec4(base + gridColour * grid, 1.0);
         }
@@ -678,13 +684,13 @@ export class WorldViews {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     }));
-    const targetGeometry = this.trackGeometry(new THREE.TorusGeometry(0.34, 0.035, 8, 32));
+    const targetGeometry = this.trackGeometry(new THREE.TorusGeometry(0.27, 0.03, 8, 32));
     this.targetMarker = new THREE.Group();
     this.targetMarker.name = 'stork-target-marker';
     this.targetMarker.visible = false;
     this.targetRing = new THREE.Mesh(targetGeometry, targetMaterial);
     this.targetMarker.add(this.targetRing);
-    const crossGeometry = this.trackGeometry(new THREE.BoxGeometry(0.68, 0.025, 0.025));
+    const crossGeometry = this.trackGeometry(new THREE.BoxGeometry(0.54, 0.022, 0.022));
     const horizontal = new THREE.Mesh(crossGeometry, targetMaterial);
     const vertical = new THREE.Mesh(crossGeometry, targetMaterial);
     vertical.rotation.z = Math.PI / 2;
@@ -851,7 +857,7 @@ export class WorldViews {
     time: number,
     reducedMotion: boolean,
   ): void {
-    this.floorMaterial.uniforms.time.value = time;
+    this.floorTimeUniform.value = time;
     const cloudSpan = projection.viewWidth + 8;
     for (let index = 0; index < this.ambientSeeds.length; index += 1) {
       const seed = this.ambientSeeds[index];

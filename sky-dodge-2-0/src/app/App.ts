@@ -256,6 +256,7 @@ export class App {
     this.runGeneration += 1;
     this.stopAnimationLoop();
     this.audio.reset();
+    this.audio.beginRun();
     this.input.reset();
     this.inputQueue.length = 0;
     this.simulation.reset(createRunSeed() ^ this.runGeneration);
@@ -278,6 +279,7 @@ export class App {
   private pauseRun(): void {
     if (this.phase !== 'running') return;
     this.stopAnimationLoop();
+    this.audio.setPaused(true);
     // Drop stale actions first, then preserve the cancellation produced by
     // reset so a held phase/charge cannot continue after resume.
     this.inputQueue.length = 0;
@@ -295,6 +297,7 @@ export class App {
   private resumeRun(): void {
     if (this.phase !== 'paused' || this.destroyed) return;
     setPanelVisibility(this.elements.pauseScreen, false);
+    this.audio.setPaused(false);
     this.phase = 'running';
     this.root.dataset.phase = this.phase;
     this.updateInterface(this.simulation.state);
@@ -306,6 +309,7 @@ export class App {
   private endRun(): void {
     if (this.phase !== 'running') return;
     this.stopAnimationLoop();
+    this.audio.finishRun();
     this.input?.reset();
     this.inputQueue.length = 0;
     this.phase = 'game-over';
@@ -330,6 +334,8 @@ export class App {
   private forceMode(mode: MutationModeId): void {
     if (this.phase !== 'running') return;
     const result = this.simulation.startMode(mode);
+    this.audio.update(result.state);
+    this.audio.handle(result.events, result.state);
     this.consumeEvents(result.events);
     this.updateInterface(result.state);
     this.renderer?.render(result.state, 0, result.events);
@@ -349,7 +355,8 @@ export class App {
     const result = this.simulation.step(delta, actions);
     const interpolation = result.state.clock.accumulator / this.simulation.config.fixedStep;
     this.renderer.render(result.state, clamp01(interpolation), result.events);
-    this.audio.handle(result.events);
+    this.audio.update(result.state);
+    this.audio.handle(result.events, result.state);
     this.consumeEvents(result.events);
     this.updateInterface(result.state);
 
