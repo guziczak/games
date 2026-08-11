@@ -1,193 +1,962 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guziczak Games</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f2f1ec">
+  <meta name="description" content="Guziczak Games — lokalna biblioteka małych gier.">
+  <title>Guziczak Games</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f2f1ec;
+      --surface: #fcfbf7;
+      --ink: #171815;
+      --muted: #64655f;
+      --line: #d9d8d0;
+      --strong-line: #b8b8af;
+      --focus: #1958d1;
+      --content: 1320px;
+      --radius: 18px;
+      font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
 
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            padding: 20px;
-        }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
 
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 20px;
-        }
+    html {
+      background: var(--page);
+      scroll-behavior: smooth;
+    }
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #ff7e5f, #feb47b);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background: var(--page);
+      color: var(--ink);
+    }
 
-        p {
-            font-size: 1.2rem;
-            color: #ccc;
-        }
+    button,
+    input {
+      font: inherit;
+    }
 
-        .games-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+    a {
+      color: inherit;
+    }
 
-        .game-card {
-            background-color: #1e1e1e;
-            border-radius: 8px;
-            overflow: hidden;
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            position: relative;
-            height: 200px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 10px;
+      left: 10px;
+      padding: 10px 14px;
+      border: 2px solid var(--ink);
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 700;
+      transform: translateY(-160%);
+    }
 
-        .game-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-        }
+    .skip-link:focus {
+      transform: translateY(0);
+    }
 
-        .game-icon {
-            height: 70%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #2a2a2a;
-        }
+    .site-header {
+      border-bottom: 1px solid var(--line);
+    }
 
-        .game-icon span {
-            font-size: 3rem;
-            opacity: 0.8;
-        }
+    .site-header__inner,
+    main,
+    .site-footer {
+      width: min(calc(100% - 40px), var(--content));
+      margin-inline: auto;
+    }
 
-        .game-info {
-            padding: 15px;
-            text-align: center;
-        }
+    .site-header__inner {
+      min-height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
 
-        .game-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--ink);
+      text-decoration: none;
+    }
 
-        footer {
-            text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            color: #777;
-            font-size: 0.9rem;
-        }
+    .brand__mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+    }
 
-        .badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(90deg, #ff7e5f, #feb47b);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
+    .brand__name {
+      font-size: 15px;
+      font-weight: 760;
+      letter-spacing: -0.025em;
+    }
 
-        @media (max-width: 768px) {
-            .games-container {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
+    .library-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
 
-            .game-card {
-                height: 160px;
-            }
+    main {
+      padding-block: clamp(52px, 7vw, 92px) 80px;
+    }
 
-            .game-icon span {
-                font-size: 2rem;
-            }
-        }
-    </style>
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+      align-items: end;
+      gap: 40px;
+      margin-bottom: clamp(44px, 6vw, 72px);
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(46px, 7vw, 92px);
+      font-weight: 780;
+      letter-spacing: -0.065em;
+      line-height: 0.93;
+    }
+
+    .intro__tools {
+      padding-bottom: 5px;
+    }
+
+    .intro__copy {
+      max-width: 37ch;
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .search {
+      position: relative;
+    }
+
+    .search svg {
+      position: absolute;
+      top: 50%;
+      left: 15px;
+      width: 19px;
+      height: 19px;
+      color: var(--muted);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .search input {
+      width: 100%;
+      height: 50px;
+      padding: 0 58px 0 45px;
+      border: 1px solid var(--strong-line);
+      border-radius: 12px;
+      outline: 0;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .search input::placeholder {
+      color: #777871;
+      opacity: 1;
+    }
+
+    .search input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 17%, transparent);
+    }
+
+    .search__hint {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      min-width: 28px;
+      padding: 3px 7px 4px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--page);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+      text-align: center;
+      transform: translateY(-50%);
+    }
+
+    .library-toolbar {
+      min-height: 49px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .filter-list {
+      display: flex;
+      align-self: stretch;
+      gap: 24px;
+    }
+
+    .filter {
+      position: relative;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 680;
+    }
+
+    .filter::after {
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: var(--ink);
+      content: "";
+      opacity: 0;
+      transform: scaleX(0.5);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .filter[aria-pressed="true"] {
+      color: var(--ink);
+    }
+
+    .filter[aria-pressed="true"]::after {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+
+    .result-count {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .game-card {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 168px auto;
+      overflow: clip;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      outline: 0;
+      background: var(--surface);
+      color: var(--ink);
+      text-decoration: none;
+      transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .game-card:hover {
+      border-color: var(--strong-line);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 30px rgba(32, 32, 27, 0.08);
+    }
+
+    .game-card:focus-visible {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent);
+    }
+
+    .game-card[hidden] {
+      display: none;
+    }
+
+    .game-card--featured {
+      grid-column: span 2;
+      grid-template-columns: minmax(0, 1.3fr) minmax(235px, 0.7fr);
+      grid-template-rows: 354px;
+      border-color: #14251f;
+      background: #14251f;
+      color: #f6f7ee;
+    }
+
+    .game-art {
+      position: relative;
+      min-width: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      overflow: hidden;
+      padding: 20px;
+      background: var(--art-bg);
+      color: var(--art-fg);
+      isolation: isolate;
+    }
+
+    .game-art::after {
+      position: absolute;
+      z-index: -1;
+      right: -42px;
+      bottom: -64px;
+      width: 164px;
+      height: 164px;
+      border: 22px solid currentColor;
+      border-radius: 50%;
+      content: "";
+      opacity: 0.11;
+    }
+
+    .game-art__icon {
+      width: 54px;
+      height: 54px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.7;
+    }
+
+    .game-art__code {
+      font-size: 11px;
+      font-weight: 760;
+      letter-spacing: 0.12em;
+      opacity: 0.72;
+    }
+
+    .game-meta {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .game-title {
+      margin: 0;
+      overflow-wrap: anywhere;
+      font-size: 18px;
+      font-weight: 740;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+    }
+
+    .game-description {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .game-arrow {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      flex: none;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--muted);
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .game-arrow svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
+    .game-card:hover .game-arrow,
+    .game-card:focus-visible .game-arrow {
+      background: var(--ink);
+      color: #fff;
+      transform: translate(2px, -2px);
+    }
+
+    .new-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 17px;
+      color: #dfff7c;
+      font-size: 11px;
+      font-weight: 760;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .new-badge::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    .game-card:not(.game-card--featured) .new-badge {
+      position: absolute;
+      z-index: 2;
+      top: 14px;
+      right: 14px;
+      margin: 0;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(23, 24, 21, 0.82);
+      color: #fff;
+      backdrop-filter: blur(4px);
+    }
+
+    .game-card:not(.game-card--featured) .new-badge::before {
+      display: none;
+    }
+
+    .game-card--featured .game-art {
+      align-items: stretch;
+      padding: 28px;
+      background: #dfff7c;
+      color: #14251f;
+    }
+
+    .game-card--featured .game-art::before {
+      position: absolute;
+      right: 28px;
+      bottom: 13px;
+      content: "2.0";
+      font-size: clamp(90px, 12vw, 168px);
+      font-weight: 820;
+      letter-spacing: -0.09em;
+      line-height: 0.8;
+    }
+
+    .game-card--featured .game-art::after {
+      right: auto;
+      bottom: -80px;
+      left: -45px;
+      width: 230px;
+      height: 230px;
+      border-width: 32px;
+      opacity: 0.08;
+    }
+
+    .game-card--featured .game-art__icon {
+      width: 76px;
+      height: 76px;
+    }
+
+    .game-card--featured .game-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 30px;
+    }
+
+    .game-card--featured .game-title {
+      font-size: clamp(28px, 3vw, 40px);
+      letter-spacing: -0.055em;
+    }
+
+    .game-card--featured .game-description {
+      max-width: 25ch;
+      margin-top: 12px;
+      color: #b9c4bd;
+      font-size: 14px;
+    }
+
+    .game-card--featured .game-arrow {
+      width: auto;
+      height: auto;
+      display: inline-flex;
+      gap: 9px;
+      margin-top: 26px;
+      padding: 9px 13px;
+      border-color: #405048;
+      border-radius: 999px;
+      color: #eef2ec;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .game-card--featured:hover .game-arrow,
+    .game-card--featured:focus-visible .game-arrow {
+      background: #dfff7c;
+      color: #14251f;
+    }
+
+    .empty-state {
+      margin: 34px 0 0;
+      padding: 50px 24px;
+      border: 1px dashed var(--strong-line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state[hidden] {
+      display: none;
+    }
+
+    .empty-state strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    .site-footer {
+      min-height: 108px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .site-footer p {
+      margin: 0;
+    }
+
+    .site-footer__note {
+      text-align: right;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    @media (max-width: 920px) {
+      .intro {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+
+      .intro__tools {
+        max-width: 560px;
+      }
+
+      .games-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .game-card--featured {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .site-header__inner,
+      main,
+      .site-footer {
+        width: min(calc(100% - 28px), var(--content));
+      }
+
+      .site-header__inner {
+        min-height: 64px;
+      }
+
+      .library-count {
+        font-size: 10px;
+      }
+
+      main {
+        padding-block: 44px 54px;
+      }
+
+      h1 {
+        font-size: clamp(44px, 15vw, 66px);
+      }
+
+      .intro {
+        margin-bottom: 40px;
+      }
+
+      .library-toolbar {
+        align-items: flex-end;
+      }
+
+      .filter-list {
+        gap: 20px;
+      }
+
+      .games-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .game-card--featured {
+        grid-column: auto;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 230px auto;
+      }
+
+      .game-card--featured .game-art::before {
+        font-size: min(30vw, 138px);
+      }
+
+      .game-card--featured .game-meta {
+        min-height: 230px;
+      }
+
+      .site-footer {
+        min-height: 126px;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 7px;
+      }
+
+      .site-footer__note {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .site-header__inner,
+      main,
+      .site-footer {
+        width: min(calc(100% - 22px), var(--content));
+      }
+
+      .brand__name {
+        font-size: 14px;
+      }
+
+      .library-count {
+        max-width: 74px;
+        text-align: right;
+      }
+
+      .result-count {
+        max-width: 72px;
+        text-align: right;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+    @media (forced-colors: active) {
+      .game-card,
+      .search input,
+      .game-arrow {
+        border: 1px solid CanvasText;
+      }
+
+      .game-art {
+        border-bottom: 1px solid CanvasText;
+      }
+    }
+  </style>
 </head>
 <body>
-<header>
-    <h1>Guziczak Games</h1>
-    <p>Wybierz grę, którą chcesz zagrać</p>
-</header>
+  <a class="skip-link" href="#biblioteka">Przejdź do biblioteki</a>
 
-<div class="games-container" id="gamesContainer">
-    <!-- Zawartość zostanie dodana dynamicznie przez JavaScript -->
-</div>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="./index.html" aria-label="Guziczak Games — strona główna">
+        <span class="brand__mark" aria-hidden="true">GG</span>
+        <span class="brand__name">Guziczak Games</span>
+      </a>
+      <span class="library-count">11 gier · bez logowania</span>
+    </div>
+  </header>
 
-<footer>
-    <p>&copy; 2025 Guziczak Games. Wszystkie prawa zastrzeżone.</p>
-</footer>
+  <main id="main-content">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Lokalna biblioteka</p>
+        <h1 id="page-title">Wybierz grę.<br>Zaczynamy.</h1>
+      </div>
+      <div class="intro__tools">
+        <p class="intro__copy">Jedenaście tytułów gotowych od ręki. Bez konta, bez instalowania — po prostu wybierz i graj.</p>
+        <label class="search">
+          <span class="visually-hidden">Szukaj gry</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.2 4.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg>
+          <input id="game-search" type="search" inputmode="search" autocomplete="off" placeholder="Szukaj gry" aria-controls="games-grid" aria-describedby="search-help">
+          <span class="search__hint" aria-hidden="true">/</span>
+        </label>
+        <span id="search-help" class="visually-hidden">Wpisz nazwę gry. Naciśnij Escape, aby wyczyścić wyszukiwanie.</span>
+      </div>
+    </section>
 
-<script>
-    // Dane o grach
-    const games = [
-        { name: "2048", icon: "🎮", recent: false },
-        { name: "cosmic-shooter", icon: "🚀", recent: false },
-        { name: "cosmic-shooter2", icon: "👾", recent: true },
-        { name: "icy-tower", icon: "🧊", recent: false },
-        { name: "diary", icon: "🎵", recent: true },
-        { name: "sky-dodge", icon: "✈️", recent: false },
-        { name: "sky-dodge-2-0", icon: "🧬", recent: true },
-        { name: "snake-quest", icon: "🐍", recent: false },
-        { name: "speed-dash", icon: "🏎️", recent: false },
-        { name: "wietrzna", icon: "🌪️", recent: false },
-        { name: "zmiany", icon: "🔄", recent: false }
-    ];
+    <section id="biblioteka" aria-labelledby="library-title">
+      <h2 id="library-title" class="visually-hidden">Biblioteka gier</h2>
+      <div class="library-toolbar">
+        <div class="filter-list" aria-label="Filtruj gry">
+          <button class="filter" type="button" data-filter="all" aria-pressed="true">Wszystkie</button>
+          <button class="filter" type="button" data-filter="new" aria-pressed="false">Nowe</button>
+        </div>
+        <p class="result-count" id="result-count" aria-live="polite">11 tytułów</p>
+      </div>
 
-    // Funkcja do generowania kart gier
-    function renderGames() {
-        const container = document.getElementById('gamesContainer');
+      <div class="games-grid" id="games-grid">
+        <a class="game-card game-card--featured" href="./sky-dodge-2-0/index.html" data-title="sky dodge 2.0 sky-dodge-2-0" data-status="new">
+          <div class="game-art">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M9 39c9-10 18-13 28-10l16-12-5 18 8 8-19-3c-10 9-19 9-28-1Z"/><path d="m36 29-4-13 10 9M20 35h.1"/><path d="M11 48h17M7 54h11"/></svg>
+            <span class="game-art__code">LOT / 02</span>
+          </div>
+          <div class="game-meta">
+            <span class="new-badge">Nowa premiera</span>
+            <div>
+              <h3 class="game-title">Sky Dodge 2.0</h3>
+              <p class="game-description">Nowy lot, pięć form i trójwymiarowy świat.</p>
+            </div>
+            <span class="game-arrow">Zagraj <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
 
-        games.forEach(game => {
-            const gameCard = document.createElement('div');
-            gameCard.className = 'game-card';
-            gameCard.addEventListener('click', () => {
-                window.location.href = `./${game.name}/`;
-            });
+        <a class="game-card" href="./2048/index.html" data-title="2048 dwa tysiące czterdzieści osiem" data-status="classic">
+          <div class="game-art" style="--art-bg:#f0b44d;--art-fg:#302512">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><rect x="8" y="8" width="20" height="20" rx="3"/><rect x="36" y="8" width="20" height="20" rx="3"/><rect x="8" y="36" width="20" height="20" rx="3"/><rect x="36" y="36" width="20" height="20" rx="3"/><path d="M14 18h8M18 14v8M42 18h8M46 14v8M14 46h8M18 42v8M42 46h8M46 42v8"/></svg>
+            <span class="game-art__code">PUZ / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">2048</h3><p class="game-description">Łącz liczby. Nie blokuj planszy.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
 
-            gameCard.innerHTML = `
-                    <div class="game-icon">
-                        <span>${game.icon}</span>
-                    </div>
-                    <div class="game-info">
-                        <div class="game-name">${formatGameName(game.name)}</div>
-                    </div>
-                    ${game.recent ? '<div class="badge">Nowa</div>' : ''}
-                `;
+        <a class="game-card" href="./cosmic-shooter/index.html" data-title="cosmic shooter kosmiczny strzelec" data-status="classic">
+          <div class="game-art" style="--art-bg:#2a3990;--art-fg:#eef1ff">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="m32 8 13 31-13-6-13 6L32 8Z"/><path d="m23 35-8 10 12-3M41 35l8 10-12-3M28 46l4 10 4-10"/><circle cx="49" cy="14" r="2"/><path d="M12 19h6M15 16v6"/></svg>
+            <span class="game-art__code">SPC / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Cosmic Shooter</h3><p class="game-description">Klasyczna obrona galaktyki.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
 
-            container.appendChild(gameCard);
+        <a class="game-card" href="./cosmic-shooter2/index.html" data-title="cosmic shooter 2 cosmic-shooter2 kosmiczny strzelec" data-status="new">
+          <div class="game-art" style="--art-bg:#8b63dd;--art-fg:#20152f">
+            <span class="new-badge">Nowa</span>
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M14 28 32 11l18 17-5 22H19l-5-22Z"/><circle cx="25" cy="31" r="3"/><circle cx="39" cy="31" r="3"/><path d="M25 42c5 3 9 3 14 0M18 20 9 13M46 20l9-7"/></svg>
+            <span class="game-art__code">SPC / 02</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Cosmic Shooter 2</h3><p class="game-description">Szybszy sequel, więcej chaosu.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./icy-tower/index.html" data-title="icy tower lodowa wieża" data-status="classic">
+          <div class="game-art" style="--art-bg:#a8dfed;--art-fg:#163944">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M10 52h19V40H17V28h21V16h16"/><path d="m46 8 8 8-8 8M11 56h42"/></svg>
+            <span class="game-art__code">JMP / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Icy Tower</h3><p class="game-description">Skacz wyżej, zanim kamera ucieknie.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./diary/index.html" data-title="diary pamiętnik odcienie uczuć" data-status="new">
+          <div class="game-art" style="--art-bg:#ef8f87;--art-fg:#421b1b">
+            <span class="new-badge">Nowa</span>
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M15 10h30a5 5 0 0 1 5 5v39H20a5 5 0 0 1-5-5V10Z"/><path d="M15 47h35M24 10v44"/><path d="M35 23c-6-6-12 4 0 12 12-8 6-18 0-12Z"/></svg>
+            <span class="game-art__code">STO / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Diary</h3><p class="game-description">Interaktywna opowieść o emocjach.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./sky-dodge/index.html" data-title="sky dodge niebo kaczka lot" data-status="classic">
+          <div class="game-art" style="--art-bg:#78b8ee;--art-fg:#102f49">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="m8 34 46-20-15 38-8-14-23-4Z"/><path d="m31 38 23-24M18 50h9M10 44h5"/></svg>
+            <span class="game-art__code">LOT / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Sky Dodge</h3><p class="game-description">Oryginalny lot między rurami.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./snake-quest/index.html" data-title="snake quest wąż wężyk" data-status="classic">
+          <div class="game-art" style="--art-bg:#78c87c;--art-fg:#123518">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M12 15h25c14 0 14 18 0 18H27c-14 0-14 18 0 18h24"/><circle cx="13" cy="15" r="4"/><circle cx="51" cy="51" r="4"/><path d="M11 13h.1"/></svg>
+            <span class="game-art__code">ARC / 04</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Snake Quest</h3><p class="game-description">Wężyk z przygodowym zacięciem.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./speed-dash/index.html" data-title="speed dash szybkość wyścig" data-status="classic">
+          <div class="game-art" style="--art-bg:#ee7a42;--art-fg:#3b190b">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M12 45a22 22 0 1 1 40 0"/><path d="m32 38 13-14M10 51h44M20 27l4 5M44 27l-4 5"/><circle cx="32" cy="38" r="3"/></svg>
+            <span class="game-art__code">SPD / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Speed Dash</h3><p class="game-description">Refleks na krótkim dystansie.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./wietrzna/index.html" data-title="wietrzna wiatr spacer dom" data-status="classic">
+          <div class="game-art" style="--art-bg:#87aac7;--art-fg:#142d42">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M8 23h34c12 0 12-15 2-15-6 0-8 4-8 7M8 34h43c10 0 9 14 0 14-5 0-7-3-7-6M8 45h24"/></svg>
+            <span class="game-art__code">EXP / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Wietrzna</h3><p class="game-description">Spokojna eksploracja wirtualnego domu.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+
+        <a class="game-card" href="./zmiany/index.html" data-title="zmiany diagnostyka cbct edukacja" data-status="classic">
+          <div class="game-art" style="--art-bg:#8dcfc1;--art-fg:#113b34">
+            <svg class="game-art__icon" aria-hidden="true" viewBox="0 0 64 64"><path d="M49 24A19 19 0 0 0 17 17l-5 6M15 40a19 19 0 0 0 32 7l5-6"/><path d="M12 13v10h10M52 51V41H42"/><circle cx="32" cy="32" r="5"/></svg>
+            <span class="game-art__code">EDU / 01</span>
+          </div>
+          <div class="game-meta">
+            <div><h3 class="game-title">Zmiany</h3><p class="game-description">Edukacyjna wyprawa przez diagnostykę.</p></div>
+            <span class="game-arrow" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 16 16 4M7 4h9v9"/></svg></span>
+          </div>
+        </a>
+      </div>
+
+      <div class="empty-state" id="empty-state" hidden>
+        <strong>Nie ma takiej gry.</strong>
+        Spróbuj krótszej nazwy albo wyczyść wyszukiwanie.
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025–2026 Guziczak Games</p>
+    <p class="site-footer__note">Wszystkie gry w jednym miejscu.</p>
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const cards = Array.from(document.querySelectorAll(".game-card"));
+      const search = document.querySelector("#game-search");
+      const filters = Array.from(document.querySelectorAll(".filter"));
+      const count = document.querySelector("#result-count");
+      const empty = document.querySelector("#empty-state");
+      let activeFilter = "all";
+
+      const normalize = (value) => value
+        .toLocaleLowerCase("pl")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+      const resultLabel = (total) => {
+        if (total === 1) return "1 tytuł";
+        if (total >= 2 && total <= 4) return `${total} tytuły`;
+        return `${total} tytułów`;
+      };
+
+      const updateResults = () => {
+        const query = normalize(search.value);
+        let visible = 0;
+
+        cards.forEach((card) => {
+          const matchesQuery = normalize(card.dataset.title || "").includes(query);
+          const matchesFilter = activeFilter === "all" || card.dataset.status === activeFilter;
+          const show = matchesQuery && matchesFilter;
+          card.hidden = !show;
+          if (show) visible += 1;
         });
-    }
 
-    // Funkcja formatująca nazwę gry (zamienia myślniki na spacje i formatuje na tytuł)
-    function formatGameName(name) {
-        return name
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-    }
+        count.textContent = resultLabel(visible);
+        empty.hidden = visible !== 0;
+      };
 
-    // Inicjalizacja strony
-    document.addEventListener('DOMContentLoaded', renderGames);
-</script>
+      filters.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeFilter = button.dataset.filter || "all";
+          filters.forEach((candidate) => {
+            candidate.setAttribute("aria-pressed", String(candidate === button));
+          });
+          updateResults();
+        });
+      });
+
+      search.addEventListener("input", updateResults);
+      search.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          search.value = "";
+          updateResults();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "/" && document.activeElement !== search && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          search.focus();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

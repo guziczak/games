@@ -231,6 +231,9 @@ export class SceneRenderer {
     this.blobShadow.removeFromParent();
     this.scene.clear();
     this.renderer.dispose();
+    // This renderer owns the canvas for its whole lifetime. Explicit context loss
+    // releases driver-side allocations promptly on mobile route changes/restarts.
+    this.renderer.forceContextLoss();
     delete this.canvas.dataset.renderQuality;
   }
 

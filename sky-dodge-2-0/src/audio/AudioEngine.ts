@@ -69,6 +69,7 @@ export class AudioEngine {
   private sfxBus: GainNode | null = null;
   private ambienceBus: GainNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private reverb: ConvolverNode | null = null;
   private reverbGain: GainNode | null = null;
   private readonly voices = new Set<Voice>();
@@ -83,6 +84,11 @@ export class AudioEngine {
   private lastCueAt = new Map<string, number>();
 
   public async unlock(): Promise<boolean> {
+    if (this.context?.state === 'closed') {
+      this.clearMixerReferences();
+      this.noiseBuffer = null;
+      this.impulseBuffer = null;
+    }
     if (!this.context) {
       const AudioContextConstructor = globalThis.AudioContext
         ?? (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -98,7 +104,13 @@ export class AudioEngine {
         }
         this.buildMixer(this.context);
       } catch {
+        const failedContext = this.context as AudioContext | null;
         this.clearMixerReferences();
+        this.noiseBuffer = null;
+        this.impulseBuffer = null;
+        if (failedContext && failedContext.state !== 'closed') {
+          try { await failedContext.close(); } catch { /* best-effort cleanup */ }
+        }
         return false;
       }
     }
@@ -116,6 +128,10 @@ export class AudioEngine {
 
   public isMuted(): boolean {
     return this.muted;
+  }
+
+  public needsUnlock(): boolean {
+    return !this.muted && (!this.context || this.context.state !== 'running');
   }
 
   public setMuted(muted: boolean): void {
@@ -160,8 +176,12 @@ export class AudioEngine {
 
   public setPaused(paused: boolean): void {
     this.paused = paused;
-    if (paused) this.stopAllVoices();
-    else if (!this.muted) void this.unlock();
+    if (paused) {
+      this.stopAllVoices();
+      this.stopAmbience(0.04);
+    } else if (!this.muted) {
+      void this.unlock().then(() => this.startAmbience());
+    }
     if (!this.ambienceBus) return;
     this.target(this.ambienceBus.gain, paused ? SILENCE : 1, paused ? 0.045 : 0.12);
   }
@@ -184,7 +204,7 @@ export class AudioEngine {
     this.target(ambience.windFilter.frequency, profile.windFrequency + Math.abs(state.player.vy) * 85, 0.11);
     this.target(ambience.body.frequency, profile.bodyFrequency + Math.min(28, state.combo.links * 2.5), 0.16);
     this.target(ambience.bodyGain.gain, profile.bodyGain, 0.18);
-    if (ambience.windPan) this.target(ambience.windPan.pan, Math.max(-0.28, Math.min(0.28, state.player.vy * 0.035)), 0.14);
+    if (ambience.windPan) this.target(ambience.windPan.pan, Math.max(-0.28, Math.min(0.28, state.player.vx * 0.045)), 0.14);
   }
 
   public handle(events: readonly GameEvent[], state?: Readonly<GameState>): void {
@@ -224,7 +244,7 @@ export class AudioEngine {
           this.playModeExited(event.mode, event.reason);
           break;
         case 'mode-action':
-          this.playModeAction(event.action, entityPan);
+          this.playModeAction(event.action);
           break;
         case 'collision':
           if (event.outcome === 'destroy') this.playSteelImpact(entityPan, false);
@@ -271,6 +291,7 @@ export class AudioEngine {
     this.sfxBus = context.createGain();
     this.ambienceBus = context.createGain();
     this.compressor = context.createDynamicsCompressor();
+    this.limiter = context.createDynamicsCompressor();
     this.master.gain.value = this.muted ? SILENCE : MASTER_LEVEL;
     this.sfxBus.gain.value = 1;
     this.ambienceBus.gain.value = 1;
@@ -279,10 +300,16 @@ export class AudioEngine {
     this.compressor.ratio.value = 3.5;
     this.compressor.attack.value = 0.004;
     this.compressor.release.value = 0.2;
+    this.limiter.threshold.value = -3;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.001;
+    this.limiter.release.value = 0.08;
     this.sfxBus.connect(this.master);
     this.ambienceBus.connect(this.master);
     this.master.connect(this.compressor);
-    this.compressor.connect(context.destination);
+    this.compressor.connect(this.limiter);
+    this.limiter.connect(context.destination);
 
     this.rebuildReverb(context);
   }
@@ -317,6 +344,7 @@ export class AudioEngine {
     this.sfxBus = null;
     this.ambienceBus = null;
     this.compressor = null;
+    this.limiter = null;
     this.reverb = null;
     this.reverbGain = null;
     this.ambience = null;
@@ -403,6 +431,21 @@ export class AudioEngine {
     const stopAt = now + Math.max(0.012, fade * 4 + 0.015);
     try { ambience.wind.stop(stopAt); } catch { /* already stopped */ }
     try { ambience.body.stop(stopAt); } catch { /* already stopped */ }
+    globalThis.setTimeout(() => this.disconnectAmbience(ambience), Math.ceil(Math.max(0.02, stopAt - now + 0.02) * 1_000));
+  }
+
+  private disconnectAmbience(ambience: AmbienceLayer): void {
+    for (const node of [
+      ambience.wind,
+      ambience.windFilter,
+      ambience.windGain,
+      ambience.windPan,
+      ambience.body,
+      ambience.bodyFilter,
+      ambience.bodyGain,
+    ]) {
+      try { node?.disconnect(); } catch { /* already disconnected */ }
+    }
   }
 
   private target(parameter: AudioParam, value: number, timeConstant: number): void {
@@ -435,10 +478,7 @@ export class AudioEngine {
       this.stopAllVoices();
       this.stopAmbience(0.055);
       this.rebuildReverb(context);
-    } else {
-      const terminalVoice = [...this.voices].find((voice) => voice.terminal);
-      if (terminalVoice) this.stopVoice(terminalVoice, 0.012);
-    }
+    } else if ([...this.voices].some((voice) => voice.terminal)) return null;
 
     if (this.voices.size >= MAX_VOICES) {
       const victim = [...this.voices].sort((left, right) => left.priority - right.priority || left.id - right.id)[0];
@@ -617,12 +657,12 @@ export class AudioEngine {
   }
 
   private playMutationSelected(mode: MutationModeId, lane: 'upper' | 'lower'): void {
-    const voice = this.createVoice(0.5, 6, false, 0.28);
+    const voice = this.createVoice(0.24, 5, false, 0.2);
     if (!voice) return;
     const root = mode === 'steel' ? 155 : mode === 'frog' ? 196 : mode === 'rubber' ? 294 : mode === 'ghost' ? 370 : 440;
-    const pan = lane === 'upper' ? -0.22 : 0.22;
-    this.tone(voice, { type: 'triangle', frequency: root, endFrequency: root * 2, duration: 0.28, gain: 0.105, pan });
-    this.tone(voice, { at: 0.13, frequency: root * 1.5, endFrequency: root * 2.5, duration: 0.25, gain: 0.055, pan: -pan });
+    const verticalColour = lane === 'upper' ? 1.08 : 0.92;
+    this.noise(voice, { duration: 0.12, gain: 0.026, frequency: 1_850 * verticalColour, q: 0.75 });
+    this.tone(voice, { type: 'sine', frequency: root, endFrequency: root * 1.65, duration: 0.16, gain: 0.042 });
   }
 
   private playModeEntered(mode: MutationModeId): void {
@@ -654,7 +694,8 @@ export class AudioEngine {
 
   private playModeExited(mode: MutationModeId, reason: 'timer' | 'overheat' | 'replaced'): void {
     if (reason === 'overheat') {
-      this.playSteelOverheat();
+      // The explicit steel-overheat action is emitted immediately before this
+      // lifecycle event and owns the cue.
       return;
     }
     const voice = this.createVoice(0.38, 4, false, 0.18);
@@ -664,12 +705,14 @@ export class AudioEngine {
     if (reason === 'replaced') this.tone(voice, { at: 0.08, frequency: root * 1.35, duration: 0.15, gain: 0.035 });
   }
 
-  private playModeAction(action: ModeAction, pan: number): void {
-    if (action === 'frog-cling') this.playFrogCling(pan);
-    else if (action === 'frog-launch') this.playFrogLaunch();
+  private playModeAction(action: ModeAction): void {
+    if (action === 'frog-cling' || action === 'rubber-bounce') {
+      // Physical contact is represented by the paired collision event.
+      return;
+    }
+    if (action === 'frog-launch') this.playFrogLaunch();
     else if (action === 'rubber-aim') this.cue('rubber-aim', 0.13, () => this.playRubberAim());
     else if (action === 'rubber-launch') this.playRubberLaunch();
-    else if (action === 'rubber-bounce') this.playRubberBounce(pan);
     else if (action === 'steel-critical') this.cue('steel-critical', 0.32, () => this.playSteelCritical());
     else if (action === 'steel-overheat') this.playSteelOverheat();
     else if (action === 'steel-temper') this.playSteelTemper();
@@ -797,12 +840,19 @@ export class AudioEngine {
   }
 
   private playGameOverFlock(): void {
-    const voice = this.createVoice(6.7, 100, true, 0.2);
+    const voice = this.createVoice(5.6, 100, true, 0.2);
     if (!voice) return;
     voice.gain.gain.value = 0.76;
     const random = (minimum: number, maximum: number): number => minimum + Math.random() * (maximum - minimum);
 
-    const quack = (offset: number, pitch = 1, duration = 0.2, gain = 0.42, pan = random(-0.86, 0.86)): number => {
+    const quack = (
+      offset: number,
+      pitch = 1,
+      duration = 0.2,
+      gain = 0.42,
+      pan = random(-0.86, 0.86),
+      harmonic = false,
+    ): number => {
       this.tone(voice, {
         at: offset,
         type: 'sawtooth',
@@ -813,15 +863,17 @@ export class AudioEngine {
         filter: { type: 'bandpass', frequency: 600 * pitch, q: 2 },
         pan,
       });
-      this.tone(voice, {
-        at: offset + 0.025,
-        type: 'sine',
-        frequency: 155 * pitch,
-        endFrequency: 112 * pitch,
-        duration: duration * 0.84,
-        gain: gain * 0.24,
-        pan,
-      });
+      if (harmonic) {
+        this.tone(voice, {
+          at: offset + 0.025,
+          type: 'sine',
+          frequency: 155 * pitch,
+          endFrequency: 112 * pitch,
+          duration: duration * 0.84,
+          gain: gain * 0.24,
+          pan,
+        });
+      }
       return offset + duration + 0.045;
     };
 
@@ -844,18 +896,18 @@ export class AudioEngine {
     // Impact, one smug soloist, then two laughing groups answering each other.
     this.noise(voice, { duration: 0.1, gain: 0.085, frequency: 420, q: 0.75 });
     this.tone(voice, { type: 'triangle', frequency: 105, endFrequency: 55, duration: 0.28, gain: 0.12 });
-    let cursor = quack(0.34, 0.78, 0.39, 0.43, -0.15) + 0.14;
-    cursor = phrase(cursor, 4, [1.02, 1.38], [0.25, 0.37], [0.035, 0.095], -0.52) + 0.06;
-    phrase(cursor - 0.05, 4, [0.72, 1.03], [0.27, 0.4], [0.05, 0.13], 0.5);
+    let cursor = quack(0.34, 0.78, 0.39, 0.43, -0.15, true) + 0.14;
+    cursor = phrase(cursor, 3, [1.02, 1.38], [0.25, 0.37], [0.035, 0.095], -0.52) + 0.06;
+    phrase(cursor - 0.05, 3, [0.72, 1.03], [0.27, 0.4], [0.05, 0.13], 0.5);
     cursor += 0.48;
-    phrase(cursor, 6, [1.16, 1.58], [0.19, 0.29], [0.025, 0.07], -0.38);
-    phrase(cursor + 0.18, 5, [0.62, 0.83], [0.25, 0.37], [0.04, 0.1], 0.42);
-    for (let flapIndex = 0; flapIndex < 11; flapIndex += 1) {
-      this.noise(voice, { at: 0.62 + flapIndex * 0.22, duration: 0.085, gain: 0.02, frequency: 880 + random(-160, 210), q: 0.65, pan: random(-0.7, 0.7) });
+    phrase(cursor, 4, [1.16, 1.58], [0.19, 0.29], [0.025, 0.07], -0.38);
+    phrase(cursor + 0.18, 3, [0.62, 0.83], [0.25, 0.37], [0.04, 0.1], 0.42);
+    for (let flapIndex = 0; flapIndex < 6; flapIndex += 1) {
+      this.noise(voice, { at: 0.62 + flapIndex * 0.31, duration: 0.085, gain: 0.02, frequency: 880 + random(-160, 210), q: 0.65, pan: random(-0.7, 0.7) });
     }
     const finale = cursor + 1.05;
-    phrase(finale, 4, [0.82, 1.42], [0.22, 0.34], [0.025, 0.075], -0.22);
-    quack(finale + 0.82, 0.67, 0.55, 0.52, 0.25);
+    phrase(finale, 3, [0.82, 1.42], [0.22, 0.34], [0.025, 0.075], -0.22);
+    quack(finale + 0.82, 0.67, 0.55, 0.52, 0.25, true);
   }
 
   private panForEntity(entityId: string, state?: Readonly<GameState>): number {

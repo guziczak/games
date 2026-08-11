@@ -48,6 +48,11 @@ const MODE_COLOURS: Readonly<Record<MutationModeId, number>> = Object.freeze({
   stork: 0xf06455,
 });
 
+const COLLISION_AHEAD_COLOUR = new THREE.Color(0x35d8f2);
+const COLLISION_NEAR_COLOUR = new THREE.Color(0xff8a24);
+const COLLISION_CONTACT_COLOUR = new THREE.Color(0xffe48a);
+const COLLISION_BEHIND_COLOUR = new THREE.Color(0x718aa8);
+
 const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.max(minimum, Math.min(maximum, value))
 );
@@ -141,6 +146,7 @@ class GateView {
   private readonly position = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
   private readonly scale = new THREE.Vector3();
+  private readonly focusColour = new THREE.Color();
 
   constructor(
     columnGeometry: THREE.BufferGeometry,
@@ -293,15 +299,13 @@ class GateView {
     this.upperCollisionEdge.visible = focused;
     this.safeGapPane.visible = focused;
     if (focused) {
-      const colour = transitPhase === 'contact'
-        ? new THREE.Color(0xffe48a)
-        : transitPhase === 'behind'
-          ? new THREE.Color(0x718aa8)
-          : new THREE.Color(0x64efff).lerp(new THREE.Color(0xffa629), focusStrength);
+      if (transitPhase === 'contact') this.focusColour.copy(COLLISION_CONTACT_COLOUR);
+      else if (transitPhase === 'behind') this.focusColour.copy(COLLISION_BEHIND_COLOUR);
+      else this.focusColour.copy(COLLISION_AHEAD_COLOUR).lerp(COLLISION_NEAR_COLOUR, focusStrength);
       const pulse = 1 + Math.sin(time * (7 + focusStrength * 7)) * 0.08 * focusStrength;
-      this.collisionMaterial.color.copy(colour);
+      this.collisionMaterial.color.copy(this.focusColour);
       this.collisionMaterial.opacity = 0.38 + focusStrength * 0.55;
-      this.paneMaterial.color.copy(colour);
+      this.paneMaterial.color.copy(this.focusColour);
       this.paneMaterial.opacity = 0.018 + focusStrength * 0.055;
       this.lowerCollisionEdge.position.set(0, projection.mapY(gapBottom), leadingZ - 0.075);
       this.lowerCollisionEdge.scale.set(crossWidth * 1.5 * pulse, 0.055, 0.035);
@@ -997,10 +1001,12 @@ export class WorldViews {
     const railLength = Math.hypot(endX - startX, endZ - startZ);
     const railY = projection.mapY(0) + 0.12;
 
-    for (const rail of [this.flightRailGlow, this.flightRailCore]) {
-      rail.position.set((startX + endX) / 2, railY, (startZ + endZ) / 2);
-      rail.rotation.y = projection.pathYaw;
-    }
+    const railCenterX = (startX + endX) / 2;
+    const railCenterZ = (startZ + endZ) / 2;
+    this.flightRailGlow.position.set(railCenterX, railY, railCenterZ);
+    this.flightRailCore.position.set(railCenterX, railY, railCenterZ);
+    this.flightRailGlow.rotation.y = projection.pathYaw;
+    this.flightRailCore.rotation.y = projection.pathYaw;
     this.flightRailGlow.scale.set(0.34, 0.018, railLength);
     this.flightRailCore.scale.set(0.055, 0.026, railLength);
 

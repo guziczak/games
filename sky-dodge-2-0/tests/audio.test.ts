@@ -106,6 +106,14 @@ describe('AudioEngine', () => {
     audio.beginRun();
     audio.update(state);
     expect(context.sources.filter((source) => source.started > 0)).toHaveLength(2);
+    audio.setPaused(true);
+    expect(context.sources.slice(0, 2).every((source) => source.stopped > 0)).toBe(true);
+    vi.advanceTimersByTime(250);
+    audio.setPaused(false);
+    await Promise.resolve();
+    await Promise.resolve();
+    audio.update(state);
+    expect(context.sources.filter((source) => source.started > 0).length).toBeGreaterThanOrEqual(4);
 
     const actions: readonly ModeAction[] = [
       'frog-cling', 'frog-launch', 'rubber-aim', 'rubber-launch', 'rubber-bounce',
@@ -142,8 +150,14 @@ describe('AudioEngine', () => {
     await Promise.resolve();
     expect(audio.isMuted()).toBe(false);
 
+    const beforeFlock = context.sources.length;
     audio.handle([{ type: 'game-over', tick: 2, time: 2, reason: 'boundary' }], state);
     expect(context.sources.length).toBeGreaterThan(beforeMute);
+    expect(context.sources.length - beforeFlock).toBeLessThanOrEqual(30);
+    const afterFlock = context.sources.length;
+    context.currentTime += 1;
+    audio.handle([{ type: 'flap', tick: 3, time: 3, mode: 'normal' }], state);
+    expect(context.sources).toHaveLength(afterFlock);
     audio.finishRun();
     audio.reset();
     expect(context.sources.every((source) => source.stopped > 0)).toBe(true);

@@ -20,6 +20,7 @@ export interface PlayerState {
   invulnerableTime: number;
   floorRecoveryAvailable: boolean;
   collisionGraceEntityIds: string[];
+  frogReleaseGraceEntityIds: string[];
 }
 
 export interface ObstacleState {
@@ -237,6 +238,7 @@ export function createInitialGameState(
       invulnerableTime: 0,
       floorRecoveryAvailable: false,
       collisionGraceEntityIds: [],
+      frogReleaseGraceEntityIds: [],
     },
     world: {
       obstacles: [],

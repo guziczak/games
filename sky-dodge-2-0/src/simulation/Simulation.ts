@@ -66,6 +66,7 @@ export function cloneGameState(state: GameState): GameState {
     player: {
       ...state.player,
       collisionGraceEntityIds: [...state.player.collisionGraceEntityIds],
+      frogReleaseGraceEntityIds: [...state.player.frogReleaseGraceEntityIds],
     },
     world: {
       ...state.world,
@@ -141,6 +142,16 @@ function grantCollisionGrace(state: GameState, entityId: string): void {
 function revokeCollisionGrace(state: GameState, entityId: string): void {
   const index = state.player.collisionGraceEntityIds.indexOf(entityId);
   if (index >= 0) state.player.collisionGraceEntityIds.splice(index, 1);
+  const frogIndex = state.player.frogReleaseGraceEntityIds.indexOf(entityId);
+  if (frogIndex >= 0) state.player.frogReleaseGraceEntityIds.splice(frogIndex, 1);
+}
+
+function grantFrogReleaseGrace(state: GameState, entityId: string): void {
+  if (entityId.startsWith('boundary-')) return;
+  grantCollisionGrace(state, entityId);
+  if (!state.player.frogReleaseGraceEntityIds.includes(entityId)) {
+    state.player.frogReleaseGraceEntityIds.push(entityId);
+  }
 }
 
 function awardBase(
@@ -312,6 +323,10 @@ function exitModeMutable(
   if (current === 'ghost' && state.mode.ghost.phase === 'phasing') {
     stopGhostPhase(state, events, config);
   }
+  if (current === 'frog') {
+    const surfaceId = state.mode.frog.releasedObstacleId ?? state.mode.frog.clingObstacleId;
+    if (surfaceId) grantFrogReleaseGrace(state, surfaceId);
+  }
   if (current === 'steel'
     && reason === 'timer'
     && state.mode.steel.heat >= config.modes.steel.criticalHeat
@@ -425,7 +440,11 @@ function startStorkAim(state: GameState, events: GameEvent[], config: GameConfig
 
 function releaseStorkVault(state: GameState, events: GameEvent[], config: GameConfig): void {
   const stork = state.mode.stork;
-  if (stork.phase !== 'aiming' || !stork.lockedTargetId) {
+  // Releasing a pointer after an automatic/late commit is a normal input
+  // sequence on touch screens. Once the vault has started, later release
+  // edges must not cancel the committed move or detach it from its target.
+  if (stork.phase !== 'aiming') return;
+  if (!stork.lockedTargetId) {
     stork.phase = 'idle';
     stork.lockedTargetId = null;
     stork.phaseTime = 0;
@@ -1059,6 +1078,37 @@ interface ObstacleContact {
   readonly separatedX: number;
   readonly separatedY: number;
   readonly impactSpeed: number;
+  readonly surfaceVelocityX: number;
+  readonly surfaceVelocityY: number;
+}
+
+function animatedGapCenterAtTime(
+  obstacle: ObstacleState,
+  config: GameConfig,
+  time: number,
+): number {
+  if (obstacle.motionAmplitude <= 0 || obstacle.motionFrequency <= 0) {
+    return obstacle.baseGapCenter;
+  }
+  const animated = obstacle.baseGapCenter
+    + Math.sin(time * Math.PI * 2 * obstacle.motionFrequency + obstacle.motionPhase)
+      * obstacle.motionAmplitude;
+  const halfGap = obstacle.gapSize / 2;
+  return clamp(animated, halfGap + 0.45, config.world.height - halfGap - 0.45);
+}
+
+function obstacleSurfaceVelocityY(
+  state: GameState,
+  obstacle: ObstacleState,
+  config: GameConfig,
+): number {
+  if (obstacle.motionAmplitude <= 0 || obstacle.motionFrequency <= 0) return 0;
+  const previousGapCenter = animatedGapCenterAtTime(
+    obstacle,
+    config,
+    Math.max(0, state.clock.elapsed - config.fixedStep),
+  );
+  return (obstacle.gapCenter - previousGapCenter) / config.fixedStep;
 }
 
 function obstacleContact(
@@ -1082,11 +1132,12 @@ function obstacleContact(
   const verticalPenetration = lowerCollision
     ? gapBottom - playerBottom
     : playerTop - gapTop;
+  const surfaceVelocityX = -getDifficultyTier(state.world.passedObstacles, config).speed
+    * worldTimeScale(state, config);
+  const surfaceVelocityY = obstacleSurfaceVelocityY(state, obstacle, config);
 
   if (horizontalPenetration <= verticalPenetration) {
     const normalX: -1 | 1 = fromLeft ? -1 : 1;
-    const obstacleVelocityX = -getDifficultyTier(state.world.passedObstacles, config).speed
-      * worldTimeScale(state, config);
     return {
       normalX,
       normalY: 0,
@@ -1094,7 +1145,9 @@ function obstacleContact(
         ? obstacleLeft - config.player.radiusX
         : obstacleRight + config.player.radiusX,
       separatedY: state.player.y,
-      impactSpeed: Math.max(0, -(state.player.vx - obstacleVelocityX) * normalX),
+      impactSpeed: Math.max(0, -(state.player.vx - surfaceVelocityX) * normalX),
+      surfaceVelocityX,
+      surfaceVelocityY,
     };
   }
 
@@ -1106,7 +1159,9 @@ function obstacleContact(
     separatedY: lowerCollision
       ? gapBottom + config.player.radiusY
       : gapTop - config.player.radiusY,
-    impactSpeed: Math.max(0, -state.player.vy * normalY),
+    impactSpeed: Math.max(0, -(state.player.vy - surfaceVelocityY) * normalY),
+    surfaceVelocityX,
+    surfaceVelocityY,
   };
 }
 
@@ -1149,21 +1204,22 @@ function resolveObstacleCollision(
     state.player.x = contact.separatedX;
     state.player.y = contact.separatedY;
     if (contact.normalX !== 0) {
-      const obstacleVelocityX = -getDifficultyTier(state.world.passedObstacles, config).speed
-        * worldTimeScale(state, config);
-      const relativeVelocity = state.player.vx - obstacleVelocityX;
+      const relativeVelocity = state.player.vx - contact.surfaceVelocityX;
       const normalVelocity = relativeVelocity * contact.normalX;
       const reflectedRelativeVelocity = normalVelocity < 0
         ? relativeVelocity - (1 + config.modes.rubber.restitution) * normalVelocity * contact.normalX
         : relativeVelocity;
-      state.player.vx = obstacleVelocityX + reflectedRelativeVelocity;
+      state.player.vx = contact.surfaceVelocityX + reflectedRelativeVelocity;
       state.player.vy *= config.modes.rubber.tangentialDamping;
     } else {
-      const normalVelocity = state.player.vy * contact.normalY;
+      const relativeVelocity = state.player.vy - contact.surfaceVelocityY;
+      const normalVelocity = relativeVelocity * contact.normalY;
       if (normalVelocity < 0) {
-        state.player.vy -= (1 + config.modes.rubber.restitution)
+        const reflectedRelativeVelocity = relativeVelocity
+          - (1 + config.modes.rubber.restitution)
           * normalVelocity
           * contact.normalY;
+        state.player.vy = contact.surfaceVelocityY + reflectedRelativeVelocity;
       }
       state.player.vx *= config.modes.rubber.tangentialDamping;
     }
@@ -1277,6 +1333,9 @@ function processObstacleInteractions(state: GameState, events: GameEvent[], conf
     const overlapping = playerOverlapsObstacle(state, obstacle, config);
     if (!overlapping) {
       obstacle.collisionResolved = false;
+      if (state.player.frogReleaseGraceEntityIds.includes(obstacle.id)) {
+        revokeCollisionGrace(state, obstacle.id);
+      }
       continue;
     }
     resolveObstacleCollision(state, obstacle, events, config);
@@ -1341,6 +1400,9 @@ function cleanupWorld(state: GameState, config: GameConfig): void {
   );
   const liveObstacleIds = new Set(state.world.obstacles.map((obstacle) => obstacle.id));
   state.player.collisionGraceEntityIds = state.player.collisionGraceEntityIds.filter(
+    (entityId) => liveObstacleIds.has(entityId),
+  );
+  state.player.frogReleaseGraceEntityIds = state.player.frogReleaseGraceEntityIds.filter(
     (entityId) => liveObstacleIds.has(entityId),
   );
 }

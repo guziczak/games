@@ -100,6 +100,7 @@ export class App {
   private runGeneration = 0;
   private startRequestGeneration = 0;
   private audioFaulted = false;
+  private audioRecoveryPending = false;
   private destroyed = false;
   private debugBridge: DebugBridge | null = null;
 
@@ -348,6 +349,12 @@ export class App {
 
   private enqueueInput(action: InputAction): void {
     if (this.phase !== 'running' || this.destroyed) return;
+    if (!this.audioFaulted && !this.audioRecoveryPending && this.audio.needsUnlock()) {
+      this.audioRecoveryPending = true;
+      void this.audio.unlock()
+        .catch((error: unknown) => this.disableAudio(error))
+        .finally(() => { this.audioRecoveryPending = false; });
+    }
     this.inputQueue.push(action);
   }
 

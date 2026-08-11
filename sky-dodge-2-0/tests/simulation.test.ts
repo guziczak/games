@@ -478,6 +478,100 @@ describe('Sky Dodge 2.0 simulation', () => {
       && event.entityId === 'rubber-wall')).toHaveLength(1);
   });
 
+  it('bounces once off a vertically moving gate instead of pinning and event-spamming at 30/60/120 Hz', () => {
+    const movingConfig: GameConfig = {
+      ...ACTION_CONFIG,
+      player: { ...ACTION_CONFIG.player, gravity: 0 },
+      difficulty: ACTION_CONFIG.difficulty.map((tier) => ({ ...tier, speed: 0 })),
+    };
+    const source = startMode(
+      createInitialGameState(209, movingConfig),
+      'rubber',
+      movingConfig,
+    ).state;
+    source.world.spawnTimer = 999;
+    source.player.invulnerableTime = 0;
+    source.player.y = 4.29;
+    source.player.vy = 0;
+    source.world.obstacles.push(makeObstacle({
+      id: 'moving-rubber-lip',
+      x: source.player.x,
+      gapCenter: 5,
+      baseGapCenter: 5,
+      gapSize: 2,
+      motionAmplitude: 0.45,
+      motionFrequency: 0.5,
+      motionPhase: 0,
+    }));
+
+    const replayAt = (frameDelta: number): { state: GameState; events: GameEvent[] } => {
+      const simulation = new Simulation({ config: movingConfig, state: source });
+      const events: GameEvent[] = [];
+      const frameCount = Math.round(0.5 / frameDelta);
+      for (let frame = 0; frame < frameCount; frame += 1) {
+        events.push(...simulation.step(frameDelta).events);
+      }
+      return { state: simulation.snapshot(), events };
+    };
+
+    const at30 = replayAt(1 / 30);
+    const at60 = replayAt(1 / 60);
+    const at120 = replayAt(1 / 120);
+    expect(at30.state).toEqual(at60.state);
+    expect(at120.state).toEqual(at60.state);
+    expect(at30.events).toEqual(at60.events);
+    expect(at120.events).toEqual(at60.events);
+    expect(at60.state.player.vy).toBeGreaterThan(0);
+    expect(at60.events.filter((event) => event.type === 'collision'
+      && event.entityId === 'moving-rubber-lip'
+      && event.outcome === 'bounce')).toHaveLength(1);
+    expect(at60.events.filter((event) => event.type === 'mode-action'
+      && event.entityId === 'moving-rubber-lip'
+      && event.action === 'rubber-bounce')).toHaveLength(1);
+  });
+
+  it('uses the pre-contact aiming time scale for a rubber collision response', () => {
+    const source = startMode(
+      createInitialGameState(210, ACTION_CONFIG),
+      'rubber',
+      ACTION_CONFIG,
+    ).state;
+    source.world.spawnTimer = 999;
+    source.player.invulnerableTime = 0;
+    source.player.y = 3;
+    source.player.vx = 0;
+    source.player.vy = 0;
+    source.world.obstacles.push(makeObstacle({
+      id: 'rubber-aim-contact',
+      x: source.player.x
+        + ACTION_CONFIG.player.radiusX
+        + ACTION_CONFIG.obstacle.width / 2
+        + 0.01,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+
+    const result = stepSimulation(
+      source,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-start' }],
+      ACTION_CONFIG,
+    );
+    const obstacleVelocity = -ACTION_CONFIG.difficulty[0]!.speed
+      * ACTION_CONFIG.modes.rubber.worldScaleWhileAiming;
+    const expectedVelocity = obstacleVelocity
+      - ACTION_CONFIG.modes.rubber.restitution * Math.abs(obstacleVelocity);
+
+    expect(result.state.mode.rubber.phase).toBe('flying');
+    expect(result.state.player.vx).toBeCloseTo(expectedVelocity, 8);
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'rubber-aim-contact',
+      outcome: 'bounce',
+    }));
+  });
+
   it('lets steel destroy through entry grace, overheat safely, and cash out an ideal temper once', () => {
     let state = startMode(createInitialGameState(204, ACTION_CONFIG), 'steel', ACTION_CONFIG).state;
     state.world.spawnTimer = 999;
@@ -624,6 +718,62 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(events.filter((event) => event.type === 'score-awarded'
       && event.kind === 'stork-vault'
       && event.entityId === 'late-pik-wall')).toHaveLength(1);
+  });
+
+  it('keeps duplicate and late stork release edges idempotent after a vault commit', () => {
+    const source = startMode(createInitialGameState(211, ACTION_CONFIG), 'stork', ACTION_CONFIG).state;
+    source.world.spawnTimer = 999;
+    source.player.invulnerableTime = 0;
+    source.player.y = 4.7;
+    source.world.obstacles.push(makeObstacle({
+      id: 'idempotent-pik-wall',
+      x: 5.6,
+      gapCenter: 7,
+      baseGapCenter: 7,
+      gapSize: 2,
+    }));
+
+    const aimed = stepSimulation(
+      source,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-start' }],
+      ACTION_CONFIG,
+    );
+    const committed = stepSimulation(
+      aimed.state,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-release' }, { type: 'ability-release' }],
+      ACTION_CONFIG,
+    );
+    const lateRelease = stepSimulation(
+      committed.state,
+      ACTION_CONFIG.fixedStep,
+      [{ type: 'ability-release' }],
+      ACTION_CONFIG,
+    );
+    expect(committed.state.mode.stork.phase).toBe('vaulting');
+    expect(lateRelease.state.mode.stork.phase).toBe('vaulting');
+    expect(lateRelease.state.mode.stork.lockedTargetId).toBe('idempotent-pik-wall');
+    expect(lateRelease.state.mode.stork.uses).toBe(ACTION_CONFIG.modes.stork.uses - 1);
+    expect(lateRelease.state.player.collisionGraceEntityIds).toContain('idempotent-pik-wall');
+
+    const events: GameEvent[] = [...committed.events, ...lateRelease.events];
+    let state = lateRelease.state;
+    for (let tick = 0; tick < 90 && !state.world.obstacles[0]?.passed; tick += 1) {
+      const result = stepSimulation(state, ACTION_CONFIG.fixedStep, undefined, ACTION_CONFIG);
+      state = result.state;
+      events.push(...result.events);
+    }
+
+    expect(state.status).toBe('running');
+    expect(state.world.obstacles[0]?.passed).toBe(true);
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'stork-vault-start')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'mode-action'
+      && event.action === 'stork-vault-end')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'score-awarded'
+      && event.kind === 'stork-vault'
+      && event.entityId === 'idempotent-pik-wall')).toHaveLength(1);
   });
 
   it('preserves a committed launch impulse when a form expires on the release tick', () => {
