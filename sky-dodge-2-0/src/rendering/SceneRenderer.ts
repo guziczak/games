@@ -60,7 +60,7 @@ export class SceneRenderer {
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 110);
+  private readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 180);
   private readonly character: CharacterRig;
   private readonly worldViews: WorldViews;
   private readonly particles: ParticleField;
@@ -102,7 +102,9 @@ export class SceneRenderer {
     this.renderer.toneMappingExposure = 1.22;
     this.renderer.shadowMap.enabled = false;
     this.scene.background = new THREE.Color(0x112b4c);
-    this.scene.fog = new THREE.FogExp2(0x17354e, 0.0145);
+    // Preserve atmospheric depth while leaving the third real look-ahead gate
+    // legible as a silhouette on wide desktop paths.
+    this.scene.fog = new THREE.FogExp2(0x17354e, 0.0105);
 
     const hemisphere = new THREE.HemisphereLight(0xd8f7ff, 0x39213f, 2.15);
     hemisphere.name = 'sky-fill';
@@ -196,12 +198,19 @@ export class SceneRenderer {
     const interpolation = clamp(Number.isFinite(alpha) ? alpha : 0, 0, 1);
     const time = state.clock.elapsed + DEFAULT_GAME_CONFIG.fixedStep * interpolation;
 
-    this.worldViews.update(state, this.projection, interpolation, this.reducedMotion);
+    this.updateCamera(state, time);
+    this.worldViews.update(
+      state,
+      this.projection,
+      interpolation,
+      this.reducedMotion,
+      events,
+      this.camera.position,
+    );
     this.character.update(state, this.projection, interpolation);
     this.particles.consume(events, state, this.projection, interpolation, this.worldViews);
     this.particles.update(time);
     this.updateShadowAndLight(state, interpolation);
-    this.updateCamera(state, time);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -277,15 +286,23 @@ export class SceneRenderer {
       this.projection.viewHeight
       / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2))
     ) * 1.08;
-    const chaseYaw = THREE.MathUtils.degToRad(18);
+    const viewportAspect = this.projection.viewWidth / this.projection.viewHeight;
+    // A fixed 18-degree side look put the vanishing point almost outside a
+    // phone's narrow horizontal FOV. Ease toward the rail in portrait while
+    // retaining the more cinematic desktop parallax.
+    const chaseYaw = THREE.MathUtils.degToRad(clamp(
+      8 + (viewportAspect - 0.46) * 8,
+      8,
+      18,
+    ));
     const pitch = THREE.MathUtils.degToRad(10);
     const horizontalDistance = baseDistance * Math.cos(pitch);
     const playerY = this.projection.mapY(state.player.y);
     const drift = this.reducedMotion ? 0 : Math.sin(time * 0.32) * 0.055;
     const lookAhead = clamp(
       this.projection.viewWidth / this.projection.xScale * 0.28,
-      3,
-      4.7,
+      4.4,
+      5.2,
     );
     const targetSimulationX = clamp(
       state.player.x + lookAhead,

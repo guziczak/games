@@ -215,17 +215,29 @@ async function assertModeMechanics(client) {
   assert(steelImpact.heat > 0, 'steel did not convert an impact into heat');
 
   await restartInMode(client, 'ghost');
-  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-start" })');
-  const ghostStart = await waitForValue(
-    client,
-    '({ phase: __SKY_DODGE_2__.snapshot().mode.ghost.phase, energy: __SKY_DODGE_2__.snapshot().mode.ghost.energy })',
-    (value) => value?.phase === 'phasing',
-  );
-  await delay(180);
-  const ghostEnergy = await evaluate(client, '__SKY_DODGE_2__.snapshot().mode.ghost.energy');
-  assert(ghostEnergy < ghostStart.energy, 'ghost phase did not drain energy');
-  await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "ability-release" })');
-  await waitForValue(client, '__SKY_DODGE_2__.snapshot().mode.ghost.phase', (value) => value === 'material');
+  await evaluate(client, `globalThis.__sky2GhostPilot = setInterval(() => {
+    const state = __SKY_DODGE_2__.snapshot();
+    if (state.player.y < 1.2) __SKY_DODGE_2__.dispatch({ type: 'flap' });
+  }, 55)`);
+  try {
+    const ghostContact = await waitForValue(
+      client,
+      '({ status: __SKY_DODGE_2__.snapshot().status, phase: __SKY_DODGE_2__.snapshot().mode.ghost.phase, style: __SKY_DODGE_2__.snapshot().score.style, grace: __SKY_DODGE_2__.snapshot().player.collisionGraceEntityIds.length })',
+      (value) => value?.status === 'running' && value.phase === 'material'
+        && value.style >= 125 && value.grace > 0,
+      7_000,
+    );
+    assert(ghostContact.style >= 125, 'automatic ghost pipe phase did not award style');
+    const ghostPass = await waitForValue(
+      client,
+      '({ status: __SKY_DODGE_2__.snapshot().status, passed: __SKY_DODGE_2__.snapshot().world.passedObstacles, grace: __SKY_DODGE_2__.snapshot().player.collisionGraceEntityIds.length })',
+      (value) => value?.status === 'running' && value.passed >= 1 && value.grace === 0,
+      4_000,
+    );
+    assert(ghostPass.grace === 0, 'ghost kept stale collision grace after leaving the pipe');
+  } finally {
+    await evaluate(client, 'clearInterval(globalThis.__sky2GhostPilot); delete globalThis.__sky2GhostPilot');
+  }
 
   await restartInMode(client, 'stork');
   await evaluate(client, `globalThis.__sky2StorkPilot = setInterval(() => {
@@ -316,6 +328,13 @@ async function main() {
       (value) => value?.tick > 0 && value.vy > 0,
     );
     assert(flying.vy > 0, 'canvas pointer did not flap');
+
+    const visibleCourse = await waitForValue(
+      client,
+      '(() => { const state = __SKY_DODGE_2__.snapshot(); return state.world.obstacles.filter((gate) => !gate.destroyed && !gate.passed && gate.x > state.player.x).length; })()',
+      (value) => value >= 3,
+    );
+    assert(visibleCourse >= 3, `expected at least three real gates ahead, received ${visibleCourse}`);
 
     if (screenshotDirectory) {
       await evaluate(client, `globalThis.__sky2SmokePilot = setInterval(() => {
@@ -412,7 +431,11 @@ async function main() {
     assert(landscapeLayout.width === 800 && landscapeLayout.scrollWidth === 800, 'landscape viewport overflow');
     assert(!landscapeLayout.hudOverlap, 'landscape HUD overlaps');
     assert(!landscapeLayout.controlsOverlap && landscapeLayout.controlsInside, 'landscape controls overlap or overflow');
-
+    await evaluate(client, '__SKY_DODGE_2__.restart()');
+    await waitForValue(client, '__SKY_DODGE_2__.phase()', (value) => value === 'running');
+    await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "flap" })');
+    await delay(120);
+    await captureScreenshot(client, 'sky-dodge-2-landscape.png');
     for (const mode of ['frog', 'rubber', 'steel', 'ghost', 'stork']) {
       await evaluate(client, '__SKY_DODGE_2__.dispatch({ type: "flap" })');
       await evaluate(client, `__SKY_DODGE_2__.forceMode(${JSON.stringify(mode)})`);

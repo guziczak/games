@@ -15,6 +15,9 @@ const TEST_CONFIG: GameConfig = {
   },
   obstacle: {
     ...DEFAULT_GAME_CONFIG.obstacle,
+    // Focused mechanic fixtures inject their own gates. Horizon scheduling is
+    // covered independently below so it cannot perturb those contact setups.
+    lookAheadCount: 0,
     firstSpawnDelay: 0.1,
     minGapCenter: 3.5,
     maxGapCenter: 6.5,
@@ -40,11 +43,35 @@ const ACTION_CONFIG: GameConfig = {
   },
 };
 
+const HORIZON_CONFIG: GameConfig = {
+  ...TEST_CONFIG,
+  obstacle: {
+    ...TEST_CONFIG.obstacle,
+    lookAheadCount: 3,
+  },
+  dna: {
+    ...TEST_CONFIG.dna,
+    initial: 0,
+    maximum: 1_000_000,
+    obstaclePass: 0,
+    coin: 0,
+    nearMiss: 0,
+    maneuver: 0,
+  },
+  difficulty: TEST_CONFIG.difficulty.map((tier, index) => ({
+    ...tier,
+    speed: 3 + index * 0.4,
+    spawnInterval: 0.8 - index * 0.06,
+  })),
+};
+
 function makeObstacle(overrides: Partial<ObstacleState> = {}): ObstacleState {
   return {
     id: 'gate-test',
     x: 8,
     width: 0.9,
+    active: true,
+    activationDelay: 0,
     baseGapCenter: 5,
     gapCenter: 5,
     gapSize: 3,
@@ -114,6 +141,117 @@ describe('Sky Dodge 2.0 simulation', () => {
       wholeFrame.step(TEST_CONFIG.fixedStep);
     }
     expect(halfFrames.snapshot()).toEqual(wholeFrame.snapshot());
+  });
+
+  it('keeps three real scheduled gates ahead through activation, difficulty and reset', () => {
+    const simulation = new Simulation({ seed: 0x3a11, config: HORIZON_CONFIG });
+    const assertHorizon = (state: Readonly<GameState>): void => {
+      const future = state.world.obstacles.filter((obstacle) => !obstacle.active);
+      expect(future).toHaveLength(HORIZON_CONFIG.obstacle.lookAheadCount);
+      expect(future.every((obstacle) => (
+        obstacle.activationDelay >= 0 && obstacle.x > state.player.x
+      ))).toBe(true);
+      expect(new Set(future.map((obstacle) => obstacle.id)).size).toBe(future.length);
+    };
+
+    simulation.step(HORIZON_CONFIG.fixedStep);
+    assertHorizon(simulation.state);
+
+    for (let tick = 0; tick < 2_200; tick += 1) {
+      simulation.step(HORIZON_CONFIG.fixedStep);
+      assertHorizon(simulation.state);
+    }
+    expect(simulation.state.world.passedObstacles).toBeGreaterThanOrEqual(10);
+    // This stress fixture spawns much faster than production; cleanup still
+    // stays bounded to its eight active transits plus the three-gate horizon.
+    expect(simulation.state.world.obstacles.length).toBeLessThanOrEqual(12);
+
+    const replay = new Simulation({ seed: 0x3a11, config: HORIZON_CONFIG });
+    for (let tick = 0; tick < 2_201; tick += 1) replay.step(HORIZON_CONFIG.fixedStep);
+    expect(replay.snapshot()).toEqual(simulation.snapshot());
+
+    const reset = simulation.reset(0x3a11);
+    expect(reset.world.obstacles).toHaveLength(0);
+    simulation.step(HORIZON_CONFIG.fixedStep);
+    assertHorizon(simulation.state);
+  });
+
+  it('previews gates without advancing legacy spawn timing and freezes the horizon at a mutation fork', () => {
+    const legacyConfig: GameConfig = {
+      ...HORIZON_CONFIG,
+      obstacle: { ...HORIZON_CONFIG.obstacle, lookAheadCount: 0 },
+    };
+    const horizon = new Simulation({ seed: 7331, config: HORIZON_CONFIG });
+    const legacy = new Simulation({ seed: 7331, config: legacyConfig });
+    const horizonSpawnTimes: number[] = [];
+    const legacySpawnTimes: number[] = [];
+
+    for (let tick = 0; tick < 420; tick += 1) {
+      horizonSpawnTimes.push(...horizon.step(HORIZON_CONFIG.fixedStep).events
+        .filter((event) => event.type === 'obstacle-spawned')
+        .map((event) => event.time));
+      legacySpawnTimes.push(...legacy.step(legacyConfig.fixedStep).events
+        .filter((event) => event.type === 'obstacle-spawned')
+        .map((event) => event.time));
+    }
+    expect(horizonSpawnTimes.slice(0, 6)).toEqual(legacySpawnTimes.slice(0, 6));
+
+    const offerSource = createInitialGameState(91, HORIZON_CONFIG);
+    offerSource.dna.value = HORIZON_CONFIG.dna.maximum;
+    const offerSimulation = new Simulation({ state: offerSource, config: HORIZON_CONFIG });
+    offerSimulation.step(HORIZON_CONFIG.fixedStep);
+    expect(offerSimulation.state.dna.offer).not.toBeNull();
+    const beforePause = offerSimulation.state.world.obstacles
+      .filter((obstacle) => !obstacle.active)
+      .map((obstacle) => ({ id: obstacle.id, x: obstacle.x, delay: obstacle.activationDelay }));
+    for (let tick = 0; tick < 60; tick += 1) offerSimulation.step(HORIZON_CONFIG.fixedStep);
+    const afterPause = offerSimulation.state.world.obstacles
+      .filter((obstacle) => !obstacle.active)
+      .map((obstacle) => ({ id: obstacle.id, x: obstacle.x, delay: obstacle.activationDelay }));
+    expect(afterPause).toEqual(beforePause);
+  });
+
+  it('activates a moving preview gate without an x or gap teleport', () => {
+    const movingHorizonConfig: GameConfig = {
+      ...HORIZON_CONFIG,
+      obstacle: {
+        ...HORIZON_CONFIG.obstacle,
+        firstSpawnDelay: 0.05,
+        lookAheadCount: 1,
+      },
+      difficulty: HORIZON_CONFIG.difficulty.map((tier) => ({
+        ...tier,
+        movingChance: 1,
+        movingAmplitude: 0.4,
+        movingFrequency: 0.45,
+      })),
+    };
+    const simulation = new Simulation({ seed: 5150, config: movingHorizonConfig });
+    let previous: ObstacleState | undefined;
+    let activated: ObstacleState | undefined;
+
+    for (let tick = 0; tick < 10 && !activated; tick += 1) {
+      const result = simulation.step(movingHorizonConfig.fixedStep);
+      const gate = result.state.world.obstacles.find((obstacle) => obstacle.id === 'gate-1');
+      if (result.events.some((event) => event.type === 'obstacle-spawned')) activated = gate;
+      else previous = gate;
+    }
+
+    expect(previous).toBeDefined();
+    expect(activated).toBeDefined();
+    if (!previous || !activated) throw new Error('Expected the first preview gate to activate');
+    expect(activated.active).toBe(true);
+    expect(activated.x).toBeLessThanOrEqual(previous.x);
+    expect(previous.x - activated.x).toBeLessThanOrEqual(
+      movingHorizonConfig.difficulty[0]!.speed * movingHorizonConfig.fixedStep + 0.000_001,
+    );
+    const maximumGapTravel = movingHorizonConfig.difficulty[0]!.movingAmplitude
+      * Math.PI * 2
+      * movingHorizonConfig.difficulty[0]!.movingFrequency
+      * movingHorizonConfig.fixedStep;
+    expect(Math.abs(activated.gapCenter - previous.gapCenter)).toBeLessThanOrEqual(
+      maximumGapTravel + 0.000_001,
+    );
   });
 
   it('awards pass and near-miss score at most once per obstacle', () => {

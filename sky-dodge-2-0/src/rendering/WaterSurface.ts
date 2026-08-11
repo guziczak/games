@@ -1,0 +1,695 @@
+import * as THREE from 'three';
+
+import { DEFAULT_GAME_CONFIG } from '../simulation/GameConfig';
+import type { GameEvent } from '../simulation/GameEvents';
+import type { GameState } from '../simulation/GameState';
+import type { RenderQuality, WorldProjection } from './WorldViews';
+
+export const MAX_WATER_RIPPLES = 3;
+export const WATER_RIPPLE_DURATION = 1.55;
+
+export interface WaterQualityProfile {
+  readonly segmentsX: number;
+  readonly segmentsZ: number;
+  readonly geometryWaves: number;
+  readonly microWaves: number;
+  readonly rippleSlots: number;
+  readonly crestFoam: boolean;
+  readonly amplitudeScale: number;
+}
+
+export interface WaterRipple {
+  readonly x: number;
+  readonly z: number;
+  readonly startedAt: number;
+  readonly strength: number;
+}
+
+export interface WaterDebugSnapshot {
+  readonly quality: RenderQuality;
+  readonly displayTime: number;
+  readonly reducedMotion: boolean;
+  readonly downwash: number;
+  readonly ripples: readonly WaterRipple[];
+}
+
+export interface WaterShaderSources {
+  readonly vertexShader: string;
+  readonly fragmentShader: string;
+}
+
+const WATER_PROFILES: Readonly<Record<RenderQuality, Readonly<WaterQualityProfile>>> = Object.freeze({
+  low: Object.freeze({
+    segmentsX: 24,
+    segmentsZ: 36,
+    geometryWaves: 3,
+    microWaves: 0,
+    rippleSlots: 1,
+    crestFoam: false,
+    amplitudeScale: 0.9,
+  }),
+  medium: Object.freeze({
+    segmentsX: 40,
+    segmentsZ: 56,
+    geometryWaves: 4,
+    microWaves: 1,
+    rippleSlots: 2,
+    crestFoam: true,
+    amplitudeScale: 0.95,
+  }),
+  high: Object.freeze({
+    segmentsX: 64,
+    segmentsZ: 88,
+    geometryWaves: 6,
+    microWaves: 2,
+    rippleSlots: 3,
+    crestFoam: true,
+    amplitudeScale: 1,
+  }),
+});
+
+interface GerstnerWaveDefinition {
+  readonly directionX: number;
+  readonly directionZ: number;
+  readonly amplitude: number;
+  readonly wavelength: number;
+  readonly speed: number;
+  readonly phase: number;
+  readonly steepness: number;
+}
+
+interface MicroWaveDefinition {
+  readonly directionX: number;
+  readonly directionZ: number;
+  readonly frequency: number;
+  readonly speed: number;
+  readonly strength: number;
+  readonly phase: number;
+}
+
+const GERSTNER_WAVES: readonly GerstnerWaveDefinition[] = Object.freeze([
+  Object.freeze({ directionX: 0.977, directionZ: 0.215, amplitude: 0.028, wavelength: 8.2, speed: 0.84, phase: 0.2, steepness: 0.38 }),
+  Object.freeze({ directionX: 0.702, directionZ: 0.712, amplitude: 0.017, wavelength: 5.1, speed: 1.02, phase: 1.7, steepness: 0.33 }),
+  Object.freeze({ directionX: -0.378, directionZ: 0.926, amplitude: 0.01, wavelength: 3.2, speed: 0.92, phase: 3, steepness: 0.28 }),
+  Object.freeze({ directionX: 0.921, directionZ: -0.39, amplitude: 0.006, wavelength: 2.1, speed: 1.14, phase: 0.8, steepness: 0.23 }),
+  Object.freeze({ directionX: -0.76, directionZ: 0.65, amplitude: 0.004, wavelength: 1.55, speed: 0.88, phase: 2.3, steepness: 0.18 }),
+  Object.freeze({ directionX: 0.181, directionZ: 0.984, amplitude: 0.0028, wavelength: 1.15, speed: 1.24, phase: 4.2, steepness: 0.14 }),
+]);
+
+const MICRO_WAVES: readonly MicroWaveDefinition[] = Object.freeze([
+  Object.freeze({ directionX: 0.96, directionZ: 0.28, frequency: 7.4, speed: 2.1, strength: 0.018, phase: 0.3 }),
+  Object.freeze({ directionX: -0.55, directionZ: 0.84, frequency: 11.2, speed: 2.75, strength: 0.011, phase: 2.1 }),
+]);
+
+const WATER_WIDTH = 64;
+const WATER_DEPTH = 54;
+const WATER_CENTRE_Z = -7.2;
+const WATER_LEVEL_OFFSET = -0.08;
+const FOG_DENSITY = 0.0105;
+
+const clamp = (value: number, minimum: number, maximum: number): number => (
+  Math.max(minimum, Math.min(maximum, value))
+);
+
+const finiteOr = (value: number, fallback: number): number => (
+  Number.isFinite(value) ? value : fallback
+);
+
+function glslNumber(value: number): string {
+  const result = String(value);
+  return result.includes('.') ? result : `${result}.0`;
+}
+
+function normalizeRipple(ripple: Readonly<WaterRipple>): WaterRipple {
+  return Object.freeze({
+    x: finiteOr(ripple.x, 0),
+    z: finiteOr(ripple.z, 0),
+    startedAt: finiteOr(ripple.startedAt, 0),
+    strength: clamp(finiteOr(ripple.strength, 0), 0, 1.25),
+  });
+}
+
+export function getWaterQualityProfile(quality: RenderQuality): Readonly<WaterQualityProfile> {
+  return WATER_PROFILES[quality];
+}
+
+export function computeWaterDownwashStrength(
+  playerY: number,
+  contactY = DEFAULT_GAME_CONFIG.player.radiusY,
+  reach = 1.65,
+): number {
+  if (!Number.isFinite(playerY) || !Number.isFinite(contactY) || !Number.isFinite(reach)) return 0;
+  const linear = 1 - (playerY - contactY) / Math.max(reach, 0.001);
+  const value = clamp(linear, 0, 1);
+  return value * value * (3 - 2 * value);
+}
+
+export function pruneWaterRipples(
+  ripples: readonly Readonly<WaterRipple>[],
+  time: number,
+): readonly WaterRipple[] {
+  const safeTime = finiteOr(time, 0);
+  return Object.freeze(ripples
+    .map(normalizeRipple)
+    .filter((ripple) => (
+      ripple.strength > 0
+      && ripple.startedAt <= safeTime + 0.001
+      && safeTime - ripple.startedAt <= WATER_RIPPLE_DURATION
+    ))
+    .sort((first, second) => first.startedAt - second.startedAt));
+}
+
+export function enqueueWaterRipple(
+  ripples: readonly Readonly<WaterRipple>[],
+  ripple: Readonly<WaterRipple>,
+  capacity = MAX_WATER_RIPPLES,
+): readonly WaterRipple[] {
+  const safeCapacity = Math.floor(clamp(finiteOr(capacity, 0), 0, MAX_WATER_RIPPLES));
+  if (safeCapacity === 0) return Object.freeze([]);
+  const next = [
+    ...pruneWaterRipples(ripples, ripple.startedAt),
+    normalizeRipple(ripple),
+  ].sort((first, second) => first.startedAt - second.startedAt);
+  return Object.freeze(next.slice(Math.max(0, next.length - safeCapacity)));
+}
+
+export function waterRippleStrengthForEvent(
+  event: Readonly<GameEvent>,
+  downwash: number,
+): number {
+  const proximity = clamp(finiteOr(downwash, 0), 0, 1);
+  if (event.type === 'flap') return proximity <= 0.02 ? 0 : 0.08 + proximity * 0.2;
+  if (event.type !== 'collision' || event.entityId !== 'boundary-floor') return 0;
+  if (event.outcome === 'fatal') return 1;
+  if (event.outcome === 'destroy') return 0.94;
+  if (event.outcome === 'bounce') return 0.78;
+  if (event.outcome === 'shielded') return 0.62;
+  if (event.outcome === 'cling') return 0.5;
+  return 0.34;
+}
+
+function createGerstnerCalls(profile: Readonly<WaterQualityProfile>): string {
+  return GERSTNER_WAVES.slice(0, profile.geometryWaves).map((wave, index) => `
+    // gerstner-wave-${index}
+    accumulateGerstner(
+      vec2(${glslNumber(wave.directionX)}, ${glslNumber(wave.directionZ)}),
+      ${glslNumber(wave.amplitude)}, ${glslNumber(wave.wavelength)},
+      ${glslNumber(wave.speed)}, ${glslNumber(wave.phase)}, ${glslNumber(wave.steepness)},
+      displaced, tangentX, tangentZ, crest
+    );`).join('');
+}
+
+function createMicroWaveCalls(profile: Readonly<WaterQualityProfile>): string {
+  return MICRO_WAVES.slice(0, profile.microWaves).map((wave, index) => `
+    // micro-wave-${index}
+    accumulateMicroSlope(
+      vec2(${glslNumber(wave.directionX)}, ${glslNumber(wave.directionZ)}),
+      ${glslNumber(wave.frequency)}, ${glslNumber(wave.speed)},
+      ${glslNumber(wave.strength)}, ${glslNumber(wave.phase)},
+      vWorldPosition.xz, microSlope
+    );`).join('');
+}
+
+function createVertexRippleCalls(profile: Readonly<WaterQualityProfile>): string {
+  return Array.from({ length: profile.rippleSlots }, (_, index) => (
+    `\n    applyRippleDisplacement(uRipples[${index}], displaced); // vertex-ripple-${index}`
+  )).join('');
+}
+
+function createFragmentRippleCalls(profile: Readonly<WaterQualityProfile>): string {
+  return Array.from({ length: profile.rippleSlots }, (_, index) => (
+    `\n    rippleFoam = max(rippleFoam, rippleFoamAt(uRipples[${index}], vWorldPosition.xz)); // fragment-ripple-${index}`
+  )).join('');
+}
+
+export function createWaterShaderSources(
+  profile: Readonly<WaterQualityProfile>,
+): Readonly<WaterShaderSources> {
+  const gerstnerCalls = createGerstnerCalls(profile);
+  const microWaveCalls = createMicroWaveCalls(profile);
+  const vertexRippleCalls = createVertexRippleCalls(profile);
+  const fragmentRippleCalls = createFragmentRippleCalls(profile);
+  const crestFoam = profile.crestFoam
+    ? `
+    float foamPattern = 0.5 + 0.5 * sin(vWorldPosition.x * 2.15 + sin(vWorldPosition.z * 1.77 - uTime * 0.8));
+    foamPattern *= 0.72 + 0.28 * sin(vWorldPosition.z * 4.1 - vWorldPosition.x * 2.8 + uTime * 1.1);
+    float crestFoam = smoothstep(0.16, 0.48, vCrest) * smoothstep(0.22, 0.72, foamPattern);
+  `
+    : '\n    float crestFoam = 0.0;\n';
+
+  const vertexShader = `
+    precision highp float;
+
+    uniform float uTime;
+    uniform float uWaveScale;
+    uniform float uMotion;
+    uniform vec2 uSurfaceOrigin;
+    uniform vec2 uDuckPosition;
+    uniform float uDownwash;
+    uniform vec4 uRipples[${MAX_WATER_RIPPLES}];
+
+    varying vec3 vWorldPosition;
+    varying vec3 vWorldNormal;
+    varying float vViewDistance;
+    varying float vCrest;
+
+    const float WATER_PI = 3.141592653589793;
+
+    void accumulateGerstner(
+      vec2 direction,
+      float amplitude,
+      float wavelength,
+      float speed,
+      float phaseOffset,
+      float steepness,
+      inout vec3 displaced,
+      inout vec3 tangentX,
+      inout vec3 tangentZ,
+      inout float crest
+    ) {
+      float k = 2.0 * WATER_PI / wavelength;
+      float omega = sqrt(9.81 * k) * speed;
+      float phase = k * dot(direction, displaced.xz + uSurfaceOrigin) - omega * uTime + phaseOffset;
+      float waveSin = sin(phase);
+      float waveCos = cos(phase);
+      float scaledAmplitude = amplitude * uWaveScale;
+      float horizontal = steepness * scaledAmplitude;
+      float qak = horizontal * k;
+
+      displaced.x += horizontal * direction.x * waveCos;
+      displaced.y += scaledAmplitude * waveSin;
+      displaced.z += horizontal * direction.y * waveCos;
+
+      tangentX.x -= qak * direction.x * direction.x * waveSin;
+      tangentX.y += scaledAmplitude * k * direction.x * waveCos;
+      tangentX.z -= qak * direction.x * direction.y * waveSin;
+      tangentZ.x -= qak * direction.x * direction.y * waveSin;
+      tangentZ.y += scaledAmplitude * k * direction.y * waveCos;
+      tangentZ.z -= qak * direction.y * direction.y * waveSin;
+      crest += max(scaledAmplitude * k * k * waveSin, 0.0);
+    }
+
+    void applyRippleDisplacement(vec4 ripple, inout vec3 displaced) {
+      float age = uTime - ripple.z;
+      float valid = step(0.0, age) * (1.0 - step(${glslNumber(WATER_RIPPLE_DURATION)}, age));
+      float distanceToRipple = length(displaced.xz + uSurfaceOrigin - ripple.xy);
+      float radius = age * 1.72;
+      float delta = abs(distanceToRipple - radius);
+      float band = 1.0 - smoothstep(0.035 + age * 0.025, 0.23 + age * 0.09, delta);
+      float oscillation = sin((distanceToRipple - radius) * 12.0);
+      displaced.y += oscillation * band * exp(-age * 1.35) * ripple.w * valid * 0.025 * uMotion;
+    }
+
+    void main() {
+      vec3 displaced = position;
+      vec3 tangentX = vec3(1.0, 0.0, 0.0);
+      vec3 tangentZ = vec3(0.0, 0.0, 1.0);
+      float crest = 0.0;
+      ${gerstnerCalls}
+      ${vertexRippleCalls}
+
+      float duckDistance = length(displaced.xz + uSurfaceOrigin - uDuckPosition);
+      float downwashWave = sin(duckDistance * 10.5 - uTime * 6.4)
+        * exp(-duckDistance * 1.85) * uDownwash * uMotion;
+      displaced.y += downwashWave * 0.012;
+
+      vec3 localNormal = normalize(cross(tangentZ, tangentX));
+      vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
+      vec4 viewPosition = viewMatrix * worldPosition;
+      vWorldPosition = worldPosition.xyz;
+      vWorldNormal = normalize(mat3(modelMatrix) * localNormal);
+      vViewDistance = length(viewPosition.xyz);
+      vCrest = crest;
+      gl_Position = projectionMatrix * viewPosition;
+    }
+  `;
+
+  const fragmentShader = `
+    precision highp float;
+
+    uniform float uTime;
+    uniform float uMotion;
+    uniform vec3 uCameraPosition;
+    uniform vec2 uDuckPosition;
+    uniform vec2 uPathForward;
+    uniform float uDownwash;
+    uniform vec4 uRipples[${MAX_WATER_RIPPLES}];
+    uniform vec3 uFogColour;
+    uniform float uFogDensity;
+
+    varying vec3 vWorldPosition;
+    varying vec3 vWorldNormal;
+    varying float vViewDistance;
+    varying float vCrest;
+
+    float saturateValue(float value) {
+      return clamp(value, 0.0, 1.0);
+    }
+
+    void accumulateMicroSlope(
+      vec2 direction,
+      float frequency,
+      float speed,
+      float strength,
+      float phaseOffset,
+      vec2 worldPosition,
+      inout vec2 slope
+    ) {
+      float phase = dot(worldPosition, direction) * frequency - uTime * speed + phaseOffset;
+      slope += direction * cos(phase) * strength * uMotion;
+    }
+
+    vec3 analyticSky(vec3 direction, vec3 sunDirection) {
+      float elevation = saturateValue(direction.y * 0.85 + 0.18);
+      float zenithBlend = pow(max(elevation, 0.0), 0.55);
+      vec3 horizon = vec3(0.18, 0.40, 0.65);
+      vec3 zenith = vec3(0.035, 0.18, 0.56);
+      vec3 sky = mix(horizon, zenith, zenithBlend);
+      float sunAlignment = saturateValue(dot(normalize(direction), sunDirection));
+      sky += vec3(1.0, 0.72, 0.34) * pow(sunAlignment, 24.0) * 0.2;
+      sky += vec3(3.4, 2.85, 1.9) * pow(sunAlignment, 420.0);
+      return sky;
+    }
+
+    float rippleFoamAt(vec4 ripple, vec2 worldPosition) {
+      float age = uTime - ripple.z;
+      float valid = step(0.0, age) * (1.0 - step(${glslNumber(WATER_RIPPLE_DURATION)}, age));
+      float radius = age * 1.72;
+      float delta = abs(length(worldPosition - ripple.xy) - radius);
+      float width = 0.07 + age * 0.055;
+      float ring = 1.0 - smoothstep(width, width + 0.13, delta);
+      return ring * exp(-age * 1.18) * ripple.w * valid * uMotion;
+    }
+
+    float kelvinDownwash(vec2 worldPosition) {
+      vec2 forward = normalize(uPathForward);
+      vec2 right = vec2(-forward.y, forward.x);
+      vec2 offset = worldPosition - uDuckPosition;
+      float behind = -dot(offset, forward);
+      float lateral = dot(offset, right);
+      float lengthMask = smoothstep(0.08, 0.55, behind)
+        * (1.0 - smoothstep(3.8, 5.8, behind));
+      float armCentre = 0.34 * behind + 0.08;
+      float armWidth = 0.08 + behind * 0.045;
+      float leftArm = 1.0 - smoothstep(armWidth, armWidth * 2.25, abs(lateral - armCentre));
+      float rightArm = 1.0 - smoothstep(armWidth, armWidth * 2.25, abs(lateral + armCentre));
+      float centreWidth = 0.13 + behind * 0.055;
+      float centre = 1.0 - smoothstep(centreWidth, centreWidth * 2.1, abs(lateral));
+      float breakup = 0.65 + 0.35 * sin(behind * 5.1 + abs(lateral) * 7.0 - uTime * 4.2);
+      return saturateValue(((leftArm + rightArm) * 0.48 + centre * 0.32 * breakup)
+        * lengthMask * exp(-behind * 0.23) * uDownwash * uMotion);
+    }
+
+    float distributionGgx(float noH, float roughness) {
+      float alpha = roughness * roughness;
+      float alphaSquared = alpha * alpha;
+      float denominator = noH * noH * (alphaSquared - 1.0) + 1.0;
+      return alphaSquared / max(3.141592653589793 * denominator * denominator, 0.00001);
+    }
+
+    float geometrySchlick(float noX, float roughness) {
+      float k = (roughness + 1.0) * (roughness + 1.0) * 0.125;
+      return noX / max(noX * (1.0 - k) + k, 0.00001);
+    }
+
+    void main() {
+      vec3 normal = normalize(vWorldNormal);
+      vec2 microSlope = vec2(0.0);
+      ${microWaveCalls}
+      normal = normalize(normal + vec3(-microSlope.x, 0.0, -microSlope.y));
+      if (!gl_FrontFacing) normal = -normal;
+
+      vec3 viewDirection = normalize(uCameraPosition - vWorldPosition);
+      vec3 sunDirection = normalize(vec3(0.42, 0.82, -0.38));
+      float noV = max(dot(normal, viewDirection), 0.001);
+      float noL = max(dot(normal, sunDirection), 0.0);
+
+      float distanceBlend = smoothstep(3.0, 31.0, vViewDistance);
+      vec3 nearColour = vec3(0.035, 0.31, 0.37);
+      vec3 deepColour = vec3(0.008, 0.095, 0.19);
+      vec3 refracted = mix(nearColour, deepColour, distanceBlend);
+      refracted += vec3(0.018, 0.08, 0.085) * max(normal.y * 0.8 + noL * 0.2, 0.0);
+
+      vec3 reflectionDirection = reflect(-viewDirection, normal);
+      vec3 reflectedSky = analyticSky(reflectionDirection, sunDirection);
+      float fresnel = 0.0204 + 0.9796 * pow(max(1.0 - noV, 0.0), 5.0);
+      vec3 colour = mix(refracted, reflectedSky, saturateValue(fresnel * 0.96 + 0.055));
+
+      vec3 halfVector = normalize(viewDirection + sunDirection);
+      float noH = max(dot(normal, halfVector), 0.0);
+      float voH = max(dot(viewDirection, halfVector), 0.0);
+      float roughness = 0.16;
+      float distribution = distributionGgx(noH, roughness);
+      float geometry = geometrySchlick(noV, roughness) * geometrySchlick(noL, roughness);
+      float specularFresnel = 0.0204 + 0.9796 * pow(max(1.0 - voH, 0.0), 5.0);
+      float specular = min(
+        distribution * geometry * specularFresnel * noL / max(4.0 * noV * noL, 0.001),
+        1.8
+      );
+      colour += vec3(1.0, 0.91, 0.69) * specular * 0.72;
+
+      ${crestFoam}
+      float rippleFoam = 0.0;
+      ${fragmentRippleCalls}
+      float wakeFoam = kelvinDownwash(vWorldPosition.xz);
+      float foam = saturateValue(crestFoam * 0.32 + rippleFoam * 0.62 + wakeFoam * 0.34);
+      colour = mix(colour, vec3(0.72, 0.94, 0.98), foam);
+
+      float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vViewDistance * vViewDistance);
+      colour = mix(colour, uFogColour, saturateValue(fogFactor));
+      gl_FragColor = vec4(max(colour, vec3(0.0)), 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }
+  `;
+
+  return Object.freeze({ vertexShader, fragmentShader });
+}
+
+interface WaterUniforms extends Record<string, THREE.IUniform> {
+  readonly uTime: { value: number };
+  readonly uWaveScale: { value: number };
+  readonly uMotion: { value: number };
+  readonly uSurfaceOrigin: { value: THREE.Vector2 };
+  readonly uCameraPosition: { value: THREE.Vector3 };
+  readonly uDuckPosition: { value: THREE.Vector2 };
+  readonly uPathForward: { value: THREE.Vector2 };
+  readonly uDownwash: { value: number };
+  readonly uRipples: { value: THREE.Vector4[] };
+  readonly uFogColour: { value: THREE.Color };
+  readonly uFogDensity: { value: number };
+}
+
+/**
+ * A one-draw-call, texture-free water presentation. It is intentionally visual:
+ * simulation boundaries remain the single source of collision truth.
+ */
+export class WaterSurface {
+  readonly profile: Readonly<WaterQualityProfile>;
+
+  private readonly geometry: THREE.PlaneGeometry;
+  private readonly material: THREE.ShaderMaterial;
+  private readonly mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly uniforms: WaterUniforms;
+  private readonly quality: RenderQuality;
+  private readonly recentEventKeys = new Set<string>();
+  private readonly recentEventOrder: string[] = [];
+  private ripples: readonly WaterRipple[] = Object.freeze([]);
+  private displayTime = 0;
+  private downwash = 0;
+  private reducedMotion = false;
+  private destroyed = false;
+
+  constructor(parent: THREE.Object3D, quality: RenderQuality) {
+    this.quality = quality;
+    this.profile = getWaterQualityProfile(quality);
+    const shaders = createWaterShaderSources(this.profile);
+    const rippleUniforms = Array.from(
+      { length: MAX_WATER_RIPPLES },
+      () => new THREE.Vector4(0, 0, -100, 0),
+    );
+    this.uniforms = {
+      uTime: { value: 0 },
+      uWaveScale: { value: this.profile.amplitudeScale },
+      uMotion: { value: 1 },
+      uSurfaceOrigin: { value: new THREE.Vector2(0, WATER_CENTRE_Z) },
+      uCameraPosition: { value: new THREE.Vector3(0, 5.5, 8) },
+      uDuckPosition: { value: new THREE.Vector2() },
+      uPathForward: { value: new THREE.Vector2(1, 0) },
+      uDownwash: { value: 0 },
+      uRipples: { value: rippleUniforms },
+      uFogColour: { value: new THREE.Color(0x17354e) },
+      uFogDensity: { value: FOG_DENSITY },
+    };
+
+    this.geometry = new THREE.PlaneGeometry(
+      WATER_WIDTH,
+      WATER_DEPTH,
+      this.profile.segmentsX,
+      this.profile.segmentsZ,
+    );
+    this.geometry.rotateX(-Math.PI / 2);
+    this.geometry.computeBoundingSphere();
+    this.material = new THREE.ShaderMaterial({
+      name: `water-${quality}`,
+      uniforms: this.uniforms,
+      vertexShader: shaders.vertexShader,
+      fragmentShader: shaders.fragmentShader,
+      transparent: false,
+      depthTest: true,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+      toneMapped: true,
+    });
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.mesh.name = 'procedural-water-surface';
+    this.mesh.position.set(0, WATER_LEVEL_OFFSET, WATER_CENTRE_Z);
+    this.mesh.frustumCulled = false;
+    parent.add(this.mesh);
+  }
+
+  update(
+    state: Readonly<GameState>,
+    projection: WorldProjection,
+    time: number,
+    reducedMotion: boolean,
+    events: readonly GameEvent[] = [],
+    cameraPosition?: Readonly<THREE.Vector3>,
+  ): void {
+    if (this.destroyed) return;
+    const safeTime = Math.max(0, finiteOr(time, state.clock.elapsed));
+    const interpolation = clamp(
+      (safeTime - state.clock.elapsed) / DEFAULT_GAME_CONFIG.fixedStep,
+      0,
+      1,
+    );
+    const playerX = clamp(
+      state.player.x + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * interpolation,
+      0,
+      DEFAULT_GAME_CONFIG.world.width,
+    );
+    const playerY = clamp(
+      state.player.y + state.player.vy * DEFAULT_GAME_CONFIG.fixedStep * interpolation,
+      0,
+      DEFAULT_GAME_CONFIG.world.height,
+    );
+    const duckX = projection.mapX(playerX);
+    const duckZ = projection.depthAt(playerX);
+
+    this.displayTime = reducedMotion ? 0 : safeTime;
+    this.reducedMotion = reducedMotion;
+    this.downwash = reducedMotion ? 0 : computeWaterDownwashStrength(playerY);
+    const horizonObstacle = state.world.obstacles.reduce<(typeof state.world.obstacles)[number] | null>(
+      (farthest, obstacle) => (
+        obstacle.destroyed || obstacle.passed || (farthest && farthest.x >= obstacle.x)
+          ? farthest
+          : obstacle
+      ),
+      null,
+    );
+    if (horizonObstacle) {
+      const horizonX = projection.mapX(horizonObstacle.x);
+      const horizonZ = projection.depthAt(horizonObstacle.x);
+      this.mesh.position.x = (duckX + horizonX) * 0.5;
+      this.mesh.position.z = (duckZ + horizonZ) * 0.5;
+    } else {
+      this.mesh.position.x = 0;
+      this.mesh.position.z = WATER_CENTRE_Z;
+    }
+    this.mesh.position.y = projection.mapY(0) + WATER_LEVEL_OFFSET;
+    this.uniforms.uTime.value = this.displayTime;
+    this.uniforms.uMotion.value = reducedMotion ? 0 : 1;
+    this.uniforms.uWaveScale.value = this.profile.amplitudeScale * (reducedMotion ? 0.4 : 1);
+    this.uniforms.uSurfaceOrigin.value.set(this.mesh.position.x, this.mesh.position.z);
+    this.uniforms.uDuckPosition.value.set(duckX, duckZ);
+    this.uniforms.uPathForward.value.set(
+      Math.sin(projection.pathYaw),
+      Math.cos(projection.pathYaw),
+    ).normalize();
+    this.uniforms.uDownwash.value = this.downwash;
+    if (cameraPosition) this.uniforms.uCameraPosition.value.copy(cameraPosition);
+
+    this.ripples = pruneWaterRipples(this.ripples, safeTime);
+    for (const event of events) {
+      const eventKey = this.eventKey(event);
+      if (this.recentEventKeys.has(eventKey)) continue;
+      this.rememberEvent(eventKey);
+      const strength = reducedMotion ? 0 : waterRippleStrengthForEvent(event, this.downwash);
+      if (strength <= 0) continue;
+      this.ripples = enqueueWaterRipple(this.ripples, {
+        x: duckX,
+        z: duckZ,
+        startedAt: Math.max(0, finiteOr(event.time, safeTime)),
+        strength,
+      }, this.profile.rippleSlots);
+    }
+    this.syncRippleUniforms();
+  }
+
+  reset(): void {
+    if (this.destroyed) return;
+    this.ripples = Object.freeze([]);
+    this.recentEventKeys.clear();
+    this.recentEventOrder.length = 0;
+    this.displayTime = 0;
+    this.downwash = 0;
+    this.reducedMotion = false;
+    this.uniforms.uTime.value = 0;
+    this.uniforms.uMotion.value = 1;
+    this.uniforms.uWaveScale.value = this.profile.amplitudeScale;
+    this.uniforms.uDownwash.value = 0;
+    this.syncRippleUniforms();
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.mesh.removeFromParent();
+    this.geometry.dispose();
+    this.material.dispose();
+    this.ripples = Object.freeze([]);
+    this.recentEventKeys.clear();
+    this.recentEventOrder.length = 0;
+  }
+
+  getDebugSnapshot(): Readonly<WaterDebugSnapshot> {
+    return Object.freeze({
+      quality: this.quality,
+      displayTime: this.displayTime,
+      reducedMotion: this.reducedMotion,
+      downwash: this.downwash,
+      ripples: Object.freeze(this.ripples.map((ripple) => Object.freeze({ ...ripple }))),
+    });
+  }
+
+  private syncRippleUniforms(): void {
+    for (let index = 0; index < MAX_WATER_RIPPLES; index += 1) {
+      const uniform = this.uniforms.uRipples.value[index];
+      if (!uniform) continue;
+      const ripple = this.ripples[index];
+      if (ripple && index < this.profile.rippleSlots) {
+        uniform.set(ripple.x, ripple.z, ripple.startedAt, ripple.strength);
+      } else {
+        uniform.set(0, 0, -100, 0);
+      }
+    }
+  }
+
+  private eventKey(event: Readonly<GameEvent>): string {
+    let detail = '';
+    if ('entityId' in event && event.entityId) detail = event.entityId;
+    else if ('coinId' in event) detail = event.coinId;
+    else if ('obstacleId' in event) detail = event.obstacleId;
+    else if ('offerId' in event) detail = event.offerId;
+    if ('outcome' in event) detail += `:${event.outcome}`;
+    return `${event.tick}:${event.type}:${detail}`;
+  }
+
+  private rememberEvent(key: string): void {
+    this.recentEventKeys.add(key);
+    this.recentEventOrder.push(key);
+    if (this.recentEventOrder.length <= 128) return;
+    const oldest = this.recentEventOrder.shift();
+    if (oldest) this.recentEventKeys.delete(oldest);
+  }
+}

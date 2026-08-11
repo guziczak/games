@@ -34,6 +34,8 @@ export interface GameConfig {
     readonly width: number;
     readonly spawnLead: number;
     readonly firstSpawnDelay: number;
+    /** Number of real, deterministic gates kept scheduled beyond the active course. */
+    readonly lookAheadCount: number;
     readonly minGapCenter: number;
     readonly maxGapCenter: number;
     readonly maxCenterDelta: number;
@@ -155,6 +157,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     width: 0.9,
     spawnLead: 1.5,
     firstSpawnDelay: 1.6,
+    lookAheadCount: 3,
     minGapCenter: 1.85,
     maxGapCenter: 8.15,
     maxCenterDelta: 1.8,

@@ -284,6 +284,10 @@ function createMutationOffer(
   state.dna.lastOffered = [upper, lower];
   state.dna.offersCreated += 1;
   state.world.spawnTimer = Math.max(state.world.spawnTimer, 2.5);
+  // The old game deferred the next spawn while a mutation fork was present.
+  // Retarget the already-visible course to the delayed deadline instead of
+  // letting look-ahead gates leak into the selection window.
+  synchronizeScheduledCourse(state, config);
   events.push({
     ...stamp(state),
     type: 'mutation-offered',
@@ -403,7 +407,7 @@ function nearestStorkTarget(state: GameState, config: GameConfig): ObstacleState
   let nearest: ObstacleState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const obstacle of state.world.obstacles) {
-    if (obstacle.destroyed || obstacle.passed) continue;
+    if (!obstacle.active || obstacle.destroyed || obstacle.passed) continue;
     const distance = obstacle.x - state.player.x;
     if (distance < 0 || distance > maximumDistance || distance >= nearestDistance) continue;
     nearest = obstacle;
@@ -930,8 +934,35 @@ function resolveBoundaryCollision(state: GameState, events: GameEvent[], config:
   failRun(state, events, 'boundary', entityId);
 }
 
-function spawnObstacle(state: GameState, events: GameEvent[], config: GameConfig): void {
-  const tier = getDifficultyTier(state.world.passedObstacles, config);
+function forecastPassedObstacles(
+  state: GameState,
+  config: GameConfig,
+  activationDelay: number,
+): number {
+  const currentTier = getDifficultyTier(state.world.passedObstacles, config);
+  const playerLeft = state.player.x - config.player.radiusX;
+  const spawnRight = config.world.width + config.obstacle.spawnLead + config.obstacle.width / 2;
+  const travelAfterActivation = Math.max(0, (spawnRight - playerLeft) / currentTier.speed);
+  let forecast = state.world.passedObstacles;
+
+  for (const obstacle of state.world.obstacles) {
+    if (obstacle.destroyed || obstacle.passed) continue;
+    const passDelay = obstacle.active
+      ? Math.max(0, (obstacle.x + obstacle.width / 2 - playerLeft) / currentTier.speed)
+      : obstacle.activationDelay + travelAfterActivation;
+    if (passDelay <= activationDelay) forecast += 1;
+  }
+  return forecast;
+}
+
+/**
+ * Materialise a real future gate immediately, but keep it outside gameplay
+ * until its old spawnTimer deadline. This lets the camera see the actual
+ * deterministic course without moving collision/scoring earlier.
+ */
+function planObstacle(state: GameState, config: GameConfig, activationDelay: number): ObstacleState {
+  const forecastPassed = forecastPassedObstacles(state, config, activationDelay);
+  const tier = getDifficultyTier(forecastPassed, config);
   const legalMinimum = Math.max(config.obstacle.minGapCenter, tier.gapSize / 2 + config.player.radiusY + 0.08);
   const legalMaximum = Math.min(config.obstacle.maxGapCenter, config.world.height - tier.gapSize / 2 - config.player.radiusY - 0.08);
   const minimum = Math.max(legalMinimum, state.world.lastGapCenter - config.obstacle.maxCenterDelta);
@@ -940,8 +971,12 @@ function spawnObstacle(state: GameState, events: GameEvent[], config: GameConfig
   const moving = sample(state) < tier.movingChance;
   const obstacle: ObstacleState = {
     id: allocateId(state, 'gate'),
-    x: config.world.width + config.obstacle.spawnLead,
+    x: config.world.width
+      + config.obstacle.spawnLead
+      + getDifficultyTier(state.world.passedObstacles, config).speed * Math.max(0, activationDelay),
     width: config.obstacle.width,
+    active: false,
+    activationDelay: Math.max(0, activationDelay),
     baseGapCenter: gapCenter,
     gapCenter,
     gapSize: tier.gapSize,
@@ -961,6 +996,18 @@ function spawnObstacle(state: GameState, events: GameEvent[], config: GameConfig
   };
   state.world.obstacles.push(obstacle);
   state.world.lastGapCenter = gapCenter;
+  return obstacle;
+}
+
+function activateObstacle(
+  state: GameState,
+  obstacle: ObstacleState,
+  events: GameEvent[],
+  config: GameConfig,
+): void {
+  obstacle.active = true;
+  obstacle.activationDelay = 0;
+  obstacle.x = config.world.width + config.obstacle.spawnLead;
   events.push({ ...stamp(state), type: 'obstacle-spawned', obstacleId: obstacle.id });
 
   if (sample(state) < config.obstacle.coinChance) {
@@ -980,14 +1027,67 @@ function spawnObstacle(state: GameState, events: GameEvent[], config: GameConfig
   }
 }
 
+function scheduledObstacles(state: GameState): ObstacleState[] {
+  return state.world.obstacles
+    .filter((obstacle) => !obstacle.active && !obstacle.destroyed && !obstacle.passed)
+    .sort((left, right) => left.activationDelay - right.activationDelay);
+}
+
+function nextScheduledDelay(state: GameState, config: GameConfig): number {
+  const scheduled = scheduledObstacles(state);
+  const last = scheduled[scheduled.length - 1];
+  if (!last) return Math.max(0, state.world.spawnTimer);
+  const tierAtLastSpawn = getDifficultyTier(
+    forecastPassedObstacles(state, config, last.activationDelay),
+    config,
+  );
+  return last.activationDelay + tierAtLastSpawn.spawnInterval;
+}
+
+function ensureObstacleLookAhead(state: GameState, config: GameConfig): void {
+  const configuredTarget = config.obstacle.lookAheadCount;
+  const target = Number.isFinite(configuredTarget)
+    ? Math.max(0, Math.floor(configuredTarget))
+    : 0;
+  let scheduledCount = scheduledObstacles(state).length;
+  while (scheduledCount < target) {
+    planObstacle(state, config, nextScheduledDelay(state, config));
+    scheduledCount += 1;
+  }
+}
+
+/** Re-anchor the already chosen course when a tier or mutation pause changes the next spawn deadline. */
+function synchronizeScheduledCourse(state: GameState, config: GameConfig): void {
+  const scheduled = scheduledObstacles(state);
+  if (scheduled.length === 0) return;
+  let delay = Math.max(0, state.world.spawnTimer);
+  for (const obstacle of scheduled) {
+    obstacle.activationDelay = delay;
+    delay += getDifficultyTier(forecastPassedObstacles(state, config, delay), config).spawnInterval;
+  }
+}
+
 function updateWorld(state: GameState, events: GameEvent[], config: GameConfig, dt: number): void {
   const tier = getDifficultyTier(state.world.passedObstacles, config);
   const scale = worldTimeScale(state, config);
   const worldDt = dt * scale;
   const distance = tier.speed * worldDt;
 
+  ensureObstacleLookAhead(state, config);
+
   for (const obstacle of state.world.obstacles) {
-    obstacle.x -= distance;
+    if (obstacle.active) {
+      obstacle.x -= distance;
+    } else if (!state.dna.offer) {
+      // A scheduled gate owns a real position and deadline. Approach its old
+      // spawn point continuously so tier changes or a mutation delay alter
+      // velocity, never teleport the geometry.
+      const spawnX = config.world.width + config.obstacle.spawnLead;
+      const remaining = Math.max(config.fixedStep * 0.001, obstacle.activationDelay);
+      const progress = clamp(worldDt / remaining, 0, 1);
+      obstacle.x += (spawnX - obstacle.x) * progress;
+      obstacle.activationDelay -= worldDt;
+    }
     if (obstacle.motionAmplitude > 0) {
       const animated = obstacle.baseGapCenter
         + Math.sin(state.clock.elapsed * Math.PI * 2 * obstacle.motionFrequency + obstacle.motionPhase) * obstacle.motionAmplitude;
@@ -1001,8 +1101,12 @@ function updateWorld(state: GameState, events: GameEvent[], config: GameConfig, 
   if (!state.dna.offer) {
     state.world.spawnTimer -= worldDt;
     while (state.world.spawnTimer <= 0) {
-      spawnObstacle(state, events, config);
+      let obstacle = scheduledObstacles(state)[0];
+      if (!obstacle) obstacle = planObstacle(state, config, 0);
+      activateObstacle(state, obstacle, events, config);
       state.world.spawnTimer += getDifficultyTier(state.world.passedObstacles, config).spawnInterval;
+      synchronizeScheduledCourse(state, config);
+      ensureObstacleLookAhead(state, config);
     }
   }
 }
@@ -1337,7 +1441,7 @@ function collectCoins(state: GameState, events: GameEvent[], config: GameConfig)
 function processObstacleInteractions(state: GameState, events: GameEvent[], config: GameConfig): void {
   clearReleasedFrogSurface(state, config);
   for (const obstacle of state.world.obstacles) {
-    if (obstacle.destroyed) continue;
+    if (!obstacle.active || obstacle.destroyed) continue;
     const overlapping = playerOverlapsObstacle(state, obstacle, config);
     if (!overlapping) {
       obstacle.collisionResolved = false;
@@ -1354,7 +1458,7 @@ function processObstacleInteractions(state: GameState, events: GameEvent[], conf
 function processPassedObstacles(state: GameState, events: GameEvent[], config: GameConfig): void {
   const playerLeft = state.player.x - config.player.radiusX;
   for (const obstacle of state.world.obstacles) {
-    if (obstacle.passed || obstacle.x + obstacle.width / 2 >= playerLeft) continue;
+    if (!obstacle.active || obstacle.passed || obstacle.x + obstacle.width / 2 >= playerLeft) continue;
     obstacle.passed = true;
     state.world.passedObstacles += 1;
     awardBase(state, events, 'obstacle-pass', obstacle.id, config.scoring.obstaclePass);

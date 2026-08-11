@@ -27,6 +27,10 @@ export interface ObstacleState {
   id: string;
   x: number;
   width: number;
+  /** False while this real gate is visible on the horizon but still awaits its legacy spawn time. */
+  active: boolean;
+  /** World-time seconds until activation; zero once the gate joins collision/scoring. */
+  activationDelay: number;
   baseGapCenter: number;
   gapCenter: number;
   gapSize: number;

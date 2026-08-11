@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 import { DEFAULT_GAME_CONFIG, getDifficultyTier } from '../simulation/GameConfig';
+import type { GameEvent } from '../simulation/GameEvents';
 import type { GameState, MutationModeId, ObstacleState } from '../simulation/GameState';
+import { WaterSurface } from './WaterSurface';
 
 export type RenderQuality = 'low' | 'medium' | 'high';
 
@@ -87,7 +89,9 @@ export function createWorldProjection(aspect: number): WorldProjection {
     mapY: (simulationY: number): number => simulationY - halfHeight,
     depthAt: (simulationX: number): number => clamp(
       (simulationX - DEFAULT_GAME_CONFIG.player.startX) * depthSlope,
-      -6.2,
+      // Keep the course genuinely longitudinal. The previous shallow clamp
+      // collapsed every distant gate onto one backdrop plane, erasing depth.
+      -64,
       1.55,
     ),
   });
@@ -107,12 +111,29 @@ function worldTimeScale(state: Readonly<GameState>): number {
   return 1;
 }
 
-function interpolatedWorldX(state: Readonly<GameState>, x: number, alpha: number): number {
+function interpolatedWorldX(
+  state: Readonly<GameState>,
+  x: number,
+  alpha: number,
+): number {
   const tier = getDifficultyTier(state.world.passedObstacles);
   return x - tier.speed
     * worldTimeScale(state)
     * DEFAULT_GAME_CONFIG.fixedStep
     * clamp(alpha, 0, 1);
+}
+
+function interpolatedObstacleX(
+  state: Readonly<GameState>,
+  obstacle: Readonly<ObstacleState>,
+  alpha: number,
+): number {
+  if (obstacle.active) return interpolatedWorldX(state, obstacle.x, alpha);
+  if (state.dna.offer) return obstacle.x;
+  const spawnX = DEFAULT_GAME_CONFIG.world.width + DEFAULT_GAME_CONFIG.obstacle.spawnLead;
+  const remaining = Math.max(DEFAULT_GAME_CONFIG.fixedStep, obstacle.activationDelay);
+  const velocity = (obstacle.x - spawnX) / remaining;
+  return obstacle.x - velocity * DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
 }
 
 type GateTransitPhase = 'ahead' | 'contact' | 'behind';
@@ -491,9 +512,7 @@ export class WorldViews {
   private readonly playerProjectionMarker: THREE.Mesh;
   private readonly playerAltitudeGuide: THREE.Mesh;
   private readonly playerHitboxReticle: THREE.Mesh;
-  private readonly floor: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly floorMaterial: THREE.ShaderMaterial;
-  private readonly floorTimeUniform = { value: 0 };
+  private readonly water: WaterSurface;
   private readonly sun: THREE.Group;
   private readonly portal: PortalView;
   private readonly targetMarker: THREE.Group;
@@ -544,48 +563,7 @@ export class WorldViews {
     sky.frustumCulled = false;
     this.root.add(sky);
 
-    const floorGeometry = this.trackGeometry(new THREE.PlaneGeometry(1, 1));
-    this.floorMaterial = this.trackMaterial(new THREE.ShaderMaterial({
-      transparent: false,
-      depthWrite: true,
-      side: THREE.DoubleSide,
-      uniforms: {
-        time: this.floorTimeUniform,
-        deepColour: { value: new THREE.Color(0x0d2238) },
-        nearColour: { value: new THREE.Color(0x28516a) },
-        gridColour: { value: new THREE.Color(0x2e7182) },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        uniform vec3 deepColour;
-        uniform vec3 nearColour;
-        uniform vec3 gridColour;
-        varying vec2 vUv;
-        float line(float value, float width) {
-          float cell = abs(fract(value - 0.5) - 0.5) / max(fwidth(value), 0.0001);
-          return 1.0 - smoothstep(width, width + 1.0, cell);
-        }
-        void main() {
-          float depthFade = smoothstep(0.05, 0.92, vUv.y);
-          float longitudinal = line(vUv.x * 18.0, 0.55);
-          float crosswise = line(vUv.y * 32.0 + time * 0.35, 0.5);
-          float grid = max(longitudinal * 0.22, crosswise * 0.31) * smoothstep(0.02, 0.28, vUv.y);
-          vec3 base = mix(nearColour, deepColour, depthFade);
-          gl_FragColor = vec4(base + gridColour * grid, 1.0);
-        }
-      `,
-    }));
-    this.floor = new THREE.Mesh(floorGeometry, this.floorMaterial);
-    this.floor.name = 'perspective-cloud-deck';
-    this.floor.rotation.x = -Math.PI / 2;
-    this.root.add(this.floor);
+    this.water = new WaterSurface(this.root, quality);
 
     const laneLightGeometry = this.trackGeometry(new THREE.SphereGeometry(0.065, 8, 6));
     const laneLightMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
@@ -903,12 +881,15 @@ export class WorldViews {
     projection: WorldProjection,
     alpha: number,
     reducedMotion: boolean,
+    events: readonly GameEvent[] = [],
+    cameraPosition?: Readonly<THREE.Vector3>,
   ): void {
     if (this.destroyed) return;
     this.revision += 1;
     const time = state.clock.elapsed + DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
     const ambientTime = reducedMotion ? 0 : time;
-    this.updateFloor(projection);
+    this.updateHorizonDressing(projection);
+    this.water.update(state, projection, time, reducedMotion, events, cameraPosition);
     this.updateFlightRail(state, projection, alpha, time);
     this.updateAmbient(projection, ambientTime, reducedMotion);
     this.updateGates(state, projection, alpha, time);
@@ -929,7 +910,7 @@ export class WorldViews {
   ): THREE.Vector3 {
     const obstacle = state.world.obstacles.find((candidate) => candidate.id === entityId);
     if (obstacle) {
-      const x = interpolatedWorldX(state, obstacle.x, alpha);
+      const x = interpolatedObstacleX(state, obstacle, alpha);
       target.set(projection.mapX(x), projection.mapY(obstacle.gapCenter), projection.depthAt(x));
       return target;
     }
@@ -957,6 +938,7 @@ export class WorldViews {
     this.lastEntityPositions.clear();
     this.coinRings.count = 0;
     this.coinCores.count = 0;
+    this.water.reset();
     this.portal.reset();
     this.targetMarker.visible = false;
     this.revision = 0;
@@ -965,6 +947,7 @@ export class WorldViews {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.water.destroy();
     this.root.removeFromParent();
     for (const geometry of this.geometries) geometry.dispose();
     for (const material of this.materials) material.dispose();
@@ -976,9 +959,7 @@ export class WorldViews {
     this.lastEntityPositions.clear();
   }
 
-  private updateFloor(projection: WorldProjection): void {
-    this.floor.position.set(0, projection.mapY(0) - 0.055, -7.2);
-    this.floor.scale.set(projection.viewWidth * 2.7, 30, 1);
+  private updateHorizonDressing(projection: WorldProjection): void {
     this.sun.position.set(
       projection.viewWidth * 0.32,
       projection.viewHeight * 0.28,
@@ -993,7 +974,11 @@ export class WorldViews {
     time: number,
   ): void {
     const railStart = DEFAULT_GAME_CONFIG.player.startX - 2.2;
-    const railEnd = DEFAULT_GAME_CONFIG.world.width + 1.2;
+    const farthestGateX = state.world.obstacles.reduce(
+      (maximum, obstacle) => obstacle.destroyed ? maximum : Math.max(maximum, obstacle.x),
+      DEFAULT_GAME_CONFIG.world.width + DEFAULT_GAME_CONFIG.obstacle.spawnLead,
+    );
+    const railEnd = Math.max(DEFAULT_GAME_CONFIG.world.width + 1.2, farthestGateX + 1.6);
     const startX = projection.mapX(railStart);
     const startZ = projection.depthAt(railStart);
     const endX = projection.mapX(railEnd);
@@ -1070,8 +1055,8 @@ export class WorldViews {
     let focusedId: string | null = null;
     let focusedDelta = Number.POSITIVE_INFINITY;
     for (const obstacle of state.world.obstacles) {
-      if (obstacle.destroyed) continue;
-      const visualX = interpolatedWorldX(state, obstacle.x, alpha);
+      if (!obstacle.active || obstacle.destroyed) continue;
+      const visualX = interpolatedObstacleX(state, obstacle, alpha);
       const delta = visualX - playerVisualX;
       if (delta < -obstacle.width * 0.72 || delta >= focusedDelta) continue;
       focusedId = obstacle.id;
@@ -1088,7 +1073,7 @@ export class WorldViews {
         this.gatesById.set(obstacle.id, view);
       }
       view.seenRevision = this.revision;
-      const visualX = interpolatedWorldX(state, obstacle.x, alpha);
+      const visualX = interpolatedObstacleX(state, obstacle, alpha);
       const locked = state.mode.active === 'stork'
         && state.mode.stork.lockedTargetId === obstacle.id;
       const delta = visualX - playerVisualX;
@@ -1152,7 +1137,6 @@ export class WorldViews {
     time: number,
     reducedMotion: boolean,
   ): void {
-    this.floorTimeUniform.value = time;
     const cloudSpan = projection.viewWidth + 8;
     for (let index = 0; index < this.ambientSeeds.length; index += 1) {
       const seed = this.ambientSeeds[index];
