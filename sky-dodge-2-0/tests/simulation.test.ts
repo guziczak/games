@@ -414,6 +414,75 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(runTicks(released.state, 10, ACTION_CONFIG).state.status).toBe('running');
   });
 
+  it('keeps expiry grace scoped to the frog launch surface at maximum gate speed', () => {
+    const expiryConfig: GameConfig = {
+      ...ACTION_CONFIG,
+      player: { ...ACTION_CONFIG.player, gravity: 0 },
+    };
+    const source = startMode(
+      createInitialGameState(212, expiryConfig),
+      'frog',
+      expiryConfig,
+    ).state;
+    source.world.spawnTimer = 999;
+    source.world.passedObstacles = 50;
+    source.player.invulnerableTime = 0;
+    source.player.y = 4.2;
+    source.world.obstacles.push(makeObstacle({
+      id: 'frog-expiry-surface',
+      x: 5,
+      gapCenter: 6,
+      baseGapCenter: 6,
+      gapSize: 2,
+    }));
+
+    const clinging = stepSimulation(source, expiryConfig.fixedStep, undefined, expiryConfig);
+    expect(clinging.state.mode.frog.phase).toBe('clinging');
+    clinging.state.mode.remaining = expiryConfig.fixedStep / 2;
+    let result = stepSimulation(
+      clinging.state,
+      expiryConfig.fixedStep,
+      [{ type: 'ability-release' }],
+      expiryConfig,
+    );
+    const events: GameEvent[] = [...result.events];
+    expect(result.state.mode.active).toBe('normal');
+    expect(result.state.player.frogReleaseGraceEntityIds).toContain('frog-expiry-surface');
+    expect(result.state.player.collisionGraceEntityIds).toContain('frog-expiry-surface');
+
+    for (let tick = 0; tick < 60 && !result.state.world.obstacles[0]?.passed; tick += 1) {
+      result = stepSimulation(result.state, expiryConfig.fixedStep, undefined, expiryConfig);
+      events.push(...result.events);
+    }
+    expect(result.state.status).toBe('running');
+    expect(result.state.world.obstacles[0]?.passed).toBe(true);
+    expect(result.state.player.frogReleaseGraceEntityIds).not.toContain('frog-expiry-surface');
+    expect(result.state.player.collisionGraceEntityIds).not.toContain('frog-expiry-surface');
+    expect(events.some((event) => event.type === 'game-over'
+      && event.entityId === 'frog-expiry-surface')).toBe(false);
+
+    result.state.player.invulnerableTime = 0;
+    result.state.world.obstacles.push(makeObstacle({
+      id: 'unrelated-fatal-wall',
+      x: result.state.player.x,
+      gapCenter: 6,
+      baseGapCenter: 6,
+      gapSize: 2,
+    }));
+    const unrelatedCollision = stepSimulation(
+      result.state,
+      expiryConfig.fixedStep,
+      undefined,
+      expiryConfig,
+    );
+    expect(unrelatedCollision.state.status).toBe('dead');
+    expect(unrelatedCollision.events).toContainEqual(expect.objectContaining({
+      type: 'collision',
+      entityId: 'unrelated-fatal-wall',
+      outcome: 'fatal',
+    }));
+  });
+
   it('makes rubber quick taps useful, keeps duplicate starts idempotent, and scores one physical ricochet', () => {
     const quickSource = startMode(createInitialGameState(202, ACTION_CONFIG), 'rubber', ACTION_CONFIG).state;
     quickSource.world.spawnTimer = 999;
