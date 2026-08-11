@@ -501,7 +501,19 @@
         return activate ? activate() : undefined;
     }
 
+    let mutationTriggerInProgress = false;
+
     function triggerMutation(forcedChoice, metadata) {
+        if (mutationTriggerInProgress) return null;
+        mutationTriggerInProgress = true;
+        try {
+            return performMutation(forcedChoice, metadata);
+        } finally {
+            mutationTriggerInProgress = false;
+        }
+    }
+
+    function performMutation(forcedChoice, metadata) {
         const choice = forcedChoice || logic.chooseMutation(state.metrics);
         if (!choice) return null;
 
@@ -523,7 +535,9 @@
         // evolution while the current FSM cannot accept the transformation.
         // A mode transition will retry it once the bird becomes compatible.
         if (!activated) {
-            state.mutation.pending = choice;
+            state.mutation.pending = state.mutation.instability >= state.mutation.threshold
+                ? choice
+                : null;
             updateMutationUI();
             return null;
         }

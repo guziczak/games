@@ -207,3 +207,28 @@ test('mutation strain waits through an incompatible mode and activates after ret
     delete globalThis.activateSteelMode;
     skyDodge.resetState({ keepGeneration: true });
 });
+
+test('failed emergency and reentrant listeners cannot leave an unpayable pending mutation', () => {
+    const skyDodge = require('../gameState.js');
+    skyDodge.resetState({ keepGeneration: true });
+    skyDodge.modeMachine.activate('stork', { force: true, reason: 'test' });
+
+    skyDodge.mutations.strain(75, null, { source: 'emergency-setup' });
+    assert.equal(skyDodge.mutations.tryEmergency('pipe', { source: 'test' }), false);
+    assert.equal(skyDodge.state.mutation.instability, 75);
+    assert.equal(skyDodge.state.mutation.pending, null);
+
+    skyDodge.mutations.reset();
+    skyDodge.mutations.strain(50, 'pipeImpact', { source: 'first-grab' });
+    const unsubscribe = skyDodge.mutations.onTrigger(() => {
+        skyDodge.mutations.reset();
+        skyDodge.mutations.trigger('ghost', { source: 'nested-listener' });
+        return false;
+    });
+    skyDodge.mutations.strain(50, 'pipeImpact', { source: 'second-grab' });
+    unsubscribe();
+
+    assert.equal(skyDodge.state.mutation.instability, 0);
+    assert.equal(skyDodge.state.mutation.pending, null);
+    skyDodge.resetState({ keepGeneration: true });
+});

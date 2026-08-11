@@ -50,6 +50,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (machine && typeof machine.deactivate === 'function') machine.deactivate(mode);
     }
 
+    function releaseStorkPipeIfHeld(pipe, reason) {
+        if (pipe && pipe === window.storkGrabbedPipe
+            && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab(reason || 'pipe-removed');
+        }
+    }
+
     function scheduleModeTimer(key, callback, delay) {
         if (modeTimers.has(key)) clearTimeout(modeTimers.get(key));
         const generation = window.SkyDodge && window.SkyDodge.state
@@ -1027,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (pipe.destroyed || pipe.scheduledForRemoval || 
                 !pipe.upPipe || !pipe.downPipe || 
                 !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
+                releaseStorkPipeIfHeld(pipe, 'pipe-removed');
                 
                 try {
                     // Usuń elementy DOM rury, jeśli jeszcze istnieją
@@ -1082,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const pipe = pipes[i];
                     if (pipe.destroyed || !pipe.upPipe || !pipe.downPipe || 
                         !pipe.upPipe.parentNode || !pipe.downPipe.parentNode) {
+                        releaseStorkPipeIfHeld(pipe, 'pipe-removed');
                         
                         if (pipe.upPipe && pipe.upPipe.parentNode) {
                             gameArea.removeChild(pipe.upPipe);
@@ -1096,6 +1105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error("Błąd podczas drugiego sprawdzenia rur:", e);
                     // W przypadku wyjątku, bezpiecznie usuń rurę
                     try {
+                        releaseStorkPipeIfHeld(pipes[i], 'pipe-removal-error');
                         pipes.splice(i, 1);
                     } catch (err) {
                         console.error("Nie udało się usunąć rury z listy:", err);
@@ -1973,16 +1983,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!Number.isFinite(pipeX)) return null;
         const areaRect = gameArea.getBoundingClientRect();
         const birdRect = bird.getBoundingClientRect();
-        const birdLeft = birdRect.left - areaRect.left;
         const birdRight = birdRect.right - areaRect.left;
-        const birdCenter = (birdLeft + birdRight) / 2;
         const width = finiteStorkValue(pipe.width, pipeWidth);
         const pipeCenter = pipeX + width / 2;
 
         // A pipe already beside/behind the bird is not a safe editing target:
         // changing its gap there could visually swallow the player.
         if (pipeX < birdRight + 12) return null;
-        const distance = Math.abs(pipeCenter - birdCenter);
+        const distance = pipeX - birdRight;
         if (distance > effectiveStorkGrabRange()) return null;
 
         const center = currentStorkPipeCenter(pipe);
@@ -2110,7 +2118,9 @@ document.addEventListener('DOMContentLoaded', function() {
             hint.textContent = active
                 ? (storkGrabInputKind === 'keyboard'
                     ? 'W/S lub ↑/↓: przesuń • E: puść'
-                    : 'Przeciągnij pionowo • puść, aby ustawić')
+                    : (storkGrabInputKind === 'button'
+                        ? 'Dotknij trzymanej rury, aby ją przeciągnąć • przycisk: puść'
+                        : 'Przeciągnij pionowo • puść, aby ustawić'))
                 : (hasCandidate ? 'Kliknij rurę albo E, aby ją chwycić' : 'Zbliż się do bezpiecznej rury');
         }
 
@@ -2157,7 +2167,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.tryStartStorkPipeGrab = function(event, options = {}) {
         if (!gameRunning || !storkModeActive) return false;
-        if (window.storkGrabActive) return true;
+        if (window.storkGrabActive) {
+            if (storkGrabInputKind !== 'pointer' && event && window.storkGrabbedPipe) {
+                const point = storkEventPoint(event);
+                const areaRect = gameArea.getBoundingClientRect();
+                const pointerX = point ? point.clientX - areaRect.left : NaN;
+                const pipeX = finiteStorkValue(window.storkGrabbedPipe.x, NaN);
+                const width = finiteStorkValue(window.storkGrabbedPipe.width, pipeWidth);
+                if (point && Number.isFinite(pipeX)
+                    && pointerX >= pipeX - STORK_GRAB_POINTER_SLOP
+                    && pointerX <= pipeX + width + STORK_GRAB_POINTER_SLOP) {
+                    const center = currentStorkPipeCenter(window.storkGrabbedPipe);
+                    if (Number.isFinite(center)) {
+                        storkGrabPointerOffsetY = center - (point.clientY - areaRect.top);
+                        storkGrabInputKind = 'pointer';
+                        syncStorkGrabUi('pointer-adopted');
+                        return true;
+                    }
+                }
+            }
+            return storkGrabInputKind === 'pointer';
+        }
         if (event && event.button !== undefined && event.button !== 0) return false;
 
         const point = storkEventPoint(event);
@@ -2203,12 +2233,17 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.moveStorkPipeGrab = function(event) {
-        if (!window.storkGrabActive || !window.storkGrabbedPipe) return false;
+        if (!window.storkGrabActive || !window.storkGrabbedPipe
+            || storkGrabInputKind !== 'pointer') return false;
         const point = storkEventPoint(event);
         if (!point) return false;
         const areaRect = gameArea.getBoundingClientRect();
         window.storkGrabTargetY = point.clientY - areaRect.top + storkGrabPointerOffsetY;
         return true;
+    };
+
+    window.isPointerStorkPipeGrab = function() {
+        return Boolean(window.storkGrabActive && storkGrabInputKind === 'pointer');
     };
 
     window.releaseStorkPipeGrab = function(reason = 'drop', options = {}) {

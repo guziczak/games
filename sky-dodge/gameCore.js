@@ -210,6 +210,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function pointerStorkGrabActive() {
+        return typeof window.isPointerStorkPipeGrab === 'function'
+            ? window.isPointerStorkPipeGrab()
+            : Boolean(window.storkGrabActive);
+    }
+
     document.addEventListener('sky-dodge:mutation', function(event) {
         const mutationNames = {
             frog: 'żaba',
@@ -587,6 +593,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Zarządzanie TRYBEM STALI
+        if (typeof window.updateStorkPipeGrab === 'function') {
+            window.updateStorkPipeGrab(timestamp, deltaTime / 60);
+        }
+
         if (steelModeActive) {
             // Dodaj błyszczące efekty dla stalowego ptaka
             if (Math.random() < 1 - Math.pow(1 - 0.05, deltaTime)) {
@@ -653,6 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = pipes.length - 1; i >= 0; i--) {
             const pipe = pipes[i];
             if (pipe.destroyed || pipe.scheduledForRemoval) {
+                releaseStorkPipeForLifecycle(pipe, 'pipe-removed');
                 // Usuń zniszczone rury z DOM i z tablicy
                 if (pipe.upPipe && pipe.upPipe.parentNode) {
                     gameArea.removeChild(pipe.upPipe);
@@ -668,8 +679,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Iterujemy od końca, aby bezpiecznie usuwać elementy
         for (let i = pipes.length - 1; i >= 0; i--) {
             const pipe = pipes[i];
+            if (!pipe.upPipe || !pipe.downPipe) {
+                releaseStorkPipeForLifecycle(pipe, 'pipe-invalid');
+            }
             
-            pipe.x -= worldPausedByFrog ? 0 : currentPipeSpeed * deltaTime;
+            const heldByStork = storkModeActive
+                && window.storkGrabActive
+                && pipe === window.storkGrabbedPipe;
+            pipe.x -= (worldPausedByFrog || heldByStork) ? 0 : currentPipeSpeed * deltaTime;
             
             if (pipe.upPipe && pipe.downPipe) {
                 pipe.upPipe.style.left = pipe.x + 'px';
@@ -693,12 +710,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (isPastLeftEdge(pipe, pipeWidth)) {
+                    releaseStorkPipeForLifecycle(pipe, 'pipe-offscreen');
                     if (pipe.upPipe.parentNode) gameArea.removeChild(pipe.upPipe);
                     if (pipe.downPipe.parentNode) gameArea.removeChild(pipe.downPipe);
                     pipes.splice(i, 1);
                 }
             } else {
                 // Jeśli rura ma brakujące elementy, usuń ją
+                releaseStorkPipeForLifecycle(pipe, 'pipe-invalid');
                 pipes.splice(i, 1);
             }
         }
@@ -764,6 +783,8 @@ document.addEventListener('DOMContentLoaded', function() {
     gameArea.addEventListener('touchstart', function(event) {
         if (event.target.closest('button, a')) return;
         event.preventDefault();
+        if (typeof window.tryStartStorkPipeGrab === 'function'
+            && window.tryStartStorkPipeGrab(event)) return;
         if (gameRunning && !rubberModeActive) {
             makeJump();
         }
@@ -772,6 +793,10 @@ document.addEventListener('DOMContentLoaded', function() {
     gameArea.addEventListener('touchend', function(event) {
         if (event.target.closest('button, a')) return;
         event.preventDefault();
+        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab('drop');
+            return;
+        }
         if (gameRunning && frogModeActive && frogIsCharging) {
             stopFrogCharging();
         }
@@ -779,6 +804,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.addEventListener('keydown', function(event) {
         if (event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
+        if (typeof window.handleStorkGrabKeyDown === 'function'
+            && window.handleStorkGrabKeyDown(event)) {
+            event.preventDefault();
+            return;
+        }
         if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning) {
             event.preventDefault();
             makeJump();
@@ -787,6 +817,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.addEventListener('keyup', function(event) {
         if (event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
+        if (typeof window.handleStorkGrabKeyUp === 'function'
+            && window.handleStorkGrabKeyUp(event)) {
+            event.preventDefault();
+            return;
+        }
         if ((event.code === 'Space' || event.code === 'ArrowUp') && gameRunning && frogModeActive && frogIsCharging) {
             event.preventDefault();
             stopFrogCharging();
@@ -795,24 +830,54 @@ document.addEventListener('DOMContentLoaded', function() {
     
     gameArea.addEventListener('mousedown', function(event) {
         if (event.target.closest('button, a')) return;
+        if (typeof window.tryStartStorkPipeGrab === 'function'
+            && window.tryStartStorkPipeGrab(event)) return;
         if (gameRunning && !rubberModeActive) {
             makeJump();
         }
     });
     
     gameArea.addEventListener('mouseup', function(event) {
+        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab('drop');
+            return;
+        }
         if (gameRunning && frogModeActive && frogIsCharging) {
             stopFrogCharging();
         }
     });
+
+    document.addEventListener('mousemove', function(event) {
+        if (window.storkGrabActive && typeof window.moveStorkPipeGrab === 'function') {
+            window.moveStorkPipeGrab(event);
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab('drop');
+        }
+    });
     
     document.addEventListener('touchmove', function(event) {
+        if (window.storkGrabActive && typeof window.moveStorkPipeGrab === 'function') {
+            window.moveStorkPipeGrab(event);
+        }
         if (gameRunning && event.touches.length === 1 && event.target.closest('#gameArea')) {
             event.preventDefault();
         }
     }, { passive: false });
+
+    document.addEventListener('touchcancel', function() {
+        if (pointerStorkGrabActive() && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab('drop');
+        }
+    });
     
     window.addEventListener('resize', function() {
+        if (window.storkGrabActive && typeof window.releaseStorkPipeGrab === 'function') {
+            window.releaseStorkPipeGrab('resize', { skipCooldown: true });
+        }
         if (gameRunning) {
             bird.style.left = birdHorizontalPosition + '%';
         }
