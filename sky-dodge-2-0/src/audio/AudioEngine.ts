@@ -6,6 +6,8 @@ interface Voice {
   readonly gain: GainNode;
   readonly send: GainNode | null;
   readonly sources: Set<AudioScheduledSourceNode>;
+  /** Every transient node, including envelopes, filters and panners. */
+  readonly nodes: Set<AudioNode>;
   readonly priority: number;
   readonly terminal: boolean;
   timer: number | null;
@@ -17,6 +19,11 @@ interface AmbienceLayer {
   readonly windFilter: BiquadFilterNode;
   readonly windGain: GainNode;
   readonly windPan: StereoPannerNode | null;
+  readonly water: AudioBufferSourceNode;
+  readonly waterHighpass: BiquadFilterNode;
+  readonly waterLowpass: BiquadFilterNode;
+  readonly waterGain: GainNode;
+  readonly waterPan: StereoPannerNode | null;
   readonly body: OscillatorNode;
   readonly bodyFilter: BiquadFilterNode;
   readonly bodyGain: GainNode;
@@ -32,6 +39,7 @@ interface ToneOptions {
   readonly endFrequency?: number;
   readonly filter?: { readonly type: BiquadFilterType; readonly frequency: number; readonly q?: number };
   readonly pan?: number;
+  readonly endPan?: number;
 }
 
 interface NoiseOptions {
@@ -39,26 +47,41 @@ interface NoiseOptions {
   readonly duration?: number;
   readonly gain?: number;
   readonly frequency?: number;
+  readonly endFrequency?: number;
   readonly q?: number;
   readonly type?: BiquadFilterType;
   readonly pan?: number;
+  readonly endPan?: number;
 }
 
 const SILENCE = 0.0001;
 const MASTER_LEVEL = 0.46;
-const MAX_VOICES = 11;
+/** Public, testable mixer contract. Ambience never consumes transient voices. */
+export const AUDIO_MIX_BUDGET = Object.freeze({
+  ambienceSources: 3,
+  maximumVoices: 11,
+  waterLoopSeconds: 7.6,
+});
+const MAX_VOICES = AUDIO_MIX_BUDGET.maximumVoices;
+const WATER_LOOP_SECONDS = AUDIO_MIX_BUDGET.waterLoopSeconds;
 
 const MODE_AMBIENCE: Readonly<Record<ModeId, {
   readonly bodyFrequency: number;
   readonly bodyGain: number;
+  readonly bodyType: OscillatorType;
+  readonly bodyFilterFrequency: number;
+  readonly bodyPulseRate: number;
+  readonly bodyPulseDepth: number;
   readonly windFrequency: number;
+  readonly waterGain: number;
+  readonly waterFrequency: number;
 }>> = Object.freeze({
-  normal: { bodyFrequency: 112, bodyGain: 0.005, windFrequency: 1_120 },
-  frog: { bodyFrequency: 78, bodyGain: 0.012, windFrequency: 760 },
-  rubber: { bodyFrequency: 146, bodyGain: 0.008, windFrequency: 1_380 },
-  steel: { bodyFrequency: 55, bodyGain: 0.018, windFrequency: 580 },
-  ghost: { bodyFrequency: 188, bodyGain: 0.009, windFrequency: 1_760 },
-  stork: { bodyFrequency: 224, bodyGain: 0.007, windFrequency: 1_540 },
+  normal: { bodyFrequency: 112, bodyGain: 0.0045, bodyType: 'triangle', bodyFilterFrequency: 310, bodyPulseRate: 1.7, bodyPulseDepth: 0.08, windFrequency: 1_120, waterGain: 0.026, waterFrequency: 820 },
+  frog: { bodyFrequency: 78, bodyGain: 0.0065, bodyType: 'sawtooth', bodyFilterFrequency: 235, bodyPulseRate: 2.6, bodyPulseDepth: 0.18, windFrequency: 760, waterGain: 0.031, waterFrequency: 610 },
+  rubber: { bodyFrequency: 146, bodyGain: 0.006, bodyType: 'sine', bodyFilterFrequency: 470, bodyPulseRate: 3.8, bodyPulseDepth: 0.13, windFrequency: 1_380, waterGain: 0.024, waterFrequency: 980 },
+  steel: { bodyFrequency: 55, bodyGain: 0.0085, bodyType: 'square', bodyFilterFrequency: 175, bodyPulseRate: 0.9, bodyPulseDepth: 0.1, windFrequency: 580, waterGain: 0.028, waterFrequency: 540 },
+  ghost: { bodyFrequency: 188, bodyGain: 0.0055, bodyType: 'sine', bodyFilterFrequency: 760, bodyPulseRate: 1.3, bodyPulseDepth: 0.22, windFrequency: 1_760, waterGain: 0.016, waterFrequency: 1_160 },
+  stork: { bodyFrequency: 224, bodyGain: 0.005, bodyType: 'triangle', bodyFilterFrequency: 620, bodyPulseRate: 2.2, bodyPulseDepth: 0.12, windFrequency: 1_540, waterGain: 0.021, waterFrequency: 1_020 },
 });
 
 /** Asset-free WebAudio soundscape. Every node belongs to a run, so restart,
@@ -78,6 +101,7 @@ export class AudioEngine {
   private paused = false;
   private runActive = false;
   private noiseBuffer: AudioBuffer | null = null;
+  private waterBuffer: AudioBuffer | null = null;
   private impulseBuffer: AudioBuffer | null = null;
   private ambience: AmbienceLayer | null = null;
   private lastAmbienceUpdateAt = -Infinity;
@@ -87,6 +111,7 @@ export class AudioEngine {
     if (this.context?.state === 'closed') {
       this.clearMixerReferences();
       this.noiseBuffer = null;
+      this.waterBuffer = null;
       this.impulseBuffer = null;
     }
     if (!this.context) {
@@ -107,6 +132,7 @@ export class AudioEngine {
         const failedContext = this.context as AudioContext | null;
         this.clearMixerReferences();
         this.noiseBuffer = null;
+        this.waterBuffer = null;
         this.impulseBuffer = null;
         if (failedContext && failedContext.state !== 'closed') {
           try { await failedContext.close(); } catch { /* best-effort cleanup */ }
@@ -197,14 +223,39 @@ export class AudioEngine {
     this.lastAmbienceUpdateAt = context.currentTime;
 
     const profile = MODE_AMBIENCE[state.mode.active];
+    const altitude = Math.max(0, Math.min(1, state.player.y / 10));
+    const waterProximity = 1 - altitude;
+    const swell = 0.5 + Math.sin(state.clock.elapsed * 0.72) * 0.32
+      + Math.sin(state.clock.elapsed * 1.93 + 0.8) * 0.18;
     const speedLift = Math.min(0.018, state.world.passedObstacles * 0.00035);
     const verticalLift = Math.min(0.022, Math.abs(state.player.vy) * 0.003);
     const modeLift = state.mode.active === 'stork' ? 0.012 : state.mode.active === 'ghost' ? 0.003 : 0;
-    this.target(ambience.windGain.gain, 0.018 + speedLift + verticalLift + modeLift, 0.1);
+    this.target(ambience.windGain.gain, 0.016 + altitude * 0.006 + speedLift + verticalLift + modeLift, 0.1);
     this.target(ambience.windFilter.frequency, profile.windFrequency + Math.abs(state.player.vy) * 85, 0.11);
+    const waterLevel = profile.waterGain
+      * (0.5 + waterProximity * 0.76)
+      * (0.88 + Math.max(0, Math.min(1, swell)) * 0.18);
+    this.target(ambience.waterGain.gain, waterLevel, 0.24);
+    this.target(ambience.waterHighpass.frequency, 64 + altitude * 72, 0.28);
+    this.target(
+      ambience.waterLowpass.frequency,
+      profile.waterFrequency + waterProximity * 440 + swell * 135,
+      0.3,
+    );
+    const bodyPulse = 1 + Math.sin(state.clock.elapsed * profile.bodyPulseRate)
+      * profile.bodyPulseDepth;
+    try { ambience.body.type = profile.bodyType; } catch { /* old WebKit may reject live type changes */ }
     this.target(ambience.body.frequency, profile.bodyFrequency + Math.min(28, state.combo.links * 2.5), 0.16);
-    this.target(ambience.bodyGain.gain, profile.bodyGain, 0.18);
+    this.target(ambience.bodyFilter.frequency, profile.bodyFilterFrequency, 0.22);
+    this.target(ambience.bodyGain.gain, profile.bodyGain * bodyPulse, 0.18);
     if (ambience.windPan) this.target(ambience.windPan.pan, Math.max(-0.28, Math.min(0.28, state.player.vx * 0.045)), 0.14);
+    if (ambience.waterPan) {
+      this.target(
+        ambience.waterPan.pan,
+        Math.max(-0.2, Math.min(0.2, Math.sin(state.clock.elapsed * 0.41) * 0.14 - state.player.vx * 0.012)),
+        0.32,
+      );
+    }
   }
 
   public handle(events: readonly GameEvent[], state?: Readonly<GameState>): void {
@@ -248,12 +299,17 @@ export class AudioEngine {
           break;
         case 'collision':
           if (event.outcome === 'destroy') this.playSteelImpact(entityPan, false);
-          else if (event.outcome === 'bounce') this.playRubberBounce(entityPan);
+          else if (event.outcome === 'bounce') {
+            this.playRubberBounce(entityPan, event.entityId === 'boundary-floor' ? 1 : 0.46);
+          }
           else if (event.outcome === 'cling') this.playFrogCling(entityPan);
           else if (event.outcome === 'phase') {
             this.cue('ghost-pass', 0.09, () => this.playGhostPass(entityPan));
           }
           else if (event.outcome === 'shielded') this.playShield(entityPan);
+          if (event.entityId === 'boundary-floor' && event.outcome !== 'bounce') {
+            this.playWaterSplash(0, event.outcome === 'fatal' ? 0.7 : 1);
+          }
           break;
         case 'combo-changed':
           if (event.links > 1) this.cue('combo', 0.065, () => this.playCombo(event.multiplier));
@@ -285,6 +341,7 @@ export class AudioEngine {
     const context = this.context;
     this.clearMixerReferences();
     this.noiseBuffer = null;
+    this.waterBuffer = null;
     this.impulseBuffer = null;
     if (context && context.state !== 'closed') void context.close();
   }
@@ -342,6 +399,18 @@ export class AudioEngine {
   }
 
   private clearMixerReferences(): void {
+    if (this.ambience) this.disconnectAmbience(this.ambience);
+    for (const node of [
+      this.reverb,
+      this.reverbGain,
+      this.sfxBus,
+      this.ambienceBus,
+      this.master,
+      this.compressor,
+      this.limiter,
+    ]) {
+      try { node?.disconnect(); } catch { /* already disconnected */ }
+    }
     this.context = null;
     this.master = null;
     this.sfxBus = null;
@@ -378,11 +447,47 @@ export class AudioEngine {
     return this.noiseBuffer;
   }
 
+  /** A long, low-correlated wash. The short white-noise buffer remains reserved
+   * for wind and impacts, so the water never reveals their repeating grain. */
+  private getWaterBuffer(): AudioBuffer | null {
+    const context = this.context;
+    if (!context) return null;
+    if (this.waterBuffer) return this.waterBuffer;
+
+    const length = Math.max(1, Math.floor(context.sampleRate * WATER_LOOP_SECONDS));
+    this.waterBuffer = context.createBuffer(1, length, context.sampleRate);
+    const data = this.waterBuffer.getChannelData(0);
+    let wash = 0;
+    let foam = 0;
+    for (let index = 0; index < length; index += 1) {
+      const white = Math.random() * 2 - 1;
+      wash = wash * 0.986 + white * 0.028;
+      foam = foam * 0.61 + white * 0.39;
+      const phase = index / length * Math.PI * 2;
+      const swell = 0.72 + Math.sin(phase * 3 + 0.4) * 0.13
+        + Math.sin(phase * 7 + 1.7) * 0.07;
+      data[index] = Math.max(-1, Math.min(1, (wash * 0.82 + foam * 0.16) * swell));
+    }
+
+    // Join the random walk back to its beginning without a hard loop click.
+    const seamLength = Math.min(Math.floor(context.sampleRate * 0.42), Math.floor(length / 4));
+    for (let index = 0; index < seamLength; index += 1) {
+      const progress = (index + 1) / seamLength;
+      const smooth = progress * progress * (3 - 2 * progress);
+      const tailIndex = length - seamLength + index;
+      const tail = data[tailIndex] ?? 0;
+      const mirroredStart = data[Math.max(0, seamLength - index - 1)] ?? 0;
+      data[tailIndex] = tail * (1 - smooth) + mirroredStart * smooth;
+    }
+    return this.waterBuffer;
+  }
+
   private startAmbience(): void {
     const context = this.context;
     const bus = this.ambienceBus;
     const buffer = this.getNoiseBuffer();
-    if (!context || !bus || !buffer || this.ambience || this.muted || this.paused || !this.runActive) return;
+    const waterBuffer = this.getWaterBuffer();
+    if (!context || !bus || !buffer || !waterBuffer || this.ambience || this.muted || this.paused || !this.runActive) return;
 
     const wind = context.createBufferSource();
     const windFilter = context.createBiquadFilter();
@@ -403,10 +508,34 @@ export class AudioEngine {
       windGain.connect(bus);
     }
 
+    const water = context.createBufferSource();
+    const waterHighpass = context.createBiquadFilter();
+    const waterLowpass = context.createBiquadFilter();
+    const waterGain = context.createGain();
+    const waterPan = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
+    water.buffer = waterBuffer;
+    water.loop = true;
+    waterHighpass.type = 'highpass';
+    waterHighpass.frequency.value = 92;
+    waterHighpass.Q.value = 0.42;
+    waterLowpass.type = 'lowpass';
+    waterLowpass.frequency.value = MODE_AMBIENCE.normal.waterFrequency;
+    waterLowpass.Q.value = 0.72;
+    waterGain.gain.value = SILENCE;
+    water.connect(waterHighpass);
+    waterHighpass.connect(waterLowpass);
+    waterLowpass.connect(waterGain);
+    if (waterPan) {
+      waterGain.connect(waterPan);
+      waterPan.connect(bus);
+    } else {
+      waterGain.connect(bus);
+    }
+
     const body = context.createOscillator();
     const bodyFilter = context.createBiquadFilter();
     const bodyGain = context.createGain();
-    body.type = 'triangle';
+    body.type = MODE_AMBIENCE.normal.bodyType;
     body.frequency.value = MODE_AMBIENCE.normal.bodyFrequency;
     bodyFilter.type = 'lowpass';
     bodyFilter.frequency.value = 310;
@@ -416,10 +545,26 @@ export class AudioEngine {
     bodyFilter.connect(bodyGain);
     bodyGain.connect(bus);
 
-    this.ambience = { wind, windFilter, windGain, windPan, body, bodyFilter, bodyGain, stopped: false };
+    this.ambience = {
+      wind,
+      windFilter,
+      windGain,
+      windPan,
+      water,
+      waterHighpass,
+      waterLowpass,
+      waterGain,
+      waterPan,
+      body,
+      bodyFilter,
+      bodyGain,
+      stopped: false,
+    };
     wind.start(context.currentTime, Math.random() * 0.8);
+    water.start(context.currentTime, Math.random() * Math.max(0.1, WATER_LOOP_SECONDS - 0.5));
     body.start(context.currentTime);
     this.target(windGain.gain, 0.018, 0.16);
+    this.target(waterGain.gain, MODE_AMBIENCE.normal.waterGain, 0.32);
     this.target(bodyGain.gain, MODE_AMBIENCE.normal.bodyGain, 0.2);
   }
 
@@ -430,9 +575,11 @@ export class AudioEngine {
     this.ambience = null;
     const now = this.context?.currentTime ?? 0;
     this.target(ambience.windGain.gain, SILENCE, Math.max(0.003, fade));
+    this.target(ambience.waterGain.gain, SILENCE, Math.max(0.003, fade * 1.35));
     this.target(ambience.bodyGain.gain, SILENCE, Math.max(0.003, fade));
     const stopAt = now + Math.max(0.012, fade * 4 + 0.015);
     try { ambience.wind.stop(stopAt); } catch { /* already stopped */ }
+    try { ambience.water.stop(stopAt); } catch { /* already stopped */ }
     try { ambience.body.stop(stopAt); } catch { /* already stopped */ }
     globalThis.setTimeout(() => this.disconnectAmbience(ambience), Math.ceil(Math.max(0.02, stopAt - now + 0.02) * 1_000));
   }
@@ -443,6 +590,11 @@ export class AudioEngine {
       ambience.windFilter,
       ambience.windGain,
       ambience.windPan,
+      ambience.water,
+      ambience.waterHighpass,
+      ambience.waterLowpass,
+      ambience.waterGain,
+      ambience.waterPan,
       ambience.body,
       ambience.bodyFilter,
       ambience.bodyGain,
@@ -504,6 +656,7 @@ export class AudioEngine {
       gain,
       send,
       sources: new Set(),
+      nodes: new Set(send ? [gain, send] : [gain]),
       priority,
       terminal,
       timer: null,
@@ -543,9 +696,38 @@ export class AudioEngine {
     if (voice.timer !== null) globalThis.clearTimeout(voice.timer);
     voice.timer = null;
     voice.sources.clear();
-    voice.gain.disconnect();
-    voice.send?.disconnect();
+    for (const node of voice.nodes) {
+      try { node.disconnect(); } catch { /* already disconnected */ }
+    }
+    voice.nodes.clear();
     this.voices.delete(voice);
+  }
+
+  private connectToVoice(
+    voice: Voice,
+    output: AudioNode,
+    start: number,
+    duration: number,
+    pan?: number,
+    endPan?: number,
+  ): void {
+    const context = this.context;
+    if (!context || pan === undefined || typeof context.createStereoPanner !== 'function') {
+      output.connect(voice.gain);
+      return;
+    }
+    const panner = context.createStereoPanner();
+    const first = Math.max(-1, Math.min(1, pan));
+    const last = Math.max(-1, Math.min(1, endPan ?? first));
+    try {
+      panner.pan.setValueAtTime(first, start);
+      if (last !== first) panner.pan.linearRampToValueAtTime(last, start + duration);
+    } catch {
+      panner.pan.value = last;
+    }
+    output.connect(panner);
+    panner.connect(voice.gain);
+    voice.nodes.add(panner);
   }
 
   private tone(voice: Voice, options: ToneOptions): void {
@@ -555,6 +737,8 @@ export class AudioEngine {
     const duration = Math.max(0.025, options.duration ?? 0.14);
     const oscillator = context.createOscillator();
     const envelope = context.createGain();
+    voice.nodes.add(oscillator);
+    voice.nodes.add(envelope);
     const level = Math.max(SILENCE, options.gain ?? 0.12);
     oscillator.type = options.type ?? 'sine';
     oscillator.frequency.setValueAtTime(Math.max(20, options.frequency), at);
@@ -571,15 +755,9 @@ export class AudioEngine {
       filter.Q.value = options.filter.q ?? 0.8;
       envelope.connect(filter);
       output = filter;
+      voice.nodes.add(filter);
     }
-    if (options.pan !== undefined && typeof context.createStereoPanner === 'function') {
-      const panner = context.createStereoPanner();
-      panner.pan.value = Math.max(-1, Math.min(1, options.pan));
-      output.connect(panner);
-      panner.connect(voice.gain);
-    } else {
-      output.connect(voice.gain);
-    }
+    this.connectToVoice(voice, output, at, duration, options.pan, options.endPan);
     oscillator.connect(envelope);
     oscillator.start(at);
     oscillator.stop(at + duration + 0.018);
@@ -593,25 +771,28 @@ export class AudioEngine {
     const source = context.createBufferSource();
     const envelope = context.createGain();
     const filter = context.createBiquadFilter();
+    voice.nodes.add(source);
+    voice.nodes.add(filter);
+    voice.nodes.add(envelope);
     const start = context.currentTime + (options.at ?? 0);
     const duration = Math.max(0.02, options.duration ?? 0.15);
     source.buffer = buffer;
     filter.type = options.type ?? 'bandpass';
-    filter.frequency.value = options.frequency ?? 1_000;
+    const startFrequency = Math.max(20, options.frequency ?? 1_000);
+    filter.frequency.setValueAtTime(startFrequency, start);
+    if (options.endFrequency !== undefined) {
+      filter.frequency.exponentialRampToValueAtTime(
+        Math.max(20, options.endFrequency),
+        start + duration,
+      );
+    }
     filter.Q.value = options.q ?? 1.2;
     envelope.gain.setValueAtTime(SILENCE, start);
     envelope.gain.linearRampToValueAtTime(Math.max(SILENCE, options.gain ?? 0.05), start + 0.006);
     envelope.gain.exponentialRampToValueAtTime(SILENCE, start + duration);
     source.connect(filter);
     filter.connect(envelope);
-    if (options.pan !== undefined && typeof context.createStereoPanner === 'function') {
-      const panner = context.createStereoPanner();
-      panner.pan.value = Math.max(-1, Math.min(1, options.pan));
-      envelope.connect(panner);
-      panner.connect(voice.gain);
-    } else {
-      envelope.connect(voice.gain);
-    }
+    this.connectToVoice(voice, envelope, start, duration, options.pan, options.endPan);
     source.start(start, Math.random() * 1.4);
     source.stop(start + duration + 0.012);
     voice.sources.add(source);
@@ -629,10 +810,30 @@ export class AudioEngine {
   }
 
   private playGatePass(pan: number): void {
-    const voice = this.createVoice(0.26, 2, false, 0.08);
+    const voice = this.createVoice(0.44, 3, false, 0.14);
     if (!voice) return;
-    this.noise(voice, { duration: 0.18, gain: 0.035, frequency: 1_650, q: 0.65, pan });
-    this.tone(voice, { at: 0.035, type: 'sine', frequency: 410, endFrequency: 610, duration: 0.13, gain: 0.045, pan });
+    const sweepFrom = Math.max(-0.9, Math.min(0.9, pan + 0.56));
+    const sweepTo = Math.max(-0.9, Math.min(0.9, pan - 0.58));
+    this.noise(voice, {
+      duration: 0.34,
+      gain: 0.046,
+      frequency: 2_650,
+      endFrequency: 720,
+      q: 0.72,
+      pan: sweepFrom,
+      endPan: sweepTo,
+    });
+    this.noise(voice, {
+      at: 0.055,
+      duration: 0.25,
+      gain: 0.018,
+      frequency: 620,
+      endFrequency: 1_850,
+      q: 1.25,
+      pan: sweepFrom * 0.7,
+      endPan: sweepTo * 0.7,
+    });
+    this.tone(voice, { at: 0.04, type: 'sine', frequency: 360, endFrequency: 670, duration: 0.2, gain: 0.032, pan: sweepFrom, endPan: sweepTo });
   }
 
   private playCoin(pan: number): void {
@@ -753,24 +954,77 @@ export class AudioEngine {
     this.tone(voice, { type: 'triangle', frequency: 760, endFrequency: 115, duration: 0.25, gain: 0.155 });
   }
 
-  private playRubberBounce(pan: number): void {
+  private playRubberBounce(pan: number, wetness = 0.46): void {
     this.cue('rubber-bounce', 0.085, () => {
-      const voice = this.createVoice(0.27, 5, false, 0.07);
+      const voice = this.createVoice(0.4, 5, false, 0.1);
       if (!voice) return;
       this.tone(voice, { type: 'triangle', frequency: 620, endFrequency: 138, duration: 0.21, gain: 0.135, pan });
       this.tone(voice, { at: 0.04, type: 'sine', frequency: 110, endFrequency: 165, duration: 0.16, gain: 0.07, pan });
       this.noise(voice, { duration: 0.035, gain: 0.067, frequency: 2_300, q: 1.4, pan });
+      this.addSplashLayers(voice, pan, wetness, 0.025);
     });
   }
 
   private playSteelImpact(pan: number, critical: boolean): void {
     this.cue('steel-impact', 0.085, () => {
-      const voice = this.createVoice(0.46, 6, false, 0.24);
+      const voice = this.createVoice(0.78, 6, false, 0.3);
       if (!voice) return;
       this.noise(voice, { duration: 0.085, gain: critical ? 0.135 : 0.105, frequency: 2_100, q: 1.5, pan });
       this.tone(voice, { type: 'triangle', frequency: critical ? 145 : 176, endFrequency: 70, duration: 0.3, gain: 0.15, pan });
       this.tone(voice, { type: 'sine', frequency: 1_040, endFrequency: 860, duration: 0.4, gain: 0.043, pan: -pan });
       this.tone(voice, { at: 0.015, type: 'sine', frequency: 1_570, duration: 0.27, gain: 0.026, pan });
+      // Wet, corroded pipe skin tears after the initial metal transient.
+      this.noise(voice, { at: 0.065, duration: 0.56, gain: 0.041, frequency: 1_080, endFrequency: 390, q: 3.1, pan, endPan: pan * 0.35 });
+      this.tone(voice, { at: 0.075, type: 'sawtooth', frequency: 286, endFrequency: 82, duration: 0.58, gain: 0.036, filter: { type: 'bandpass', frequency: 690, q: 4.2 }, pan, endPan: pan * 0.28 });
+      this.tone(voice, { at: 0.11, type: 'sine', frequency: 1_460, endFrequency: 610, duration: 0.43, gain: 0.017, pan: -pan * 0.45 });
+    });
+  }
+
+  private addSplashLayers(
+    voice: Voice,
+    pan: number,
+    intensity: number,
+    at = 0,
+  ): void {
+    const amount = Math.max(0.18, Math.min(1, intensity));
+    this.noise(voice, {
+      at,
+      duration: 0.34,
+      gain: 0.057 * amount,
+      frequency: 1_250,
+      endFrequency: 330,
+      q: 0.52,
+      type: 'lowpass',
+      pan: pan - 0.08,
+      endPan: pan + 0.1,
+    });
+    this.noise(voice, {
+      at: at + 0.018,
+      duration: 0.115,
+      gain: 0.038 * amount,
+      frequency: 3_100,
+      endFrequency: 1_420,
+      q: 0.86,
+      pan: pan + 0.1,
+      endPan: pan - 0.06,
+    });
+    this.tone(voice, {
+      at: at + 0.012,
+      type: 'sine',
+      frequency: 96,
+      endFrequency: 45,
+      duration: 0.28,
+      gain: 0.047 * amount,
+      pan,
+    });
+  }
+
+  private playWaterSplash(pan: number, intensity: number): void {
+    this.cue('water-splash', 0.09, () => {
+      const voice = this.createVoice(0.56, 5, false, 0.28);
+      if (!voice) return;
+      this.addSplashLayers(voice, pan, intensity);
+      this.noise(voice, { at: 0.08, duration: 0.38, gain: 0.025 * intensity, frequency: 720, endFrequency: 210, q: 0.44, type: 'lowpass', pan });
     });
   }
 

@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 
-import { DEFAULT_GAME_CONFIG } from '../simulation/GameConfig';
+import { DEFAULT_GAME_CONFIG, getDifficultyTier } from '../simulation/GameConfig';
 import type { GameEvent } from '../simulation/GameEvents';
-import type { GameState } from '../simulation/GameState';
+import type { GameState, ObstacleState } from '../simulation/GameState';
 import type { RenderQuality, WorldProjection } from './WorldViews';
 
 export const MAX_WATER_RIPPLES = 3;
+export const MAX_WATER_PIPE_CONTACTS = 4;
 export const WATER_RIPPLE_DURATION = 1.55;
 
 export interface WaterQualityProfile {
@@ -14,6 +15,8 @@ export interface WaterQualityProfile {
   readonly geometryWaves: number;
   readonly microWaves: number;
   readonly rippleSlots: number;
+  readonly pipeContactSlots: number;
+  readonly pipeContactCurrent: boolean;
   readonly crestFoam: boolean;
   readonly amplitudeScale: number;
 }
@@ -25,11 +28,26 @@ export interface WaterRipple {
   readonly strength: number;
 }
 
+export interface WaterPipeContact {
+  readonly obstacleId: string;
+  readonly x: number;
+  readonly z: number;
+  readonly radius: number;
+  readonly strength: number;
+}
+
+export interface WaterPoint {
+  readonly x: number;
+  readonly z: number;
+}
+
 export interface WaterDebugSnapshot {
   readonly quality: RenderQuality;
   readonly displayTime: number;
   readonly reducedMotion: boolean;
   readonly downwash: number;
+  readonly ghostInfluence: number;
+  readonly pipeContacts: readonly WaterPipeContact[];
   readonly ripples: readonly WaterRipple[];
 }
 
@@ -45,6 +63,8 @@ const WATER_PROFILES: Readonly<Record<RenderQuality, Readonly<WaterQualityProfil
     geometryWaves: 3,
     microWaves: 0,
     rippleSlots: 1,
+    pipeContactSlots: 3,
+    pipeContactCurrent: false,
     crestFoam: false,
     amplitudeScale: 0.9,
   }),
@@ -54,6 +74,8 @@ const WATER_PROFILES: Readonly<Record<RenderQuality, Readonly<WaterQualityProfil
     geometryWaves: 4,
     microWaves: 1,
     rippleSlots: 2,
+    pipeContactSlots: 3,
+    pipeContactCurrent: true,
     crestFoam: true,
     amplitudeScale: 0.95,
   }),
@@ -63,6 +85,8 @@ const WATER_PROFILES: Readonly<Record<RenderQuality, Readonly<WaterQualityProfil
     geometryWaves: 6,
     microWaves: 2,
     rippleSlots: 3,
+    pipeContactSlots: 4,
+    pipeContactCurrent: true,
     crestFoam: true,
     amplitudeScale: 1,
   }),
@@ -110,6 +134,7 @@ const WATER_CENTRE_Z = -7.2;
 // crest stays below the flight rail, while the collision truth remains y = 0.
 const WATER_LEVEL_OFFSET = -0.13;
 const FOG_DENSITY = 0.0105;
+const CONTINUOUS_DOWNWASH_REACH = 2.25;
 
 const clamp = (value: number, minimum: number, maximum: number): number => (
   Math.max(minimum, Math.min(maximum, value))
@@ -130,6 +155,116 @@ function normalizeRipple(ripple: Readonly<WaterRipple>): WaterRipple {
     z: finiteOr(ripple.z, 0),
     startedAt: finiteOr(ripple.startedAt, 0),
     strength: clamp(finiteOr(ripple.strength, 0), 0, 1.25),
+  });
+}
+
+function waterWorldTimeScale(state: Readonly<GameState>): number {
+  if (
+    state.mode.active === 'frog'
+    && (state.mode.frog.phase === 'clinging' || state.mode.frog.phase === 'charging')
+  ) return DEFAULT_GAME_CONFIG.modes.frog.worldScaleWhileClinging;
+  if (state.mode.active === 'rubber' && state.mode.rubber.phase === 'aiming') {
+    return DEFAULT_GAME_CONFIG.modes.rubber.worldScaleWhileAiming;
+  }
+  if (state.mode.active === 'stork' && state.mode.stork.phase === 'aiming') {
+    return DEFAULT_GAME_CONFIG.modes.stork.aimWorldScale;
+  }
+  return 1;
+}
+
+function interpolatedWaterObstacleX(
+  state: Readonly<GameState>,
+  obstacle: Readonly<ObstacleState>,
+  interpolation: number,
+): number {
+  const alpha = clamp(finiteOr(interpolation, 0), 0, 1);
+  if (obstacle.active) {
+    const tier = getDifficultyTier(state.world.passedObstacles);
+    return obstacle.x - tier.speed
+      * waterWorldTimeScale(state)
+      * DEFAULT_GAME_CONFIG.fixedStep
+      * alpha;
+  }
+  if (state.dna.offer) return obstacle.x;
+  const spawnX = DEFAULT_GAME_CONFIG.world.width + DEFAULT_GAME_CONFIG.obstacle.spawnLead;
+  const remaining = Math.max(DEFAULT_GAME_CONFIG.fixedStep, obstacle.activationDelay);
+  const velocity = (obstacle.x - spawnX) / remaining;
+  return obstacle.x - velocity * DEFAULT_GAME_CONFIG.fixedStep * alpha;
+}
+
+export function selectWaterPipeContacts(
+  state: Readonly<GameState>,
+  projection: WorldProjection,
+  interpolation: number,
+  capacity = MAX_WATER_PIPE_CONTACTS,
+): readonly WaterPipeContact[] {
+  const safeCapacity = Math.floor(clamp(
+    finiteOr(capacity, 0),
+    0,
+    MAX_WATER_PIPE_CONTACTS,
+  ));
+  if (safeCapacity === 0) return Object.freeze([]);
+
+  const alpha = clamp(finiteOr(interpolation, 0), 0, 1);
+  const playerX = clamp(
+    state.player.x + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * alpha,
+    0,
+    DEFAULT_GAME_CONFIG.world.width,
+  );
+  const duckX = projection.mapX(playerX);
+  const duckZ = projection.depthAt(playerX);
+  const candidates = state.world.obstacles
+    .filter((obstacle) => (
+      !obstacle.destroyed
+      && obstacle.gapCenter - obstacle.gapSize * 0.5 > 0.08
+    ))
+    .map((obstacle) => {
+      const visualX = interpolatedWaterObstacleX(state, obstacle, alpha);
+      const x = projection.mapX(visualX);
+      const z = projection.depthAt(visualX);
+      const lowerHeight = obstacle.gapCenter - obstacle.gapSize * 0.5;
+      const radius = clamp(0.44 + obstacle.width * projection.pathScale * 0.1, 0.48, 0.7);
+      const strength = clamp(lowerHeight / 1.4, 0.25, 1);
+      const distanceSquared = (x - duckX) * (x - duckX) + (z - duckZ) * (z - duckZ);
+      return { obstacle, x, z, radius, strength, distanceSquared };
+    })
+    .sort((first, second) => (
+      first.distanceSquared - second.distanceSquared
+      || (first.obstacle.id < second.obstacle.id ? -1 : first.obstacle.id === second.obstacle.id ? 0 : 1)
+    ))
+    .slice(0, safeCapacity)
+    .map(({ obstacle, x, z, radius, strength }) => Object.freeze({
+      obstacleId: obstacle.id,
+      x,
+      z,
+      radius,
+      strength,
+    }));
+  return Object.freeze(candidates);
+}
+
+function eventEntityId(event: Readonly<GameEvent>): string | null {
+  return 'entityId' in event && event.entityId ? event.entityId : null;
+}
+
+export function waterRipplePositionForEvent(
+  event: Readonly<GameEvent>,
+  state: Readonly<GameState>,
+  projection: WorldProjection,
+  interpolation: number,
+  fallback: Readonly<WaterPoint>,
+): Readonly<WaterPoint> {
+  const entityId = eventEntityId(event);
+  if (entityId && !entityId.startsWith('boundary-')) {
+    const obstacle = state.world.obstacles.find((candidate) => candidate.id === entityId);
+    if (obstacle) {
+      const visualX = interpolatedWaterObstacleX(state, obstacle, interpolation);
+      return Object.freeze({ x: projection.mapX(visualX), z: projection.depthAt(visualX) });
+    }
+  }
+  return Object.freeze({
+    x: finiteOr(fallback.x, 0),
+    z: finiteOr(fallback.z, 0),
   });
 }
 
@@ -183,7 +318,17 @@ export function waterRippleStrengthForEvent(
 ): number {
   const proximity = clamp(finiteOr(downwash, 0), 0, 1);
   if (event.type === 'flap') return proximity <= 0.02 ? 0 : 0.08 + proximity * 0.2;
-  if (event.type !== 'collision' || event.entityId !== 'boundary-floor') return 0;
+  if (event.type === 'mode-action') {
+    if (event.action === 'frog-launch') return 0.68;
+    if (event.action === 'rubber-bounce') return 0.78;
+    return 0;
+  }
+  if (event.type !== 'collision') return 0;
+  if (event.entityId !== 'boundary-floor') {
+    if (event.outcome === 'destroy') return 0.94;
+    if (event.outcome === 'bounce') return 0.78;
+    return 0;
+  }
   if (event.outcome === 'fatal') return 1;
   if (event.outcome === 'destroy') return 0.94;
   if (event.outcome === 'bounce') return 0.78;
@@ -226,6 +371,12 @@ function createFragmentRippleCalls(profile: Readonly<WaterQualityProfile>): stri
   )).join('');
 }
 
+function createPipeContactCalls(profile: Readonly<WaterQualityProfile>): string {
+  return Array.from({ length: profile.pipeContactSlots }, (_, index) => (
+    `\n    accumulatePipeContact(uPipeContacts[${index}], vSurfacePosition, pipeFoam, pipeCurrent); // pipe-contact-${index}`
+  )).join('');
+}
+
 export function createWaterShaderSources(
   profile: Readonly<WaterQualityProfile>,
 ): Readonly<WaterShaderSources> {
@@ -237,6 +388,23 @@ export function createWaterShaderSources(
   const microWaveCalls = createMicroWaveCalls(profile);
   const vertexRippleCalls = createVertexRippleCalls(profile);
   const fragmentRippleCalls = createFragmentRippleCalls(profile);
+  const pipeContactCalls = createPipeContactCalls(profile);
+  const pipeContactCurrent = profile.pipeContactCurrent
+    ? `
+      // pipe-contact-current: one radial phase supplies the moving ring and current.
+      float currentPhase = (distanceToPipe - radius) * 8.4
+        - uTime * 1.9 + dot(contact.xy, vec2(0.31, -0.27));
+      float currentPulse = 0.5 + 0.5 * sin(currentPhase);
+      float movingRing = smoothstep(0.5, 0.9, currentPulse) * halo;
+      float contactCurrent = halo * 0.22
+        + movingRing * 0.78 * mix(0.28, 1.0, uMotion);
+      float currentFoam = movingRing * 0.16 * uMotion;
+    `
+    : `
+      // Low keeps only a static footprint: no animated contact trigonometry.
+      float contactCurrent = halo * 0.2;
+      float currentFoam = 0.0;
+    `;
   const crestFoam = profile.crestFoam
     ? `
     // Patchy, narrow white water only on the strongest normalized crests.
@@ -345,7 +513,7 @@ export function createWaterShaderSources(
       float duckDistance = length(displaced.xz + uSurfaceOrigin - uDuckPosition);
       float downwashWave = sin(duckDistance * 10.5 - uTime * 6.4)
         * exp(-duckDistance * 1.85) * uDownwash * uMotion;
-      displaced.y += downwashWave * 0.012;
+      displaced.y += downwashWave * 0.018;
 
       vec3 localNormal = normalize(cross(tangentZ, tangentX));
       vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
@@ -370,6 +538,8 @@ export function createWaterShaderSources(
     uniform vec2 uPathForward;
     uniform float uDownwash;
     uniform vec4 uRipples[${MAX_WATER_RIPPLES}];
+    uniform vec4 uPipeContacts[${MAX_WATER_PIPE_CONTACTS}];
+    uniform float uGhostInfluence;
     uniform vec3 uFogColour;
     uniform float uFogDensity;
 
@@ -419,23 +589,45 @@ export function createWaterShaderSources(
       return ring * exp(-age * 1.18) * ripple.w * valid * uMotion;
     }
 
+    void accumulatePipeContact(
+      vec4 contact,
+      vec2 worldPosition,
+      inout float foam,
+      inout float current
+    ) {
+      float valid = step(0.001, contact.w);
+      float radius = max(contact.z, 0.001);
+      float distanceToPipe = length(worldPosition - contact.xy);
+      float ring = 1.0 - smoothstep(0.04, 0.15, abs(distanceToPipe - radius));
+      float halo = smoothstep(radius * 0.58, radius * 0.92, distanceToPipe)
+        * (1.0 - smoothstep(radius + 0.08, radius + 1.08, distanceToPipe));
+      ${pipeContactCurrent}
+      float contactStrength = contact.w * valid;
+      foam = max(foam, (ring * 0.84 + currentFoam) * contactStrength);
+      current = max(current, contactCurrent * contactStrength);
+    }
+
     float kelvinDownwash(vec2 worldPosition) {
       vec2 forward = normalize(uPathForward);
       vec2 right = vec2(-forward.y, forward.x);
       vec2 offset = worldPosition - uDuckPosition;
       float behind = -dot(offset, forward);
       float lateral = dot(offset, right);
-      float lengthMask = smoothstep(0.08, 0.55, behind)
-        * (1.0 - smoothstep(3.8, 5.8, behind));
-      float armCentre = 0.34 * behind + 0.08;
-      float armWidth = 0.08 + behind * 0.045;
+      // continuous-kelvin-wake: longer arms and a bow disturbance remain
+      // coupled directly to low altitude rather than waiting for an event.
+      float lengthMask = smoothstep(0.02, 0.42, behind)
+        * (1.0 - smoothstep(5.5, 7.4, behind));
+      float armCentre = 0.3 * behind + 0.07;
+      float armWidth = 0.09 + behind * 0.052;
       float leftArm = 1.0 - smoothstep(armWidth, armWidth * 2.25, abs(lateral - armCentre));
       float rightArm = 1.0 - smoothstep(armWidth, armWidth * 2.25, abs(lateral + armCentre));
-      float centreWidth = 0.13 + behind * 0.055;
+      float centreWidth = 0.15 + behind * 0.06;
       float centre = 1.0 - smoothstep(centreWidth, centreWidth * 2.1, abs(lateral));
-      float breakup = 0.65 + 0.35 * sin(behind * 5.1 + abs(lateral) * 7.0 - uTime * 4.2);
-      return saturateValue(((leftArm + rightArm) * 0.48 + centre * 0.32 * breakup)
-        * lengthMask * exp(-behind * 0.23) * uDownwash * uMotion);
+      float breakup = 0.72 + 0.28 * sin(behind * 4.7 + abs(lateral) * 6.2 - uTime * 3.8);
+      float bowDistance = length(vec2(lateral * 1.45, behind + 0.06));
+      float bow = (1.0 - smoothstep(0.12, 0.48, bowDistance)) * 0.34;
+      return saturateValue((((leftArm + rightArm) * 0.58 + centre * 0.4 * breakup)
+        * lengthMask * exp(-behind * 0.18) + bow) * uDownwash * uMotion);
     }
 
     float distributionGgx(float noH, float roughness) {
@@ -505,8 +697,20 @@ export function createWaterShaderSources(
       float rippleFoam = 0.0;
       ${fragmentRippleCalls}
       float wakeFoam = kelvinDownwash(vWorldPosition.xz);
-      float foam = saturateValue(crestFoam * 0.1 + rippleFoam * 0.62 + wakeFoam * 0.34);
+      float pipeFoam = 0.0;
+      float pipeCurrent = 0.0;
+      ${pipeContactCalls}
+      colour = mix(colour, vec3(0.035, 0.31, 0.34), pipeCurrent * 0.16);
+      colour = mix(colour, vec3(0.075, 0.42, 0.46), wakeFoam * 0.12);
+      float foam = saturateValue(
+        crestFoam * 0.1 + rippleFoam * 0.62 + wakeFoam * 0.46 + pipeFoam * 0.28
+      );
       colour = mix(colour, vec3(0.72, 0.94, 0.98), foam);
+
+      // ghost-water-cooling: subtle desaturation plus a blue/cyan bias.
+      float ghostLuma = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+      vec3 ghostCool = mix(vec3(ghostLuma), vec3(ghostLuma * 0.72, ghostLuma * 0.94, ghostLuma * 1.14), 0.62);
+      colour = mix(colour, ghostCool, uGhostInfluence * 0.22);
 
       float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vViewDistance * vViewDistance);
       colour = mix(colour, uFogColour, saturateValue(fogFactor));
@@ -529,6 +733,8 @@ interface WaterUniforms extends Record<string, THREE.IUniform> {
   readonly uPathForward: { value: THREE.Vector2 };
   readonly uDownwash: { value: number };
   readonly uRipples: { value: THREE.Vector4[] };
+  readonly uPipeContacts: { value: THREE.Vector4[] };
+  readonly uGhostInfluence: { value: number };
   readonly uFogColour: { value: THREE.Color };
   readonly uFogDensity: { value: number };
 }
@@ -548,8 +754,10 @@ export class WaterSurface {
   private readonly recentEventKeys = new Set<string>();
   private readonly recentEventOrder: string[] = [];
   private ripples: readonly WaterRipple[] = Object.freeze([]);
+  private pipeContacts: readonly WaterPipeContact[] = Object.freeze([]);
   private displayTime = 0;
   private downwash = 0;
+  private ghostInfluence = 0;
   private reducedMotion = false;
   private destroyed = false;
 
@@ -561,6 +769,10 @@ export class WaterSurface {
       { length: MAX_WATER_RIPPLES },
       () => new THREE.Vector4(0, 0, -100, 0),
     );
+    const pipeContactUniforms = Array.from(
+      { length: MAX_WATER_PIPE_CONTACTS },
+      () => new THREE.Vector4(0, 0, 0, 0),
+    );
     this.uniforms = {
       uTime: { value: 0 },
       uWaveScale: { value: this.profile.amplitudeScale },
@@ -571,6 +783,8 @@ export class WaterSurface {
       uPathForward: { value: new THREE.Vector2(1, 0) },
       uDownwash: { value: 0 },
       uRipples: { value: rippleUniforms },
+      uPipeContacts: { value: pipeContactUniforms },
+      uGhostInfluence: { value: 0 },
       uFogColour: { value: new THREE.Color(0x17354e) },
       uFogDensity: { value: FOG_DENSITY },
     };
@@ -631,7 +845,14 @@ export class WaterSurface {
 
     this.displayTime = reducedMotion ? 0 : safeTime;
     this.reducedMotion = reducedMotion;
-    this.downwash = reducedMotion ? 0 : computeWaterDownwashStrength(playerY);
+    this.downwash = reducedMotion
+      ? 0
+      : computeWaterDownwashStrength(
+        playerY,
+        DEFAULT_GAME_CONFIG.player.radiusY,
+        CONTINUOUS_DOWNWASH_REACH,
+      );
+    this.ghostInfluence = state.mode.active === 'ghost' ? 1 : 0;
     const horizonObstacle = state.world.obstacles.reduce<(typeof state.world.obstacles)[number] | null>(
       (farthest, obstacle) => (
         obstacle.destroyed || obstacle.passed || (farthest && farthest.x >= obstacle.x)
@@ -641,8 +862,9 @@ export class WaterSurface {
       null,
     );
     if (horizonObstacle) {
-      const horizonX = projection.mapX(horizonObstacle.x);
-      const horizonZ = projection.depthAt(horizonObstacle.x);
+      const horizonVisualX = interpolatedWaterObstacleX(state, horizonObstacle, interpolation);
+      const horizonX = projection.mapX(horizonVisualX);
+      const horizonZ = projection.depthAt(horizonVisualX);
       this.mesh.position.x = (duckX + horizonX) * 0.5;
       this.mesh.position.z = (duckZ + horizonZ) * 0.5;
     } else {
@@ -660,18 +882,35 @@ export class WaterSurface {
       Math.cos(projection.pathYaw),
     ).normalize();
     this.uniforms.uDownwash.value = this.downwash;
+    this.uniforms.uGhostInfluence.value = this.ghostInfluence;
     if (cameraPosition) this.uniforms.uCameraPosition.value.copy(cameraPosition);
+
+    this.pipeContacts = selectWaterPipeContacts(
+      state,
+      projection,
+      interpolation,
+      this.profile.pipeContactSlots,
+    );
+    this.syncPipeContactUniforms();
 
     this.ripples = pruneWaterRipples(this.ripples, safeTime);
     for (const event of events) {
-      const eventKey = this.eventKey(event);
+      const strength = waterRippleStrengthForEvent(event, this.downwash);
+      if (strength <= 0) continue;
+      const eventKey = this.rippleEventKey(event);
       if (this.recentEventKeys.has(eventKey)) continue;
       this.rememberEvent(eventKey);
-      const strength = reducedMotion ? 0 : waterRippleStrengthForEvent(event, this.downwash);
-      if (strength <= 0) continue;
+      if (reducedMotion) continue;
+      const ripplePosition = waterRipplePositionForEvent(
+        event,
+        state,
+        projection,
+        interpolation,
+        { x: duckX, z: duckZ },
+      );
       this.ripples = enqueueWaterRipple(this.ripples, {
-        x: duckX,
-        z: duckZ,
+        x: ripplePosition.x,
+        z: ripplePosition.z,
         startedAt: Math.max(0, finiteOr(event.time, safeTime)),
         strength,
       }, this.profile.rippleSlots);
@@ -682,15 +921,19 @@ export class WaterSurface {
   reset(): void {
     if (this.destroyed) return;
     this.ripples = Object.freeze([]);
+    this.pipeContacts = Object.freeze([]);
     this.recentEventKeys.clear();
     this.recentEventOrder.length = 0;
     this.displayTime = 0;
     this.downwash = 0;
+    this.ghostInfluence = 0;
     this.reducedMotion = false;
     this.uniforms.uTime.value = 0;
     this.uniforms.uMotion.value = 1;
     this.uniforms.uWaveScale.value = this.profile.amplitudeScale;
     this.uniforms.uDownwash.value = 0;
+    this.uniforms.uGhostInfluence.value = 0;
+    this.syncPipeContactUniforms();
     this.syncRippleUniforms();
   }
 
@@ -701,6 +944,7 @@ export class WaterSurface {
     this.geometry.dispose();
     this.material.dispose();
     this.ripples = Object.freeze([]);
+    this.pipeContacts = Object.freeze([]);
     this.recentEventKeys.clear();
     this.recentEventOrder.length = 0;
   }
@@ -711,6 +955,8 @@ export class WaterSurface {
       displayTime: this.displayTime,
       reducedMotion: this.reducedMotion,
       downwash: this.downwash,
+      ghostInfluence: this.ghostInfluence,
+      pipeContacts: Object.freeze(this.pipeContacts.map((contact) => Object.freeze({ ...contact }))),
       ripples: Object.freeze(this.ripples.map((ripple) => Object.freeze({ ...ripple }))),
     });
   }
@@ -728,7 +974,32 @@ export class WaterSurface {
     }
   }
 
-  private eventKey(event: Readonly<GameEvent>): string {
+  private syncPipeContactUniforms(): void {
+    for (let index = 0; index < MAX_WATER_PIPE_CONTACTS; index += 1) {
+      const uniform = this.uniforms.uPipeContacts.value[index];
+      if (!uniform) continue;
+      const contact = this.pipeContacts[index];
+      if (contact && index < this.profile.pipeContactSlots) {
+        uniform.set(contact.x, contact.z, contact.radius, contact.strength);
+      } else {
+        uniform.set(0, 0, 0, 0);
+      }
+    }
+  }
+
+  private rippleEventKey(event: Readonly<GameEvent>): string {
+    if (event.type === 'collision' && event.outcome === 'bounce') {
+      return `${event.tick}:water-impact:rubber-bounce:${event.entityId}`;
+    }
+    if (event.type === 'mode-action' && event.action === 'rubber-bounce') {
+      return `${event.tick}:water-impact:rubber-bounce:${event.entityId ?? ''}`;
+    }
+    if (event.type === 'collision' && event.outcome === 'destroy') {
+      return `${event.tick}:water-impact:steel-destroy:${event.entityId}`;
+    }
+    if (event.type === 'mode-action' && event.action === 'frog-launch') {
+      return `${event.tick}:water-impact:frog-launch:${event.entityId ?? ''}`;
+    }
     let detail = '';
     if ('entityId' in event && event.entityId) detail = event.entityId;
     else if ('coinId' in event) detail = event.coinId;

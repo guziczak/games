@@ -1011,16 +1011,41 @@ function activateObstacle(
   events.push({ ...stamp(state), type: 'obstacle-spawned', obstacleId: obstacle.id });
 
   if (sample(state) < config.obstacle.coinChance) {
-    const half = (config.obstacle.coinCount - 1) / 2;
-    for (let index = 0; index < config.obstacle.coinCount; index += 1) {
+    const coinCount = Math.max(0, Math.floor(config.obstacle.coinCount));
+    const half = (coinCount - 1) / 2;
+    const obstacleIndex = state.world.obstacles.findIndex((candidate) => candidate.id === obstacle.id);
+    const previousObstacle = obstacleIndex > 0
+      ? state.world.obstacles[obstacleIndex - 1]
+      : undefined;
+    const routeEntryY = previousObstacle?.gapCenter ?? state.player.y;
+    const maximumSafeOffset = Math.max(
+      0,
+      obstacle.gapSize / 2 - config.player.radiusY - config.obstacle.coinPathMargin,
+    );
+    for (let index = 0; index < coinCount; index += 1) {
+      const sequenceProgress = coinCount <= 1 ? 1 : index / (coinCount - 1);
+      const pathProgress = config.obstacle.coinPathStartProgress
+        + (config.obstacle.coinPathEndProgress - config.obstacle.coinPathStartProgress)
+          * sequenceProgress;
+      const gapOffsetY = clamp(
+        (routeEntryY - obstacle.gapCenter) * (1 - clamp(pathProgress, 0, 1)),
+        -maximumSafeOffset,
+        maximumSafeOffset,
+      );
       const coin = {
         id: allocateId(state, 'coin'),
         obstacleId: obstacle.id,
-        x: obstacle.x - 1.1 + (index - half) * config.obstacle.coinSpacing,
-        y: obstacle.gapCenter + Math.sin(index * Math.PI / Math.max(1, config.obstacle.coinCount - 1)) * 0.28,
+        x: obstacle.x - config.obstacle.coinApproachLead
+          + (index - half) * config.obstacle.coinSpacing,
+        y: obstacle.gapCenter + gapOffsetY,
+        previousX: 0,
+        previousY: 0,
+        gapOffsetY,
         radius: config.obstacle.coinRadius,
         collected: false,
       };
+      coin.previousX = coin.x;
+      coin.previousY = coin.y;
       state.world.coins.push(coin);
       events.push({ ...stamp(state), type: 'coin-spawned', coinId: coin.id, obstacleId: obstacle.id });
     }
@@ -1095,7 +1120,17 @@ function updateWorld(state: GameState, events: GameEvent[], config: GameConfig, 
       obstacle.gapCenter = clamp(animated, halfGap + 0.45, config.world.height - halfGap - 0.45);
     }
   }
-  for (const coin of state.world.coins) coin.x -= distance;
+  const obstaclesById = new Map(state.world.obstacles.map((obstacle) => [obstacle.id, obstacle]));
+  for (const coin of state.world.coins) {
+    coin.previousX = coin.x;
+    coin.previousY = coin.y;
+    coin.x -= distance;
+    const owner = obstaclesById.get(coin.obstacleId);
+    if (owner) {
+      coin.gapOffsetY ??= coin.y - owner.gapCenter;
+      coin.y = owner.gapCenter + coin.gapOffsetY;
+    }
+  }
   if (state.dna.offer) state.dna.offer.x -= distance;
 
   if (!state.dna.offer) {
@@ -1424,12 +1459,63 @@ function resolveObstacleCollision(
   failRun(state, events, 'obstacle', obstacle.id);
 }
 
-function collectCoins(state: GameState, events: GameEvent[], config: GameConfig): void {
+interface PlayerMotionTrace {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+function ellipseContains(
+  deltaX: number,
+  deltaY: number,
+  radiusX: number,
+  radiusY: number,
+): boolean {
+  const normalizedX = deltaX / radiusX;
+  const normalizedY = deltaY / radiusY;
+  return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+}
+
+function sweptCoinOverlap(
+  coin: GameState['world']['coins'][number],
+  motion: PlayerMotionTrace,
+  config: GameConfig,
+): boolean {
+  const radiusX = config.player.radiusX + coin.radius + config.obstacle.coinPickupPadding;
+  const radiusY = config.player.radiusY + coin.radius + config.obstacle.coinPickupPadding;
+  const startX = (motion.fromX - (coin.previousX ?? coin.x)) / radiusX;
+  const startY = (motion.fromY - (coin.previousY ?? coin.y)) / radiusY;
+  const endX = (motion.toX - coin.x) / radiusX;
+  const endY = (motion.toY - coin.y) / radiusY;
+  const segmentX = endX - startX;
+  const segmentY = endY - startY;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  const closestTime = lengthSquared <= Number.EPSILON
+    ? 0
+    : clamp(-(startX * segmentX + startY * segmentY) / lengthSquared, 0, 1);
+  const closestX = startX + segmentX * closestTime;
+  const closestY = startY + segmentY * closestTime;
+  return closestX * closestX + closestY * closestY <= 1;
+}
+
+function collectCoins(
+  state: GameState,
+  events: GameEvent[],
+  config: GameConfig,
+  motion: PlayerMotionTrace,
+): void {
   for (const coin of state.world.coins) {
     if (coin.collected) continue;
-    const reachX = config.player.radiusX + coin.radius;
-    const reachY = config.player.radiusY + coin.radius;
-    if (Math.abs(state.player.x - coin.x) > reachX || Math.abs(state.player.y - coin.y) > reachY) continue;
+    const radiusX = config.player.radiusX + coin.radius + config.obstacle.coinPickupPadding;
+    const radiusY = config.player.radiusY + coin.radius + config.obstacle.coinPickupPadding;
+    const overlapsAtResolvedPosition = ellipseContains(
+      state.player.x - coin.x,
+      state.player.y - coin.y,
+      radiusX,
+      radiusY,
+    );
+    if (!overlapsAtResolvedPosition && !sweptCoinOverlap(coin, motion, config)) continue;
     coin.collected = true;
     state.score.coins += 1;
     awardBase(state, events, 'coin', coin.id, config.scoring.coin);
@@ -1527,14 +1613,22 @@ function tick(state: GameState, events: GameEvent[], config: GameConfig, actions
   processInput(state, events, config, actions);
   if (state.status !== 'running') return;
 
+  const playerMotion: PlayerMotionTrace = {
+    fromX: state.player.x,
+    fromY: state.player.y,
+    toX: state.player.x,
+    toY: state.player.y,
+  };
   updateActiveMode(state, events, config, config.fixedStep);
   updatePlayerPhysics(state, config, config.fixedStep);
   resolveBoundaryCollision(state, events, config);
   if (state.status !== 'running') return;
+  playerMotion.toX = state.player.x;
+  playerMotion.toY = state.player.y;
 
   updateWorld(state, events, config, config.fixedStep);
   updateFrogAnchorAfterWorld(state, events, config);
-  collectCoins(state, events, config);
+  collectCoins(state, events, config, playerMotion);
   processObstacleInteractions(state, events, config);
   if (state.status !== 'running') return;
   processPassedObstacles(state, events, config);

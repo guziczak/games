@@ -54,6 +54,11 @@ export interface CoinState {
   obstacleId: string;
   x: number;
   y: number;
+  /** Position before this fixed tick's continuous world integration. */
+  previousX?: number;
+  previousY?: number;
+  /** Stable route offset from the owning gate's animated safe-gap centre. */
+  gapOffsetY?: number;
   radius: number;
   collected: boolean;
 }

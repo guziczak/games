@@ -408,6 +408,12 @@ export class App {
         this.announce(`Koniec transformacji ${MODE_LABELS[event.mode]}.`);
       } else if (event.type === 'combo-changed' && event.links >= 4) {
         this.announce(`Combo razy ${event.multiplier}.`);
+      } else if (event.type === 'mode-action' && event.action === 'stork-lock') {
+        this.announce('Brama namierzona. Wybierz wysokość nurkowania i puść.');
+      } else if (event.type === 'mode-action' && event.action === 'stork-vault-start') {
+        this.announce('Nurkowanie. Bocian przebija bramę.');
+      } else if (event.type === 'mode-action' && event.action === 'stork-vault-end') {
+        this.announce('Przebicie zakończone.');
       } else if (event.type === 'game-over') {
         // AudioEngine handles the taunting flock; endRun owns the screen.
       }
@@ -497,7 +503,7 @@ export class App {
       case 'rubber': return 'Naciąg kauczukowej procy';
       case 'steel': return 'Temperatura stali';
       case 'ghost': return 'Automatyczne przenikanie';
-      case 'stork': return 'Energia pika';
+      case 'stork': return 'Energia nurkowania';
       default: return 'Zasób trybu';
     }
   }
@@ -519,25 +525,25 @@ export class App {
     readonly state: 'hidden' | 'ready' | 'aiming' | 'vaulting' | 'cooldown' | 'empty' | 'no-target';
   } {
     if (state.mode.active !== 'stork') {
-      return { enabled: false, label: 'Bociani PIK jest teraz niedostępny', state: 'hidden' };
+      return { enabled: false, label: 'Nurkowanie bociana jest teraz niedostępne', state: 'hidden' };
     }
     const stork = state.mode.stork;
     if (stork.phase === 'aiming') {
-      return { enabled: true, label: 'Przesuń palec w górę lub w dół i puść, aby wykonać PIK', state: 'aiming' };
+      return { enabled: true, label: 'Przesuń palec w górę lub w dół, wybierz punkt w szczelinie i puść, aby przebić bramę', state: 'aiming' };
     }
     if (stork.phase === 'vaulting') {
-      return { enabled: false, label: 'Bocian wykonuje PIK', state: 'vaulting' };
+      return { enabled: false, label: 'Bocian przebija bramę', state: 'vaulting' };
     }
     if (stork.uses <= 0 || stork.energy < this.simulation.config.modes.stork.useEnergy) {
-      return { enabled: false, label: 'Wykorzystano wszystkie PIKI', state: 'empty' };
+      return { enabled: false, label: 'Wykorzystano wszystkie nurkowania', state: 'empty' };
     }
     if (stork.cooldown > 0) {
-      return { enabled: false, label: 'PIK odnawia się', state: 'cooldown' };
+      return { enabled: false, label: 'Nurkowanie odnawia się', state: 'cooldown' };
     }
     if (!this.hasStorkTarget(state)) {
-      return { enabled: false, label: 'Brak przeszkody w zasięgu PIKA', state: 'no-target' };
+      return { enabled: false, label: 'Brak bramy w zasięgu nurkowania', state: 'no-target' };
     }
-    return { enabled: true, label: 'Przytrzymaj PIK, przesuń palec w górę lub w dół i puść', state: 'ready' };
+    return { enabled: true, label: 'Przytrzymaj NURKUJ, wybierz punkt w szczelinie i puść, aby przebić bramę', state: 'ready' };
   }
 
   private abilityHints(
@@ -563,18 +569,18 @@ export class App {
         return { touch: 'TAPNIJ · LOT • RURY PRZENIKASZ AUTOMATYCZNIE', keyboard: 'SPACJA / ↑ · LOT • RURY PRZENIKASZ AUTOMATYCZNIE' };
       case 'stork':
         if (storkActionState === 'aiming') {
-          return { touch: 'PRZESUŃ ↑↓ • PUŚĆ PIK', keyboard: 'STRZAŁKI ↑↓ • PUŚĆ E' };
+          return { touch: 'PRZESUŃ ↑↓ · WYBIERZ PUNKT • PUŚĆ', keyboard: 'STRZAŁKI ↑↓ · WYBIERZ PUNKT • PUŚĆ E' };
         }
         if (storkActionState === 'ready') {
-          return { touch: 'TAPNIJ · LOT • PRZYTRZYMAJ PIK · NAMIERZ', keyboard: 'SPACJA · LOT • TRZYMAJ E + ↑↓ · PIK' };
+          return { touch: 'TAPNIJ · LOT • PRZYTRZYMAJ NURKUJ', keyboard: 'SPACJA · LOT • TRZYMAJ E + ↑↓ · NURKUJ' };
         }
         if (storkActionState === 'vaulting') {
-          return { touch: 'PIK!', keyboard: 'PIK!' };
+          return { touch: 'PRZEBICIE!', keyboard: 'PRZEBICIE!' };
         }
         if (storkActionState === 'empty') {
-          return { touch: 'TAPNIJ · LOT • BRAK PIKÓW', keyboard: 'SPACJA / ↑ · LOT • BRAK PIKÓW' };
+          return { touch: 'TAPNIJ · LOT • BRAK NURKOWAŃ', keyboard: 'SPACJA / ↑ · LOT • BRAK NURKOWAŃ' };
         }
-        return { touch: 'TAPNIJ · LOT • PIK CZEKA NA CEL', keyboard: 'SPACJA / ↑ · LOT • E: PIK CZEKA NA CEL' };
+        return { touch: 'TAPNIJ · LOT • NURKOWANIE CZEKA NA BRAMĘ', keyboard: 'SPACJA / ↑ · LOT • E: NURKOWANIE CZEKA NA BRAMĘ' };
       default:
         return { touch: 'TAPNIJ · MACHNIJ SKRZYDŁAMI', keyboard: 'SPACJA / ↑ · MACHNIJ SKRZYDŁAMI' };
     }

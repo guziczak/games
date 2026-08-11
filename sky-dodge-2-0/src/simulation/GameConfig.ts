@@ -44,6 +44,15 @@ export interface GameConfig {
     readonly coinCount: number;
     readonly coinRadius: number;
     readonly coinSpacing: number;
+    /** Distance from a gate to the centre of its approach coin ribbon. */
+    readonly coinApproachLead: number;
+    /** Route progress of the first/last coin from the prior safe line into this gap. */
+    readonly coinPathStartProgress: number;
+    readonly coinPathEndProgress: number;
+    /** Clearance retained between the indicated player centreline and either pipe. */
+    readonly coinPathMargin: number;
+    /** Small visual-tolerance halo around the rounded player/coin pickup geometry. */
+    readonly coinPickupPadding: number;
   };
   readonly scoring: {
     readonly obstaclePass: number;
@@ -166,6 +175,11 @@ export const DEFAULT_GAME_CONFIG: GameConfig = Object.freeze({
     coinCount: 3,
     coinRadius: 0.18,
     coinSpacing: 0.55,
+    coinApproachLead: 1.1,
+    coinPathStartProgress: 0.55,
+    coinPathEndProgress: 0.95,
+    coinPathMargin: 0.08,
+    coinPickupPadding: 0.1,
   }),
   scoring: Object.freeze({
     obstaclePass: 100,

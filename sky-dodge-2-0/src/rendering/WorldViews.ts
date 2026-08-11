@@ -8,6 +8,11 @@ import {
   getGateDressingQualityProfile,
 } from './GateDressing';
 import type { GateDressing, GateDressingQualityProfile } from './GateDressing';
+import {
+  createEnvironmentLayout,
+  quadraticBezier,
+} from './EnvironmentDressing';
+import type { EnvironmentLayout } from './EnvironmentDressing';
 import { WaterSurface } from './WaterSurface';
 
 export type RenderQuality = 'low' | 'medium' | 'high';
@@ -22,6 +27,35 @@ export interface WorldProjection {
   readonly mapX: (simulationX: number) => number;
   readonly mapY: (simulationY: number) => number;
   readonly depthAt: (simulationX: number) => number;
+}
+
+export interface CoinRenderPoseInput {
+  readonly simulationX: number;
+  readonly simulationY: number;
+  readonly radius: number;
+  readonly time: number;
+  /**
+   * Render-only anticipation in the inclusive 0..1 range. The renderer does
+   * not infer a pickup hitbox here, so a future curved/magnetic collector can
+   * feed its own normalized proximity without moving the coin's true centre.
+   */
+  readonly normalizedProximity: number;
+  /** Stable per-coin phase in radians. */
+  readonly phase: number;
+}
+
+export interface CoinRenderPose {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  /** Outer radius of the opaque, depth-writing coin. */
+  readonly solidRadius: number;
+  /** Outer radius of the soft, depth-tested readability halo. */
+  readonly haloRadius: number;
+  readonly yaw: number;
+  readonly tilt: number;
+  readonly trailLength: number;
+  readonly trailWidth: number;
 }
 
 interface QualityBudget {
@@ -67,6 +101,52 @@ const clamp = (value: number, minimum: number, maximum: number): number => (
 const positiveModulo = (value: number, modulus: number): number => (
   ((value % modulus) + modulus) % modulus
 );
+
+function smoothstep01(value: number): number {
+  const bounded = clamp(value, 0, 1);
+  return bounded * bounded * (3 - 2 * bounded);
+}
+
+function hashPhase(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0x100000000 * Math.PI * 2;
+}
+
+/**
+ * Converts simulation coin truth into a rail-aligned visual pose. Its centre
+ * is deliberately an exact projection: only aura/trail emphasis may react to
+ * proximity, never x/y/z or the opaque coin radius.
+ */
+export function createCoinRenderPose(
+  projection: WorldProjection,
+  input: Readonly<CoinRenderPoseInput>,
+): CoinRenderPose {
+  const radius = Math.max(0, Number.isFinite(input.radius) ? input.radius : 0);
+  const proximity = smoothstep01(input.normalizedProximity);
+  const phase = Number.isFinite(input.phase) ? input.phase : 0;
+  const time = Number.isFinite(input.time) ? input.time : 0;
+  const pulse = Math.sin(time * 5.4 + phase) * 0.045;
+
+  return Object.freeze({
+    x: projection.mapX(input.simulationX),
+    y: projection.mapY(input.simulationY),
+    z: projection.depthAt(input.simulationX),
+    solidRadius: radius,
+    // Keep the old long-distance readability around a physically sized solid
+    // coin. The halo grows near the player instead of lying about collision.
+    haloRadius: radius * (1.78 + pulse + proximity * 0.34),
+    // A restrained rail-local wobble reads as a spin but never turns the coin
+    // into an unrelated edge-on sliver at the cinematic chase-camera angle.
+    yaw: projection.pathYaw + Math.sin(time * 3.15 + phase) * 0.3,
+    tilt: Math.sin(time * 2.35 + phase * 0.7) * 0.08,
+    trailLength: projection.pathScale * (0.38 + proximity * 0.34),
+    trailWidth: radius * (0.1 + proximity * 0.08),
+  });
+}
 
 export function createWorldProjection(aspect: number): WorldProjection {
   const safeAspect = clamp(Number.isFinite(aspect) ? aspect : 1, 0.38, 2.5);
@@ -313,6 +393,7 @@ class GateView {
     transitPhase: GateTransitPhase,
     time: number,
     showDressing: boolean,
+    reducedMotion: boolean,
   ): void {
     const gapBottom = clamp(obstacle.gapCenter - obstacle.gapSize / 2, 0, DEFAULT_GAME_CONFIG.world.height);
     const gapTop = clamp(obstacle.gapCenter + obstacle.gapSize / 2, 0, DEFAULT_GAME_CONFIG.world.height);
@@ -420,6 +501,8 @@ class GateView {
       crossWidth,
       pathDepth,
       showDressing,
+      time,
+      reducedMotion,
     );
   }
 
@@ -432,6 +515,8 @@ class GateView {
     crossWidth: number,
     pathDepth: number,
     visible: boolean,
+    time: number,
+    reducedMotion: boolean,
   ): void {
     if (!this.dressing) this.dressing = createGateDressing(obstacleId, this.dressingQuality);
     const dressing = this.dressing;
@@ -518,6 +603,13 @@ class GateView {
     this.rustMarks.instanceMatrix.needsUpdate = true;
 
     this.plants.count = dressing.plantBlades.length;
+    const gateSwayPhase = hashPhase(obstacleId);
+    const qualityAmplitude = this.dressingQuality === 'low'
+      ? 0.035
+      : this.dressingQuality === 'medium'
+        ? 0.062
+        : 0.078;
+    const current = reducedMotion ? 0 : Math.sin(time * 0.74 + gateSwayPhase) * 0.026;
     for (let index = 0; index < dressing.plantBlades.length; index += 1) {
       const blade = dressing.plantBlades[index];
       if (!blade) continue;
@@ -534,7 +626,12 @@ class GateView {
       // Camera-facing crossed cards keep every blade readable from the flight
       // camera; their positions still alternate around both sides of the pipe.
       const crossedYaw = index % 2 === 0 ? -0.22 : 0.22;
-      this.plantEuler.set(0, crossedYaw, blade.lean);
+      const sway = reducedMotion
+        ? 0
+        : Math.sin(time * 1.28 + gateSwayPhase + index * 1.73) * qualityAmplitude;
+      // A tiny shared current component keeps neighbouring blades coherent;
+      // the per-blade phase stops the cluster behaving like a rigid fan.
+      this.plantEuler.set(sway * 0.35, crossedYaw, blade.lean + sway + current);
       this.quaternion.setFromEuler(this.plantEuler);
       this.scale.set(blade.width, bladeHeight, 1);
       this.matrix.compose(this.position, this.quaternion, this.scale);
@@ -702,8 +799,16 @@ export class WorldViews {
   private readonly gatesById = new Map<string, GateView>();
   private readonly coinRings: THREE.InstancedMesh;
   private readonly coinCores: THREE.InstancedMesh;
+  private readonly coinHalos: THREE.InstancedMesh;
+  private readonly coinTrails: THREE.InstancedMesh;
   private readonly clouds: THREE.InstancedMesh;
   private readonly debris: THREE.InstancedMesh;
+  private readonly distantReeds: THREE.InstancedMesh;
+  private readonly distantBuoys: THREE.InstancedMesh;
+  private readonly distantIslands: THREE.InstancedMesh;
+  private readonly distantWreckHulls: THREE.InstancedMesh;
+  private readonly distantWreckMasts: THREE.InstancedMesh;
+  private readonly distantBirds: THREE.InstancedMesh;
   private readonly laneLights: THREE.InstancedMesh;
   private readonly flightRailCore: THREE.Mesh;
   private readonly flightRailGlow: THREE.Mesh;
@@ -716,8 +821,12 @@ export class WorldViews {
   private readonly portal: PortalView;
   private readonly targetMarker: THREE.Group;
   private readonly targetRing: THREE.Mesh;
+  private readonly targetOuterRing: THREE.Mesh;
+  private readonly storkAimPath: THREE.InstancedMesh;
+  private readonly storkVaultTrail: THREE.InstancedMesh;
   private readonly ambientSeeds: readonly AmbientSeed[];
   private readonly debrisSeeds: readonly AmbientSeed[];
+  private readonly environmentLayout: Readonly<EnvironmentLayout>;
   private readonly dummy = new THREE.Object3D();
   private readonly lastEntityPositions = new Map<string, THREE.Vector3>();
   private revision = 0;
@@ -764,6 +873,115 @@ export class WorldViews {
     this.root.add(sky);
 
     this.water = new WaterSurface(this.root, quality);
+
+    this.environmentLayout = createEnvironmentLayout(quality);
+    const reedGeometry = this.trackGeometry(new THREE.PlaneGeometry(1, 1, 1, 2));
+    reedGeometry.translate(0, 0.5, 0);
+    const reedPositions = reedGeometry.getAttribute('position');
+    for (let index = 0; index < reedPositions.count; index += 1) {
+      const y = reedPositions.getY(index);
+      reedPositions.setX(index, reedPositions.getX(index) * (1 - y * 0.72));
+      reedPositions.setZ(index, Math.sin(y * Math.PI) * 0.08);
+    }
+    reedPositions.needsUpdate = true;
+    reedGeometry.computeVertexNormals();
+    const buoyGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.16, 0.25, 0.68, 8));
+    const islandGeometry = this.trackGeometry(new THREE.DodecahedronGeometry(1, 0));
+    const wreckHullGeometry = this.trackGeometry(new THREE.BoxGeometry(1, 1, 1));
+    const wreckMastGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.035, 0.055, 1, 6));
+    const birdGeometry = this.trackGeometry(new THREE.BufferGeometry());
+    birdGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      0, 0, 0, -0.54, 0.16, 0, -0.1, 0.025, 0,
+      0, 0, 0, 0.54, 0.16, 0, 0.1, 0.025, 0,
+    ], 3));
+
+    const reedMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0x326e4d,
+      emissive: 0x071d15,
+      emissiveIntensity: 0.24,
+      roughness: 0.96,
+      side: THREE.DoubleSide,
+    }));
+    const buoyMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0xc66a3f,
+      emissive: 0x361108,
+      emissiveIntensity: 0.22,
+      roughness: 0.76,
+      metalness: 0.16,
+    }));
+    const islandMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0x385646,
+      roughness: 0.98,
+      metalness: 0.02,
+    }));
+    const wreckMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
+      color: 0x31505a,
+      emissive: 0x07161b,
+      emissiveIntensity: 0.2,
+      roughness: 0.88,
+      metalness: 0.26,
+    }));
+    const birdMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0x26384b,
+      transparent: true,
+      opacity: 0.54,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      fog: true,
+    }));
+
+    this.distantReeds = new THREE.InstancedMesh(
+      reedGeometry,
+      reedMaterial,
+      this.environmentLayout.reeds.length,
+    );
+    this.distantBuoys = new THREE.InstancedMesh(
+      buoyGeometry,
+      buoyMaterial,
+      this.environmentLayout.buoys.length,
+    );
+    this.distantIslands = new THREE.InstancedMesh(
+      islandGeometry,
+      islandMaterial,
+      this.environmentLayout.islands.length,
+    );
+    this.distantWreckHulls = new THREE.InstancedMesh(
+      wreckHullGeometry,
+      wreckMaterial,
+      this.environmentLayout.wrecks.length,
+    );
+    this.distantWreckMasts = new THREE.InstancedMesh(
+      wreckMastGeometry,
+      wreckMaterial,
+      this.environmentLayout.wrecks.length,
+    );
+    this.distantBirds = new THREE.InstancedMesh(
+      birdGeometry,
+      birdMaterial,
+      this.environmentLayout.birds.length,
+    );
+    const environmentMeshes: readonly [THREE.InstancedMesh, string][] = [
+      [this.distantReeds, 'distant-water-reeds'],
+      [this.distantBuoys, 'distant-water-buoys'],
+      [this.distantIslands, 'distant-water-islands'],
+      [this.distantWreckHulls, 'distant-submerged-wreck-hulls'],
+      [this.distantWreckMasts, 'distant-submerged-wreck-masts'],
+      [this.distantBirds, 'distant-water-birds'],
+    ];
+    for (const [mesh, name] of environmentMeshes) {
+      mesh.name = name;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.frustumCulled = false;
+    }
+    this.root.add(
+      this.distantIslands,
+      this.distantWreckHulls,
+      this.distantWreckMasts,
+      this.distantReeds,
+      this.distantBuoys,
+      this.distantBirds,
+    );
 
     const laneLightGeometry = this.trackGeometry(new THREE.SphereGeometry(0.065, 8, 6));
     const laneLightMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
@@ -1088,20 +1306,45 @@ export class WorldViews {
       this.freeGates.push(view);
     }
 
-    const coinRingGeometry = this.trackGeometry(new THREE.TorusGeometry(1, 0.19, 8, 24));
-    const coinCoreGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.58, 0.58, 0.12, 18));
+    // The opaque geometry is normalized to an exact outer radius of one. Its
+    // instance scale can therefore equal CoinState.radius without making a
+    // visible near miss look like a collection.
+    const coinRingGeometry = this.trackGeometry(new THREE.TorusGeometry(0.79, 0.21, 8, 24));
+    const coinCoreGeometry = this.trackGeometry(new THREE.CylinderGeometry(0.57, 0.57, 0.16, 18));
     coinCoreGeometry.rotateX(Math.PI / 2);
+    const coinHaloGeometry = this.trackGeometry(new THREE.TorusGeometry(0.9, 0.1, 7, 28));
+    const coinTrailGeometry = this.trackGeometry(new THREE.BoxGeometry(1, 1, 1));
     const coinRingMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0xffce4a,
       emissive: 0xff9b16,
       emissiveIntensity: 0.58,
       roughness: 0.24,
       metalness: 0.72,
+      depthTest: true,
+      depthWrite: true,
     }));
     const coinCoreMaterial = this.trackMaterial(new THREE.MeshStandardMaterial({
       color: 0xfff0a2,
       roughness: 0.34,
       metalness: 0.48,
+      depthTest: true,
+      depthWrite: true,
+    }));
+    const coinHaloMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffc64c,
+      transparent: true,
+      opacity: 0.24,
+      depthTest: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    const coinTrailMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffb632,
+      transparent: true,
+      opacity: 0.28,
+      depthTest: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     }));
     this.coinRings = new THREE.InstancedMesh(
       coinRingGeometry,
@@ -1113,11 +1356,37 @@ export class WorldViews {
       coinCoreMaterial,
       this.budget.maximumCoins,
     );
+    this.coinHalos = new THREE.InstancedMesh(
+      coinHaloGeometry,
+      coinHaloMaterial,
+      this.budget.maximumCoins,
+    );
+    this.coinTrails = new THREE.InstancedMesh(
+      coinTrailGeometry,
+      coinTrailMaterial,
+      this.budget.maximumCoins,
+    );
+    this.coinRings.name = 'coin-solid-rings';
+    this.coinCores.name = 'coin-solid-cores';
+    this.coinHalos.name = 'coin-readability-halos';
+    this.coinTrails.name = 'coin-rail-trails';
     this.coinRings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.coinCores.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.coinHalos.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.coinTrails.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.coinRings.count = 0;
     this.coinCores.count = 0;
-    this.root.add(this.coinRings, this.coinCores);
+    this.coinHalos.count = 0;
+    this.coinTrails.count = 0;
+    // Dynamic InstancedMesh bounds are not recomputed after every matrix edit.
+    // Disabling object-level culling prevents a stale first-spawn bound from
+    // dropping a whole coin chain while fragment depth-testing still handles
+    // correct pipe/water occlusion.
+    this.coinRings.frustumCulled = false;
+    this.coinCores.frustumCulled = false;
+    this.coinHalos.frustumCulled = false;
+    this.coinTrails.frustumCulled = false;
+    this.root.add(this.coinTrails, this.coinHalos, this.coinRings, this.coinCores);
 
     const portalRing = this.trackGeometry(new THREE.TorusGeometry(0.62, 0.075, 10, 40));
     const portalVeil = this.trackGeometry(new THREE.CircleGeometry(0.54, 32));
@@ -1151,17 +1420,50 @@ export class WorldViews {
       blending: THREE.AdditiveBlending,
     }));
     const targetGeometry = this.trackGeometry(new THREE.TorusGeometry(0.27, 0.03, 8, 32));
+    const targetOuterGeometry = this.trackGeometry(new THREE.TorusGeometry(0.39, 0.018, 6, 36));
     this.targetMarker = new THREE.Group();
     this.targetMarker.name = 'stork-target-marker';
     this.targetMarker.visible = false;
     this.targetRing = new THREE.Mesh(targetGeometry, targetMaterial);
+    this.targetRing.name = 'stork-target-ring';
+    this.targetOuterRing = new THREE.Mesh(targetOuterGeometry, targetMaterial);
+    this.targetOuterRing.name = 'stork-target-outer-ring';
     this.targetMarker.add(this.targetRing);
     const crossGeometry = this.trackGeometry(new THREE.BoxGeometry(0.54, 0.022, 0.022));
     const horizontal = new THREE.Mesh(crossGeometry, targetMaterial);
     const vertical = new THREE.Mesh(crossGeometry, targetMaterial);
     vertical.rotation.z = Math.PI / 2;
-    this.targetMarker.add(horizontal, vertical);
+    this.targetMarker.add(this.targetOuterRing, horizontal, vertical);
     this.root.add(this.targetMarker);
+
+    const aimPathGeometry = this.trackGeometry(new THREE.SphereGeometry(0.052, 7, 5));
+    const aimPathMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xffd87d,
+      transparent: true,
+      opacity: 0.84,
+      depthTest: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    const vaultTrailMaterial = this.trackMaterial(new THREE.MeshBasicMaterial({
+      color: 0xff9a72,
+      transparent: true,
+      opacity: 0.62,
+      depthTest: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    this.storkAimPath = new THREE.InstancedMesh(aimPathGeometry, aimPathMaterial, 12);
+    this.storkAimPath.name = 'stork-bezier-aim-path';
+    this.storkAimPath.count = 0;
+    this.storkAimPath.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.storkAimPath.frustumCulled = false;
+    this.storkVaultTrail = new THREE.InstancedMesh(aimPathGeometry, vaultTrailMaterial, 8);
+    this.storkVaultTrail.name = 'stork-world-vault-trail';
+    this.storkVaultTrail.count = 0;
+    this.storkVaultTrail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.storkVaultTrail.frustumCulled = false;
+    this.root.add(this.storkAimPath, this.storkVaultTrail);
 
     this.ambientSeeds = this.createSeeds(this.budget.clouds, 17);
     this.debrisSeeds = this.createSeeds(this.budget.debris, 53);
@@ -1183,7 +1485,8 @@ export class WorldViews {
     this.water.update(state, projection, time, reducedMotion, events, cameraPosition);
     this.updateFlightRail(state, projection, alpha, time);
     this.updateAmbient(projection, ambientTime, reducedMotion);
-    this.updateGates(state, projection, alpha, time);
+    this.updateEnvironment(projection, ambientTime, reducedMotion);
+    this.updateGates(state, projection, alpha, time, reducedMotion);
     this.updateCoins(state, projection, alpha, time);
     const offerX = state.dna.offer
       ? interpolatedWorldX(state, state.dna.offer.x, alpha)
@@ -1229,9 +1532,13 @@ export class WorldViews {
     this.lastEntityPositions.clear();
     this.coinRings.count = 0;
     this.coinCores.count = 0;
+    this.coinHalos.count = 0;
+    this.coinTrails.count = 0;
     this.water.reset();
     this.portal.reset();
     this.targetMarker.visible = false;
+    this.storkAimPath.count = 0;
+    this.storkVaultTrail.count = 0;
     this.revision = 0;
   }
 
@@ -1340,6 +1647,7 @@ export class WorldViews {
     projection: WorldProjection,
     alpha: number,
     time: number,
+    reducedMotion: boolean,
   ): void {
     const playerVisualX = state.player.x
       + state.player.vx * DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
@@ -1395,6 +1703,7 @@ export class WorldViews {
         time,
         obstacle.id === nearestDressedId
           || Math.abs(delta) <= this.gateDressingProfile.detailDistance,
+        reducedMotion,
       );
       this.rememberEntity(
         obstacle.id,
@@ -1418,26 +1727,74 @@ export class WorldViews {
     alpha: number,
     time: number,
   ): void {
+    const stepAhead = DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
+    const playerVisualX = clamp(
+      state.player.x + state.player.vx * stepAhead,
+      0,
+      DEFAULT_GAME_CONFIG.world.width,
+    );
+    const playerVisualY = clamp(
+      state.player.y + state.player.vy * stepAhead,
+      0,
+      DEFAULT_GAME_CONFIG.world.height,
+    );
+    const pathForwardX = Math.sin(projection.pathYaw);
+    const pathForwardZ = Math.cos(projection.pathYaw);
     let count = 0;
     for (const coin of state.world.coins) {
       if (coin.collected || count >= this.budget.maximumCoins) continue;
       const visualX = interpolatedWorldX(state, coin.x, alpha);
-      const x = projection.mapX(visualX);
-      const y = projection.mapY(coin.y);
-      const z = projection.depthAt(visualX);
-      this.dummy.position.set(x, y, z);
-      this.dummy.rotation.set(0, time * 3.2 + count * 0.45, 0);
-      this.dummy.scale.setScalar(coin.radius * 1.75);
+      // This broad approach cue is deliberately independent of collection
+      // outcome. It can later be replaced by a normalized curved-pickup or
+      // magnet value without changing createCoinRenderPose or spatial truth.
+      const visualDistance = Math.hypot(
+        (visualX - playerVisualX) * projection.pathScale,
+        coin.y - playerVisualY,
+      );
+      const normalizedProximity = 1 - clamp(visualDistance / 2.2, 0, 1);
+      const pose = createCoinRenderPose(projection, {
+        simulationX: visualX,
+        simulationY: coin.y,
+        radius: coin.radius,
+        time,
+        normalizedProximity,
+        phase: hashPhase(coin.id),
+      });
+
+      this.dummy.position.set(pose.x, pose.y, pose.z);
+      this.dummy.rotation.set(pose.tilt, pose.yaw, 0);
+      this.dummy.scale.setScalar(pose.solidRadius);
       this.dummy.updateMatrix();
       this.coinRings.setMatrixAt(count, this.dummy.matrix);
       this.coinCores.setMatrixAt(count, this.dummy.matrix);
-      this.rememberEntity(coin.id, x, y, z);
+
+      this.dummy.position.set(pose.x, pose.y, pose.z);
+      this.dummy.rotation.set(0, projection.pathYaw, 0);
+      this.dummy.scale.setScalar(pose.haloRadius);
+      this.dummy.updateMatrix();
+      this.coinHalos.setMatrixAt(count, this.dummy.matrix);
+
+      this.dummy.position.set(
+        pose.x - pathForwardX * pose.trailLength * 0.5,
+        pose.y,
+        pose.z - pathForwardZ * pose.trailLength * 0.5,
+      );
+      this.dummy.rotation.set(0, projection.pathYaw, 0);
+      this.dummy.scale.set(pose.trailWidth, pose.trailWidth, pose.trailLength);
+      this.dummy.updateMatrix();
+      this.coinTrails.setMatrixAt(count, this.dummy.matrix);
+
+      this.rememberEntity(coin.id, pose.x, pose.y, pose.z);
       count += 1;
     }
     this.coinRings.count = count;
     this.coinCores.count = count;
+    this.coinHalos.count = count;
+    this.coinTrails.count = count;
     this.coinRings.instanceMatrix.needsUpdate = true;
     this.coinCores.instanceMatrix.needsUpdate = true;
+    this.coinHalos.instanceMatrix.needsUpdate = true;
+    this.coinTrails.instanceMatrix.needsUpdate = true;
   }
 
   private updateAmbient(
@@ -1503,17 +1860,182 @@ export class WorldViews {
     this.laneLights.instanceMatrix.needsUpdate = true;
   }
 
+  private updateEnvironment(
+    projection: WorldProjection,
+    time: number,
+    reducedMotion: boolean,
+  ): void {
+    const simulationStart = DEFAULT_GAME_CONFIG.player.startX - 3.2;
+    const simulationSpan = DEFAULT_GAME_CONFIG.world.width
+      - DEFAULT_GAME_CONFIG.player.startX
+      + 8.4;
+    const sideX = Math.cos(projection.pathYaw);
+    const sideZ = -Math.sin(projection.pathYaw);
+    const waterY = projection.mapY(0) - 0.035;
+
+    for (let index = 0; index < this.environmentLayout.reeds.length; index += 1) {
+      const seed = this.environmentLayout.reeds[index];
+      if (!seed) continue;
+      const travel = reducedMotion ? 0 : time * seed.speed;
+      const simulationX = simulationStart
+        + positiveModulo(seed.u - travel, 1) * simulationSpan;
+      const lateral = seed.side * seed.lateral;
+      const sway = reducedMotion ? 0 : Math.sin(time * 1.12 + seed.phase) * 0.09;
+      this.dummy.position.set(
+        projection.mapX(simulationX) + sideX * lateral,
+        waterY,
+        projection.depthAt(simulationX) + sideZ * lateral,
+      );
+      this.dummy.rotation.set(sway * 0.24, projection.pathYaw + seed.phase * 0.08, sway);
+      this.dummy.scale.set(0.16 * seed.scale, 0.62 * seed.scale, 1);
+      this.dummy.updateMatrix();
+      this.distantReeds.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.distantReeds.instanceMatrix.needsUpdate = true;
+
+    for (let index = 0; index < this.environmentLayout.buoys.length; index += 1) {
+      const seed = this.environmentLayout.buoys[index];
+      if (!seed) continue;
+      const travel = reducedMotion ? 0 : time * seed.speed * 0.82;
+      const simulationX = simulationStart
+        + positiveModulo(seed.u - travel, 1) * simulationSpan;
+      const lateral = seed.side * seed.lateral;
+      const bob = reducedMotion ? 0 : Math.sin(time * 1.34 + seed.phase) * 0.028;
+      this.dummy.position.set(
+        projection.mapX(simulationX) + sideX * lateral,
+        waterY + 0.23 * seed.scale + bob,
+        projection.depthAt(simulationX) + sideZ * lateral,
+      );
+      this.dummy.rotation.set(0.025 * Math.sin(seed.phase), seed.phase, 0.035 * Math.cos(time + seed.phase));
+      this.dummy.scale.setScalar(seed.scale);
+      this.dummy.updateMatrix();
+      this.distantBuoys.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.distantBuoys.instanceMatrix.needsUpdate = true;
+
+    for (let index = 0; index < this.environmentLayout.islands.length; index += 1) {
+      const seed = this.environmentLayout.islands[index];
+      if (!seed) continue;
+      const travel = reducedMotion ? 0 : time * seed.speed * 0.34;
+      const simulationX = simulationStart
+        + positiveModulo(seed.u - travel, 1) * simulationSpan;
+      const lateral = seed.side * seed.lateral;
+      this.dummy.position.set(
+        projection.mapX(simulationX) + sideX * lateral,
+        waterY - 0.09 * seed.scale,
+        projection.depthAt(simulationX) + sideZ * lateral,
+      );
+      this.dummy.rotation.set(0, seed.phase, 0);
+      this.dummy.scale.set(1.35 * seed.scale, 0.2 * seed.scale, 0.82 * seed.scale);
+      this.dummy.updateMatrix();
+      this.distantIslands.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.distantIslands.instanceMatrix.needsUpdate = true;
+
+    for (let index = 0; index < this.environmentLayout.wrecks.length; index += 1) {
+      const seed = this.environmentLayout.wrecks[index];
+      if (!seed) continue;
+      const travel = reducedMotion ? 0 : time * seed.speed * 0.27;
+      const simulationX = simulationStart
+        + positiveModulo(seed.u - travel, 1) * simulationSpan;
+      const lateral = seed.side * seed.lateral;
+      const x = projection.mapX(simulationX) + sideX * lateral;
+      const z = projection.depthAt(simulationX) + sideZ * lateral;
+      this.dummy.position.set(x, waterY - 0.14 * seed.scale, z);
+      this.dummy.rotation.set(0.04, seed.phase, (seed.side * 0.08));
+      this.dummy.scale.set(1.22 * seed.scale, 0.3 * seed.scale, 0.52 * seed.scale);
+      this.dummy.updateMatrix();
+      this.distantWreckHulls.setMatrixAt(index, this.dummy.matrix);
+
+      this.dummy.position.set(
+        x + Math.cos(seed.phase) * 0.16 * seed.scale,
+        waterY + 0.24 * seed.scale,
+        z + Math.sin(seed.phase) * 0.16 * seed.scale,
+      );
+      this.dummy.rotation.set(0, seed.phase, seed.side * 0.21);
+      this.dummy.scale.set(seed.scale, 0.82 * seed.scale, seed.scale);
+      this.dummy.updateMatrix();
+      this.distantWreckMasts.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.distantWreckHulls.instanceMatrix.needsUpdate = true;
+    this.distantWreckMasts.instanceMatrix.needsUpdate = true;
+
+    for (let index = 0; index < this.environmentLayout.birds.length; index += 1) {
+      const seed = this.environmentLayout.birds[index];
+      if (!seed) continue;
+      const travel = reducedMotion ? 0 : time * seed.speed * 2.2;
+      const simulationX = simulationStart
+        + positiveModulo(seed.u - travel, 1) * simulationSpan;
+      const lateral = seed.side * seed.lateral;
+      const flap = reducedMotion ? 0.72 : 0.58 + Math.sin(time * 3.8 + seed.phase) * 0.22;
+      this.dummy.position.set(
+        projection.mapX(simulationX) + sideX * lateral,
+        projection.mapY(seed.height),
+        projection.depthAt(simulationX) + sideZ * lateral - 1.2,
+      );
+      this.dummy.rotation.set(0, projection.pathYaw, Math.sin(seed.phase) * 0.08);
+      this.dummy.scale.set(0.72 * seed.scale, flap * seed.scale, 1);
+      this.dummy.updateMatrix();
+      this.distantBirds.setMatrixAt(index, this.dummy.matrix);
+    }
+    this.distantBirds.instanceMatrix.needsUpdate = true;
+  }
+
   private updateStorkTarget(
     state: Readonly<GameState>,
     projection: WorldProjection,
     alpha: number,
     time: number,
   ): void {
+    this.storkAimPath.count = 0;
+    this.storkVaultTrail.count = 0;
     if (
       state.mode.active !== 'stork'
       || state.mode.stork.phase === 'idle'
-      || !state.mode.stork.lockedTargetId
     ) {
+      this.targetMarker.visible = false;
+      return;
+    }
+    const stepAhead = DEFAULT_GAME_CONFIG.fixedStep * clamp(alpha, 0, 1);
+    const playerX = clamp(
+      state.player.x + state.player.vx * stepAhead,
+      0,
+      DEFAULT_GAME_CONFIG.world.width,
+    );
+    const playerY = clamp(
+      state.player.y + state.player.vy * stepAhead,
+      0,
+      DEFAULT_GAME_CONFIG.world.height,
+    );
+
+    if (state.mode.stork.phase === 'vaulting') {
+      const rawProgress = clamp(
+        state.mode.stork.phaseTime / DEFAULT_GAME_CONFIG.modes.stork.vaultDuration,
+        0,
+        1,
+      );
+      const trailCount = 8;
+      this.storkVaultTrail.count = trailCount;
+      for (let index = 0; index < trailCount; index += 1) {
+        const pastProgress = Math.max(0, rawProgress - (index + 1) * 0.043);
+        const eased = smoothstep01(pastProgress);
+        const pastY = state.mode.stork.vaultStartY
+          + (state.mode.stork.vaultTargetY - state.mode.stork.vaultStartY) * eased;
+        const pastX = playerX - (rawProgress - pastProgress) * 0.82;
+        this.dummy.position.set(
+          projection.mapX(pastX),
+          projection.mapY(pastY),
+          projection.depthAt(pastX),
+        );
+        this.dummy.rotation.set(0, 0, 0);
+        this.dummy.scale.setScalar(0.92 - index / trailCount * 0.62);
+        this.dummy.updateMatrix();
+        this.storkVaultTrail.setMatrixAt(index, this.dummy.matrix);
+      }
+      this.storkVaultTrail.instanceMatrix.needsUpdate = true;
+    }
+
+    if (!state.mode.stork.lockedTargetId) {
       this.targetMarker.visible = false;
       return;
     }
@@ -1542,9 +2064,43 @@ export class WorldViews {
       projection.depthAt(visualX) + Math.cos(projection.pathYaw) * leadingOffset,
     );
     this.targetMarker.rotation.y = projection.pathYaw;
-    const pulse = 0.92 + Math.sin(time * 10) * 0.1;
+    const pulse = 0.96 + Math.sin(time * 10) * 0.08;
     this.targetMarker.scale.setScalar(pulse);
-    this.targetRing.rotation.z = time * 2;
+    this.targetRing.rotation.z = time * 2.4;
+    this.targetOuterRing.rotation.z = -time * 1.35;
+    this.targetOuterRing.scale.setScalar(0.92 + Math.sin(time * 6.5) * 0.08);
+
+    if (state.mode.stork.phase === 'aiming') {
+      const startX = projection.mapX(playerX);
+      const startY = projection.mapY(playerY);
+      const startZ = projection.depthAt(playerX);
+      const endX = this.targetMarker.position.x;
+      const endY = this.targetMarker.position.y;
+      const endZ = this.targetMarker.position.z;
+      const verticalDirection = Math.sign(endY - startY) || 1;
+      const controlX = (startX + endX) * 0.5;
+      const controlY = (startY + endY) * 0.5
+        + verticalDirection * (0.42 + Math.abs(endY - startY) * 0.08);
+      const controlZ = (startZ + endZ) * 0.5;
+      const dotCount = 12;
+      this.storkAimPath.count = dotCount;
+      for (let index = 0; index < dotCount; index += 1) {
+        // Leave breathing room around bird and target so the dotted guide
+        // remains legible without turning into a pane across the safe gap.
+        const progress = (index + 1) / (dotCount + 1);
+        this.dummy.position.set(
+          quadraticBezier(startX, controlX, endX, progress),
+          quadraticBezier(startY, controlY, endY, progress),
+          quadraticBezier(startZ, controlZ, endZ, progress),
+        );
+        this.dummy.rotation.set(0, 0, 0);
+        const dotPulse = 0.68 + Math.sin(time * 8 - index * 0.72) * 0.14;
+        this.dummy.scale.setScalar(dotPulse);
+        this.dummy.updateMatrix();
+        this.storkAimPath.setMatrixAt(index, this.dummy.matrix);
+      }
+      this.storkAimPath.instanceMatrix.needsUpdate = true;
+    }
   }
 
   private acquireGate(): GateView | undefined {

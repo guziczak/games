@@ -607,9 +607,9 @@ kbd {
 }
 
 .stork-action strong {
-  font-size: 1.4rem;
+  font-size: 1rem;
   line-height: 1;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.035em;
 }
 
 #storkUses {
@@ -823,6 +823,10 @@ kbd {
     right: calc(12px + var(--safe-right));
     width: 96px;
     height: 96px;
+  }
+
+  .stork-action strong {
+    font-size: 0.88rem;
   }
 
   .game-over-card {

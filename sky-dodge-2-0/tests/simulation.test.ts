@@ -3,7 +3,7 @@ import { DEFAULT_GAME_CONFIG } from '../src/simulation/GameConfig';
 import type { GameConfig } from '../src/simulation/GameConfig';
 import type { GameEvent } from '../src/simulation/GameEvents';
 import { createInitialGameState, createInitialModeState } from '../src/simulation/GameState';
-import type { GameState, MutationModeId, ObstacleState } from '../src/simulation/GameState';
+import type { CoinState, GameState, MutationModeId, ObstacleState } from '../src/simulation/GameState';
 import { cloneGameState, Simulation, startMode, stepSimulation } from '../src/simulation/Simulation';
 
 const TEST_CONFIG: GameConfig = {
@@ -88,6 +88,21 @@ function makeObstacle(overrides: Partial<ObstacleState> = {}): ObstacleState {
     ghostPhaseAwarded: false,
     storkVaultCommitted: false,
     storkVaultAwarded: false,
+    ...overrides,
+  };
+}
+
+function makeCoin(overrides: Partial<CoinState> = {}): CoinState {
+  return {
+    id: 'coin-test',
+    obstacleId: 'gate-missing',
+    x: TEST_CONFIG.player.startX,
+    y: TEST_CONFIG.player.startY,
+    previousX: TEST_CONFIG.player.startX,
+    previousY: TEST_CONFIG.player.startY,
+    gapOffsetY: 0,
+    radius: TEST_CONFIG.obstacle.coinRadius,
+    collected: false,
     ...overrides,
   };
 }
@@ -252,6 +267,161 @@ describe('Sky Dodge 2.0 simulation', () => {
     expect(Math.abs(activated.gapCenter - previous.gapCenter)).toBeLessThanOrEqual(
       maximumGapTravel + 0.000_001,
     );
+  });
+
+  it('lays coins along the prior safe line into their gate and keeps them attached to a moving gap', () => {
+    const coinConfig: GameConfig = {
+      ...TEST_CONFIG,
+      obstacle: { ...TEST_CONFIG.obstacle, coinChance: 1 },
+    };
+    const state = createInitialGameState(5151, coinConfig);
+    state.world.spawnTimer = 0;
+    state.player.y = 2;
+    state.world.obstacles.push(
+      makeObstacle({ id: 'gate-previous', x: 12, baseGapCenter: 3, gapCenter: 3, gapSize: 6 }),
+      makeObstacle({
+        id: 'gate-route',
+        x: coinConfig.world.width + coinConfig.obstacle.spawnLead,
+        active: false,
+        activationDelay: 0,
+        baseGapCenter: 7,
+        gapCenter: 7,
+        gapSize: 6,
+      }),
+    );
+
+    const spawned = stepSimulation(state, coinConfig.fixedStep, undefined, coinConfig);
+    const gate = spawned.state.world.obstacles.find((obstacle) => obstacle.id === 'gate-route');
+    const coins = spawned.state.world.coins.filter((coin) => coin.obstacleId === 'gate-route');
+    expect(gate).toBeDefined();
+    expect(coins).toHaveLength(coinConfig.obstacle.coinCount);
+    if (!gate) throw new Error('Expected route gate to activate');
+
+    const offsets = coins.map((coin) => coin.y - gate.gapCenter);
+    expect(offsets.every((offset) => offset < 0)).toBe(true);
+    expect(offsets[0]).toBeLessThan(offsets[1]!);
+    expect(offsets[1]).toBeLessThan(offsets[2]!);
+    const safeOffset = gate.gapSize / 2
+      - coinConfig.player.radiusY
+      - coinConfig.obstacle.coinPathMargin;
+    expect(offsets.every((offset) => Math.abs(offset) <= safeOffset + 0.000_001)).toBe(true);
+
+    gate.motionAmplitude = 0.4;
+    gate.motionFrequency = 0.5;
+    gate.motionPhase = 0;
+    const moved = stepSimulation(spawned.state, coinConfig.fixedStep, undefined, coinConfig);
+    const movedGate = moved.state.world.obstacles.find((obstacle) => obstacle.id === 'gate-route');
+    const movedOffsets = moved.state.world.coins
+      .filter((coin) => coin.obstacleId === 'gate-route')
+      .map((coin) => coin.y - (movedGate?.gapCenter ?? 0));
+    expect(movedOffsets).toEqual(offsets);
+  });
+
+  it('uses rounded pickup geometry without the old free AABB corner', () => {
+    const state = createInitialGameState(6161, TEST_CONFIG);
+    state.world.spawnTimer = 999;
+    const reachX = TEST_CONFIG.player.radiusX
+      + TEST_CONFIG.obstacle.coinRadius
+      + TEST_CONFIG.obstacle.coinPickupPadding;
+    const reachY = TEST_CONFIG.player.radiusY
+      + TEST_CONFIG.obstacle.coinRadius
+      + TEST_CONFIG.obstacle.coinPickupPadding;
+    state.world.coins.push(makeCoin({
+      x: state.player.x + reachX * 0.8,
+      y: state.player.y + reachY * 0.8,
+    }));
+
+    const result = stepSimulation(state, TEST_CONFIG.fixedStep, undefined, TEST_CONFIG);
+    expect(result.state.score.coins).toBe(0);
+    expect(result.events.filter((event) => event.type === 'coin-collected')).toHaveLength(0);
+  });
+
+  it('sweeps relative player/coin motion and produces the same pickup at 30/60/120 Hz', () => {
+    const sweepConfig: GameConfig = {
+      ...TEST_CONFIG,
+      difficulty: TEST_CONFIG.difficulty.map((tier) => ({ ...tier, speed: 90 })),
+    };
+    const source = createInitialGameState(7171, sweepConfig);
+    source.world.spawnTimer = 999;
+    source.world.coins.push(makeCoin({
+      x: source.player.x + 0.75,
+      y: source.player.y,
+    }));
+
+    const replayAt = (frameDelta: number): { state: GameState; events: GameEvent[] } => {
+      const simulation = new Simulation({ state: source, config: sweepConfig });
+      const events: GameEvent[] = [];
+      const frameCount = Math.round((1 / 15) / frameDelta);
+      for (let frame = 0; frame < frameCount; frame += 1) {
+        events.push(...simulation.step(frameDelta).events);
+      }
+      return { state: simulation.snapshot(), events };
+    };
+
+    const at30 = replayAt(1 / 30);
+    const at60 = replayAt(1 / 60);
+    const at120 = replayAt(1 / 120);
+    expect(at30.state).toEqual(at60.state);
+    expect(at120.state).toEqual(at60.state);
+    expect(at30.events).toEqual(at60.events);
+    expect(at120.events).toEqual(at60.events);
+    expect(at60.state.score.coins).toBe(1);
+    expect(at60.events.filter((event) => event.type === 'coin-collected')).toHaveLength(1);
+  });
+
+  it('does not sweep coin pickup across a player teleport between simulation calls', () => {
+    const teleportConfig: GameConfig = {
+      ...TEST_CONFIG,
+      difficulty: TEST_CONFIG.difficulty.map((tier) => ({ ...tier, speed: 0 })),
+    };
+    const source = createInitialGameState(8181, teleportConfig);
+    source.world.spawnTimer = 999;
+    source.player.x = 2;
+    source.world.coins.push(makeCoin({ x: 5, y: source.player.y }));
+
+    const buffered = stepSimulation(
+      source,
+      teleportConfig.fixedStep / 2,
+      undefined,
+      teleportConfig,
+    );
+    buffered.state.player.x = 8;
+    const result = stepSimulation(
+      buffered.state,
+      teleportConfig.fixedStep / 2,
+      undefined,
+      teleportConfig,
+    );
+
+    expect(result.state.score.coins).toBe(0);
+    expect(result.events.filter((event) => event.type === 'coin-collected')).toHaveLength(0);
+  });
+
+  it('does not sweep coin pickup across a frog anchor correction', () => {
+    const anchorConfig: GameConfig = {
+      ...TEST_CONFIG,
+      difficulty: TEST_CONFIG.difficulty.map((tier) => ({ ...tier, speed: 0 })),
+    };
+    const state = createInitialGameState(9191, anchorConfig);
+    state.world.spawnTimer = 999;
+    state.mode.active = 'frog';
+    state.mode.remaining = 5;
+    state.mode.frog.phase = 'clinging';
+    state.mode.frog.clingObstacleId = 'gate-anchor';
+    state.mode.frog.surfaceNormalY = 1;
+    state.world.obstacles.push(makeObstacle({
+      id: 'gate-anchor',
+      x: 7.2,
+      baseGapCenter: 6,
+      gapCenter: 6,
+      gapSize: 3,
+    }));
+    state.world.coins.push(makeCoin({ x: 5.7, y: 4.89 }));
+
+    const result = stepSimulation(state, anchorConfig.fixedStep, undefined, anchorConfig);
+    expect(result.state.player.x).toBeCloseTo(7.2);
+    expect(result.state.score.coins).toBe(0);
+    expect(result.events.filter((event) => event.type === 'coin-collected')).toHaveLength(0);
   });
 
   it('awards pass and near-miss score at most once per obstacle', () => {

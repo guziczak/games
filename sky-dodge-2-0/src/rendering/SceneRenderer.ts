@@ -4,6 +4,11 @@ import { DEFAULT_GAME_CONFIG } from '../simulation/GameConfig';
 import type { GameEvent } from '../simulation/GameEvents';
 import type { GameState, ModeId } from '../simulation/GameState';
 import { CharacterRig } from './CharacterRig';
+import {
+  createCameraReaction,
+  createDuckReflectionPresentation,
+  createSceneMood,
+} from './EnvironmentDressing';
 import { ParticleField } from './ParticleField';
 import {
   createWorldProjection,
