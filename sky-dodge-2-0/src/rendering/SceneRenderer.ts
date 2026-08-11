@@ -69,8 +69,16 @@ export class SceneRenderer {
   private readonly character: CharacterRig;
   private readonly worldViews: WorldViews;
   private readonly particles: ParticleField;
+  private readonly ambientLight: THREE.AmbientLight;
+  private readonly rimLight: THREE.DirectionalLight;
   private readonly playerLight: THREE.PointLight;
+  private readonly gateFocusLight: THREE.PointLight;
   private readonly blobShadow: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>;
+  private readonly duckReflection = new THREE.Group();
+  private readonly reflectionBodyMaterial: THREE.MeshBasicMaterial;
+  private readonly reflectionDetailMaterial: THREE.MeshBasicMaterial;
+  private readonly reflectionRippleMaterial: THREE.MeshBasicMaterial;
+  private readonly reflectionGeometries: readonly THREE.BufferGeometry[];
   private readonly reducedMotion: boolean;
   private readonly requestedPixelRatio: number;
   private readonly resizeObserver: ResizeObserver | null;
@@ -79,6 +87,9 @@ export class SceneRenderer {
   private projection: WorldProjection = createWorldProjection(1);
   private cssWidth = 0;
   private cssHeight = 0;
+  private cameraImpulse = 0;
+  private cameraImpulseAge = 0;
+  private lastRenderTime: number | null = null;
   private contextLost = false;
   private destroyed = false;
 
