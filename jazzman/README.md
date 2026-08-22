@@ -57,8 +57,12 @@ który generuje cały występ z góry, jako listę zdarzeń na wspólnej siatce 
 
 ## Synteza (bez sampli)
 
-- **Kontrabas**: model fizyczny Karplus-Strong - pętla opóźnienia z tłumieniem
-  wzbudzana impulsem szumu, plus sub-sinus, rezonans pudła i tąpnięcie palca.
+- **Kontrabas**: model fizyczny Karplus-Strong renderowany do bufora w JS
+  (nie jako pętla DelayNode - pętle sprzężenia w Web Audio są przetwarzane
+  blokami po 128 próbek i rozstrajają strunę). Strój kompensowany przez
+  playbackRate o pół próbki opóźnienia uśredniania; do tego rezonans pudła
+  i tąpnięcie palca. Strojenie pilnowane testem (`tests/bassTuning.test.mjs`,
+  autokorelacja, tolerancja 6 centów).
 - **Fortepian**: synteza addytywna - partiale o rozciągniętym stroju
   (inharmoniczność struny), każdy z własnym wykładniczym zanikiem, rozstrojone
   bliźniaki (dudnienie chóru strun) i szum młoteczka.

@@ -584,6 +584,52 @@ export function createPianoSynthesizer(audioContext) {
 }
 
 /**
+ * Renderuje szarpniętą strunę algorytmem Karplus-Strong do tablicy próbek.
+ *
+ * Czysta funkcja (testowalna w Node). Robimy to w JS zamiast pętlą
+ * DelayNode->filtr->gain w grafie audio, bo pętle sprzężenia w Web Audio
+ * są przetwarzane blokami po 128 próbek i realny okres pętli potrafi
+ * odjechać od zadanego - struna grałaby fałszywie względem zespołu.
+ *
+ * Uwaga na strój: dwupunktowe uśrednianie dodaje pół próbki opóźnienia,
+ * więc rzeczywista częstotliwość bufora to sampleRate / (N + 0.5).
+ * Odtwarzający musi skompensować to przez playbackRate (patrz niżej).
+ *
+ * @param {number} sampleRate - Częstotliwość próbkowania
+ * @param {number} frequency - Docelowa częstotliwość drgań struny
+ * @param {number} duration - Długość renderowanego dźwięku w sekundach
+ * @param {number} velocity - Dynamika (0-1), wpływa na jasność szarpnięcia
+ * @param {Function} rand - Źródło losowości (Math.random lub deterministyczne)
+ * @returns {{data: Float32Array, N: number}} Próbki i długość linii opóźnienia
+ */
+export function renderPluckedString(sampleRate, frequency, duration, velocity, rand = Math.random) {
+    const N = Math.max(2, Math.round(sampleRate / frequency));
+    const len = Math.max(N + 2, Math.ceil(sampleRate * duration));
+    const data = new Float32Array(len);
+
+    // Wzbudzenie: szum przepuszczony przez jednobiegunowy lowpass -
+    // mocniejsze szarpnięcie = jaśniejszy atak
+    const excitationTone = 0.22 + velocity * 0.5;
+    let lp = 0;
+    for (let i = 0; i < N; i++) {
+        const white = rand() * 2 - 1;
+        lp += (white - lp) * excitationTone;
+        data[i] = lp;
+    }
+
+    // Zanik: wzmocnienie pętli g dobrane tak, by struna ucichła o 60 dB
+    // po czasie T (g^(f*T) = 10^-3)
+    const T = Math.max(0.35, Math.min(duration * 1.6, 2.5));
+    const g = Math.pow(10, -3 / (frequency * T));
+
+    data[N] = g * 0.5 * (data[0] + data[0]);
+    for (let i = N + 1; i < len; i++) {
+        data[i] = g * 0.5 * (data[i - N] + data[i - N - 1]);
+    }
+    return { data, N };
+}
+
+/**
  * Tworzy zaawansowany syntezator basu
  * @param {AudioContext} audioContext - Kontekst Web Audio API
  * @returns {Object} Obiekt syntezatora basu
@@ -604,62 +650,36 @@ export function createBassSynthesizer(audioContext) {
                 // Zapewnienie, że czas nigdy nie jest ujemny
                 const startTime = Math.max(time || audioContext.currentTime, audioContext.currentTime);
 
-                // KARPLUS-STRONG: fizyczny model szarpanej struny.
-                // Pętla: delay (okres drgań) -> lowpass (naturalne tłumienie
-                // wysokich składowych) -> gain (zanik) -> z powrotem do delaya.
-                // Wzbudzenie krótkim impulsem szumu = "szarpnięcie" struny.
+                // KARPLUS-STRONG renderowany do bufora (patrz renderPluckedString).
+                // Brak pętli sprzężenia w grafie = brak blokowego rozstrojenia,
+                // wysokość jest deterministyczna i idealnie zestrojona z zespołem.
                 const oscillators = [];
+                const sr = audioContext.sampleRate;
+                const renderDur = Math.min(duration + 0.25, 3);
+                const rendered = renderPluckedString(sr, frequency, renderDur, velocity);
 
-                const loopDelay = audioContext.createDelay(0.1);
-                // Kompensacja opóźnienia grupowego filtra w pętli (~65 µs),
-                // żeby struna nie intonowała pod dźwiękiem względem zespołu
-                loopDelay.delayTime.value = Math.max(0.0005, 1 / frequency - 0.000065);
+                const buffer = audioContext.createBuffer(1, rendered.data.length, sr);
+                buffer.copyToChannel(rendered.data, 0);
 
-                // "filter" = tłumienie w pętli (nazwa zgodna z blokiem return)
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                // Kompensacja stroju: uśrednianie w KS dodaje pół próbki opóźnienia,
+                // więc bufor brzmi na sr/(N+0.5) - playbackRate dociąga do celu
+                source.playbackRate.value = (frequency * (rendered.N + 0.5)) / sr;
+
+                // Łagodne przyciemnienie ("filter" - nazwa zgodna z blokiem return)
                 const filter = audioContext.createBiquadFilter();
                 filter.type = 'lowpass';
-                filter.frequency.value = 1900 + velocity * 1400;
-                filter.Q.value = 0.4;
-
-                // Zanik struny: g^(f*T) = -60dB  =>  g = 10^(-3/(f*T))
-                const ringTime = Math.max(0.35, Math.min(duration * 1.5, 2.4));
-                const feedback = audioContext.createGain();
-                feedback.gain.value = Math.min(0.998, Math.pow(10, -3 / (frequency * ringTime)));
-
-                loopDelay.connect(filter);
-                filter.connect(feedback);
-                feedback.connect(loopDelay);
-
-                // Wzbudzenie: chwila szumu przez lowpass (miękkość opuszka)
-                const excite = audioContext.createBufferSource();
-                excite.buffer = createNoiseBuffer(audioContext, 0.05);
-                const exciteFilter = audioContext.createBiquadFilter();
-                exciteFilter.type = 'lowpass';
-                exciteFilter.frequency.value = 900 + velocity * 2200;
-                const exciteGain = audioContext.createGain();
-                exciteGain.gain.setValueAtTime(velocity * 1.6, startTime);
-                exciteGain.gain.exponentialRampToValueAtTime(0.001, startTime + Math.min(0.02, 2.5 / frequency));
-                excite.connect(exciteFilter);
-                exciteFilter.connect(exciteGain);
-                exciteGain.connect(loopDelay);
-
-                // Sub-sinus dociąża fundament (goły KS bywa cienki na dole)
-                const sub = audioContext.createOscillator();
-                sub.type = 'sine';
-                sub.frequency.value = frequency;
-                const subGain = audioContext.createGain();
-                subGain.gain.setValueAtTime(0, startTime);
-                subGain.gain.linearRampToValueAtTime(velocity * 0.35, startTime + 0.012);
-                subGain.gain.exponentialRampToValueAtTime(0.001, startTime + ringTime * 0.8);
-                sub.connect(subGain);
+                filter.frequency.value = 1700 + velocity * 1300;
+                filter.Q.value = 0.5;
 
                 // Rezonans pudła kontrabasu - równoległy bandpass
                 const body = audioContext.createBiquadFilter();
                 body.type = 'bandpass';
                 body.frequency.value = 190;
-                body.Q.value = 1.2;
+                body.Q.value = 1.1;
                 const bodyGain = audioContext.createGain();
-                bodyGain.gain.value = 0.6;
+                bodyGain.gain.value = 0.55;
 
                 // Tąpnięcie palca o podstrunnicę
                 const thump = audioContext.createBufferSource();
@@ -668,8 +688,8 @@ export function createBassSynthesizer(audioContext) {
                 thumpFilter.type = 'lowpass';
                 thumpFilter.frequency.value = 300;
                 const thumpGain = audioContext.createGain();
-                thumpGain.gain.setValueAtTime(velocity * 0.45, startTime);
-                thumpGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
+                thumpGain.gain.setValueAtTime(velocity * 0.35, startTime);
+                thumpGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.035);
                 thump.connect(thumpFilter);
                 thumpFilter.connect(thumpGain);
                 thumpGain.connect(this.output);
@@ -677,42 +697,24 @@ export function createBassSynthesizer(audioContext) {
                 // Wyjście: struna dzwoni naturalnie, na końcu nuty palec ją
                 // tłumi (szybkie wyciszenie - artykulacja walking bassu)
                 const gainNode = audioContext.createGain();
-                gainNode.gain.setValueAtTime(velocity * 0.9, startTime);
-                gainNode.gain.setTargetAtTime(0, startTime + duration, 0.025);
+                gainNode.gain.setValueAtTime(velocity * 1.1, startTime);
+                gainNode.gain.setTargetAtTime(0, startTime + duration, 0.03);
 
-                loopDelay.connect(gainNode);
-                loopDelay.connect(body);
+                source.connect(filter);
+                filter.connect(gainNode);
+                filter.connect(body);
                 body.connect(bodyGain);
                 bodyGain.connect(gainNode);
-                subGain.connect(gainNode);
                 gainNode.connect(this.output);
 
                 // Start i stop
-                excite.start(startTime);
-                excite.stop(startTime + 0.05);
-                sub.start(startTime);
-                sub.stop(startTime + duration + 0.3);
+                source.start(startTime);
+                source.stop(startTime + renderDur + 0.05);
                 thump.start(startTime);
                 thump.stop(startTime + 0.05);
 
-                // Wygaszenie pętli sprzężenia i sprzątnięcie węzłów - pętla
-                // z delayem nie zniknie sama, trzeba ją rozłączyć
-                feedback.gain.setTargetAtTime(0, startTime + duration + 0.1, 0.03);
-                const cleanupMs = (startTime - audioContext.currentTime + duration + 0.6) * 1000;
-                setTimeout(() => {
-                    try {
-                        loopDelay.disconnect();
-                        filter.disconnect();
-                        feedback.disconnect();
-                        gainNode.disconnect();
-                        body.disconnect();
-                        bodyGain.disconnect();
-                        subGain.disconnect();
-                    } catch (e) { /* węzły mogły już zostać odłączone */ }
-                }, Math.max(150, cleanupMs));
-
-                // Zapisz oscylatory do tablicy
-                oscillators.push(sub);
+                // Zapisz źródła do tablicy (interfejs jak u oscylatorów)
+                oscillators.push(source);
                 
                 // Zwróć obiekt do ewentualnego anulowania
                 return { 
