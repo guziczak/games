@@ -2,84 +2,93 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#222222">
-    <meta name="description" content="Super Jazzman 3.0 - Interaktywny generator muzyki jazzowej. Twórz i słuchaj improwizacji jazzowych w przeglądarce!">
-    <title>Super Jazzman 3.0 - Niesamowity Generator Jazzu</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0e0e0c">
+    <meta name="description" content="Jazzman - generatywny zespół jazzowy w przeglądarce. Kompletne, strukturalne utwory syntezowane w czasie rzeczywistym.">
+    <title>Jazzman — generatywny zespół jazzowy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    <!-- Wykrycie i obsługa starszych przeglądarek -->
     <script>
-        // Wykrywanie przeglądarek bez wsparcia dla Web Audio API
-        window.AudioContext = window.AudioContext || window.webkitAudioContext ||
-                              window.mozAudioContext || window.msAudioContext;
-
-        // Sprawdzanie wsparcia dla podstawowych funkcji
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!window.AudioContext) {
-            // Informujemy użytkownika jeśli przeglądarka nie wspiera Web Audio API
-            document.addEventListener('DOMContentLoaded', function() {
-                document.body.innerHTML = '<div class="container" style="text-align:center; padding:2rem;">' +
-                    '<h1>Przepraszamy!</h1>' +
-                    '<p>Twoja przeglądarka nie obsługuje Web Audio API, które jest wymagane do działania Super Jazzman 3.0.</p>' +
-                    '<p>Wypróbuj nowszą wersję Chrome, Firefox, Safari lub Edge.</p>' +
-                    '</div>';
+            document.addEventListener('DOMContentLoaded', function () {
+                document.body.innerHTML = '<main class="app"><p class="status">' +
+                    'Ta przeglądarka nie obsługuje Web Audio API. Wypróbuj aktualny Chrome, Firefox lub Safari.' +
+                    '</p></main>';
             });
         }
     </script>
 </head>
 <body>
-    <div class="container">
-        <h1><span class="swing-text">Super Jazzman</span> <span class="gradient-text">3.0</span></h1>
-        
-        <div class="visualizer-container">
-            <div class="visualizer" id="visualizer"></div>
-            <div class="chord-display" id="chordDisplay">-</div>
-            <div class="mood-display" id="moodDisplay">czekam na inspirację...</div>
-        </div>
-        
-        <div class="controls">
-            <button id="startButton" class="main-button">AKTYWUJ JAZZOWE AUDIO</button>
-            
-            <div class="slider-container">
-                <label for="tempo">Tempo:</label>
-                <input type="range" id="tempo" min="60" max="240" value="120">
-                <span class="value-display" id="tempoValue">120 BPM</span>
+    <main class="app">
+        <header class="masthead">
+            <div class="wordmark">Jazzman<span class="wordmark__no">vol.&nbsp;III</span></div>
+            <div class="masthead__right">
+                <span class="led" id="playLed" aria-hidden="true"></span>
+                <span class="masthead__tag">zespół generatywny</span>
             </div>
-            
-            <div class="auto-jazz-container" id="autoJazzContainer">
-                <button id="autoJazzButton" class="auto-jazz-button tooltip">
-                    TRYB AUTO-JAZZ
-                    <span class="tooltiptext">Włącz, aby Jazzman sam sterował złożonością i eksperymentował z brzmieniem</span>
-                </button>
-                <div class="auto-jazz-meter">
-                    <div class="auto-jazz-progress" id="autoJazzProgress"></div>
+        </header>
+
+        <section class="stage" aria-label="Odtwarzany utwór">
+            <canvas class="stage__viz" id="vizCanvas" aria-hidden="true"></canvas>
+
+            <div class="stage__now">
+                <div class="chord" id="chordDisplay">—</div>
+                <div class="stage__meta">
+                    <span class="section-label" id="sectionLabel">gotowy do gry</span>
+                    <span class="meta-line" id="metaLine"></span>
                 </div>
             </div>
-            
-            <div class="control-group">
-                <button id="pianoToggle" class="active">Piano: ON</button>
-                <button id="bassToggle" class="active">Bas: ON</button>
-                <button id="drumsToggle" class="active">Perkusja: ON</button>
-                <button id="trumpetToggle" class="active">Trąbka: ON</button>
-            </div>
-            
-            <div class="control-group">
-                <button id="styleSwing" class="active">Swing</button>
-                <button id="styleBebop">Bebop</button>
-                <button id="styleFusion">Fusion</button>
-                <button id="styleModal">Modal</button>
-            </div>
-        </div>
-        
-        <div class="status" id="status">Kliknij AKTYWUJ, aby rozpocząć jazzową przygodę...</div>
-        <div class="error-message" id="errorMessage"></div>
-        <div style="margin-top: 1rem; font-size: 0.9rem;">
-            <p>💡 <strong>Wskazówka:</strong> Kliknij "TRYB AUTO-JAZZ", aby Jazzman sam improwizował i sterował przebiegiem muzyki!</p>
-        </div>
 
-        <div class="notes-animation" id="notesAnimation"></div>
-    </div>
+            <div class="timeline" id="timeline" aria-hidden="true"></div>
+        </section>
+
+        <section class="deck" aria-label="Sterowanie">
+            <div class="transport">
+                <button id="startButton" class="play-button" type="button">Aktywuj audio</button>
+                <div class="tempo">
+                    <label class="micro-label" for="tempo">Tempo</label>
+                    <input type="range" id="tempo" min="60" max="240" value="120">
+                    <span class="tempo__value" id="tempoValue">120 BPM</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="seg" role="group" aria-label="Styl">
+                    <button id="styleSwing" class="seg__btn active" type="button">Swing</button>
+                    <button id="styleBebop" class="seg__btn" type="button">Bebop</button>
+                    <button id="styleFusion" class="seg__btn" type="button">Fusion</button>
+                    <button id="styleModal" class="seg__btn" type="button">Modal</button>
+                </div>
+            </div>
+
+            <div class="row row--split">
+                <div class="chips" role="group" aria-label="Instrumenty">
+                    <button id="pianoToggle" class="chip active" type="button">Fortepian</button>
+                    <button id="bassToggle" class="chip active" type="button">Kontrabas</button>
+                    <button id="drumsToggle" class="chip active" type="button">Perkusja</button>
+                    <button id="trumpetToggle" class="chip active" type="button">Trąbka</button>
+                </div>
+                <div class="auto-jazz" id="autoJazzContainer">
+                    <button id="autoJazzButton" class="chip chip--auto" type="button">Auto-Jazz</button>
+                    <div class="auto-jazz__meter" aria-hidden="true">
+                        <div class="auto-jazz__progress" id="autoJazzProgress"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="foot">
+            <span class="status" id="status">Kliknij „Aktywuj audio", aby rozpocząć.</span>
+            <span class="mood">nastrój: <em id="moodDisplay">—</em></span>
+        </footer>
+
+        <div class="error" id="errorMessage" role="alert"></div>
+        <div id="visualizer" hidden></div>
+        <div id="notesAnimation" hidden></div>
+    </main>
 
     <script type="module" src="js/main.js"></script>
 </body>

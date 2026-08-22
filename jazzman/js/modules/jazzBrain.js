@@ -354,6 +354,47 @@ function buildWalkingBar(ctx, section, barIdx, localBars, out) {
     out.lastChordSym = slots[3].chord.sym;
 }
 
+/**
+ * Bas "w dwójce" (two-feel): półnuty pryma-kwinta. Klasyczny sposób grania
+ * pierwszego tematu - przejście na walking w solach daje słyszalny "lift".
+ */
+function buildTwoFeelBassBar(ctx, section, barIdx, localBars, out) {
+    const rng = ctx.rng;
+    const globalBar = section.startBar + barIdx;
+    const chord1 = chordAt(localBars, barIdx, 0);
+    const chord2 = chordAt(localBars, barIdx, 2);
+    const nextChord = chordAt(localBars, barIdx + 1, 0);
+    const prev = out.lastPitch != null ? out.lastPitch : 40;
+
+    const root1 = clampPitch(nearestPitch(chord1.root, prev), BASS_LO, BASS_HI);
+    // Na 3: pryma drugiego akordu w takcie, kwinta, albo podejście dalej
+    let mid;
+    if (chord2.sym !== chord1.sym) {
+        mid = clampPitch(nearestPitch(chord2.root, root1), BASS_LO, BASS_HI);
+    } else {
+        mid = clampPitch(root1 + (rng.chance(0.7) ? 7 : -5), BASS_LO, BASS_HI);
+    }
+
+    const pickup = rng.chance(0.3);
+    pushEvent(ctx, 'bass', globalBar, 0, {
+        freq: midiToFreq(root1), dur: ctx.beatDur * 1.9, vel: section.bassVel
+    }, 0.005);
+    pushEvent(ctx, 'bass', globalBar, 2, {
+        freq: midiToFreq(mid), dur: ctx.beatDur * (pickup ? 0.95 : 1.9), vel: section.bassVel * 0.88
+    }, 0.005);
+    if (pickup) {
+        // Ćwierćnutowe podejście na 4 prowadzące do następnego taktu
+        const app = clampPitch(nearestPitch(nextChord.root, mid) + rng.pick([-1, 1, -2]), BASS_LO, BASS_HI);
+        pushEvent(ctx, 'bass', globalBar, 3, {
+            freq: midiToFreq(app), dur: ctx.beatDur * 0.9, vel: section.bassVel * 0.72
+        }, 0.005);
+        out.lastPitch = app;
+    } else {
+        out.lastPitch = mid;
+    }
+    out.lastChordSym = chordAt(localBars, barIdx, 3.9).sym;
+}
+
 /** Bas modalny: pedał prymy z kwintą, długie wartości. */
 function buildModalBassBar(ctx, section, barIdx, localBars, out) {
     const rng = ctx.rng;
@@ -402,6 +443,12 @@ function buildFusionBassBar(ctx, section, barIdx, localBars, out) {
 // ---------------------------------------------------------------------------
 // Sekcja rytmiczna: FORTEPIAN (comping z voice leadingiem)
 // ---------------------------------------------------------------------------
+
+/** Substytut trytonowy: dominanta o tryton od prymy danego akordu. */
+function tritoneSub(chord) {
+    const root = (chord.root + 6) % 12;
+    return { root, typeName: '7', sym: PC_NAMES[root] + '7', ...CHORD_TYPES['7'] };
+}
 
 /** Wybiera voicing akordu najbliższy poprzedniemu (minimalny ruch głosów). */
 function pickVoicing(chord, prevVoicing) {
@@ -478,7 +525,12 @@ function buildCompingBar(ctx, section, barIdx, localBars, out, density) {
     const cellName = compCellFor(rng, density);
     const cell = COMP_CELLS[cellName];
     for (const hit of cell) {
-        const chord = hit.push ? chordAt(localBars, barIdx + 1, 0) : bar[0].chord;
+        let chord = hit.push ? chordAt(localBars, barIdx + 1, 0) : bar[0].chord;
+        // Antycypacja czasem przez substytut trytonowy - dominanta pół tonu
+        // nad celem, klasyczna przyprawa reharmonizacyjna
+        if (hit.push && rng.chance(0.22)) {
+            chord = tritoneSub(chord);
+        }
         const voicing = pickVoicing(chord, out.lastVoicing);
         out.lastVoicing = voicing;
         pushEvent(ctx, 'piano', globalBar, hit.beat, {
@@ -527,12 +579,24 @@ function buildSwingDrumsBar(ctx, section, barIdx, opts) {
     const lastOfPhrase = (barIdx + 1) % phraseBars === 0;
     const lastOfSection = barIdx === section.bars - 1;
 
-    // Ride: "ding ding-ga-ding" (skip na "i" beatu 2 i 4, akcent na 2 i 4)
-    const ridePattern = [
-        { beat: 0, vel: 0.5 }, { beat: 1, vel: 0.62 }, { beat: 1.5, vel: 0.36 },
-        { beat: 2, vel: 0.5 }, { beat: 3, vel: 0.62 }, { beat: 3.5, vel: 0.36 }
-    ];
-    for (const hit of ridePattern) {
+    // Ride: "ding ding-ga-ding" z wariantami taktu, żeby czas oddychał
+    const rideVariants = {
+        full: [
+            { beat: 0, vel: 0.5 }, { beat: 1, vel: 0.62 }, { beat: 1.5, vel: 0.36 },
+            { beat: 2, vel: 0.5 }, { beat: 3, vel: 0.62 }, { beat: 3.5, vel: 0.36 }
+        ],
+        lite: [
+            { beat: 0, vel: 0.5 }, { beat: 1, vel: 0.62 },
+            { beat: 2, vel: 0.5 }, { beat: 3, vel: 0.62 }, { beat: 3.5, vel: 0.36 }
+        ],
+        busy: [
+            { beat: 0, vel: 0.5 }, { beat: 0.5, vel: 0.3 }, { beat: 1, vel: 0.62 },
+            { beat: 1.5, vel: 0.36 }, { beat: 2, vel: 0.5 }, { beat: 3, vel: 0.62 },
+            { beat: 3.5, vel: 0.36 }
+        ]
+    };
+    const variant = rng.weighted([[5, 'full'], [2, 'lite'], [opts.heat ? 2 : 0.7, 'busy']]);
+    for (const hit of rideVariants[variant]) {
         if (opts.sparse && hit.beat % 1 !== 0 && rng.chance(0.5)) continue;
         pushEvent(ctx, 'ride', bar, hit.beat, { vel: v * hit.vel * rng.float(0.92, 1.08) }, 0.003);
     }
@@ -549,16 +613,17 @@ function buildSwingDrumsBar(ctx, section, barIdx, opts) {
         }
     }
 
-    // Comping werbla: pojedyncze duszki w dialogu z solistą
+    // Comping werbla: duszki w dialogu z solistą, gęstsze w gorących chorusach
     if (!opts.quietSnare) {
-        const snareHits = rng.weighted([[2.5, 0], [4, 1], [2.5, 2]]);
+        const heat = opts.heat || 0;
+        const snareHits = rng.weighted([[2.5 - heat, 0], [4, 1], [2.5 + heat, 2]]);
         const spots = [0.5, 1.5, 2, 2.5, 3.5];
         for (let i = 0; i < snareHits; i++) {
             const beat = rng.pick(spots);
-            pushEvent(ctx, 'snare', bar, beat, { vel: v * rng.float(0.16, 0.26) }, 0.005);
+            pushEvent(ctx, 'snare', bar, beat, { vel: v * rng.float(0.16, 0.26 + heat * 0.05) }, 0.005);
         }
         // Mocniejszy akcent stopą w synkopie
-        if (rng.chance(0.15)) {
+        if (rng.chance(0.15 + heat * 0.1)) {
             pushEvent(ctx, 'kick', bar, rng.pick([1.5, 2.5, 3.5]), { vel: v * 0.34 }, 0.004);
         }
     }
@@ -620,6 +685,122 @@ function buildFusionDrumsBar(ctx, section, barIdx, opts) {
     if (barIdx === section.bars - 1) {
         pushEvent(ctx, 'tom', bar, 3.5, { freq: 160, vel: v * 0.4 }, 0.004);
         pushEvent(ctx, 'tom', bar, 3.75, { freq: 110, vel: v * 0.42 }, 0.004);
+    }
+}
+
+/**
+ * Takt solowy perkusji (czwórki): frazy na werblu i tomach, hi-hat nogą
+ * trzyma puls. Zespół milczy - to odpowiedź perkusisty na frazę trąbki.
+ */
+function buildDrumSoloBar(ctx, section, barIdx, opts) {
+    const rng = ctx.rng;
+    const bar = section.startBar + barIdx;
+    const v = section.drumVel;
+
+    for (const beat of [1, 3]) {
+        pushEvent(ctx, 'hat', bar, beat, { vel: v * 0.32 }, 0.003);
+    }
+
+    for (let beat = 0; beat < 4; beat++) {
+        const cell = rng.weighted([[3, 'eighths'], [2.2, 'triplet'], [2, 'accent'], [2, 'rest'], [1.5, 'toms']]);
+        switch (cell) {
+            case 'eighths':
+                pushEvent(ctx, 'snare', bar, beat, { vel: v * rng.float(0.3, 0.4) }, 0.004);
+                pushEvent(ctx, 'snare', bar, beat + 0.5, { vel: v * rng.float(0.18, 0.26) }, 0.004);
+                break;
+            case 'triplet':
+                for (let k = 0; k < 3; k++) {
+                    pushEvent(ctx, 'snare', bar, beat + k / 3, { vel: v * (0.34 - k * 0.05) }, 0.004);
+                }
+                break;
+            case 'accent':
+                if (rng.chance(0.5)) {
+                    pushEvent(ctx, 'kick', bar, beat, { vel: v * 0.5 }, 0.004);
+                    pushEvent(ctx, 'snare', bar, beat + 0.5, { vel: v * 0.35 }, 0.004);
+                } else {
+                    pushEvent(ctx, 'snare', bar, beat, { vel: v * 0.46 }, 0.004);
+                }
+                break;
+            case 'toms':
+                pushEvent(ctx, 'tom', bar, beat, { freq: 180, vel: v * 0.42 }, 0.004);
+                pushEvent(ctx, 'tom', bar, beat + 0.5, { freq: 120, vel: v * 0.38 }, 0.004);
+                break;
+        }
+    }
+
+    // Korona czwórki: mocniejsze domknięcie ostatniego taktu segmentu
+    if (opts.lastOfSegment) {
+        pushEvent(ctx, 'snare', bar, 3, { vel: v * 0.46 }, 0.004);
+        pushEvent(ctx, 'snare', bar, 3.33, { vel: v * 0.4 }, 0.004);
+        pushEvent(ctx, 'tom', bar, 3.67, { freq: 110, vel: v * 0.48 }, 0.004);
+    }
+}
+
+/**
+ * Czwórki: trąbka i perkusja wymieniają się 4-taktowymi frazami.
+ * W czwórkach perkusji zespół milczy (klasyczny "trading fours").
+ */
+function buildTradingSection(ctx, section, localBars, states, soloRegister) {
+    const rng = ctx.rng;
+    const segments = Math.floor(section.bars / 4);
+    const soloState = { lastPitch: null };
+    const bluesForm = ctx.formName.toLowerCase().includes('lues');
+
+    for (let seg = 0; seg < segments; seg++) {
+        const segStart = seg * 4;
+        const trumpetTurn = seg % 2 === 0;
+
+        for (let b = 0; b < 4; b++) {
+            const barIdx = segStart + b;
+            // Wyświetlacz akordów działa niezależnie od tego, kto gra
+            const formBar = localBars[barIdx % localBars.length];
+            let beat = 0;
+            for (const slot of formBar) {
+                pushEvent(ctx, 'chordDisplay', section.startBar + barIdx, beat, { name: slot.chord.sym });
+                beat += slot.beats;
+            }
+            if (trumpetTurn) {
+                buildWalkingBar(ctx, section, barIdx, localBars, states.bass);
+                buildCompingBar(ctx, section, barIdx, localBars, states.piano, 1);
+                buildSwingDrumsBar(ctx, section, barIdx, { heat: 1 });
+            } else {
+                buildDrumSoloBar(ctx, section, barIdx, { lastOfSegment: b === 3 });
+            }
+        }
+
+        if (trumpetTurn) {
+            const rhythm = generatePhraseRhythm(rng, rng.pick([10, 12, 13]), 0.78);
+            const startBeat = rng.pick([0.5, 1]);
+            let notes = pitchPhrase(ctx, rhythm, segStart, startBeat, localBars,
+                soloRegister, soloState, bluesForm && rng.chance(0.5));
+            notes = licksifyNotes(ctx, notes, segStart, startBeat, localBars);
+            emitSoloNotes(ctx, section.startBar, segStart, startBeat, notes,
+                { kind: 'trumpet', vel: 0.56 }, rhythm[rhythm.length - 1].off + 1);
+        } else {
+            // Zespołowy strzał na "1" otwierający czwórkę perkusji
+            pushEvent(ctx, 'kick', section.startBar + segStart, 0, { vel: 0.5 });
+            pushEvent(ctx, 'crash', section.startBar + segStart, 0, { vel: 0.4 });
+        }
+    }
+}
+
+/**
+ * Tła trąbki za solem fortepianu: długie dźwięki prowadzące (tercja/septyma)
+ * co dwa takty - tekstura sekcji dętej z big-bandowych aranżacji.
+ */
+function buildBackgroundPads(ctx, section, localBars) {
+    const rng = ctx.rng;
+    for (let barIdx = 0; barIdx < section.bars; barIdx += 2) {
+        if (!rng.chance(0.75)) continue;
+        const chord = chordAt(localBars, barIdx, 0);
+        const guide = rng.chance(0.5)
+            ? chord.tones[1]
+            : (chord.tones[3] != null ? chord.tones[3] : chord.tones[2]);
+        const pitch = clampPitch(nearestPitch((chord.root + guide) % 12, 63), 57, 71);
+        pushEvent(ctx, 'trumpet', section.startBar + barIdx, 0.5, {
+            freq: midiToFreq(pitch), dur: ctx.beatDur * 3, vel: 0.26,
+            opts: { scoop: false, vibrato: true, vibratoDepth: 2.5, vibratoRate: 4.5, vibratoDelay: 0.6 }
+        }, 0.008);
     }
 }
 
@@ -722,7 +903,97 @@ function pitchPhrase(ctx, rhythm, phraseStartBar, phraseStartBeat, localBars, re
     return notes;
 }
 
-/** Buduje pełny chorus solo (lub temat) dla wskazanego instrumentu. */
+/**
+ * Bebopowe obiegniki: po zbudowaniu frazy nuty tuż przed zmianą akordu
+ * zostają przepisane na chromatyczne okrążenie celu (góra-dół-cel itd.).
+ * To generatywny odpowiednik słownika licków - wzorce względne wobec celu.
+ */
+const ENCLOSURES = [
+    [1, -1], [-1, 1], [2, 1, -1], [-2, -1, 1], [3, 1, -1]
+];
+
+function licksifyNotes(ctx, notes, phraseStartBar, phraseStartBeat, localBars) {
+    const rng = ctx.rng;
+    for (let i = 2; i < notes.length - 1; i++) {
+        const abs = phraseStartBeat + notes[i].off;
+        const nextAbs = phraseStartBeat + notes[i + 1].off;
+        const chord = chordAt(localBars, phraseStartBar + Math.floor(abs / 4), abs % 4);
+        const nextChord = chordAt(localBars, phraseStartBar + Math.floor(nextAbs / 4), nextAbs % 4);
+        if (chord.sym === nextChord.sym || notes[i + 1].final) continue;
+        if (!rng.chance(0.5)) continue;
+
+        const target = notes[i + 1].pitch;
+        const pattern = rng.pick(ENCLOSURES);
+        // Przepisujemy do 3 nut przed celem (pomijając pierwszą nutę frazy)
+        const count = Math.min(pattern.length, i);
+        for (let k = 0; k < count; k++) {
+            const noteIdx = i - count + 1 + k;
+            if (noteIdx <= 0 || notes[noteIdx].final || notes[noteIdx].dur > 1) continue;
+            notes[noteIdx].pitch = target + pattern[pattern.length - count + k];
+        }
+    }
+    return notes;
+}
+
+/**
+ * Wstawki double-time: jedna nuta (z zapasem miejsca) zamienia się
+ * w prosty szesnastkowy bieg chromatyczny do następnej nuty.
+ */
+function addDoubleTimeBursts(ctx, notes, probability) {
+    const rng = ctx.rng;
+    if (!rng.chance(probability)) return notes;
+    const candidates = [];
+    for (let i = 1; i < notes.length - 1; i++) {
+        const gap = notes[i + 1].off - notes[i].off;
+        if (gap >= 1 && !notes[i].final) candidates.push(i);
+    }
+    if (!candidates.length) return notes;
+    const idx = rng.pick(candidates);
+    const from = notes[idx];
+    const to = notes[idx + 1];
+    const burst = [];
+    for (let k = 0; k < 4; k++) {
+        const t = k / 4;
+        burst.push({
+            off: from.off + k * 0.25,
+            dur: 0.25,
+            pitch: Math.round(from.pitch + (to.pitch - from.pitch) * t),
+            burst: true
+        });
+    }
+    return [...notes.slice(0, idx), ...burst, ...notes.slice(idx + 1)];
+}
+
+/** Emituje nuty frazy solowej z łukiem dynamicznym i akcentami offbeatów. */
+function emitSoloNotes(ctx, sectionStartBar, phraseBar, phraseBeat, notes, opts, phraseLen) {
+    const rng = ctx.rng;
+    for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        const arc = Math.sin(Math.PI * Math.min(1, n.off / phraseLen));
+        const offbeatAccent = (n.off % 1) !== 0 ? 0.06 : 0;
+        const ghost = n.burst ? -0.1 : 0;
+        const vel = Math.min(1, Math.max(0.12,
+            opts.vel * (0.82 + 0.3 * arc) + offbeatAccent + ghost + rng.float(-0.03, 0.03)));
+        const absBeat = phraseBeat + n.off;
+        const evt = {
+            freq: midiToFreq(n.pitch),
+            dur: ctx.beatDur * (n.final ? n.dur * 1.05 : Math.max(0.14, n.dur * 0.88)),
+            vel
+        };
+        if (opts.kind === 'trumpet') {
+            if (n.final && n.dur >= 1.2) {
+                evt.opts = { vibrato: true, vibratoDepth: 4, vibratoRate: 5.2, vibratoDelay: 0.25 };
+            } else if (n.final && rng.chance(0.4)) {
+                evt.opts = { fall: true }; // opadnięcie na końcu krótszej frazy
+            } else if (n.burst || n.dur < 0.4) {
+                evt.opts = { scoop: false }; // szybkie przebiegi bez podjazdów
+            }
+        }
+        pushEvent(ctx, opts.kind, sectionStartBar + phraseBar, absBeat, evt, 0.007);
+    }
+}
+
+/** Buduje pełny chorus solo dla wskazanego instrumentu. */
 function buildSoloChorus(ctx, section, localBars, opts) {
     const rng = ctx.rng;
     const totalBeats = section.bars * 4;
@@ -745,25 +1016,12 @@ function buildSoloChorus(ctx, section, localBars, opts) {
         const phraseBar = Math.floor(pos / 4);
         const phraseBeat = pos % 4;
         const bluesy = opts.allowBlues && rng.chance(0.35);
-        const notes = pitchPhrase(ctx, rhythm, phraseBar, phraseBeat, localBars, opts.register, state, bluesy);
+        let notes = pitchPhrase(ctx, rhythm, phraseBar, phraseBeat, localBars, opts.register, state, bluesy);
+        notes = licksifyNotes(ctx, notes, phraseBar, phraseBeat, localBars);
+        notes = addDoubleTimeBursts(ctx, notes, opts.heat ? 0.25 : 0.1);
 
-        // Łuk dynamiczny frazy + akcenty na offbeatach
         const phraseLen = rhythm[rhythm.length - 1].off + 1;
-        for (const n of notes) {
-            const arc = Math.sin(Math.PI * Math.min(1, n.off / phraseLen));
-            const offbeatAccent = (n.off % 1) !== 0 ? 0.06 : 0;
-            const vel = Math.min(1, opts.vel * (0.82 + 0.3 * arc) + offbeatAccent + rng.float(-0.03, 0.03));
-            const absBeat = phraseBeat + n.off;
-            const evt = {
-                freq: midiToFreq(n.pitch),
-                dur: ctx.beatDur * (n.final ? n.dur * 1.05 : Math.max(0.16, n.dur * 0.88)),
-                vel
-            };
-            if (n.final && n.dur >= 1.2) {
-                evt.opts = { vibrato: true, vibratoDepth: 4, vibratoRate: 5.2, vibratoDelay: 0.25 };
-            }
-            pushEvent(ctx, opts.kind, section.startBar + phraseBar, absBeat, evt, 0.007);
-        }
+        emitSoloNotes(ctx, section.startBar, phraseBar, phraseBeat, notes, opts, phraseLen);
 
         pos += phraseLen;
         // Oddech między frazami - cisza jest częścią muzyki
@@ -778,36 +1036,73 @@ function buildSoloChorus(ctx, section, localBars, opts) {
 // TEMAT (head): riffowa melodia zapamiętywana i powtarzana w "head out"
 // ---------------------------------------------------------------------------
 
-/** Dopasowuje wysokości riffu do akordów (mocne beaty -> dźwięki akordowe). */
+/**
+ * Sprawdzone synkopowane haki rytmiczne tematu (b = beat, d = długość).
+ * Chwytliwość bierze się z powtarzania JEDNEGO rytmu - cały temat trzyma
+ * ten sam hak, zmienia się tylko odpowiedź melodyczna.
+ */
+const HOOK_RHYTHMS = [
+    [{ b: 0, d: 0.5 }, { b: 0.5, d: 0.5 }, { b: 1.5, d: 1 }, { b: 3, d: 1.5, final: true }],
+    [{ b: 0, d: 1 }, { b: 1.5, d: 0.5 }, { b: 2, d: 0.5 }, { b: 2.5, d: 2, final: true }],
+    [{ b: 0.5, d: 0.5 }, { b: 1, d: 0.5 }, { b: 1.5, d: 1 }, { b: 3, d: 1.5, final: true }],
+    [{ b: 0, d: 0.5 }, { b: 1, d: 0.5 }, { b: 2, d: 0.5 }, { b: 2.5, d: 0.5 }, { b: 3, d: 1.5, final: true }],
+    [{ b: 1.5, d: 0.5 }, { b: 2, d: 0.5 }, { b: 2.5, d: 0.5 }, { b: 3.5, d: 2, final: true }],
+    [{ b: 0, d: 0.5 }, { b: 0.5, d: 0.5 }, { b: 1, d: 0.5 }, { b: 2.5, d: 0.5 }, { b: 3, d: 2, final: true }]
+];
+
+/**
+ * Kontury melodyczne haka: kroki po skali względem dźwięku startowego.
+ * Powtarzanie tego samego dźwięku (0,0,...) to najstarszy trik na
+ * chwytliwość - patrz "C Jam Blues", który ma dwa dźwięki.
+ */
+const HOOK_CONTOURS = [
+    [0, 0, 0, -1, 0],
+    [0, 0, 2, 0, -1],
+    [0, -1, -2, 0, 1],
+    [0, 2, 1, -1, 0],
+    [0, 1, 0, -2, -1],
+    [0, -2, 0, 2, 0],
+    [0, 0, -1, -1, 0]
+];
+
+/**
+ * Dopasowuje wysokości riffu do akordów: mocne beaty i finały -> dźwięki
+ * akordowe, słabe -> skala (w bluesie: bluesowa skala tonacji dla koloru).
+ */
 function snapRiffToChords(riff, ctx, sectionStartBeat, localBars) {
+    const bluesForm = ctx.formName.toLowerCase().includes('lues');
     return riff.map(n => {
         const absBeat = sectionStartBeat + n.off;
         const barIdx = Math.floor(absBeat / 4);
         const beatInBar = absBeat % 4;
         const chord = chordAt(localBars, barIdx, beatInBar);
         const strongBeat = beatInBar % 2 === 0;
-        const snapped = strongBeat
-            ? nearestFromSet(chord.root, chord.tones, n.pitch)
-            : nearestFromSet(chord.root, chord.scale, n.pitch);
+        let snapped;
+        if (strongBeat || n.final) {
+            snapped = nearestFromSet(chord.root, chord.tones, n.pitch);
+        } else if (bluesForm) {
+            snapped = nearestFromSet(ctx.keyPc, SCALES.blues, n.pitch);
+        } else {
+            snapped = nearestFromSet(chord.root, chord.scale, n.pitch);
+        }
         return { ...n, pitch: snapped };
     });
 }
 
-/** Generuje riff 2-taktowy (szkielet tematu) w rejestrze tematu. */
-function generateThemeRiff(ctx, register) {
+/**
+ * Buduje riff tematu z haka rytmicznego i konturu.
+ * @param {number} endBias - przesunięcie ostatniego dźwięku (call kończy
+ *   w górze/pytająco, response w dole/twierdząco - klasyczne pytanie-odpowiedź)
+ */
+function generateThemeRiff(ctx, register, rhythm, contour, endBias = 0) {
     const rng = ctx.rng;
-    // Riff musi mieć co najmniej 5 nut, żeby był rozpoznawalną melodią
-    let rhythm = generatePhraseRhythm(rng, rng.pick([5, 6, 6.5]), 0.55);
-    for (let attempt = 0; attempt < 10 && rhythm.length < 5; attempt++) {
-        rhythm = generatePhraseRhythm(rng, 6.5, 0.65 + attempt * 0.04);
-    }
-    let pitch = register.center + rng.int(-3, 3);
-    let direction = rng.chance(0.5) ? 1 : -1;
-    return rhythm.map(cell => {
-        if (rng.chance(0.3)) direction = -direction;
-        pitch += direction * rng.weighted([[5, 1], [3, 2], [1.5, 3], [1, 0]]);
+    const start = register.center + rng.int(-2, 3);
+    return rhythm.map((cell, i) => {
+        const step = contour[Math.min(i, contour.length - 1)];
+        let pitch = start + step * 2; // ~2 półtony na krok skali, snap poprawi
+        if (cell.final) pitch += endBias;
         pitch = clampPitch(pitch, register.lo, register.hi);
-        return { off: cell.off, dur: cell.dur, pitch, final: !!cell.final };
+        return { off: cell.b, dur: cell.d, pitch, final: !!cell.final };
     });
 }
 
@@ -817,15 +1112,23 @@ function generateThemeRiff(ctx, register) {
  */
 function buildTheme(ctx, section, localBars, register) {
     const rng = ctx.rng;
-    const call = generateThemeRiff(ctx, register);
-    const response = generateThemeRiff(ctx, register);
+    // Jeden hak rytmiczny na cały temat + dwa kontury: pytanie i odpowiedź.
+    // Wspólny rytm robi z tematu rozpoznawalny riff zamiast losowej melodii.
+    const hookRhythm = rng.pick(HOOK_RHYTHMS);
+    const callContour = rng.pick(HOOK_CONTOURS);
+    let responseContour = rng.pick(HOOK_CONTOURS);
+    if (responseContour === callContour) {
+        responseContour = HOOK_CONTOURS[(HOOK_CONTOURS.indexOf(callContour) + 3) % HOOK_CONTOURS.length];
+    }
+    const call = generateThemeRiff(ctx, register, hookRhythm, callContour, +2);
+    const response = generateThemeRiff(ctx, register, hookRhythm, responseContour, -2);
     const phraseBars = ctx.formDef.phraseBars;
     const placements = [];
 
-    if (section.bars === 12) {
-        // Blues: call (t.1-2), response (t.3-4), call (t.5-6), response (t.7-8),
-        // call (t.9-10), response (t.11-12)
-        for (let p = 0; p < 6; p++) {
+    if (section.bars === 12 || phraseBars < 8) {
+        // Blues i krótkie vampy: hak co 2 takty, naprzemiennie call/response.
+        // Muzyka riffowa żyje powtórzeniem - riff wraca przez cały chorus.
+        for (let p = 0; p < section.bars / 2; p++) {
             placements.push({ startBeat: p * 8, riff: p % 2 === 0 ? call : response });
         }
     } else {
@@ -893,6 +1196,7 @@ function buildRhythmSection(ctx, section, localBars, states, opts) {
         // Bas
         if (ctx.feel === 'modal') buildModalBassBar(ctx, section, barIdx, localBars, states.bass);
         else if (ctx.feel === 'fusion') buildFusionBassBar(ctx, section, barIdx, localBars, states.bass);
+        else if (opts.bassMode === 'two') buildTwoFeelBassBar(ctx, section, barIdx, localBars, states.bass);
         else buildWalkingBar(ctx, section, barIdx, localBars, states.bass);
 
         // Fortepian
@@ -979,6 +1283,11 @@ export function generatePerformance(options = {}) {
     for (let c = 0; c < soloChoruses; c++) {
         plan.push({ name: 'pianoSolo', label: `Solo fortepianu${soloChoruses > 1 ? ` (${c + 1}/${soloChoruses})` : ''}`, bars: N, localBars: ctx.bars, chorusIdx: c });
     }
+    // Czwórki z perkusją - tylko w feelu swingowym (blues/bebop/rhythm changes)
+    if (ctx.feel === 'swing') {
+        const tradingBars = N <= 12 ? N * 2 : N;
+        plan.push({ name: 'trading', label: 'Czwórki: trąbka i perkusja', bars: tradingBars, localBars: ctx.bars });
+    }
     plan.push({ name: 'headOut', label: 'Temat (finał)', bars: N, localBars: ctx.bars });
     plan.push({ name: 'coda', label: 'Koda', bars: 2, localBars: [[{ chord: ctx.tonic, beats: 4 }]] });
 
@@ -1008,14 +1317,17 @@ export function generatePerformance(options = {}) {
                 section.drumVel = 0.8;
                 section.pianoVel = 0.42;
                 buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'comp', compDensity: 0, drumOpts: { sparse: true, quietSnare: true }
+                    pianoMode: 'comp', compDensity: 0, bassMode: 'two',
+                    drumOpts: { sparse: true, quietSnare: true }
                 });
                 break;
 
             case 'head':
+                // Temat "w dwójce" - przejście na walking w solach daje lift
                 sectionDownbeat(ctx, section, 0.45);
                 buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'comp', compDensity: 1, drumOpts: { quietSnare: true }
+                    pianoMode: 'comp', compDensity: 1, bassMode: 'two',
+                    drumOpts: { quietSnare: true }
                 });
                 theme = buildTheme(ctx, section, sec.localBars, REGISTERS.trumpetTheme);
                 break;
@@ -1025,11 +1337,12 @@ export function generatePerformance(options = {}) {
                 const heat = sec.chorusIdx; // drugi chorus intensywniejszy
                 section.drumVel = 1.0 + heat * 0.08;
                 buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'comp', compDensity: heat > 0 ? 2 : 1, drumOpts: {}
+                    pianoMode: 'comp', compDensity: heat > 0 ? 2 : 1, drumOpts: { heat }
                 });
                 buildSoloChorus(ctx, section, sec.localBars, {
-                    kind: 'trumpet', register: REGISTERS.trumpetSolo,
-                    density: 0.72 + heat * 0.08, vel: 0.5 + heat * 0.06,
+                    kind: 'trumpet',
+                    register: { ...REGISTERS.trumpetSolo, center: REGISTERS.trumpetSolo.center + heat * 2 },
+                    density: 0.72 + heat * 0.08, vel: 0.5 + heat * 0.06, heat,
                     allowBlues: ctx.formName.includes('lues'),
                     memory: trumpetMemory, leadIn: heat > 0
                 });
@@ -1042,16 +1355,27 @@ export function generatePerformance(options = {}) {
                 // Za solo fortepianu perkusja schodzi ciszej, bas zostaje
                 section.drumVel = 0.82 + heat * 0.1;
                 buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'shell', drumOpts: { sparse: heat === 0, quietSnare: heat === 0 }
+                    pianoMode: 'shell', drumOpts: { sparse: heat === 0, quietSnare: heat === 0, heat }
                 });
                 buildSoloChorus(ctx, section, sec.localBars, {
-                    kind: 'pianoNote', register: REGISTERS.pianoSolo,
-                    density: 0.68 + heat * 0.1, vel: 0.48 + heat * 0.05,
+                    kind: 'pianoNote',
+                    register: { ...REGISTERS.pianoSolo, center: REGISTERS.pianoSolo.center + heat * 2 },
+                    density: 0.68 + heat * 0.1, vel: 0.48 + heat * 0.05, heat,
                     allowBlues: ctx.formName.includes('lues'),
                     memory: pianoMemory, leadIn: heat > 0
                 });
+                // Tła sekcji dętej w gorętszym chorusie (krótkie formy)
+                if (heat > 0 && N <= 12) {
+                    buildBackgroundPads(ctx, section, sec.localBars);
+                }
                 break;
             }
+
+            case 'trading':
+                sectionDownbeat(ctx, section, 0.5);
+                section.drumVel = 1.05;
+                buildTradingSection(ctx, section, sec.localBars, states, REGISTERS.trumpetSolo);
+                break;
 
             case 'headOut':
                 sectionDownbeat(ctx, section, 0.55);

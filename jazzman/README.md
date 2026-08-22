@@ -11,7 +11,7 @@ Aplikacja używa modułów ES, więc wymaga serwera HTTP (nie zadziała z `file:
 npx http-server .        # albo dowolny inny serwer statyczny
 ```
 
-i otwórz `index.html`. Kliknij **AKTYWUJ JAZZOWE AUDIO**, potem **START JAZZU**.
+i otwórz `index.html`. Kliknij **Aktywuj audio**, potem **Start**.
 
 ## Jak powstaje muzyka
 
@@ -21,15 +21,26 @@ który generuje cały występ z góry, jako listę zdarzeń na wspólnej siatce 
 - **Forma utworu** — prawdziwe progresje z harmoniką funkcyjną: 12-taktowy blues,
   bebop blues, rhythm changes (AABA) i forma modalna à la "So What"; losowa tonacja.
 - **Struktura występu** — Intro → Temat → Solo trąbki → Solo fortepianu →
-  Temat (finał) → Koda z fermatą. Po kodzie generowany jest kolejny utwór.
+  Czwórki z perkusją (w feelu swingowym) → Temat (finał) → Koda z fermatą.
+  Po kodzie generowany jest kolejny utwór.
+- **Chwytliwy temat** — jeden synkopowany hak rytmiczny na cały chorus
+  (powtórzenie = chwytliwość), kontury z powtarzanym dźwiękiem, naprzemienne
+  frazy pytanie-odpowiedź dopasowywane do akordów; w bluesie kolor skali
+  bluesowej tonacji.
+- **Dramaturgia** — temat grany "w dwójce" (półnuty basu), sola przechodzą na
+  walking (lift), kolejne chorusy podnoszą rejestr, gęstość i dynamikę; za solem
+  fortepianu tła długich dźwięków trąbki.
 - **Walking bass** — ćwierćnuty prowadzące krokami po skali do prymy *następnego*
   akordu, z chromatyczną nutą podejściową na czwartym beacie.
 - **Comping fortepianu** — bezkorzeniowe voicingi (3-5-7-9 itd.) dobierane
-  voice leadingiem (minimalny ruch głosów), rytmy typu Charleston i antycypacje.
-- **Improwizacja** — frazy z oddechami między nimi, celowanie w tercje/septymy
-  na zmianach akordów, motywy call & response, łuk dynamiczny frazy.
-- **Perkusja jazzowa** — ride "ding ding-ga-ding" ze swingowym skipem, hi-hat nogą
-  na 2 i 4, feathering stopy, comping werbla, fille na końcach fraz, crash na
+  voice leadingiem, rytmy typu Charleston, antycypacje, czasem substytut
+  trytonowy w pushu.
+- **Improwizacja** — frazy z oddechami, celowanie w tercje/septymy na zmianach
+  akordów, bebopowe obiegniki (enclosures) przed celami, wstawki double-time,
+  motywy call & response, scoop i fall trąbki, łuk dynamiczny frazy.
+- **Perkusja jazzowa** — syntezowany talerz ride (nieharmoniczne partiale +
+  shimmer) z wariantami "ding ding-ga-ding", hi-hat nogą na 2 i 4, feathering
+  stopy, comping werbla, fille na końcach fraz, solówki w czwórkach, crash na
   początkach chorusów.
 - **Wspólny swing** — jeden współczynnik swingu (zależny od tempa) stosowany do
   wszystkich instrumentów przy zamianie beatów na sekundy; do tego humanizacja

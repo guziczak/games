@@ -75,10 +75,50 @@ for (const style of STYLES) {
             assert.ok(names.includes('Temat (finał)'), 'brak head out');
             assert.equal(names[names.length - 1], 'Koda');
 
+            // Czwórki z perkusją tylko w feelu swingowym
+            const hasTrading = names.some(n => n.startsWith('Czwórki'));
+            if (WALKING_FORMS.has(meta.form)) {
+                assert.ok(hasTrading, 'brak czwórek w formie swingowej');
+            } else {
+                assert.ok(!hasTrading, 'czwórki nie należą do stylu modal/fusion');
+            }
+
             for (let i = 1; i < meta.sections.length; i++) {
                 assert.ok(meta.sections[i].t > meta.sections[i - 1].t, 'sekcje muszą rosnąć w czasie');
             }
         });
+
+        if (WALKING_FORMS.has(meta.form)) {
+            test(`${label}: temat w dwójce, sola walking (lift gęstości basu)`, () => {
+                const headSpan = sectionSpan(meta, 'Temat', totalSeconds);
+                const soloSpan = sectionSpan(meta, 'Solo trąbki', totalSeconds);
+                const barDur = 4 * beatDur;
+                const density = span => {
+                    const notes = events.filter(e =>
+                        e.kind === 'bass' && e.vel > 0.4 && e.t >= span[0] && e.t < span[1]);
+                    return notes.length / ((span[1] - span[0]) / barDur);
+                };
+                const headDensity = density(headSpan);
+                const soloDensity = density(soloSpan);
+                assert.ok(headDensity < 3.2, `temat nie jest w dwójce: ${headDensity.toFixed(2)} nut/takt`);
+                assert.ok(soloDensity > 3.5, `solo nie ma walking basu: ${soloDensity.toFixed(2)} nut/takt`);
+            });
+
+            test(`${label}: czwórki - zespół milczy w taktach perkusji`, () => {
+                const span = sectionSpan(meta, 'Czwórki', totalSeconds);
+                assert.ok(span, 'brak sekcji czwórek');
+                const trumpetNotes = events.filter(e =>
+                    e.kind === 'trumpet' && e.t >= span[0] && e.t < span[1]);
+                assert.ok(trumpetNotes.length >= 8, `za mało trąbki w czwórkach: ${trumpetNotes.length}`);
+                // W czwórkach perkusji nie ma basu, więc sumaryczna gęstość basu
+                // w sekcji musi być wyraźnie niższa niż pełny walking
+                const barDur = 4 * beatDur;
+                const bassNotes = events.filter(e =>
+                    e.kind === 'bass' && e.vel > 0.4 && e.t >= span[0] && e.t < span[1]);
+                const density = bassNotes.length / ((span[1] - span[0]) / barDur);
+                assert.ok(density < 3, `bas gra w czwórkach perkusji: ${density.toFixed(2)} nut/takt`);
+            });
+        }
 
         test(`${label}: determinizm (ten sam seed = ten sam występ)`, () => {
             const again = generatePerformance({ style, tempo: 132, seed });

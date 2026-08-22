@@ -9,8 +9,7 @@
  */
 
 import {
-    NOTE_FREQUENCIES,
-    CHORD_COLORS
+    NOTE_FREQUENCIES
 } from './modules/musicTheory.js';
 
 import {
@@ -40,7 +39,6 @@ import {
     initializeAudioContext,
     displayError,
     updateStatus,
-    createJazzEffect,
     getTempoForStyle,
     getRandomItem,
     DEFAULT_TEMPO,
@@ -78,7 +76,18 @@ const performanceState = {
     currentSeqId: null,   // id sekwencji bieżącego występu
     previousSeqId: null,  // id poprzedniej (do posprzątania)
     nextOffset: 0,        // offset startu kolejnego występu (sekundy od startu sekwencera)
+    currentOffset: 0,     // offset startu bieżącego występu
+    currentTotal: 0,      // długość bieżącego występu w sekundach
     gapBetween: 1.2       // oddech między utworami
+};
+
+// Wizualizacja: analizator widma i oś struktury utworu
+const viz = {
+    analyser: null,
+    freqData: null,
+    canvas: null,
+    cctx: null,
+    rafStarted: false
 };
 
 // Czytelne nazwy form dla paska statusu
@@ -97,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     setupEventListeners();
     initializeVisualizer();
-    updateStatus("Kliknij AKTYWUJ JAZZOWE AUDIO, aby rozpocząć...");
+    updateStatus('Kliknij „Aktywuj audio”, aby rozpocząć.');
 });
 
 /**
@@ -107,8 +116,6 @@ function initializeUI() {
     document.getElementById('tempoValue').textContent = `${state.tempo} BPM`;
     document.getElementById('tempo').value = state.tempo;
 
-    document.getElementById('startButton').style.animation = 'pulse 1.5s infinite';
-
     state.currentMood = getRandomItem(Object.keys(PREDEFINED_MOODS));
     const moodDisplay = document.getElementById('moodDisplay');
     if (moodDisplay) {
@@ -117,15 +124,118 @@ function initializeUI() {
 }
 
 /**
- * Inicjalizacja wizualizatora
+ * Inicjalizacja wizualizatora (canvas analizatora widma)
  */
 function initializeVisualizer() {
     const chordDisplayElement = document.getElementById('chordDisplay');
-    const moodDisplayElement = document.getElementById('moodDisplay');
+    if (chordDisplayElement) {
+        chordDisplayElement.textContent = '—';
+    }
 
-    if (chordDisplayElement && moodDisplayElement) {
-        chordDisplayElement.textContent = '-';
-        moodDisplayElement.textContent = state.currentMood;
+    viz.canvas = document.getElementById('vizCanvas');
+    if (viz.canvas) {
+        viz.cctx = viz.canvas.getContext('2d');
+        const resize = () => {
+            const dpr = window.devicePixelRatio || 1;
+            viz.canvas.width = Math.max(1, Math.floor(viz.canvas.clientWidth * dpr));
+            viz.canvas.height = Math.max(1, Math.floor(viz.canvas.clientHeight * dpr));
+        };
+        resize();
+        window.addEventListener('resize', resize);
+    }
+}
+
+/**
+ * Pętla animacji: słupki widma + postęp na osi utworu
+ */
+function startVizLoop() {
+    if (viz.rafStarted) return;
+    viz.rafStarted = true;
+
+    const draw = () => {
+        drawSpectrum();
+        updateTimelineProgress();
+        requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
+}
+
+function drawSpectrum() {
+    if (!viz.cctx || !viz.canvas) return;
+    const w = viz.canvas.width;
+    const h = viz.canvas.height;
+    const cctx = viz.cctx;
+    cctx.clearRect(0, 0, w, h);
+
+    if (!viz.analyser || !state.isPlaying) {
+        // W spoczynku: cienka linia bazowa
+        cctx.fillStyle = 'rgba(236, 233, 226, 0.12)';
+        cctx.fillRect(0, h - 2, w, 1);
+        return;
+    }
+
+    viz.analyser.getByteFrequencyData(viz.freqData);
+    const bars = 56;
+    const usable = Math.floor(viz.freqData.length * 0.72); // ucinamy martwy szczyt pasma
+    const step = usable / bars;
+    const barW = w / bars;
+    for (let i = 0; i < bars; i++) {
+        const v = viz.freqData[Math.floor(i * step)] / 255;
+        const barH = Math.max(2, v * v * h * 0.95);
+        cctx.fillStyle = `rgba(200, 164, 92, ${0.18 + v * 0.62})`;
+        cctx.fillRect(i * barW + 1, h - barH, Math.max(1, barW - 2), barH);
+    }
+}
+
+/**
+ * Buduje oś struktury utworu: segment na sekcję, szerokość ~ czas trwania
+ */
+function renderTimeline(meta, totalSeconds) {
+    const el = document.getElementById('timeline');
+    if (!el) return;
+    el.innerHTML = '';
+    for (let i = 0; i < meta.sections.length; i++) {
+        const start = meta.sections[i].t;
+        const end = i + 1 < meta.sections.length ? meta.sections[i + 1].t : totalSeconds;
+        const seg = document.createElement('div');
+        seg.className = 'timeline__seg';
+        seg.style.flexGrow = String(Math.max(0.001, end - start));
+        seg.dataset.start = String(start);
+        seg.dataset.end = String(end);
+        seg.title = meta.sections[i].name;
+        const fill = document.createElement('div');
+        fill.className = 'timeline__fill';
+        seg.appendChild(fill);
+        el.appendChild(seg);
+    }
+}
+
+function updateTimelineProgress() {
+    const el = document.getElementById('timeline');
+    if (!el || !el.children.length) return;
+
+    let pos = -1;
+    if (state.isPlaying && sequencer && performanceState.currentTotal > 0) {
+        pos = audioContext.currentTime - sequencer.startTime - sequencer.totalPausedTime
+            - performanceState.currentOffset;
+    }
+
+    for (const seg of el.children) {
+        const start = parseFloat(seg.dataset.start);
+        const end = parseFloat(seg.dataset.end);
+        const fill = seg.firstChild;
+        if (pos <= start) {
+            seg.classList.remove('done', 'current');
+            fill.style.width = '0%';
+        } else if (pos >= end) {
+            seg.classList.add('done');
+            seg.classList.remove('current');
+            fill.style.width = '100%';
+        } else {
+            seg.classList.add('current');
+            seg.classList.remove('done');
+            fill.style.width = `${((pos - start) / (end - start)) * 100}%`;
+        }
     }
 }
 
@@ -207,11 +317,22 @@ async function initializeAudio() {
         dynamicMixingSystem.setMood(state.currentMood);
         dynamicMixingSystem.setStyle(state.style);
 
+        // Analizator widma podpięty pod sumę miksu (tap równoległy)
+        try {
+            viz.analyser = audioContext.createAnalyser();
+            viz.analyser.fftSize = 256;
+            viz.analyser.smoothingTimeConstant = 0.82;
+            viz.freqData = new Uint8Array(viz.analyser.frequencyBinCount);
+            audioEngine.mixer.master.connect(viz.analyser);
+        } catch (e) {
+            viz.analyser = null;
+        }
+        startVizLoop();
+
         state.audioInitialized = true;
 
-        document.getElementById('startButton').textContent = "START JAZZU";
-        document.getElementById('startButton').style.animation = '';
-        updateStatus("Audio zainicjalizowane! Kliknij START, aby rozpocząć jazzowanie!");
+        document.getElementById('startButton').textContent = "Start";
+        updateStatus("Audio gotowe. Kliknij Start.");
 
         playTestSound();
 
@@ -242,8 +363,10 @@ function startJazz() {
         return;
     }
 
-    document.getElementById('startButton').textContent = "STOP JAZZU";
+    document.getElementById('startButton').textContent = "Stop";
     document.getElementById('startButton').classList.add('active');
+    const led = document.getElementById('playLed');
+    if (led) led.classList.add('on');
 
     state.isPlaying = true;
 
@@ -263,16 +386,20 @@ function startJazz() {
  * Zatrzymanie odtwarzania
  */
 function stopJazz() {
-    document.getElementById('startButton').textContent = "START JAZZU";
+    document.getElementById('startButton').textContent = "Start";
     document.getElementById('startButton').classList.remove('active');
+    const led = document.getElementById('playLed');
+    if (led) led.classList.remove('on');
 
     if (sequencer) {
         sequencer.clear();
     }
 
     state.isPlaying = false;
-    clearVisualizer();
-    updateStatus("Zatrzymano. Kliknij START, aby kontynuować...");
+
+    const sectionLabel = document.getElementById('sectionLabel');
+    if (sectionLabel) sectionLabel.textContent = 'zatrzymany';
+    updateStatus("Zatrzymano. Kliknij Start, aby kontynuować.");
 }
 
 /**
@@ -307,12 +434,27 @@ function schedulePerformance() {
 
     performanceState.previousSeqId = performanceState.currentSeqId;
     performanceState.currentSeqId = seqId;
+    performanceState.currentOffset = performanceState.nextOffset;
+    performanceState.currentTotal = perf.totalSeconds;
     performanceState.nextOffset += perf.totalSeconds + performanceState.gapBetween;
+
+    // Oś struktury utworu + linia metadanych
+    renderTimeline(perf.meta, perf.totalSeconds);
+    const metaLine = document.getElementById('metaLine');
+    if (metaLine) {
+        metaLine.textContent =
+            `${FORM_LABELS[perf.meta.form] || perf.meta.form} · ${formatChordSym(perf.meta.key)} · ${perf.meta.tempo} BPM`;
+    }
 
     console.log(
         `Jazzman: nowy występ - ${FORM_LABELS[perf.meta.form] || perf.meta.form}, ` +
         `tonacja ${perf.meta.key}, ${perf.meta.tempo} BPM, ${perf.meta.totalBars} taktów`
     );
+}
+
+/** Typograficzne bemole i krzyżyki: Bb7b9 -> B♭7♭9 */
+function formatChordSym(sym) {
+    return String(sym).replace(/b/g, '♭').replace(/#/g, '♯');
 }
 
 /**
@@ -390,15 +532,15 @@ function onPerformanceEnd() {
 }
 
 /**
- * Aktualizuje pasek statusu o bieżącą sekcję utworu
+ * Aktualizuje etykietę bieżącej sekcji utworu
  * @param {string} sectionName - Nazwa sekcji (Intro, Temat, Solo trąbki...)
  */
 function updateSectionDisplay(sectionName) {
-    const meta = performanceState.current;
-    if (!meta) return;
-    const formLabel = FORM_LABELS[meta.form] || meta.form;
-    updateStatus(`▶ ${sectionName} — ${formLabel}, tonacja ${meta.key}, ${meta.tempo} BPM`);
-    showJazzEffect();
+    const sectionLabel = document.getElementById('sectionLabel');
+    if (sectionLabel) {
+        sectionLabel.textContent = sectionName;
+    }
+    updateStatus('Gra na żywo.');
 }
 
 /**
@@ -423,58 +565,10 @@ function updateChordDisplay(chord) {
 
     const chordDisplay = document.getElementById('chordDisplay');
     if (chordDisplay) {
-        chordDisplay.textContent = chord;
-        chordDisplay.style.color = getChordColor(chord);
-
+        chordDisplay.textContent = formatChordSym(chord);
         chordDisplay.classList.add('pulse');
-        setTimeout(() => chordDisplay.classList.remove('pulse'), 300);
+        setTimeout(() => chordDisplay.classList.remove('pulse'), 140);
     }
-}
-
-/**
- * Pobiera kolor dla akordu
- * @param {string} chordName - Nazwa akordu
- * @returns {string} Kolor w formacie HSL
- */
-function getChordColor(chordName) {
-    if (!chordName) return 'hsl(60, 80%, 60%)'; // Domyślny złoty
-
-    let chordType = '';
-
-    if (chordName.includes('maj9')) {
-        chordType = 'maj9';
-    } else if (chordName.includes('maj7')) {
-        chordType = 'maj7';
-    } else if (chordName.includes('m7b5')) {
-        chordType = 'm7b5';
-    } else if (chordName.includes('dim')) {
-        chordType = 'dim7';
-    } else if (chordName.includes('m9')) {
-        chordType = 'm9';
-    } else if (chordName.includes('m7')) {
-        chordType = 'm7';
-    } else if (chordName.includes('7b9')) {
-        chordType = '7b9';
-    } else if (chordName.includes('13')) {
-        chordType = '13';
-    } else if (chordName.includes('9')) {
-        chordType = '9';
-    } else if (chordName.includes('sus')) {
-        chordType = 'sus4';
-    } else if (chordName.includes('7')) {
-        chordType = '7';
-    } else if (chordName.includes('m6')) {
-        chordType = 'm6';
-    } else if (chordName.includes('6')) {
-        chordType = '6';
-    }
-
-    const color = CHORD_COLORS[chordType];
-    if (color) {
-        return `hsl(${color.h}, ${color.s}%, ${color.l}%)`;
-    }
-
-    return 'hsl(60, 80%, 60%)';
 }
 
 /**
@@ -547,17 +641,13 @@ function updateTempo() {
 function toggleInstrument(instrument) {
     state.instruments[instrument] = !state.instruments[instrument];
 
+    // Stan pokazuje kropka chipa (CSS .active), etykieta zostaje bez zmian
     const button = document.getElementById(`${instrument}Toggle`);
     button.classList.toggle('active', state.instruments[instrument]);
-
-    const label = instrument.charAt(0).toUpperCase() + instrument.slice(1);
-    button.textContent = `${label}: ${state.instruments[instrument] ? 'ON' : 'OFF'}`;
 
     if (audioEngine && audioEngine.mixer) {
         audioEngine.mixer.setMute(instrument, !state.instruments[instrument]);
     }
-
-    showJazzEffect();
 }
 
 /**
@@ -586,21 +676,10 @@ function toggleAutoJazz() {
 }
 
 /**
- * Efekt wizualny dla akcji jazzowych
+ * Dawny efekt spadających emotek - celowo wyłączony.
+ * Nowy interfejs komunikuje ruch analizatorem widma i osią utworu.
  */
-function showJazzEffect() {
-    createJazzEffect('notesAnimation', 10);
-}
-
-/**
- * Wyczyszczenie wizualizatora
- */
-function clearVisualizer() {
-    const visualizer = document.getElementById('visualizer');
-    if (visualizer) {
-        visualizer.innerHTML = '';
-    }
-}
+function showJazzEffect() { /* no-op */ }
 
 /**
  * Odtwarzanie dźwięku testowego
@@ -681,8 +760,9 @@ function requestStyleChangeFromAutoJazz(style) {
     }
 }
 
-// Eksport funkcji dla wywołania z innych modułów (AutoJazz używa tych hooków)
+// Eksport funkcji dla wywołania z innych modułów (AutoJazz używa tych hooków).
+// createJazzEffect to no-op: dawny deszcz emotek nie pasuje do interfejsu.
 window.setStyle = requestStyleChangeFromAutoJazz;
 window.updateTempo = requestTempoChangeFromAutoJazz;
-window.createJazzEffect = createJazzEffect;
+window.createJazzEffect = function () {};
 window.changeRandomMood = changeRandomMood;
