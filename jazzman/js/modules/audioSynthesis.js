@@ -443,104 +443,78 @@ export function createPianoSynthesizer(audioContext) {
                 // Zapewnienie, że czas nigdy nie jest ujemny
                 const startTime = Math.max(time || audioContext.currentTime, audioContext.currentTime);
 
-                // Ograniczamy liczbę oscylatorów dla lepszej wydajności
+                // SYNTEZA ADDYTYWNA: struna fortepianu to zbiór partiali o
+                // lekko rozciągniętym stroju (inharmoniczność sztywnej struny),
+                // z których każdy zanika wykładniczo - im wyższy, tym szybciej.
+                // Do tego rozstrojony bliźniak (dwie struny na dźwięk = dudnienie)
+                // i szum młoteczka w ataku.
                 const oscillators = [];
 
-                // Główny oscylator
-                const osc1 = audioContext.createOscillator();
-                osc1.type = 'triangle';
-                osc1.frequency.value = frequency;
-
-                // Drugi oscylator (oktawa wyżej, cichszy) - używamy tylko jeśli velocity jest wysoka
-                let osc2, gain2;
-                if (velocity > 0.4) {
-                    osc2 = audioContext.createOscillator();
-                    osc2.type = 'sine';
-                    osc2.frequency.value = frequency * 2;
-
-                    gain2 = audioContext.createGain();
-                    gain2.gain.value = velocity * 0.3;
-                }
-
-                // Szum dla ataku (hammer noise) - tylko dla nut z wysoką dynamiką
-                let noise, noiseGain, noiseFilter;
-                if (velocity > 0.5) {
-                    noise = audioContext.createBufferSource();
-                    noise.buffer = pianoNoiseCache.get('hammer');
-
-                    noiseGain = audioContext.createGain();
-                    noiseGain.gain.setValueAtTime(velocity * 0.15, startTime);
-                    noiseGain.gain.linearRampToValueAtTime(0, startTime + 0.05);
-
-                    noiseFilter = audioContext.createBiquadFilter();
-                    noiseFilter.type = 'bandpass';
-                    noiseFilter.frequency.value = 3000;
-                    noiseFilter.Q.value = 1;
-                }
-
-                // Główny gain node
+                // Główny gain node (tłumik: opada przy końcu nuty)
                 const gainNode = audioContext.createGain();
+                gainNode.gain.setValueAtTime(0.5, startTime);
+                gainNode.gain.setTargetAtTime(0, startTime + Math.max(0.02, duration - 0.04), 0.045);
 
-                // Uproszczone parametry obwiedni
-                const attack = 0.01 + (velocity * 0.01);
-                const decay = 0.1 + (1 - velocity) * 0.15;
-                const sustain = 0.5 * velocity;
-                const release = Math.min(0.4 + (1 - velocity) * 0.3, duration * 0.7);
-
-                // Ustaw obwiednię amplitudy (ADSR) - uproszczona wersja
-                gainNode.gain.setValueAtTime(0, startTime);
-                gainNode.gain.linearRampToValueAtTime(velocity, startTime + attack);
-
-                if (duration > (attack + decay + 0.05)) {
-                    gainNode.gain.linearRampToValueAtTime(velocity * sustain, startTime + attack + decay);
-                    // Struna fortepianu wybrzmiewa wykładniczo, nie trzyma płaskiego sustainu
-                    const releaseStartTime = Math.max(startTime + attack + decay + 0.01, startTime + duration - release);
-                    gainNode.gain.exponentialRampToValueAtTime(
-                        Math.max(0.001, velocity * sustain * 0.4), releaseStartTime);
-                    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
-                } else {
-                    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
-                }
-
-                // Uproszczony filtr
+                // Delikatny lowpass sumy (nazwa zgodna z blokiem return)
                 const filter = audioContext.createBiquadFilter();
                 filter.type = 'lowpass';
-                filter.frequency.value = 2000 + (velocity * 6000);
+                filter.frequency.value = 8200;
+                filter.Q.value = 0.4;
 
-                // Prostsza obwiednia filtra - tylko jedno przejście
-                filter.frequency.setValueAtTime(4000 + (velocity * 4000), startTime);
-                filter.frequency.linearRampToValueAtTime(1000 + (velocity * 3000), startTime + duration);
+                // Inharmoniczność zależna od rejestru (niskie struny = sztywniejsze)
+                const inharmonicity = Math.min(0.0008, Math.max(0.00003,
+                    0.0004 * Math.sqrt(180 / frequency)));
+                const brightness = Math.min(0.95, 0.7 + velocity * 0.28);
+                const tau1 = Math.max(0.5, Math.min(4.5, 2.6 * Math.pow(220 / frequency, 0.55)));
+                const stopAt = startTime + duration + 0.08;
 
-                // Połączenia
-                osc1.connect(filter);
+                const addPartial = (freq, amp, tau) => {
+                    if (freq > 7600 || amp < 0.004) return;
+                    const osc = audioContext.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const g = audioContext.createGain();
+                    g.gain.setValueAtTime(0, startTime);
+                    g.gain.linearRampToValueAtTime(amp, startTime + 0.0025);
+                    // Wykładniczy zanik partialu (setTarget = naturalna krzywa)
+                    g.gain.setTargetAtTime(0, startTime + 0.0025, tau / 4);
+                    osc.connect(g);
+                    g.connect(filter);
+                    osc.start(startTime);
+                    osc.stop(stopAt);
+                    oscillators.push(osc);
+                };
+
+                for (let n = 1; n <= 8; n++) {
+                    const fn = frequency * n * Math.sqrt(1 + inharmonicity * n * n);
+                    const amp = velocity * Math.pow(n, -1.35) * Math.pow(brightness, n - 1);
+                    const tau = tau1 / (1 + 0.55 * (n - 1));
+                    addPartial(fn, amp, tau);
+                    // Rozstrojone bliźniaki dwóch pierwszych partiali - dudnienie
+                    // jak między strunami jednego chóru
+                    if (n === 1) addPartial(fn * 1.0009, amp * 0.6, tau * 1.1);
+                    if (n === 2) addPartial(fn * 0.9992, amp * 0.5, tau);
+                }
+
+                // Szum młoteczka w ataku
+                const noise = audioContext.createBufferSource();
+                noise.buffer = pianoNoiseCache.get('hammer');
+                const noiseFilter = audioContext.createBiquadFilter();
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.value = 1400 + velocity * 2600;
+                noiseFilter.Q.value = 0.9;
+                const noiseGain = audioContext.createGain();
+                noiseGain.gain.setValueAtTime(velocity * 0.12, startTime);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.035);
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(gainNode);
+                noise.start(startTime);
+                noise.stop(startTime + 0.06);
+                oscillators.push(noise);
+
                 filter.connect(gainNode);
-
-                if (osc2 && gain2) {
-                    osc2.connect(gain2);
-                    gain2.connect(filter);
-                }
-
-                if (noise && noiseFilter && noiseGain) {
-                    noise.connect(noiseFilter);
-                    noiseFilter.connect(noiseGain);
-                    noiseGain.connect(gainNode);
-                }
-
                 gainNode.connect(this.output);
-
-                // Start i stop
-                osc1.start(startTime);
-                if (osc2) osc2.start(startTime);
-                if (noise) noise.start(startTime);
-
-                osc1.stop(startTime + duration);
-                if (osc2) osc2.stop(startTime + duration);
-                if (noise) noise.stop(startTime + 0.1); // Krótszy czas dla szumu
-
-                // Zapisz oscylatory do tablicy
-                oscillators.push(osc1);
-                if (osc2) oscillators.push(osc2);
-                if (noise) oscillators.push(noise);
 
                 // Zwróć obiekt do ewentualnego anulowania
                 return {
@@ -630,82 +604,115 @@ export function createBassSynthesizer(audioContext) {
                 // Zapewnienie, że czas nigdy nie jest ujemny
                 const startTime = Math.max(time || audioContext.currentTime, audioContext.currentTime);
 
-                // Model szarpanej struny kontrabasu: trójkąt + sinus (sub),
-                // szybki atak, wykładniczy decay, tąpnięcie palca i rezonans pudła
+                // KARPLUS-STRONG: fizyczny model szarpanej struny.
+                // Pętla: delay (okres drgań) -> lowpass (naturalne tłumienie
+                // wysokich składowych) -> gain (zanik) -> z powrotem do delaya.
+                // Wzbudzenie krótkim impulsem szumu = "szarpnięcie" struny.
                 const oscillators = [];
 
-                const osc1 = audioContext.createOscillator();
-                osc1.type = 'triangle';
-                // Struna po szarpnięciu minimalnie "siada" na wysokości
-                osc1.frequency.setValueAtTime(frequency * 1.012, startTime);
-                osc1.frequency.exponentialRampToValueAtTime(frequency, startTime + 0.05);
+                const loopDelay = audioContext.createDelay(0.1);
+                // Kompensacja opóźnienia grupowego filtra w pętli (~65 µs),
+                // żeby struna nie intonowała pod dźwiękiem względem zespołu
+                loopDelay.delayTime.value = Math.max(0.0005, 1 / frequency - 0.000065);
 
-                const osc2 = audioContext.createOscillator();
-                osc2.type = 'sine';
-                osc2.frequency.value = frequency;
-
-                const gainNode = audioContext.createGain();
-                const gain2 = audioContext.createGain();
-                gain2.gain.value = 0.55; // sub wzmacnia fundament
-
-                // Obwiednia plucka: atak 8 ms, wykładnicze opadanie przez całą nutę
-                const peak = velocity;
-                const tail = Math.max(0.12, Math.min(duration, 1.6));
-                gainNode.gain.setValueAtTime(0, startTime);
-                gainNode.gain.linearRampToValueAtTime(peak, startTime + 0.008);
-                gainNode.gain.exponentialRampToValueAtTime(Math.max(0.001, peak * 0.25), startTime + tail * 0.75);
-                gainNode.gain.linearRampToValueAtTime(0, startTime + duration + 0.03);
-
-                // Filtr: ciemny, z szybkim opadnięciem jasności po ataku
+                // "filter" = tłumienie w pętli (nazwa zgodna z blokiem return)
                 const filter = audioContext.createBiquadFilter();
                 filter.type = 'lowpass';
-                filter.Q.value = 0.8;
-                filter.frequency.setValueAtTime(1400, startTime);
-                filter.frequency.exponentialRampToValueAtTime(420, startTime + 0.12);
+                filter.frequency.value = 1900 + velocity * 1400;
+                filter.Q.value = 0.4;
 
-                // Rezonans pudła - lekki bandpass równolegle
+                // Zanik struny: g^(f*T) = -60dB  =>  g = 10^(-3/(f*T))
+                const ringTime = Math.max(0.35, Math.min(duration * 1.5, 2.4));
+                const feedback = audioContext.createGain();
+                feedback.gain.value = Math.min(0.998, Math.pow(10, -3 / (frequency * ringTime)));
+
+                loopDelay.connect(filter);
+                filter.connect(feedback);
+                feedback.connect(loopDelay);
+
+                // Wzbudzenie: chwila szumu przez lowpass (miękkość opuszka)
+                const excite = audioContext.createBufferSource();
+                excite.buffer = createNoiseBuffer(audioContext, 0.05);
+                const exciteFilter = audioContext.createBiquadFilter();
+                exciteFilter.type = 'lowpass';
+                exciteFilter.frequency.value = 900 + velocity * 2200;
+                const exciteGain = audioContext.createGain();
+                exciteGain.gain.setValueAtTime(velocity * 1.6, startTime);
+                exciteGain.gain.exponentialRampToValueAtTime(0.001, startTime + Math.min(0.02, 2.5 / frequency));
+                excite.connect(exciteFilter);
+                exciteFilter.connect(exciteGain);
+                exciteGain.connect(loopDelay);
+
+                // Sub-sinus dociąża fundament (goły KS bywa cienki na dole)
+                const sub = audioContext.createOscillator();
+                sub.type = 'sine';
+                sub.frequency.value = frequency;
+                const subGain = audioContext.createGain();
+                subGain.gain.setValueAtTime(0, startTime);
+                subGain.gain.linearRampToValueAtTime(velocity * 0.35, startTime + 0.012);
+                subGain.gain.exponentialRampToValueAtTime(0.001, startTime + ringTime * 0.8);
+                sub.connect(subGain);
+
+                // Rezonans pudła kontrabasu - równoległy bandpass
                 const body = audioContext.createBiquadFilter();
                 body.type = 'bandpass';
                 body.frequency.value = 190;
-                body.Q.value = 1.1;
+                body.Q.value = 1.2;
                 const bodyGain = audioContext.createGain();
-                bodyGain.gain.value = 0.5;
+                bodyGain.gain.value = 0.6;
 
-                // Tąpnięcie palca o strunę - krótki, głuchy transjent
+                // Tąpnięcie palca o podstrunnicę
                 const thump = audioContext.createBufferSource();
                 thump.buffer = createNoiseBuffer(audioContext, 0.05);
                 const thumpFilter = audioContext.createBiquadFilter();
                 thumpFilter.type = 'lowpass';
-                thumpFilter.frequency.value = 320;
+                thumpFilter.frequency.value = 300;
                 const thumpGain = audioContext.createGain();
-                thumpGain.gain.setValueAtTime(velocity * 0.5, startTime);
-                thumpGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.045);
-
-                // Połączenia
-                osc1.connect(filter);
-                osc2.connect(gain2);
-                gain2.connect(filter);
-                filter.connect(gainNode);
-                filter.connect(body);
-                body.connect(bodyGain);
-                bodyGain.connect(gainNode);
+                thumpGain.gain.setValueAtTime(velocity * 0.45, startTime);
+                thumpGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
                 thump.connect(thumpFilter);
                 thumpFilter.connect(thumpGain);
                 thumpGain.connect(this.output);
 
+                // Wyjście: struna dzwoni naturalnie, na końcu nuty palec ją
+                // tłumi (szybkie wyciszenie - artykulacja walking bassu)
+                const gainNode = audioContext.createGain();
+                gainNode.gain.setValueAtTime(velocity * 0.9, startTime);
+                gainNode.gain.setTargetAtTime(0, startTime + duration, 0.025);
+
+                loopDelay.connect(gainNode);
+                loopDelay.connect(body);
+                body.connect(bodyGain);
+                bodyGain.connect(gainNode);
+                subGain.connect(gainNode);
                 gainNode.connect(this.output);
 
                 // Start i stop
-                osc1.start(startTime);
-                osc2.start(startTime);
+                excite.start(startTime);
+                excite.stop(startTime + 0.05);
+                sub.start(startTime);
+                sub.stop(startTime + duration + 0.3);
                 thump.start(startTime);
-
-                osc1.stop(startTime + duration + 0.05);
-                osc2.stop(startTime + duration + 0.05);
                 thump.stop(startTime + 0.05);
 
+                // Wygaszenie pętli sprzężenia i sprzątnięcie węzłów - pętla
+                // z delayem nie zniknie sama, trzeba ją rozłączyć
+                feedback.gain.setTargetAtTime(0, startTime + duration + 0.1, 0.03);
+                const cleanupMs = (startTime - audioContext.currentTime + duration + 0.6) * 1000;
+                setTimeout(() => {
+                    try {
+                        loopDelay.disconnect();
+                        filter.disconnect();
+                        feedback.disconnect();
+                        gainNode.disconnect();
+                        body.disconnect();
+                        bodyGain.disconnect();
+                        subGain.disconnect();
+                    } catch (e) { /* węzły mogły już zostać odłączone */ }
+                }, Math.max(150, cleanupMs));
+
                 // Zapisz oscylatory do tablicy
-                oscillators.push(osc1, osc2);
+                oscillators.push(sub);
                 
                 // Zwróć obiekt do ewentualnego anulowania
                 return { 
@@ -1239,142 +1246,124 @@ export function createTrumpetSynthesizer(audioContext) {
                 // Zapewnienie, że czas nigdy nie jest ujemny
                 const startTime = Math.max(time || audioContext.currentTime, audioContext.currentTime);
 
-                // Zredukujemy liczbę oscylatorów dla lepszej wydajności
-
-                // Tablica oscylatorów
+                // SYNTEZA FM (2 operatory, stosunek 1:1) - klasyczna metoda na
+                // realistyczny brass: indeks modulacji rośnie z dynamiką i
+                // atakiem ("blask" dęciaka), potem osiada. Do tego waveshaper
+                // dodający nasycenie, kopertowany lowpass i chiff oddechu.
                 const oscillators = [];
 
-                // Oscylator podstawowy (square wave z modulacją)
-                const osc1 = audioContext.createOscillator();
-                osc1.type = 'square';
+                const carrier = audioContext.createOscillator();
+                carrier.type = 'sine';
+                const modulator = audioContext.createOscillator();
+                modulator.type = 'sine';
 
-                // Oscylator dla składowych wyższych harmonicznych
-                const osc2 = audioContext.createOscillator();
-                osc2.type = 'sawtooth';
+                // Modulator wpięty w częstotliwość nośnej; gain w Hz = indeks * f
+                const modGain = audioContext.createGain();
+                modulator.connect(modGain);
+                modGain.connect(carrier.frequency);
 
-                // Scoop: dęciak "podjeżdża" do dźwięku od dołu (ok. pół półtonu)
+                // Wspólne prowadzenie wysokości nośnej i modulatora (ratio 1:1)
+                const setPitch = (setter) => { setter(carrier.frequency); setter(modulator.frequency); };
+
+                // Scoop: dęciak "podjeżdża" do dźwięku od dołu
                 if (options.scoop !== false && duration > 0.12) {
-                    osc1.frequency.setValueAtTime(frequency * 0.972, startTime);
-                    osc1.frequency.exponentialRampToValueAtTime(frequency, startTime + 0.055);
-                    osc2.frequency.setValueAtTime(frequency * 0.982, startTime);
-                    osc2.frequency.exponentialRampToValueAtTime(frequency * 1.01, startTime + 0.055);
+                    setPitch(p => {
+                        p.setValueAtTime(frequency * 0.972, startTime);
+                        p.exponentialRampToValueAtTime(frequency, startTime + 0.055);
+                    });
                 } else {
-                    osc1.frequency.value = frequency;
-                    osc2.frequency.value = frequency * 1.01; // Lekkie rozstrojenie
+                    setPitch(p => { p.value = frequency; });
                 }
 
-                // Fall: opadnięcie wysokości na końcu nuty (tylko bez vibrato,
+                // Fall: opadnięcie wysokości na końcu nuty (bez vibrato,
                 // bo vibrato zajmuje krzywą częstotliwości do końca nuty)
                 if (options.fall && !options.vibrato && duration > 0.25) {
                     const fallStart = startTime + duration - 0.11;
-                    osc1.frequency.setValueAtTime(frequency, fallStart);
-                    osc1.frequency.exponentialRampToValueAtTime(frequency * 0.9, startTime + duration);
-                    osc2.frequency.setValueAtTime(frequency * 1.01, fallStart);
-                    osc2.frequency.exponentialRampToValueAtTime(frequency * 0.91, startTime + duration);
+                    setPitch(p => {
+                        p.setValueAtTime(frequency, fallStart);
+                        p.exponentialRampToValueAtTime(frequency * 0.9, startTime + duration);
+                    });
                 }
 
-                // Wavefather dla tonu trąbkowego - używamy z cache
+                // Obwiednia indeksu modulacji: szczyt w ataku, osiadanie,
+                // wygaśnięcie jasności przy końcu nuty
+                const attack = options.attack || 0.04;
+                const peakIndex = frequency * (1.1 + velocity * 2.6);
+                const sustainIndex = frequency * (0.6 + velocity * 1.2);
+                modGain.gain.setValueAtTime(frequency * 0.15, startTime);
+                modGain.gain.linearRampToValueAtTime(peakIndex, startTime + attack + 0.015);
+                modGain.gain.setTargetAtTime(sustainIndex, startTime + attack + 0.02, 0.09);
+                modGain.gain.setTargetAtTime(frequency * 0.25, startTime + Math.max(0.05, duration - 0.1), 0.05);
+
+                // Nasycenie "blaszane" z cache
                 const waveShaperBrass = audioContext.createWaveShaper();
                 waveShaperBrass.curve = trumpetCurveCache.get('default');
-                waveShaperBrass.oversample = '2x'; // Zmniejszony oversample z 4x na 2x dla wydajności
+                waveShaperBrass.oversample = '2x';
 
-                // Gain nodes dla oscylatorów
-                const gain1 = audioContext.createGain();
-                gain1.gain.value = velocity * 0.6;
+                // Kopertowany lowpass - brzmienie otwiera się z atakiem
+                const brightFilter = audioContext.createBiquadFilter();
+                brightFilter.type = 'lowpass';
+                brightFilter.Q.value = 0.7;
+                brightFilter.frequency.setValueAtTime(1100, startTime);
+                brightFilter.frequency.linearRampToValueAtTime(2400 + velocity * 4200, startTime + attack + 0.03);
+                brightFilter.frequency.setTargetAtTime(1800 + velocity * 2400, startTime + attack + 0.05, 0.25);
 
-                const gain2 = audioContext.createGain();
-                gain2.gain.value = velocity * 0.3;
-
-                // Główny gain node
+                // Obwiednia amplitudy z lekkim przestrzeleniem ataku
+                const sustain = options.sustain || 0.72;
+                const release = Math.min(options.release || 0.09, duration * 0.5);
                 const mainGain = audioContext.createGain();
-
-                // Uproszczona obwiednia - parametry
-                const attack = options.attack || 0.06;
-                const decay = options.decay || 0.1;
-                const sustain = options.sustain || 0.6;
-                const release = Math.min(options.release || 0.3, duration * 0.7);
-
-                // Ustawienie obwiedni - uproszczona wersja
                 mainGain.gain.setValueAtTime(0, startTime);
-                mainGain.gain.linearRampToValueAtTime(velocity, startTime + attack);
-
-                if (duration > (attack + decay + 0.05)) {
-                    mainGain.gain.linearRampToValueAtTime(velocity * sustain, startTime + attack + decay);
-                    const releaseStartTime = Math.max(startTime + attack + decay, startTime + duration - release);
-                    mainGain.gain.setValueAtTime(velocity * sustain, releaseStartTime);
-                    mainGain.gain.linearRampToValueAtTime(0, startTime + duration);
-                } else {
-                    mainGain.gain.linearRampToValueAtTime(0, startTime + duration);
+                mainGain.gain.linearRampToValueAtTime(velocity * 1.05, startTime + attack);
+                if (duration > attack + 0.1) {
+                    mainGain.gain.setTargetAtTime(velocity * sustain, startTime + attack + 0.01, 0.08);
                 }
+                mainGain.gain.setTargetAtTime(0, startTime + duration - release, release / 3);
 
-                // Zredukowane filtry - tylko jeden główny filtr formantowy
-                const formantFilter = audioContext.createBiquadFilter();
-                formantFilter.type = 'bandpass';
-                formantFilter.frequency.value = frequency * 3; // Średnia wartość
-                formantFilter.Q.value = 2;
-
-                // Szum dla oddechu tylko jeśli velocity jest wysoka (> 0.5)
-                let breathNoise, breathFilter, breathGain;
-                if (velocity > 0.5 && duration > 0.3) {
+                // Chiff oddechu w ataku
+                let breathNoise = null;
+                if (duration > 0.15) {
                     breathNoise = audioContext.createBufferSource();
-                    breathNoise.buffer = createNoiseBuffer(audioContext, 0.5); // Zmniejszony czas
-
-                    breathFilter = audioContext.createBiquadFilter();
+                    breathNoise.buffer = createNoiseBuffer(audioContext, 0.2);
+                    const breathFilter = audioContext.createBiquadFilter();
                     breathFilter.type = 'bandpass';
-                    breathFilter.frequency.value = 2000;
-                    breathFilter.Q.value = 0.5;
-
-                    breathGain = audioContext.createGain();
-                    breathGain.gain.setValueAtTime(velocity * 0.1, startTime);
-                    breathGain.gain.linearRampToValueAtTime(0.001, startTime + attack + 0.1);
-                }
-
-                // Vibrato tylko dla dłuższych nut
-                if (options.vibrato && duration > 0.8) {
-                    const vibratoDepth = options.vibratoDepth || 5;
-                    const vibratoRate = options.vibratoRate || 5;
-                    const vibratoDelay = options.vibratoDelay || 0.2;
-
-                    const vibratoStart = startTime + vibratoDelay;
-                    const vibratoLength = duration - vibratoDelay;
-
-                    // Ograniczamy liczbę punktów w krzywej dla lepszej wydajności
-                    const vibratoCurve = createVibratoCurve(frequency, vibratoDepth, vibratoRate, vibratoLength, 30);
-
-                    osc1.frequency.setValueCurveAtTime(vibratoCurve, vibratoStart, vibratoLength);
-                }
-
-                // Połączenia oscylatorów
-                osc1.connect(gain1);
-                gain1.connect(formantFilter);
-
-                osc2.connect(gain2);
-                gain2.connect(formantFilter);
-
-                // Połączenia filtrów do głównego gain
-                formantFilter.connect(mainGain);
-
-                // Połączenia szumu (opcjonalnie)
-                if (breathNoise) {
+                    breathFilter.frequency.value = 2400;
+                    breathFilter.Q.value = 0.6;
+                    const breathGain = audioContext.createGain();
+                    breathGain.gain.setValueAtTime(velocity * 0.09, startTime);
+                    breathGain.gain.exponentialRampToValueAtTime(0.001, startTime + attack + 0.08);
                     breathNoise.connect(breathFilter);
                     breathFilter.connect(breathGain);
                     breathGain.connect(mainGain);
                 }
 
-                // Główny output
+                // Vibrato dla dłuższych nut (na nośnej; odchyłka ratio pomijalna)
+                if (options.vibrato && duration > 0.8) {
+                    const vibratoDepth = options.vibratoDepth || 5;
+                    const vibratoRate = options.vibratoRate || 5;
+                    const vibratoDelay = options.vibratoDelay || 0.2;
+                    const vibratoStart = startTime + vibratoDelay;
+                    const vibratoLength = duration - vibratoDelay;
+                    const vibratoCurve = createVibratoCurve(frequency, vibratoDepth, vibratoRate, vibratoLength, 30);
+                    carrier.frequency.setValueCurveAtTime(vibratoCurve, vibratoStart, vibratoLength);
+                }
+
+                // Tor: nośna FM -> waveshaper -> lowpass -> mainGain -> wyjście
+                carrier.connect(waveShaperBrass);
+                waveShaperBrass.connect(brightFilter);
+                brightFilter.connect(mainGain);
                 mainGain.connect(this.output);
 
                 // Start i stop
-                osc1.start(startTime);
-                osc2.start(startTime);
+                carrier.start(startTime);
+                modulator.start(startTime);
                 if (breathNoise) breathNoise.start(startTime);
 
-                osc1.stop(startTime + duration);
-                osc2.stop(startTime + duration);
+                carrier.stop(startTime + duration + 0.05);
+                modulator.stop(startTime + duration + 0.05);
                 if (breathNoise) breathNoise.stop(startTime + attack + 0.2);
 
                 // Dodaj oscylatory do listy
-                oscillators.push(osc1, osc2);
+                oscillators.push(carrier, modulator);
                 if (breathNoise) oscillators.push(breathNoise);
 
                 // Zwróć referencje do obiektów do ewentualnego anulowania
@@ -1860,10 +1849,22 @@ export function createMixer(audioContext) {
     channels.bass.gain.value = 0.8;
     channels.drums.gain.value = 0.55;
     channels.trumpet.gain.value = 0.5;
-    
-    // Podłączamy wszystkie kanały do mastera
+
+    // Rozstawienie zespołu w panoramie jak na scenie: fortepian po lewej,
+    // perkusja po prawej, bas w centrum, trąbka lekko w prawo
+    const PANNING = { piano: -0.28, bass: 0, drums: 0.24, trumpet: 0.12 };
+    const supportsPanner = typeof audioContext.createStereoPanner === 'function';
+
+    // Podłączamy wszystkie kanały do mastera (przez panner, jeśli dostępny)
     for (const channel in channels) {
-        channels[channel].connect(masterOutput);
+        if (supportsPanner) {
+            const panner = audioContext.createStereoPanner();
+            panner.pan.value = PANNING[channel] || 0;
+            channels[channel].connect(panner);
+            panner.connect(masterOutput);
+        } else {
+            channels[channel].connect(masterOutput);
+        }
     }
     
     // Zwracamy interfejs miksera

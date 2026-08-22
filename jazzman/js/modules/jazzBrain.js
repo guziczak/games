@@ -497,17 +497,24 @@ function compCellFor(rng, density) {
     return rng.weighted([[1, 'rest'], [3, 'charleston'], [2.5, 'offbeats'], [2, 'upbeat'], [2, 'redChord'], [2, 'pushOnly'], [1, 'midbar']]);
 }
 
-function buildCompingBar(ctx, section, barIdx, localBars, out, density) {
+/** Zamienia zwykłą dominantę na alterowaną (7#9) - kulminacja harmoniczna. */
+function alterIfDominant(chord) {
+    if (chord.typeName !== '7') return chord;
+    return { ...chord, ...CHORD_TYPES['7#9'], root: chord.root, sym: chord.sym, typeName: '7#9' };
+}
+
+function buildCompingBar(ctx, section, barIdx, localBars, out, density, compOpts = {}) {
     const rng = ctx.rng;
     const bar = localBars[barIdx % localBars.length];
     const globalBar = section.startBar + barIdx;
     const twoChords = bar.length > 1;
+    const spice = chord => (compOpts.altDominants ? alterIfDominant(chord) : chord);
 
     if (twoChords) {
         // Dwa akordy w takcie: krótkie zagrania przy każdej zmianie
         let beat = 0;
         for (const slot of bar) {
-            const voicing = pickVoicing(slot.chord, out.lastVoicing);
+            const voicing = pickVoicing(spice(slot.chord), out.lastVoicing);
             out.lastVoicing = voicing;
             const hitBeat = beat + (rng.chance(0.25) && beat === 0 ? 0.5 : 0);
             if (!rng.chance(density === 0 ? 0.35 : 0.1)) {
@@ -531,7 +538,7 @@ function buildCompingBar(ctx, section, barIdx, localBars, out, density) {
         if (hit.push && rng.chance(0.22)) {
             chord = tritoneSub(chord);
         }
-        const voicing = pickVoicing(chord, out.lastVoicing);
+        const voicing = pickVoicing(spice(chord), out.lastVoicing);
         out.lastVoicing = voicing;
         pushEvent(ctx, 'piano', globalBar, hit.beat, {
             freqs: voicing.map(midiToFreq),
@@ -637,6 +644,28 @@ function buildSwingDrumsBar(ctx, section, barIdx, opts) {
             pushEvent(ctx, 'tom', bar, 3.67, { freq: 170, vel: v * 0.42 }, 0.004);
         } else {
             pushEvent(ctx, 'snare', bar, 3.5, { vel: v * 0.32 }, 0.004);
+        }
+    }
+
+    // PERKUSJA SŁUCHA SOLISTY: akcent dzwonu ride'u tam, gdzie kończy się
+    // fraza, i "setup" (rozbieg werbla) tuż przed wejściem następnej
+    if (opts.soloPhrases) {
+        const barStart = barIdx * 4;
+        for (const phrase of opts.soloPhrases) {
+            // Koniec frazy w tym takcie -> akcent (bell + stopa)
+            if (phrase.end >= barStart && phrase.end < barStart + 4 && rng.chance(0.65)) {
+                const beat = Math.min(3.5, Math.round((phrase.end - barStart) * 2) / 2);
+                pushEvent(ctx, 'bell', bar, beat, { vel: v * 0.45 }, 0.004);
+                if (rng.chance(0.5)) {
+                    pushEvent(ctx, 'kick', bar, beat, { vel: v * 0.35 }, 0.004);
+                }
+            }
+            // Fraza wchodzi na początku następnego taktu -> setup pod koniec tego
+            if (phrase.start >= barStart + 4 && phrase.start < barStart + 5.5 && rng.chance(0.55)) {
+                pushEvent(ctx, 'snare', bar, 3, { vel: v * 0.2 }, 0.004);
+                pushEvent(ctx, 'snare', bar, 3.33, { vel: v * 0.26 }, 0.004);
+                pushEvent(ctx, 'snare', bar, 3.67, { vel: v * 0.32 }, 0.004);
+            }
         }
     }
 }
@@ -837,8 +866,13 @@ function generatePhraseRhythm(rng, lengthBeats, density) {
 /**
  * Nadaje rytmowi wysokości: kroki po skali z bezwładnością kierunku,
  * chromatyczne podejścia pod zmiany akordów, celowanie w tercje/septymy.
+ *
+ * phraseOpts:
+ *  - contour: tablica interwałów motywu do odtworzenia (rozwój motywiczny)
+ *  - finalMode: 'tension' (fraza-pytanie kończy na 9/b7) albo 'resolve'
+ *    (odpowiedź kończy na 3/1/5) - klasyczna dramaturgia pytanie-odpowiedź
  */
-function pitchPhrase(ctx, rhythm, phraseStartBar, phraseStartBeat, localBars, register, state, bluesy) {
+function pitchPhrase(ctx, rhythm, phraseStartBar, phraseStartBeat, localBars, register, state, bluesy, phraseOpts = {}) {
     const rng = ctx.rng;
     const notes = [];
     let pitch = state.lastPitch != null
@@ -846,6 +880,7 @@ function pitchPhrase(ctx, rhythm, phraseStartBar, phraseStartBeat, localBars, re
         : nearestFromSet(chordAt(localBars, phraseStartBar, phraseStartBeat).root,
             chordAt(localBars, phraseStartBar, phraseStartBeat).tones, register.center);
     let direction = rng.chance(0.5) ? 1 : -1;
+    const contour = phraseOpts.contour || null;
 
     for (let i = 0; i < rhythm.length; i++) {
         const cell = rhythm[i];
@@ -874,9 +909,23 @@ function pitchPhrase(ctx, rhythm, phraseStartBar, phraseStartBeat, localBars, re
             // Start frazy: dźwięk akordowy blisko rejestru
             pitch = nearestFromSet(chord.root, chord.tones, clampPitch(pitch, register.lo, register.hi));
         } else if (cell.final) {
-            // Finał frazy: mocny dźwięk akordowy (tercja/kwinta/septyma)
-            const strong = [chord.tones[1], chord.tones[2], chord.tones[3] != null ? chord.tones[3] : chord.tones[0]];
+            // Finał frazy: pytanie zawiesza na napięciu, odpowiedź rozwiązuje
+            let strong;
+            if (phraseOpts.finalMode === 'tension') {
+                strong = [2, 10, 9]; // 9, b7, 13 - dźwięki "zawieszające"
+            } else if (phraseOpts.finalMode === 'resolve') {
+                strong = [chord.tones[1], 0, chord.tones[2]];
+            } else {
+                strong = [chord.tones[1], chord.tones[2], chord.tones[3] != null ? chord.tones[3] : chord.tones[0]];
+            }
             pitch = nearestFromSet(chord.root, strong, pitch + direction * 2);
+        } else if (contour && i - 1 < contour.length) {
+            // Rozwój motywu: odtwarzamy kontur interwałowy, dociągając do
+            // skali/akordu bieżącej harmonii (transpozycja harmoniczna motywu)
+            const raw = pitch + contour[i - 1];
+            pitch = beatInBar % 2 === 0
+                ? nearestFromSet(chord.root, chord.tones, raw)
+                : nearestFromSet(effChord.root, effChord.scale, raw);
         } else if (approachTarget != null) {
             // Podejście półtonem pod cel na nowym akordzie
             pitch = approachTarget + (rng.chance(0.5) ? -1 : 1);
@@ -993,35 +1042,96 @@ function emitSoloNotes(ctx, sectionStartBar, phraseBar, phraseBeat, notes, opts,
     }
 }
 
-/** Buduje pełny chorus solo dla wskazanego instrumentu. */
+/** Skraca rytm motywu do pierwszej połowy (fragmentacja). */
+function fragmentRhythm(rhythm) {
+    const half = Math.max(2, Math.ceil(rhythm.length / 2));
+    const cells = rhythm.slice(0, half).map(c => ({ ...c, final: false }));
+    cells[cells.length - 1] = { ...cells[cells.length - 1], final: true, dur: Math.max(1, cells[cells.length - 1].dur) };
+    return cells;
+}
+
+/**
+ * Buduje pełny chorus solo dla wskazanego instrumentu.
+ *
+ * Dramaturgia: pierwsza fraza staje się MOTYWEM (rytm + kontur interwałowy).
+ * Kolejne frazy z dużym prawdopodobieństwem rozwijają go klasycznymi
+ * technikami: powtórzenie w nowej harmonii, inwersja konturu, fragmentacja,
+ * przesunięcie rytmiczne. Frazy naprzemiennie pytają (finał na napięciu)
+ * i odpowiadają (finał na rozwiązaniu).
+ *
+ * @returns {{memory: Object, phrases: Array<{start: number, end: number}>}}
+ *   phrases - granice fraz w beatach sekcji (perkusja na nie odpowiada)
+ */
 function buildSoloChorus(ctx, section, localBars, opts) {
     const rng = ctx.rng;
     const totalBeats = section.bars * 4;
     const state = { lastPitch: null };
-    const memory = opts.memory || { rhythm: null };
+    const memory = opts.memory || { rhythm: null, contour: null };
+    const phrases = [];
+    let phraseIndex = 0;
     let pos = opts.leadIn ? 0 : rng.weighted([[2, 1], [3, 2], [2, 4]]);
 
     while (pos < totalBeats - 4) {
-        // Długość frazy i decyzja o recyklingu motywu (call & response)
-        let rhythm;
+        // Wybór materiału frazy: świeży albo rozwinięcie motywu
+        let rhythm = null;
+        let contour = null;
         const maxLen = Math.min(16, totalBeats - pos - 1);
-        if (memory.rhythm && rng.chance(0.45) && memory.rhythm[memory.rhythm.length - 1].off + 2 <= maxLen) {
-            rhythm = memory.rhythm;
+        const motifFits = memory.rhythm
+            && memory.rhythm[memory.rhythm.length - 1].off + 2 <= maxLen;
+
+        if (motifFits && rng.chance(0.55)) {
+            const development = rng.weighted([
+                [3, 'repeat'], [2, 'invert'], [2, 'fragment'], [2, 'displace']
+            ]);
+            switch (development) {
+                case 'repeat':
+                    rhythm = memory.rhythm;
+                    contour = memory.contour;
+                    break;
+                case 'invert':
+                    rhythm = memory.rhythm;
+                    contour = memory.contour ? memory.contour.map(x => -x) : null;
+                    break;
+                case 'fragment':
+                    rhythm = fragmentRhythm(memory.rhythm);
+                    contour = memory.contour ? memory.contour.slice(0, rhythm.length - 1) : null;
+                    break;
+                case 'displace':
+                    // Przesunięcie rytmiczne: ten sam motyw, wejście o pół
+                    // beatu/beat później - napięcie metryczne
+                    rhythm = memory.rhythm;
+                    contour = memory.contour;
+                    pos = Math.min(totalBeats - maxLen, pos + rng.pick([0.5, 1]));
+                    break;
+            }
         } else {
             const len = Math.min(maxLen, rng.weighted([[2, 6], [3, 8], [2.5, 12], [1.5, 16]]));
             rhythm = generatePhraseRhythm(rng, len, opts.density);
-            if (!memory.rhythm) memory.rhythm = rhythm;
         }
 
         const phraseBar = Math.floor(pos / 4);
         const phraseBeat = pos % 4;
         const bluesy = opts.allowBlues && rng.chance(0.35);
-        let notes = pitchPhrase(ctx, rhythm, phraseBar, phraseBeat, localBars, opts.register, state, bluesy);
+        const finalMode = phraseIndex % 2 === 0 ? 'tension' : 'resolve';
+        let notes = pitchPhrase(ctx, rhythm, phraseBar, phraseBeat, localBars,
+            opts.register, state, bluesy, { contour, finalMode });
+
+        // Pierwsza fraza chorusu zostaje motywem (rytm + kontur interwałów)
+        if (!memory.rhythm && notes.length >= 3) {
+            memory.rhythm = rhythm;
+            memory.contour = [];
+            for (let i = 1; i < notes.length; i++) {
+                memory.contour.push(notes[i].pitch - notes[i - 1].pitch);
+            }
+        }
+
         notes = licksifyNotes(ctx, notes, phraseBar, phraseBeat, localBars);
         notes = addDoubleTimeBursts(ctx, notes, opts.heat ? 0.25 : 0.1);
 
         const phraseLen = rhythm[rhythm.length - 1].off + 1;
         emitSoloNotes(ctx, section.startBar, phraseBar, phraseBeat, notes, opts, phraseLen);
+        phrases.push({ start: pos, end: pos + phraseLen });
+        phraseIndex++;
 
         pos += phraseLen;
         // Oddech między frazami - cisza jest częścią muzyki
@@ -1029,7 +1139,7 @@ function buildSoloChorus(ctx, section, localBars, opts) {
         // Wyrównanie do siatki ósemkowej
         pos = Math.round(pos * 2) / 2;
     }
-    return memory;
+    return { memory, phrases };
 }
 
 // ---------------------------------------------------------------------------
@@ -1201,7 +1311,7 @@ function buildRhythmSection(ctx, section, localBars, states, opts) {
 
         // Fortepian
         if (opts.pianoMode === 'shell') buildShellBar(ctx, section, barIdx, localBars, states.piano);
-        else if (opts.pianoMode !== 'off') buildCompingBar(ctx, section, barIdx, localBars, states.piano, opts.compDensity);
+        else if (opts.pianoMode !== 'off') buildCompingBar(ctx, section, barIdx, localBars, states.piano, opts.compDensity, opts.compOpts || {});
 
         // Perkusja
         if (ctx.feel === 'modal') buildModalDrumsBar(ctx, section, barIdx, opts.drumOpts || {});
@@ -1275,7 +1385,10 @@ export function generatePerformance(options = {}) {
     // Plan sekcji
     const plan = [];
     const introBars = ctx.bars.slice(Math.max(0, N - 4)); // ostatnie 4 takty formy jako intro
-    plan.push({ name: 'intro', label: 'Intro', bars: introBars.length, localBars: introBars });
+    // Wariant intro: sekcja rytmiczna na turnaroundzie albo sama perkusja
+    // (klasyczne "Philly Joe" - cztery takty bębnów przed tematem)
+    const introStyle = ctx.feel === 'swing' && rng.chance(0.3) ? 'drums' : 'rhythm';
+    plan.push({ name: 'intro', label: 'Intro', bars: introBars.length, localBars: introBars, introStyle });
     plan.push({ name: 'head', label: 'Temat', bars: N, localBars: ctx.bars });
     for (let c = 0; c < soloChoruses; c++) {
         plan.push({ name: 'trumpetSolo', label: `Solo trąbki${soloChoruses > 1 ? ` (${c + 1}/${soloChoruses})` : ''}`, bars: N, localBars: ctx.bars, chorusIdx: c });
@@ -1289,6 +1402,10 @@ export function generatePerformance(options = {}) {
         plan.push({ name: 'trading', label: 'Czwórki: trąbka i perkusja', bars: tradingBars, localBars: ctx.bars });
     }
     plan.push({ name: 'headOut', label: 'Temat (finał)', bars: N, localBars: ctx.bars });
+    // Tag: powtórzony turnaround przed kodą (klasyczne rozciągnięcie finału)
+    if (ctx.feel === 'swing' && rng.chance(0.5)) {
+        plan.push({ name: 'tag', label: 'Tag', bars: 2, localBars: ctx.bars.slice(N - 2) });
+    }
     plan.push({ name: 'coda', label: 'Koda', bars: 2, localBars: [[{ chord: ctx.tonic, beats: 4 }]] });
 
     // Stany voice leadingu / linii basu przenoszone między sekcjami
@@ -1316,10 +1433,18 @@ export function generatePerformance(options = {}) {
             case 'intro':
                 section.drumVel = 0.8;
                 section.pianoVel = 0.42;
-                buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'comp', compDensity: 0, bassMode: 'two',
-                    drumOpts: { sparse: true, quietSnare: true }
-                });
+                if (sec.introStyle === 'drums') {
+                    // Intro perkusyjne: cztery takty samych bębnów budujące puls
+                    section.drumVel = 0.95;
+                    for (let b = 0; b < section.bars; b++) {
+                        buildSwingDrumsBar(ctx, section, b, { heat: b >= section.bars - 2 ? 1 : 0 });
+                    }
+                } else {
+                    buildRhythmSection(ctx, section, sec.localBars, states, {
+                        pianoMode: 'comp', compDensity: 0, bassMode: 'two',
+                        drumOpts: { sparse: true, quietSnare: true }
+                    });
+                }
                 break;
 
             case 'head':
@@ -1336,15 +1461,19 @@ export function generatePerformance(options = {}) {
                 sectionDownbeat(ctx, section, sec.chorusIdx === 0 ? 0.5 : 0.42);
                 const heat = sec.chorusIdx; // drugi chorus intensywniejszy
                 section.drumVel = 1.0 + heat * 0.08;
-                buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'comp', compDensity: heat > 0 ? 2 : 1, drumOpts: { heat }
-                });
-                buildSoloChorus(ctx, section, sec.localBars, {
+                // Najpierw solista, potem sekcja - perkusja zna granice fraz
+                // i odpowiada na nie akcentami (interakcja zespołu)
+                const solo = buildSoloChorus(ctx, section, sec.localBars, {
                     kind: 'trumpet',
                     register: { ...REGISTERS.trumpetSolo, center: REGISTERS.trumpetSolo.center + heat * 2 },
                     density: 0.72 + heat * 0.08, vel: 0.5 + heat * 0.06, heat,
                     allowBlues: ctx.formName.includes('lues'),
                     memory: trumpetMemory, leadIn: heat > 0
+                });
+                buildRhythmSection(ctx, section, sec.localBars, states, {
+                    pianoMode: 'comp', compDensity: heat > 0 ? 2 : 1,
+                    compOpts: { altDominants: heat > 0 },
+                    drumOpts: { heat, soloPhrases: solo.phrases }
                 });
                 break;
             }
@@ -1354,15 +1483,16 @@ export function generatePerformance(options = {}) {
                 const heat = sec.chorusIdx;
                 // Za solo fortepianu perkusja schodzi ciszej, bas zostaje
                 section.drumVel = 0.82 + heat * 0.1;
-                buildRhythmSection(ctx, section, sec.localBars, states, {
-                    pianoMode: 'shell', drumOpts: { sparse: heat === 0, quietSnare: heat === 0, heat }
-                });
-                buildSoloChorus(ctx, section, sec.localBars, {
+                const solo = buildSoloChorus(ctx, section, sec.localBars, {
                     kind: 'pianoNote',
                     register: { ...REGISTERS.pianoSolo, center: REGISTERS.pianoSolo.center + heat * 2 },
                     density: 0.68 + heat * 0.1, vel: 0.48 + heat * 0.05, heat,
                     allowBlues: ctx.formName.includes('lues'),
                     memory: pianoMemory, leadIn: heat > 0
+                });
+                buildRhythmSection(ctx, section, sec.localBars, states, {
+                    pianoMode: 'shell',
+                    drumOpts: { sparse: heat === 0, quietSnare: heat === 0, heat, soloPhrases: solo.phrases }
                 });
                 // Tła sekcji dętej w gorętszym chorusie (krótkie formy)
                 if (heat > 0 && N <= 12) {
@@ -1383,6 +1513,14 @@ export function generatePerformance(options = {}) {
                     pianoMode: 'comp', compDensity: 1, drumOpts: { quietSnare: true }
                 });
                 if (theme) replayTheme(ctx, section, theme);
+                break;
+
+            case 'tag':
+                // Rozciągnięcie finału: sekcja rytmiczna raz jeszcze przez
+                // turnaround, z aktywniejszym compingiem
+                buildRhythmSection(ctx, section, sec.localBars, states, {
+                    pianoMode: 'comp', compDensity: 2, drumOpts: { heat: 1 }
+                });
                 break;
 
             case 'coda':

@@ -42,9 +42,33 @@ który generuje cały występ z góry, jako listę zdarzeń na wspólnej siatce 
   shimmer) z wariantami "ding ding-ga-ding", hi-hat nogą na 2 i 4, feathering
   stopy, comping werbla, fille na końcach fraz, solówki w czwórkach, crash na
   początkach chorusów.
+- **Rozwój motywiczny** — pierwsza fraza solówki staje się motywem (rytm +
+  kontur interwałowy), rozwijanym przez powtórzenie w nowej harmonii, inwersję,
+  fragmentację i przesunięcie rytmiczne; frazy naprzemiennie "pytają" (finał
+  na 9/b7) i "odpowiadają" (finał na 3/1/5).
+- **Interakcja zespołu** — perkusja zna granice fraz solisty: akcentuje ich
+  końce dzwonem ride'u i gra "setup" werbla przed wejściem kolejnej frazy;
+  w ostatnim chorusie comping przechodzi na alterowane dominanty.
+- **Warianty aranżu** — intro rytmiczne albo perkusyjne (4 takty samych
+  bębnów), opcjonalny tag (powtórzony turnaround) przed kodą.
 - **Wspólny swing** — jeden współczynnik swingu (zależny od tempa) stosowany do
   wszystkich instrumentów przy zamianie beatów na sekundy; do tego humanizacja
   timingu (kilka ms) i dynamiki.
+
+## Synteza (bez sampli)
+
+- **Kontrabas**: model fizyczny Karplus-Strong - pętla opóźnienia z tłumieniem
+  wzbudzana impulsem szumu, plus sub-sinus, rezonans pudła i tąpnięcie palca.
+- **Fortepian**: synteza addytywna - partiale o rozciągniętym stroju
+  (inharmoniczność struny), każdy z własnym wykładniczym zanikiem, rozstrojone
+  bliźniaki (dudnienie chóru strun) i szum młoteczka.
+- **Trąbka**: 2-operatorowa synteza FM (ratio 1:1) z kopertą indeksu modulacji
+  ("blask" rośnie z atakiem i dynamiką), waveshaper, kopertowany lowpass,
+  chiff oddechu, scoop i fall.
+- **Ride**: nieharmoniczne partiale talerza + wąskopasmowy shimmer + klik
+  pałki; osobny tryb dzwonu (bell) do akcentów.
+- **Miks**: rozstawienie stereo jak na scenie (fortepian z lewej, perkusja
+  z prawej, bas w centrum), kanałowe EQ, reverb i kompresja.
 
 Występ jest deterministyczny dla danego seeda, dzięki czemu da się go testować.
 

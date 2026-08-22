@@ -87,6 +87,7 @@ const viz = {
     freqData: null,
     canvas: null,
     cctx: null,
+    peaks: null,
     rafStarted: false
 };
 
@@ -153,8 +154,15 @@ function startVizLoop() {
     viz.rafStarted = true;
 
     const draw = () => {
+        // Pozycja w bieżącym występie liczona raz na klatkę
+        let pos = -1;
+        if (state.isPlaying && sequencer && performanceState.currentTotal > 0) {
+            pos = audioContext.currentTime - sequencer.startTime - sequencer.totalPausedTime
+                - performanceState.currentOffset;
+        }
         drawSpectrum();
-        updateTimelineProgress();
+        updateTimelineProgress(pos);
+        updateStripDisplays(pos);
         requestAnimationFrame(draw);
     };
     requestAnimationFrame(draw);
@@ -175,15 +183,83 @@ function drawSpectrum() {
     }
 
     viz.analyser.getByteFrequencyData(viz.freqData);
-    const bars = 56;
+    const points = 64;
     const usable = Math.floor(viz.freqData.length * 0.72); // ucinamy martwy szczyt pasma
-    const step = usable / bars;
-    const barW = w / bars;
-    for (let i = 0; i < bars; i++) {
+    const step = usable / points;
+    if (!viz.peaks || viz.peaks.length !== points) {
+        viz.peaks = new Float32Array(points);
+    }
+
+    // Wygładzona powierzchnia widma zamiast klocków
+    const xAt = i => (i / (points - 1)) * w;
+    const yAt = v => h - Math.max(1.5, v * v * h * 0.92);
+
+    cctx.beginPath();
+    cctx.moveTo(0, h);
+    for (let i = 0; i < points; i++) {
         const v = viz.freqData[Math.floor(i * step)] / 255;
-        const barH = Math.max(2, v * v * h * 0.95);
-        cctx.fillStyle = `rgba(200, 164, 92, ${0.18 + v * 0.62})`;
-        cctx.fillRect(i * barW + 1, h - barH, Math.max(1, barW - 2), barH);
+        cctx.lineTo(xAt(i), yAt(v));
+        // Peak-hold: znaczniki szczytów opadające powoli
+        if (v > viz.peaks[i]) viz.peaks[i] = v;
+        else viz.peaks[i] = Math.max(0, viz.peaks[i] - 0.007);
+    }
+    cctx.lineTo(w, h);
+    cctx.closePath();
+
+    const fill = cctx.createLinearGradient(0, 0, 0, h);
+    fill.addColorStop(0, 'rgba(224, 190, 116, 0.5)');
+    fill.addColorStop(0.65, 'rgba(200, 164, 92, 0.16)');
+    fill.addColorStop(1, 'rgba(200, 164, 92, 0.03)');
+    cctx.fillStyle = fill;
+    cctx.fill();
+
+    // Górna krawędź powierzchni
+    cctx.beginPath();
+    for (let i = 0; i < points; i++) {
+        const v = viz.freqData[Math.floor(i * step)] / 255;
+        if (i === 0) cctx.moveTo(xAt(i), yAt(v));
+        else cctx.lineTo(xAt(i), yAt(v));
+    }
+    cctx.strokeStyle = 'rgba(224, 190, 116, 0.85)';
+    cctx.lineWidth = Math.max(1, h / 60);
+    cctx.stroke();
+
+    // Znaczniki peak-hold
+    cctx.fillStyle = 'rgba(236, 233, 226, 0.35)';
+    const tick = Math.max(1, w / points * 0.5);
+    for (let i = 0; i < points; i++) {
+        if (viz.peaks[i] > 0.04) {
+            cctx.fillRect(xAt(i) - tick / 2, yAt(viz.peaks[i]) - 1, tick, 1.5);
+        }
+    }
+}
+
+/** Kropki metrum (1-2-3-4) i licznik czasu utworu. */
+function updateStripDisplays(pos) {
+    const dots = document.getElementById('beatDots');
+    const timeEl = document.getElementById('timeDisplay');
+
+    if (dots) {
+        let beatIdx = -1;
+        if (pos >= 0 && performanceState.beatDur) {
+            beatIdx = Math.floor(pos / performanceState.beatDur) % 4;
+        }
+        for (let i = 0; i < dots.children.length; i++) {
+            dots.children[i].classList.toggle('on', i === beatIdx);
+        }
+    }
+
+    if (timeEl) {
+        const fmt = s => {
+            const m = Math.floor(Math.max(0, s) / 60);
+            const sec = Math.floor(Math.max(0, s) % 60);
+            return `${m}:${String(sec).padStart(2, '0')}`;
+        };
+        if (pos >= 0) {
+            timeEl.textContent = `${fmt(pos)} · ${fmt(performanceState.currentTotal)}`;
+        } else {
+            timeEl.textContent = '0:00 · 0:00';
+        }
     }
 }
 
@@ -210,15 +286,9 @@ function renderTimeline(meta, totalSeconds) {
     }
 }
 
-function updateTimelineProgress() {
+function updateTimelineProgress(pos) {
     const el = document.getElementById('timeline');
     if (!el || !el.children.length) return;
-
-    let pos = -1;
-    if (state.isPlaying && sequencer && performanceState.currentTotal > 0) {
-        pos = audioContext.currentTime - sequencer.startTime - sequencer.totalPausedTime
-            - performanceState.currentOffset;
-    }
 
     for (const seg of el.children) {
         const start = parseFloat(seg.dataset.start);
@@ -436,6 +506,7 @@ function schedulePerformance() {
     performanceState.currentSeqId = seqId;
     performanceState.currentOffset = performanceState.nextOffset;
     performanceState.currentTotal = perf.totalSeconds;
+    performanceState.beatDur = 60 / perf.meta.tempo;
     performanceState.nextOffset += perf.totalSeconds + performanceState.gapBetween;
 
     // Oś struktury utworu + linia metadanych
@@ -483,7 +554,16 @@ function handlePerformanceEvent(time, ev) {
 
         // --- Perkusja ---
         case 'ride':
-            if (state.instruments.drums) inst.drums.playHiHat(time, ev.vel, true, { decay: 0.38, tone: 1.0 });
+            if (state.instruments.drums) {
+                if (inst.drums.playRide) inst.drums.playRide(time, ev.vel, { decay: 0.85 });
+                else inst.drums.playHiHat(time, ev.vel, true, { decay: 0.38, tone: 1.0 });
+            }
+            break;
+        case 'bell':
+            if (state.instruments.drums) {
+                if (inst.drums.playRide) inst.drums.playRide(time, ev.vel, { decay: 1.1, bell: true });
+                else inst.drums.playHiHat(time, ev.vel, true, { decay: 0.5, tone: 1.0 });
+            }
             break;
         case 'rideOpen':
             if (state.instruments.drums) inst.drums.playHiHat(time, ev.vel, true, { decay: 0.55, tone: 0.7 });
