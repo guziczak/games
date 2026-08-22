@@ -235,7 +235,16 @@ export function getChordFrequencies(chordName, octave = 4) {
     
     // Przebudowana logika określania interwałów
     if (chordType.includes('maj7#11')) {
-        intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.perfect5th, INTERVALS.major7th, INTERVALS.perfect11th * 1.02];
+        // #11 = tryton nad oktawą (2^(18/12)), nie "podstrojona" czysta undecyma
+        intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.perfect5th, INTERVALS.major7th, INTERVALS.tritone * 2];
+    } else if (chordType.includes('dim7')) {
+        // UWAGA: dim7 musi być sprawdzone przed "m7" i "7" ("dim7" zawiera oba)
+        intervals = [INTERVALS.unison, INTERVALS.minor3rd, INTERVALS.tritone, INTERVALS.major6th];
+    } else if (chordType.includes('dim')) {
+        intervals = [INTERVALS.unison, INTERVALS.minor3rd, INTERVALS.tritone];
+    } else if (chordType.includes('6/9')) {
+        // 6/9 przed gałęziami "9"/"6", żeby nie zostać dopasowanym jako dominanta
+        intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.perfect5th, INTERVALS.major6th, INTERVALS.major9th];
     } else if (chordType.includes('maj13')) {
         intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.perfect5th, INTERVALS.major7th, INTERVALS.major9th, INTERVALS.major13th];
     } else if (chordType.includes('maj11')) {
@@ -276,10 +285,6 @@ export function getChordFrequencies(chordName, octave = 4) {
         intervals = [INTERVALS.unison, INTERVALS.perfect4th, INTERVALS.perfect5th, INTERVALS.minor7th];
     } else if (chordType.includes('7')) {
         intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.perfect5th, INTERVALS.minor7th];
-    } else if (chordType.includes('dim7')) {
-        intervals = [INTERVALS.unison, INTERVALS.minor3rd, INTERVALS.tritone, INTERVALS.major6th];
-    } else if (chordType.includes('dim')) {
-        intervals = [INTERVALS.unison, INTERVALS.minor3rd, INTERVALS.tritone];
     } else if (chordType.includes('aug')) {
         intervals = [INTERVALS.unison, INTERVALS.major3rd, INTERVALS.minor6th];
     } else if (chordType.includes('sus4')) {
@@ -315,30 +320,34 @@ export function getScaleForChord(chordName) {
     
     // Domyślna skala
     let scale = SCALES.majorScale;
-    
-    // Wybór skali na podstawie typu akordu
+
+    // Wybór skali na podstawie typu akordu.
+    // Kolejność ma znaczenie: najbardziej szczegółowe wzorce jako pierwsze,
+    // bo "dim7" zawiera "m7", "m7b5" zawiera "m7", a "7b9" zawiera "7".
     if (chordType.includes('maj7#11')) {
         scale = SCALES.lydianScale;
-    } else if (chordType.includes('maj7') || chordType.includes('maj9') || chordType.includes('6')) {
-        scale = SCALES.majorScale; // Jońska
-    } else if (chordType.includes('m7') && !chordType.includes('m7b5')) {
-        scale = SCALES.dorianScale;
-    } else if (chordType.includes('7')) {
-        scale = SCALES.mixolydianScale;
-    } else if (chordType.includes('m7b5')) {
-        scale = SCALES.locrianScale;
     } else if (chordType.includes('dim')) {
         scale = SCALES.diminishedScale;
+    } else if (chordType.includes('m7b5')) {
+        scale = SCALES.locrianScale;
+    } else if (chordType.includes('7alt') || chordType.includes('7b9') || chordType.includes('7#9')) {
+        scale = SCALES.alteredScale;
+    } else if (chordType.includes('maj7') || chordType.includes('maj9')) {
+        scale = SCALES.majorScale; // Jońska
+    } else if (chordType.includes('m7')) {
+        scale = SCALES.dorianScale;
     } else if (chordType.includes('aug')) {
         scale = SCALES.wholeTone;
     } else if (chordType.includes('sus4')) {
         scale = SCALES.mixolydianScale;
-    } else if (chordType.includes('7alt') || chordType.includes('7b9') || chordType.includes('7#9')) {
-        scale = SCALES.alteredScale;
+    } else if (chordType.includes('7')) {
+        scale = SCALES.mixolydianScale;
+    } else if (chordType.includes('6')) {
+        scale = SCALES.majorScale;
     } else if (chordType.includes('m')) {
         scale = SCALES.minorScale; // Eolska
     }
-    
+
     return scale;
 }
 

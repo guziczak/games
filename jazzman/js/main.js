@@ -1,18 +1,16 @@
 /**
  * Super Jazzman 3.0 - Main Application
- * Główny plik, który integruje wszystkie moduły systemu
+ * Główny plik, który integruje wszystkie moduły systemu.
+ *
+ * Muzykę komponuje moduł jazzBrain (pełny występ: intro, temat, sola, koda),
+ * a main.js jedynie planuje gotowe zdarzenia w sekwencerze i gra je
+ * na instrumentach silnika audio - zawsze z czasem podanym przez sekwencer,
+ * żeby cały zespół trzymał wspólny groove.
  */
 
 import {
-    JAZZ_PROGRESSIONS,
-    JAZZ_CHORDS,
     NOTE_FREQUENCIES,
-    INTERVALS,
-    CHORD_COLORS,
-    getChordFrequencies,
-    generateMelodicPhrase,
-    generateWalkingBass,
-    parseChordName
+    CHORD_COLORS
 } from './modules/musicTheory.js';
 
 import {
@@ -25,33 +23,25 @@ import {
 
 import {
     JazzSequencer,
-    ConductorSequencer,
-    createDrumPatternForStyle,
-    createDrumDynamicVariant,
-    mixDrumPatterns
+    Sequence
 } from './modules/sequencer.js';
 
 import {
-    DynamicMixer,
-    MusicalDynamics
-} from './modules/dynamicMixer.js';
-
-import {
-    AutoJazz,
     createAutoJazz,
-    ImprovisationManager,
     PREDEFINED_MOODS
 } from './modules/autoJazz.js';
 
-// Import funkcji z nowego wspólnego modułu core.js
+import {
+    generatePerformance
+} from './modules/jazzBrain.js';
+
+// Import funkcji z wspólnego modułu core.js
 import {
     initializeAudioContext,
     displayError,
     updateStatus,
     createJazzEffect,
     getTempoForStyle,
-    updateButtonState,
-    detectBrowserCapabilities,
     getRandomItem,
     DEFAULT_TEMPO,
     DEFAULT_STYLE
@@ -61,20 +51,16 @@ import {
 let audioContext;
 let audioEngine;
 let sequencer;
-let conductor;
-let mixer;
 let autoJazz;
 let dynamicMixingSystem;
 
 // Stan aplikacji
 const state = {
     audioInitialized: false,
+    audioInitializing: false,
     isPlaying: false,
     tempo: DEFAULT_TEMPO,
-    complexity: 0.5,
     currentChord: null,
-    currentProgression: [],
-    progressionIndex: 0,
     currentMood: 'spokojny',
     style: DEFAULT_STYLE,
     autoJazzActive: false,
@@ -86,20 +72,31 @@ const state = {
     }
 };
 
+// Stan planowania występów (łańcuch: po kodzie zaczyna się kolejny utwór)
+const performanceState = {
+    current: null,        // meta bieżącego występu
+    currentSeqId: null,   // id sekwencji bieżącego występu
+    previousSeqId: null,  // id poprzedniej (do posprzątania)
+    nextOffset: 0,        // offset startu kolejnego występu (sekundy od startu sekwencera)
+    gapBetween: 1.2       // oddech między utworami
+};
+
+// Czytelne nazwy form dla paska statusu
+const FORM_LABELS = {
+    blues: 'blues 12-taktowy',
+    bebopBlues: 'bebop blues',
+    rhythm: 'rhythm changes (AABA)',
+    soWhat: 'forma modalna (AABA)',
+    fusionVamp: 'vamp fusion'
+};
+
 /**
  * Inicjalizacja aplikacji po załadowaniu strony
  */
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicjalizacja UI
     initializeUI();
-    
-    // Przypisanie obsługi zdarzeń
     setupEventListeners();
-    
-    // Inicjalizacja wizualizatora
     initializeVisualizer();
-    
-    // Aktualizacja statusu
     updateStatus("Kliknij AKTYWUJ JAZZOWE AUDIO, aby rozpocząć...");
 });
 
@@ -107,14 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
  * Inicjalizacja interfejsu użytkownika
  */
 function initializeUI() {
-    // Inicjalizacja sliderów i przycisków
     document.getElementById('tempoValue').textContent = `${state.tempo} BPM`;
     document.getElementById('tempo').value = state.tempo;
-    
-    // Animacja przycisku start
+
     document.getElementById('startButton').style.animation = 'pulse 1.5s infinite';
-    
-    // Ustaw domyślny nastrój
+
     state.currentMood = getRandomItem(Object.keys(PREDEFINED_MOODS));
     const moodDisplay = document.getElementById('moodDisplay');
     if (moodDisplay) {
@@ -126,12 +120,10 @@ function initializeUI() {
  * Inicjalizacja wizualizatora
  */
 function initializeVisualizer() {
-    const visualizerElement = document.getElementById('visualizer');
     const chordDisplayElement = document.getElementById('chordDisplay');
     const moodDisplayElement = document.getElementById('moodDisplay');
-    
-    if (visualizerElement && chordDisplayElement && moodDisplayElement) {
-        // Ustawienie początkowych wartości
+
+    if (chordDisplayElement && moodDisplayElement) {
         chordDisplayElement.textContent = '-';
         moodDisplayElement.textContent = state.currentMood;
     }
@@ -141,25 +133,20 @@ function initializeVisualizer() {
  * Obsługa zdarzeń
  */
 function setupEventListeners() {
-    // Główny przycisk
     document.getElementById('startButton').addEventListener('click', handleMainButtonClick);
-    
-    // Przyciski instrumentów
+
     document.getElementById('pianoToggle').addEventListener('click', () => toggleInstrument('piano'));
     document.getElementById('bassToggle').addEventListener('click', () => toggleInstrument('bass'));
     document.getElementById('drumsToggle').addEventListener('click', () => toggleInstrument('drums'));
     document.getElementById('trumpetToggle').addEventListener('click', () => toggleInstrument('trumpet'));
-    
-    // Przyciski stylu
+
     document.getElementById('styleSwing').addEventListener('click', () => setStyle('swing'));
     document.getElementById('styleBebop').addEventListener('click', () => setStyle('bebop'));
     document.getElementById('styleFusion').addEventListener('click', () => setStyle('fusion'));
     document.getElementById('styleModal').addEventListener('click', () => setStyle('modal'));
-    
-    // Suwak tempa
+
     document.getElementById('tempo').addEventListener('input', updateTempo);
-    
-    // Przycisk Auto-Jazz
+
     document.getElementById('autoJazzButton').addEventListener('click', toggleAutoJazz);
 }
 
@@ -168,10 +155,8 @@ function setupEventListeners() {
  */
 function handleMainButtonClick() {
     if (!state.audioInitialized) {
-        // Inicjalizacja audio
         initializeAudio();
     } else {
-        // Przełączenie odtwarzania
         togglePlayJazz();
     }
 }
@@ -180,11 +165,13 @@ function handleMainButtonClick() {
  * Inicjalizacja audio
  */
 async function initializeAudio() {
+    // Ochrona przed podwójnym kliknięciem w trakcie asynchronicznej inicjalizacji
+    if (state.audioInitializing) return;
+    state.audioInitializing = true;
+
     try {
-        // Aktualizacja statusu
         updateStatus("Inicjalizacja audio...");
 
-        // Tworzenie kontekstu audio przy użyciu funkcji z core.js
         audioContext = initializeAudioContext();
 
         if (!audioContext) {
@@ -195,25 +182,21 @@ async function initializeAudio() {
         // Inicjalizacja silnika audio - czekamy na asynchroniczną inicjalizację
         audioEngine = await createAudioEngine(audioContext);
 
-        // Uruchamiamy okresowe sprawdzanie dostępności AudioWorklet
+        // Okresowe sprawdzanie dostępności AudioWorklet
         setInterval(() => {
             if (audioEngine && audioEngine.checkWorkletTransition) {
                 audioEngine.checkWorkletTransition();
             }
-        }, 10000); // Co 10 sekund sprawdzamy czy możemy płynnie przejść na AudioWorklet
+        }, 10000);
 
-        // Inicjalizacja systemu miksowania dynamicznego
+        // System miksowania dynamicznego (nastroje sterują gainami miksera)
         dynamicMixingSystem = createDynamicMixingSystem(audioEngine);
 
-        // Inicjalizacja sekwencera
+        // Sekwencer
         sequencer = new JazzSequencer(audioContext);
         sequencer.setTempo(state.tempo);
 
-        // Inicjalizacja dyrygenta
-        conductor = new ConductorSequencer(audioContext);
-        conductor.setTempo(state.tempo);
-
-        // Inicjalizacja Auto-Jazz
+        // Auto-Jazz (steruje nastrojem i miksem w tle)
         autoJazz = createAutoJazz(audioEngine, dynamicMixingSystem, sequencer);
         autoJazz.init(
             document.getElementById('autoJazzProgress'),
@@ -221,26 +204,21 @@ async function initializeAudio() {
             document.getElementById('autoJazzButton')
         );
 
-        // Ustaw początkowy nastrój i styl
         dynamicMixingSystem.setMood(state.currentMood);
         dynamicMixingSystem.setStyle(state.style);
 
-        // Ustawienie stanu
         state.audioInitialized = true;
 
-        // Aktualizacja UI
         document.getElementById('startButton').textContent = "START JAZZU";
         document.getElementById('startButton').style.animation = '';
         updateStatus("Audio zainicjalizowane! Kliknij START, aby rozpocząć jazzowanie!");
 
-        console.log("Audio successfully initialized!");
-
-        // Odtwórz krótki dźwięk, aby przetestować audio
         playTestSound();
 
     } catch (error) {
         console.error("Błąd inicjalizacji audio:", error);
         displayError("Nie udało się zainicjalizować audio: " + error.message);
+        state.audioInitializing = false;
     }
 }
 
@@ -263,26 +241,21 @@ function startJazz() {
         updateStatus("Najpierw zainicjalizuj audio!");
         return;
     }
-    
-    // Aktualizacja UI
+
     document.getElementById('startButton').textContent = "STOP JAZZU";
     document.getElementById('startButton').classList.add('active');
-    
-    // Generuj nową progresję akordów
-    generateNewProgression();
-    
-    // Ustaw stan odtwarzania
+
     state.isPlaying = true;
-    state.progressionIndex = 0;
-    
-    // Uruchom sekwencer z zaplanowaną muzyką
-    scheduleMusic();
+
+    // Czysty start: nowy występ od zera
+    sequencer.clear();
+    performanceState.nextOffset = 0;
+    performanceState.currentSeqId = null;
+    performanceState.previousSeqId = null;
+
+    schedulePerformance();
     sequencer.start();
-    
-    // Aktualizuj status
-    updateStatus(`Gra: ${state.currentChord || 'ładowanie...'}; Nastrój: ${state.currentMood}`);
-    
-    // Efekt wizualny
+
     showJazzEffect();
 }
 
@@ -290,170 +263,152 @@ function startJazz() {
  * Zatrzymanie odtwarzania
  */
 function stopJazz() {
-    // Aktualizacja UI
     document.getElementById('startButton').textContent = "START JAZZU";
     document.getElementById('startButton').classList.remove('active');
-    
-    // Zatrzymaj sekwencer
+
     if (sequencer) {
-        sequencer.stop();
+        sequencer.clear();
     }
-    
-    // Ustaw stan
+
     state.isPlaying = false;
-    
-    // Wyczyść wizualizację
     clearVisualizer();
-    
-    // Aktualizuj status
     updateStatus("Zatrzymano. Kliknij START, aby kontynuować...");
 }
 
 /**
- * Planowanie sekwencji muzycznej
+ * Buduje sekwencję z pre-posortowanej listy zdarzeń występu.
+ * Omijamy Sequence.addEvent, bo sortuje listę po każdym dodaniu,
+ * a występ ma kilka tysięcy zdarzeń.
  */
-function scheduleMusic() {
-    if (!sequencer || state.currentProgression.length === 0) return;
-    
-    // Resetuj sekwencer
-    sequencer.reset();
-    
-    // Oblicz czas trwania taktu w sekundach
-    const beatsPerBar = 4; // Metrum 4/4
-    const secondsPerBeat = 60 / state.tempo;
-    const barDuration = beatsPerBar * secondsPerBeat;
-    
-    // Utwórz sekwencję akordów
-    const chordSequence = sequencer.createChordProgression(
-        state.currentProgression, 
-        1, // 1 takt na akord
-        (time, data) => {
-            // Callback dla każdego akordu
-            playJazzChord(data.chord, barDuration);
-            updateCurrentChord(data.chord);
-        }
+function buildPerformanceSequence(events) {
+    const sequence = new Sequence([], { loop: false });
+    sequence.events = events.map(ev => ({
+        time: ev.t,
+        callback: handlePerformanceEvent,
+        data: ev,
+        executed: false
+    }));
+    return sequence;
+}
+
+/**
+ * Generuje i planuje kolejny występ w łańcuchu.
+ */
+function schedulePerformance() {
+    const perf = generatePerformance({
+        style: state.style,
+        tempo: state.tempo
+    });
+
+    performanceState.current = perf.meta;
+
+    const sequence = buildPerformanceSequence(perf.events);
+    const seqId = sequencer.addSequence(sequence, performanceState.nextOffset);
+
+    performanceState.previousSeqId = performanceState.currentSeqId;
+    performanceState.currentSeqId = seqId;
+    performanceState.nextOffset += perf.totalSeconds + performanceState.gapBetween;
+
+    console.log(
+        `Jazzman: nowy występ - ${FORM_LABELS[perf.meta.form] || perf.meta.form}, ` +
+        `tonacja ${perf.meta.key}, ${perf.meta.tempo} BPM, ${perf.meta.totalBars} taktów`
     );
-    
-    // Utwórz sekwencję perkusyjną
-    const drumPattern = createDrumPatternForStyle(state.style, 2); // 2-taktowy wzór
-    const dynamicVariant = createDrumDynamicVariant(drumPattern, 'medium');
-    
-    const drumSequence = sequencer.createDrumPattern(
-        dynamicVariant,
-        2, // 2 takty wzorca
-        (time, data) => {
-            // Callback dla każdego uderzenia perkusji
-            if (state.instruments.drums) {
-                switch (data.type) {
-                    case 'kick':
-                        dynamicMixingSystem.player.playKick(time, data.velocity, data.options);
-                        break;
-                    case 'snare':
-                        dynamicMixingSystem.player.playSnare(time, data.velocity, data.options);
-                        break;
-                    case 'hihat':
-                        dynamicMixingSystem.player.playHiHat(time, data.velocity, data.options.open, data.options);
-                        break;
-                    case 'crash':
-                        audioEngine.instruments.drums.playCrash(time, data.velocity, data.options);
-                        break;
-                    case 'tom':
-                        audioEngine.instruments.drums.playTom(time, data.options.frequency, data.velocity, data.options);
-                        break;
-                }
-            }
-        }
-    );
-    
-    // Dodaj sekwencje do sekwencera
-    sequencer.addSequence(chordSequence);
-    sequencer.addSequence(drumSequence);
-    
-    // Jeśli autoJazz jest aktywny, zaktualizuj jego stan
-    if (state.autoJazzActive && autoJazz) {
-        autoJazz.updateCurrentProgression(state.currentProgression);
+}
+
+/**
+ * Wykonuje pojedyncze zdarzenie występu.
+ * KLUCZOWE: gramy z czasem podanym przez sekwencer (time), nigdy
+ * z audioContext.currentTime - inaczej zespół rozjeżdża się z perkusją.
+ */
+function handlePerformanceEvent(time, ev) {
+    if (!audioEngine) return;
+    const inst = audioEngine.instruments;
+
+    switch (ev.kind) {
+        // --- Sekcja rytmiczna i solisci ---
+        case 'piano':
+            if (state.instruments.piano) inst.piano.playChord(ev.freqs, time, ev.dur, ev.vel);
+            break;
+        case 'pianoNote':
+            if (state.instruments.piano) inst.piano.play(ev.freq, time, ev.dur, ev.vel);
+            break;
+        case 'bass':
+            if (state.instruments.bass) inst.bass.play(ev.freq, time, ev.dur, ev.vel);
+            break;
+        case 'trumpet':
+            if (state.instruments.trumpet) inst.trumpet.play(ev.freq, time, ev.dur, ev.vel, ev.opts || {});
+            break;
+
+        // --- Perkusja ---
+        case 'ride':
+            if (state.instruments.drums) inst.drums.playHiHat(time, ev.vel, true, { decay: 0.38, tone: 1.0 });
+            break;
+        case 'rideOpen':
+            if (state.instruments.drums) inst.drums.playHiHat(time, ev.vel, true, { decay: 0.55, tone: 0.7 });
+            break;
+        case 'hat':
+            if (state.instruments.drums) inst.drums.playHiHat(time, ev.vel, false, { decay: 0.04 });
+            break;
+        case 'kick':
+            if (state.instruments.drums) inst.drums.playKick(time, ev.vel, {});
+            break;
+        case 'snare':
+            if (state.instruments.drums) inst.drums.playSnare(time, ev.vel, {});
+            break;
+        case 'crash':
+            if (state.instruments.drums) inst.drums.playCrash(time, ev.vel, {});
+            break;
+        case 'tom':
+            if (state.instruments.drums) inst.drums.playTom(time, ev.freq, ev.vel, {});
+            break;
+
+        // --- Zdarzenia UI / sterujące ---
+        case 'chordDisplay':
+            updateCurrentChord(ev.name);
+            break;
+        case 'section':
+            updateSectionDisplay(ev.name);
+            break;
+        case 'end':
+            onPerformanceEnd();
+            break;
     }
 }
 
 /**
- * Odtwarzanie akordu jazzowego
- * @param {string} chordName - Nazwa akordu
- * @param {number} duration - Czas trwania w sekundach
+ * Po zakończonym występie planujemy kolejny (nowa forma/tonacja/temat).
  */
-function playJazzChord(chordName, duration) {
-    if (!audioEngine || !chordName) return;
-    
-    // Aktualizuj bieżący akord
-    state.currentChord = chordName;
-    updateChordDisplay(chordName);
-    
-    // Pobierz częstotliwości dla akordu
-    const frequencies = getChordFrequencies(chordName);
-    
-    // Czas aktualny
-    const now = audioContext.currentTime;
-    
-    // Odtwórz wszystkie instrumenty
-    if (state.instruments.piano) {
-        dynamicMixingSystem.player.playPianoChord(frequencies, now, duration);
+function onPerformanceEnd() {
+    if (!state.isPlaying) return;
+
+    // Sprzątamy sekwencję sprzed dwóch występów
+    if (performanceState.previousSeqId !== null) {
+        sequencer.removeSequence(performanceState.previousSeqId);
     }
-    
-    if (state.instruments.bass) {
-        // Odtwórz linię basową
-        const bassPattern = generateWalkingBass(chordName, 4, state.style);
-        
-        bassPattern.forEach(note => {
-            const noteTime = now + note.time * duration;
-            const noteDuration = note.duration * duration;
-            dynamicMixingSystem.player.playBass(note.frequency, noteTime, noteDuration, note.velocity);
-        });
-    }
-    
-    if (state.instruments.trumpet && Math.random() < 0.3) {
-        // Trąbka gra rzadziej - tylko z 30% prawdopodobieństwem
-        if (state.autoJazzActive && autoJazz) {
-            // Użyj Auto-Jazz do improwizacji
-            const trumpetImprov = autoJazz.generateTrumpetImprovisation(4, 5);
-            
-            if (trumpetImprov && trumpetImprov.length > 0) {
-                trumpetImprov.forEach(note => {
-                    const noteTime = now + note.time * duration;
-                    const noteDuration = note.duration * duration;
-                    dynamicMixingSystem.player.playTrumpet(
-                        note.frequency, 
-                        noteTime, 
-                        noteDuration, 
-                        note.velocity
-                    );
-                });
-            }
-        } else {
-            // Prosta improwizacja bez Auto-Jazz
-            const simpleImprov = generateMelodicPhrase(chordName, 3, 5);
-            
-            simpleImprov.forEach(note => {
-                const noteTime = now + note.time * duration;
-                const noteDuration = note.duration * duration;
-                dynamicMixingSystem.player.playTrumpet(
-                    note.frequency, 
-                    noteTime, 
-                    noteDuration, 
-                    note.velocity
-                );
-            });
-        }
-    }
+
+    schedulePerformance();
 }
 
 /**
- * Aktualizuje wyświetlanie aktualnego akordu
+ * Aktualizuje pasek statusu o bieżącą sekcję utworu
+ * @param {string} sectionName - Nazwa sekcji (Intro, Temat, Solo trąbki...)
+ */
+function updateSectionDisplay(sectionName) {
+    const meta = performanceState.current;
+    if (!meta) return;
+    const formLabel = FORM_LABELS[meta.form] || meta.form;
+    updateStatus(`▶ ${sectionName} — ${formLabel}, tonacja ${meta.key}, ${meta.tempo} BPM`);
+    showJazzEffect();
+}
+
+/**
+ * Aktualizuje bieżący akord (wyświetlacz + AutoJazz)
  * @param {string} chord - Nazwa akordu
  */
 function updateCurrentChord(chord) {
     state.currentChord = chord;
     updateChordDisplay(chord);
-    
-    // Aktualizuj AutoJazz
+
     if (state.autoJazzActive && autoJazz) {
         autoJazz.updateCurrentChord(chord);
     }
@@ -465,13 +420,12 @@ function updateCurrentChord(chord) {
  */
 function updateChordDisplay(chord) {
     if (!chord) return;
-    
+
     const chordDisplay = document.getElementById('chordDisplay');
     if (chordDisplay) {
         chordDisplay.textContent = chord;
         chordDisplay.style.color = getChordColor(chord);
-        
-        // Dodaj efekt pulsu
+
         chordDisplay.classList.add('pulse');
         setTimeout(() => chordDisplay.classList.remove('pulse'), 300);
     }
@@ -484,16 +438,17 @@ function updateChordDisplay(chord) {
  */
 function getChordColor(chordName) {
     if (!chordName) return 'hsl(60, 80%, 60%)'; // Domyślny złoty
-    
-    // Znajdź typ akordu
+
     let chordType = '';
-    
+
     if (chordName.includes('maj9')) {
         chordType = 'maj9';
     } else if (chordName.includes('maj7')) {
         chordType = 'maj7';
     } else if (chordName.includes('m7b5')) {
         chordType = 'm7b5';
+    } else if (chordName.includes('dim')) {
+        chordType = 'dim7';
     } else if (chordName.includes('m9')) {
         chordType = 'm9';
     } else if (chordName.includes('m7')) {
@@ -504,24 +459,22 @@ function getChordColor(chordName) {
         chordType = '13';
     } else if (chordName.includes('9')) {
         chordType = '9';
-    } else if (chordName.includes('7')) {
-        chordType = '7';
-    } else if (chordName.includes('dim')) {
-        chordType = 'dim7';
     } else if (chordName.includes('sus')) {
         chordType = 'sus4';
+    } else if (chordName.includes('7')) {
+        chordType = '7';
     } else if (chordName.includes('m6')) {
         chordType = 'm6';
     } else if (chordName.includes('6')) {
         chordType = '6';
     }
-    
+
     const color = CHORD_COLORS[chordType];
     if (color) {
         return `hsl(${color.h}, ${color.s}%, ${color.l}%)`;
     }
-    
-    return 'hsl(60, 80%, 60%)'; // Domyślny złoty
+
+    return 'hsl(60, 80%, 60%)';
 }
 
 /**
@@ -529,40 +482,44 @@ function getChordColor(chordName) {
  * @param {string} style - Styl muzyczny
  */
 function setStyle(style) {
-    // Aktualizuj stan
     state.style = style;
-    
-    // Aktualizuj przyciski
+
     document.getElementById('styleSwing').classList.toggle('active', style === 'swing');
     document.getElementById('styleBebop').classList.toggle('active', style === 'bebop');
     document.getElementById('styleFusion').classList.toggle('active', style === 'fusion');
     document.getElementById('styleModal').classList.toggle('active', style === 'modal');
-    
-    // Dostosuj tempo do stylu używając funkcji z core.js
+
+    // Dostosuj tempo do stylu
     const newTempo = getTempoForStyle(style);
-    
-    // Aktualizuj tempo
     document.getElementById('tempo').value = newTempo;
-    updateTempo();
-    
-    // Aktualizuj system dynamicznego miksowania
+    state.tempo = newTempo;
+    document.getElementById('tempoValue').textContent = `${state.tempo} BPM`;
+    if (sequencer) sequencer.setTempo(state.tempo);
+
     if (dynamicMixingSystem) {
         dynamicMixingSystem.setStyle(style);
     }
-    
-    // Aktualizuj Auto-Jazz
+
     if (autoJazz) {
         autoJazz.updateStyle(style);
     }
-    
-    // Generuj nową progresję akordów dopasowaną do stylu
-    generateNewProgression();
-    
-    // Jeśli odtwarzamy, zaktualizuj sekwencję
-    if (state.isPlaying) {
-        stopJazz();
-        startJazz();
-    }
+
+    // Nowy styl = nowy występ
+    restartIfPlaying();
+}
+
+// Restart z opóźnieniem, żeby przeciąganie suwaka tempa nie odpalało
+// dziesiątek restartów na sekundę
+let restartTimer = null;
+function restartIfPlaying() {
+    if (!state.isPlaying) return;
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(() => {
+        if (state.isPlaying) {
+            stopJazz();
+            startJazz();
+        }
+    }, 250);
 }
 
 /**
@@ -571,27 +528,16 @@ function setStyle(style) {
 function updateTempo() {
     state.tempo = parseInt(document.getElementById('tempo').value);
     document.getElementById('tempoValue').textContent = `${state.tempo} BPM`;
-    
-    // Aktualizuj sekwencer
+
     if (sequencer) {
         sequencer.setTempo(state.tempo);
     }
-    
-    // Aktualizuj dyrygenta
-    if (conductor) {
-        conductor.setTempo(state.tempo);
-    }
-    
-    // Aktualizuj Auto-Jazz
+
     if (autoJazz) {
         autoJazz.updateTempo(state.tempo);
     }
-    
-    // Jeśli odtwarzamy, uruchom ponownie
-    if (state.isPlaying) {
-        stopJazz();
-        startJazz();
-    }
+
+    restartIfPlaying();
 }
 
 /**
@@ -599,22 +545,18 @@ function updateTempo() {
  * @param {string} instrument - Nazwa instrumentu
  */
 function toggleInstrument(instrument) {
-    // Aktualizuj stan
     state.instruments[instrument] = !state.instruments[instrument];
-    
-    // Aktualizuj przycisk
+
     const button = document.getElementById(`${instrument}Toggle`);
     button.classList.toggle('active', state.instruments[instrument]);
-    
+
     const label = instrument.charAt(0).toUpperCase() + instrument.slice(1);
     button.textContent = `${label}: ${state.instruments[instrument] ? 'ON' : 'OFF'}`;
-    
-    // Aktualizuj mikser
+
     if (audioEngine && audioEngine.mixer) {
         audioEngine.mixer.setMute(instrument, !state.instruments[instrument]);
     }
-    
-    // Efekt wizualny
+
     showJazzEffect();
 }
 
@@ -623,49 +565,23 @@ function toggleInstrument(instrument) {
  */
 function toggleAutoJazz() {
     state.autoJazzActive = !state.autoJazzActive;
-    
+
     if (state.autoJazzActive) {
-        // Uruchom Auto-Jazz
         if (autoJazz) {
             autoJazz.start();
-            
-            // Jeśli nie odtwarzamy, uruchom odtwarzanie
+
             if (!state.isPlaying && state.audioInitialized) {
                 startJazz();
             }
         }
-        
+
         updateStatus(`Auto-Jazz WŁĄCZONY! Nastrój: ${state.currentMood}`);
     } else {
-        // Zatrzymaj Auto-Jazz
         if (autoJazz) {
             autoJazz.stop();
         }
-        
-        updateStatus(`Auto-Jazz wyłączony. Nastrój: ${state.currentMood}`);
-    }
-}
 
-/**
- * Generowanie nowej progresji akordów
- */
-function generateNewProgression() {
-    // Wybierz progresję odpowiednią dla stylu
-    const progressions = JAZZ_PROGRESSIONS[state.style] || JAZZ_PROGRESSIONS.swing;
-    
-    // Wybierz losową progresję z listy
-    const randomIndex = Math.floor(Math.random() * progressions.length);
-    state.currentProgression = [...progressions[randomIndex]];
-    
-    console.log(`Nowa progresja (${state.style}):`, state.currentProgression);
-    
-    // Resetuj indeks
-    state.progressionIndex = 0;
-    
-    // Jeśli odtwarzamy, zaktualizuj sekwencję
-    if (state.isPlaying && sequencer) {
-        stopJazz();
-        startJazz();
+        updateStatus(`Auto-Jazz wyłączony. Nastrój: ${state.currentMood}`);
     }
 }
 
@@ -673,7 +589,6 @@ function generateNewProgression() {
  * Efekt wizualny dla akcji jazzowych
  */
 function showJazzEffect() {
-    // Używamy funkcji z modułu core.js
     createJazzEffect('notesAnimation', 10);
 }
 
@@ -692,11 +607,9 @@ function clearVisualizer() {
  */
 function playTestSound() {
     if (!audioEngine || !audioContext) return;
-    
-    // Odtwórz krótki akord testowy
+
     const time = audioContext.currentTime;
-    
-    // Prosta sekwencja C Major
+
     if (audioEngine.instruments.piano) {
         audioEngine.instruments.piano.playChord([
             NOTE_FREQUENCIES.C * 2,
@@ -704,12 +617,9 @@ function playTestSound() {
             NOTE_FREQUENCIES.G * 2
         ], time, 1.0, 0.5);
     }
-    
-    // Efekt wizualny
+
     showJazzEffect();
 }
-
-// updateStatus, displayError i getRandomItem są importowane z core.js
 
 /**
  * Zmiana nastroju muzycznego
@@ -717,19 +627,16 @@ function playTestSound() {
  */
 function changeMood(mood) {
     state.currentMood = mood;
-    
-    // Aktualizuj wyświetlanie
+
     const moodDisplay = document.getElementById('moodDisplay');
     if (moodDisplay) {
         moodDisplay.textContent = mood;
     }
-    
-    // Aktualizuj system dynamicznego miksowania
+
     if (dynamicMixingSystem) {
         dynamicMixingSystem.setMood(mood);
     }
-    
-    // Aktualizuj Auto-Jazz
+
     if (autoJazz) {
         autoJazz.updateMood(mood);
     }
@@ -744,9 +651,38 @@ function changeRandomMood() {
     changeMood(newMood);
 }
 
-// Eksport funkcji dla wywołania z innych modułów
-window.setStyle = setStyle;
-window.updateTempo = updateTempo;
-window.generateNewProgression = generateNewProgression;
+/**
+ * Warianty zmian dla AutoJazz: bez restartu w środku utworu.
+ * Nowe tempo/styl wchodzi w życie od następnego występu (onPerformanceEnd
+ * czyta state.* przy generowaniu), dzięki czemu forma utworu się nie łamie.
+ */
+function requestTempoChangeFromAutoJazz() {
+    state.tempo = parseInt(document.getElementById('tempo').value);
+    document.getElementById('tempoValue').textContent = `${state.tempo} BPM`;
+    if (sequencer) {
+        sequencer.setTempo(state.tempo);
+    }
+}
+
+function requestStyleChangeFromAutoJazz(style) {
+    // AutoJazz zna style spoza UI - mapujemy je na najbliższy odpowiednik
+    const styleMap = { bossaNova: 'fusion', coolJazz: 'swing' };
+    const mapped = styleMap[style] || style;
+    if (!['swing', 'bebop', 'fusion', 'modal'].includes(mapped)) return;
+
+    state.style = mapped;
+    document.getElementById('styleSwing').classList.toggle('active', mapped === 'swing');
+    document.getElementById('styleBebop').classList.toggle('active', mapped === 'bebop');
+    document.getElementById('styleFusion').classList.toggle('active', mapped === 'fusion');
+    document.getElementById('styleModal').classList.toggle('active', mapped === 'modal');
+
+    if (dynamicMixingSystem) {
+        dynamicMixingSystem.setStyle(mapped);
+    }
+}
+
+// Eksport funkcji dla wywołania z innych modułów (AutoJazz używa tych hooków)
+window.setStyle = requestStyleChangeFromAutoJazz;
+window.updateTempo = requestTempoChangeFromAutoJazz;
 window.createJazzEffect = createJazzEffect;
 window.changeRandomMood = changeRandomMood;

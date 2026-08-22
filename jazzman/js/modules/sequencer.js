@@ -124,6 +124,7 @@ export class JazzSequencer {
         this.pauseStartTime = 0;
         this.tempo = 120;
         this.nextNoteTime = 0;
+        this.nextSequenceId = 0;
         this.onTick = null;
         this.onBeat = null;
         this.onBar = null;
@@ -144,13 +145,29 @@ export class JazzSequencer {
      * @returns {number} Indeks dodanej sekwencji
      */
     addSequence(sequence, startTime = 0) {
-        const id = this.sequences.length;
-        this.sequences.push({
+        const id = this.nextSequenceId++;
+        const entry = {
             sequence,
             startTime,
             id
-        });
+        };
+        this.sequences.push(entry);
+        // Sekwencja dodana w trakcie odtwarzania musi od razu trafić do aktywnych
+        if (this.isPlaying) {
+            this.activeSequences.push(entry);
+        }
         return id;
+    }
+
+    /**
+     * Usuwa wszystkie sekwencje i resetuje stan czasowy sekwencera
+     */
+    clear() {
+        this.stop();
+        this.sequences = [];
+        this.activeSequences = [];
+        this.startTime = 0;
+        this.totalPausedTime = 0;
     }
     
     /**
@@ -161,6 +178,10 @@ export class JazzSequencer {
         const index = this.sequences.findIndex(s => s.id === id);
         if (index !== -1) {
             this.sequences.splice(index, 1);
+        }
+        const activeIndex = this.activeSequences.findIndex(s => s.id === id);
+        if (activeIndex !== -1) {
+            this.activeSequences.splice(activeIndex, 1);
         }
     }
     
@@ -253,8 +274,9 @@ export class JazzSequencer {
         // Planujemy wydarzenia do czasu lookAheadTime w przyszłości
         const endTime = currentTime + this.lookAheadTime;
         
-        // Przetwarzamy wszystkie aktywne sekwencje
-        this.activeSequences.forEach((sequenceData, index) => {
+        // Przetwarzamy wszystkie aktywne sekwencje (kopia, bo lista może się zmieniać)
+        const finishedIds = [];
+        this.activeSequences.slice().forEach((sequenceData) => {
             const { sequence, startTime } = sequenceData;
             const sequenceStartTime = this.startTime + startTime + this.totalPausedTime;
             
@@ -301,13 +323,17 @@ export class JazzSequencer {
                     // Sprawdzamy, czy wszystkie wydarzenia zostały wykonane
                     const allExecuted = sequence.events.every(event => event.executed);
                     if (allExecuted && !sequence.options.loop) {
-                        // Jeśli wszystkie wydarzenia zostały wykonane i sekwencja nie jest zapętlona,
-                        // usuwamy ją z aktywnych sekwencji
-                        this.activeSequences.splice(index, 1);
+                        // Jeśli wszystkie wydarzenia zostały wykonane i sekwencja nie jest
+                        // zapętlona, oznaczamy ją do usunięcia z aktywnych
+                        finishedIds.push(sequenceData.id);
                     }
                 }
             }
         });
+
+        if (finishedIds.length > 0) {
+            this.activeSequences = this.activeSequences.filter(s => !finishedIds.includes(s.id));
+        }
         
         // Jeśli nadal odtwarzamy, planujemy kolejną iterację
         if (this.isPlaying) {
